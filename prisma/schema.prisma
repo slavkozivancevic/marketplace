@@ -1,0 +1,190 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SELLER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  clerkUserId  String   @unique
+  email        String   @unique
+  name         String?
+  imageUrl     String?
+  role         UserRole @default(USER)
+  deletedAt    DateTime?
+
+  memberships  Membership[]
+
+  createdProducts Product[] @relation("ProductCreatedBy")
+  updatedProducts Product[] @relation("ProductUpdatedBy")
+
+  updatedHistories ProductHistory[] @relation("ProductHistoryUpdatedBy")
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Organization {
+  id   String @id @default(uuid())
+  name String
+
+  verified Boolean @default(false)
+
+  members  Membership[]
+  products Product[]
+}
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model Membership {
+  id String @id @default(uuid())
+
+  userId String
+  orgId  String
+
+  role MembershipRole
+
+  user         User         @relation(fields: [userId], references: [id])
+  organization Organization @relation(fields: [orgId], references: [id])
+
+  @@unique([userId, orgId])
+  @@index([orgId])
+}
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Product {
+  id          String @id @default(uuid())
+
+  title       String
+  description String
+  price Decimal @db.Decimal(10,2)
+
+  status ProductStatus @default(DRAFT)
+
+  organizationId String
+
+  createdById String?
+  updatedById String?
+
+  version   Int      @default(1)
+
+  images ProductImage[]
+
+  variants ProductVariant[]
+  options  VariantOption[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  createdBy User? @relation("ProductCreatedBy", fields: [createdById], references: [id])
+  updatedBy User? @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
+
+  histories ProductHistory[]
+
+  @@index([organizationId, deletedAt])
+  @@index([organizationId, status])
+  @@index([organizationId, title])
+  @@index([organizationId, status, deletedAt])
+}
+
+model ProductHistory {
+  id        String   @id @default(uuid())
+  productId String
+  version   Int
+  title     String
+  description String
+  price     Decimal @db.Decimal(10,2)
+  status    ProductStatus
+  updatedById String?
+  createdAt DateTime @default(now())
+  product  Product @relation(fields: [productId], references: [id])
+  updatedBy User? @relation("ProductHistoryUpdatedBy", fields: [updatedById], references: [id])
+  @@index([productId])
+  @@index([version])
+}
+
+model ProductVariant {
+  id String @id @default(uuid())
+  productId String
+  sku   String
+  price Decimal @db.Decimal(10,2)
+  stock Int     @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  optionValues VariantOptionValue[]
+  @@index([productId])
+  @@unique([productId, sku])
+}
+
+model VariantOption {
+  id String @id @default(uuid())
+  productId String
+  name String
+  createdAt DateTime @default(now())
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  values VariantOptionValue[]
+  @@index([productId])
+}
+
+model VariantOptionValue {
+  id String @id @default(uuid())
+  optionId  String
+  variantId String
+  value String
+  option  VariantOption  @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  @@index([variantId])
+  @@index([optionId])
+}
+
+model ProductImage {
+  id String @id @default(uuid())
+
+  productId String
+
+  url String
+  key String
+
+  order Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, order])
+  @@unique([productId, key])
+}
+
+model WebhookEvent {
+  id String @id
+  type String
+  processedAt DateTime?
+}
