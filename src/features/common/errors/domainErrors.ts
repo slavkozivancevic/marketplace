@@ -1,3 +1,5 @@
+import { ActionErrorResult } from "@/types/types";
+
 export class ForbiddenError extends Error {
   constructor(message = "Forbidden") {
     super(message);
@@ -54,7 +56,7 @@ export class ImageProcessorError extends Error {
   }
 }
 
-export function handleActionError(error: unknown) {
+export function handleActionError(error: unknown): ActionErrorResult {
   if (error instanceof ForbiddenError) {
     return { error: true, message: error.message };
   }
@@ -88,4 +90,15 @@ export function handleActionError(error: unknown) {
   }
 
   return { error: true, message: "Internal error" };
+}
+
+export function isActionErrorResult(
+  result: unknown,
+): result is { error: true; message: string } {
+  return (
+    typeof result === "object" &&
+    result !== null &&
+    "error" in result &&
+    (result as { error: unknown }).error === true
+  );
 }

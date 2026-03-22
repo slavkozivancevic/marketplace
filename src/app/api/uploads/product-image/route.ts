@@ -19,13 +19,13 @@ export async function POST(req: Request) {
       );
     }
 
-    const { url, key } = await createPresignedUploadUrl(
+    const { key, url } = await createPresignedUploadUrl(
       ctx.organizationId,
       contentType,
       size,
     );
 
-    return NextResponse.json({ error: false, url, key });
+    return NextResponse.json({ error: false, data: { key, url } });
   } catch (err: unknown) {
     return NextResponse.json(handleActionError(err), { status: 400 });
   }

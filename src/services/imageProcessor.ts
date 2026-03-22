@@ -1,9 +1,10 @@
 import { s3, S3_BUCKET } from "./s3";
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import sharp from "sharp";
 import { ImageInput, ImageProcessingResult } from "@/types/types";
 import { ImageProcessorError } from "@/features/common/errors/domainErrors";
-import { env } from "@/env/server";
+// import { env } from "@/env/server";
 
 export async function processImage({
   key,
@@ -38,11 +39,35 @@ export async function processImage({
       }),
     );
 
-    const region: string = env.AWS_REGION!;
-    const originalUrl = `https://${S3_BUCKET}.s3.${region}.amazonaws.com/${key}`;
-    const thumbnailUrl = `https://${S3_BUCKET}.s3.${region}.amazonaws.com/${thumbKey}`;
+    // Signed GET URL za original
+    const originalGetCommand = new GetObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: key,
+    });
+    const originalDownloadUrl = await getSignedUrl(s3, originalGetCommand, {
+      expiresIn: 3600,
+    });
 
-    return { originalUrl, thumbnailUrl, key, thumbKey };
+    // Signed GET URL za thumbnail
+    const thumbGetCommand = new GetObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: thumbKey,
+    });
+    const thumbnailDownloadUrl = await getSignedUrl(s3, thumbGetCommand, {
+      expiresIn: 3600,
+    });
+
+    return {
+      key,
+      thumbKey,
+      originalDownloadUrl,
+      thumbnailDownloadUrl,
+    };
+    // const region: string = env.AWS_REGION!;
+    // const originalUrl = `https://${S3_BUCKET}.s3.${region}.amazonaws.com/${key}`;
+    // const thumbnailUrl = `https://${S3_BUCKET}.s3.${region}.amazonaws.com/${thumbKey}`;
+
+    // return { originalUrl, thumbnailUrl, key, thumbKey };
   } catch (err) {
     if (err instanceof Error) {
       throw new ImageProcessorError(err.message);

@@ -20,7 +20,7 @@ export async function POST(req: Request) {
 
     const result = await processImage({ key });
 
-    return NextResponse.json({ error: false, ...result });
+    return NextResponse.json({ error: false, data: result });
   } catch (err: unknown) {
     return NextResponse.json(handleActionError(err), { status: 400 });
   }

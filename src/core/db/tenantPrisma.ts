@@ -83,7 +83,7 @@ export function tenantPrisma({
 
       async update(
         id: string,
-        version: number,
+        version: number | undefined,
         data: Partial<{
           title: string;
           description: string;
@@ -113,7 +113,7 @@ export function tenantPrisma({
           throw new ConcurrencyConflictError();
         }
 
-        return prisma.product.findFirstOrThrow({
+        const updated = prisma.product.findFirstOrThrow({
           where: {
             id,
             organizationId,
@@ -121,6 +121,12 @@ export function tenantPrisma({
             version: version + 1,
           },
         });
+
+        if (!updated) {
+          throw new NotFoundError(`Product ${id} not found after update`);
+        }
+
+        return updated;
       },
 
       async delete(id: string) {
@@ -132,6 +138,7 @@ export function tenantPrisma({
           },
           data: {
             deletedAt: new Date(),
+            updatedById: userId,
           },
         });
 
@@ -179,6 +186,7 @@ export function tenantPrisma({
         await prisma.productVariant.delete({ where: { id } });
       },
     },
+
     option: {
       async findMany(productId: string) {
         return prisma.variantOption.findMany({
@@ -189,7 +197,11 @@ export function tenantPrisma({
 
       async findUnique(id: string) {
         const option = await prisma.variantOption.findFirst({ where: { id } });
-        if (!option) throw new NotFoundError(`Option ${id} not found`);
+
+        if (!option) {
+          throw new NotFoundError(`Option ${id} not found`);
+        }
+
         return option;
       },
 
@@ -214,7 +226,11 @@ export function tenantPrisma({
         const value = await prisma.variantOptionValue.findFirst({
           where: { id },
         });
-        if (!value) throw new NotFoundError(`OptionValue ${id} not found`);
+
+        if (!value) {
+          throw new NotFoundError(`OptionValue ${id} not found`);
+        }
+
         return value;
       },
 

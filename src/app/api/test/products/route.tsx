@@ -14,14 +14,17 @@ export async function GET() {
     const products = await repo.getAll();
 
     return NextResponse.json({
-      products,
-      organizationId: ctx.organizationId,
+      error: false,
+      data: {
+        products,
+        organizationId: ctx.organizationId,
+      },
     });
   } catch (error: unknown) {
     console.error("Products API error:", error);
 
     return NextResponse.json(
-      { error: (error as Error).message || "Internal error" },
+      { error: true, message: (error as Error).message || "Internal error" },
       { status: 400 },
     );
   }

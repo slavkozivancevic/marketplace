@@ -1,4 +1,4 @@
-import { MembershipRole, UserRole } from "@/generated/prisma/client";
+import { MembershipRole, Prisma, UserRole } from "@/generated/prisma/client";
 
 export type RequestContext = {
   clerkUserId: string;
@@ -55,13 +55,61 @@ export type VariantOptionInput = {
 // };
 
 export type ImageProcessingResult = {
-  originalUrl: string;
-  thumbnailUrl: string;
   key: string;
   thumbKey: string;
+  originalDownloadUrl: string;
+  thumbnailDownloadUrl: string;
+  error?: boolean;
 };
 
-export type PresignedUpload = {
-  url: string;
+export type PresignedUploadedImage = {
   key: string;
+  url: string;
+
+  downloadUrl?: string;
+
+  progress?: number;
+  error?: boolean;
 };
+
+export type CreateProductImageUploadResponse = {
+  error: boolean;
+  message?: string;
+  data: {
+    key: string;
+    url: string;
+  };
+};
+
+export type ProcessProductImageResponse = {
+  error: boolean;
+  message?: string;
+  data: ImageProcessingResult;
+};
+
+export type ActionErrorResult = {
+  error: boolean;
+  message: string;
+};
+
+export type ProductWithRelations = Prisma.ProductGetPayload<{
+  include: {
+    images: true;
+    variants: {
+      include: {
+        optionValues: true;
+      };
+    };
+    options: {
+      include: {
+        values: true;
+      };
+    };
+  };
+}>;
+
+export type ProductListItem = Prisma.ProductGetPayload<{
+  include: {
+    images: true;
+  };
+}>;

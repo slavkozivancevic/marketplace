@@ -2,11 +2,18 @@ import { tenantPrisma } from "@/core/db/tenantPrisma";
 import { revalidateProductCache } from "./cache";
 import {
   ImageInput,
+  ProductListItem,
   ProductVariantInput,
+  ProductWithRelations,
   RequestContext,
   VariantOptionInput,
 } from "@/types/types";
-import { Prisma, ProductStatus } from "@/generated/prisma/client";
+import {
+  Prisma,
+  Product,
+  ProductHistory,
+  ProductStatus,
+} from "@/generated/prisma/client";
 import {
   ConcurrencyConflictError,
   NotFoundError,
@@ -102,6 +109,7 @@ async function syncVariants(
 
   for (const variant of variants) {
     const existingVariant = existingMap.get(variant.sku);
+
     if (existingVariant) {
       await tx.productVariant.update({
         where: { id: existingVariant.id },
@@ -126,6 +134,23 @@ async function syncVariants(
   }
 }
 
+function resolveVariantIdForOptionValue(
+  optionName: string,
+  optionValue: string,
+  variants: ProductVariantInput[],
+): string | undefined {
+  for (const variant of variants) {
+    if (
+      variant.options?.some(
+        (o) => o.name === optionName && o.value === optionValue,
+      )
+    ) {
+      return variant.id;
+    }
+  }
+  return undefined;
+}
+
 async function syncOptions(
   tx: Prisma.TransactionClient,
   productId: string,
@@ -142,6 +167,7 @@ async function syncOptions(
   const toDelete = existingOptions.filter(
     (o) => !incomingOptionNames.has(o.name),
   );
+
   for (const del of toDelete) {
     await tx.variantOptionValue.deleteMany({ where: { optionId: del.id } });
     await tx.variantOption.delete({ where: { id: del.id } });
@@ -149,6 +175,7 @@ async function syncOptions(
 
   for (const option of options) {
     let optionId = existingMap.get(option.name)?.id;
+
     if (!optionId) {
       const createdOption = await tx.variantOption.create({
         data: { productId, name: option.name },
@@ -165,25 +192,36 @@ async function syncOptions(
     const toDeleteValues = existingValues.filter(
       (v) => !incomingValues.has(v.value),
     );
-    await tx.variantOptionValue.deleteMany({
-      where: { id: { in: toDeleteValues.map((v) => v.id) } },
-    });
+
+    if (toDeleteValues.length > 0) {
+      await tx.variantOptionValue.deleteMany({
+        where: { id: { in: toDeleteValues.map((v) => v.id) } },
+      });
+    }
 
     for (const val of option.values) {
-      if (!existingValueMap.has(val)) {
-        let variantId: string | undefined;
-        for (const variant of variants) {
-          if (
-            variant.options?.some(
-              (o) => o.name === option.name && o.value === val,
-            )
-          ) {
-            variantId = variant.id;
-            break;
-          }
+      const variantId = resolveVariantIdForOptionValue(
+        option.name,
+        val,
+        variants,
+      );
+
+      if (!variantId) {
+        continue;
+      }
+
+      const existingValue = existingValueMap.get(val);
+
+      if (existingValue) {
+        if (existingValue.variantId !== variantId) {
+          await tx.variantOptionValue.update({
+            where: { id: existingValue.id },
+            data: { variantId },
+          });
         }
+      } else {
         await tx.variantOptionValue.create({
-          data: { optionId, value: val, variantId: variantId! },
+          data: { optionId, value: val, variantId },
         });
       }
     }
@@ -200,17 +238,25 @@ export function productRepository(ctx: RequestContext) {
   type SortOrder = "asc" | "desc";
 
   return {
-    async getById(id: string) {
+    // READ
+    async getById(id: string): Promise<ProductWithRelations | null> {
       // "use cache";
-
       // cacheTag(getProductGlobalTag(db.organizationId));
       // cacheTag(getProductIdTag(db.organizationId, id));
 
-      return db.product.findFirst({
-        where: { id },
+      return db.prisma.product.findFirst({
+        where: {
+          id,
+          organizationId: ctx.organizationId,
+          deletedAt: null,
+        },
         include: {
           images: true,
-          variants: true,
+          variants: {
+            include: {
+              optionValues: true,
+            },
+          },
           options: { include: { values: true } },
         },
       });
@@ -227,21 +273,29 @@ export function productRepository(ctx: RequestContext) {
       search?: string;
       sortBy?: SortField;
       sortOrder?: SortOrder;
-    }) {
+    }): Promise<{
+      products: ProductListItem[];
+      nextCursor?: string;
+    }> {
       // "use cache";
-
       // cacheTag(getProductGlobalTag(db.organizationId));
 
       const take = params?.take ?? 20;
       const cursor = params?.cursor;
-      const where: Prisma.ProductWhereInput = { deletedAt: null };
+
+      const where: Prisma.ProductWhereInput = {
+        organizationId: ctx.organizationId,
+        deletedAt: null,
+      };
 
       if (params?.status) where.status = params.status;
-      if (params?.minPrice || params?.maxPrice) {
+
+      if (params?.minPrice != null || params?.maxPrice != null) {
         where.price = {};
         if (params.minPrice != null) where.price.gte = params.minPrice;
         if (params.maxPrice != null) where.price.lte = params.maxPrice;
       }
+
       if (params?.createdBy) where.createdById = params.createdBy;
       if (params?.updatedBy) where.updatedById = params.updatedBy;
 
@@ -252,14 +306,11 @@ export function productRepository(ctx: RequestContext) {
         ];
       }
 
-      const orderBy: Prisma.ProductOrderByWithRelationInput = {};
-      if (params?.sortBy) {
-        orderBy[params.sortBy] = params.sortOrder ?? "asc";
-      } else {
-        orderBy.createdAt = "desc";
-      }
+      const orderBy: Prisma.ProductOrderByWithRelationInput[] = params?.sortBy
+        ? [{ [params.sortBy]: params.sortOrder ?? "asc" }, { id: "asc" }]
+        : [{ createdAt: "desc" }, { id: "asc" }];
 
-      const products = await db.product.findMany({
+      const products = await db.prisma.product.findMany({
         where,
         orderBy,
         take: take + 1,
@@ -270,17 +321,64 @@ export function productRepository(ctx: RequestContext) {
             take: 1,
             orderBy: { order: "asc" },
           },
+          // variants: true,
+          // options: { include: { values: true } },
         },
       });
 
-      let nextCursor: string | undefined = undefined;
+      let nextCursor: string | undefined;
       if (products.length > take) {
-        nextCursor = products.pop()!.id;
+        const nextItem = products.pop();
+        nextCursor = nextItem?.id;
       }
 
-      return { products, nextCursor };
+      return {
+        products,
+        nextCursor,
+      };
     },
 
+    async getHistory(productId: string): Promise<ProductHistory[]> {
+      // "use cache";
+      // cacheTag(getProductGlobalTag(db.organizationId));
+      // cacheTag(getProductIdTag(db.organizationId, productId));
+      return db.prisma.productHistory.findMany({
+        where: {
+          productId,
+          product: {
+            organizationId: ctx.organizationId,
+            deletedAt: null,
+          },
+        },
+        orderBy: { version: "desc" },
+        // include: { updatedBy: true },
+      });
+    },
+
+    async previewVersion(productId: string, version: number) {
+      // "use cache";
+      // cacheTag(getProductGlobalTag(db.organizationId));
+      // cacheTag(getProductIdTag(db.organizationId, productId));
+
+      const history = await db.prisma.productHistory.findFirst({
+        where: {
+          productId,
+          version,
+          product: {
+            organizationId: ctx.organizationId,
+            deletedAt: null,
+          },
+        },
+      });
+
+      if (!history) {
+        throw new NotFoundError(`Version ${version} not found`);
+      }
+
+      return history;
+    },
+
+    // WRITE
     async create(data: {
       title: string;
       description: string;
@@ -288,7 +386,7 @@ export function productRepository(ctx: RequestContext) {
       images?: ImageInput[];
       variants?: ProductVariantInput[];
       options?: VariantOptionInput[];
-    }) {
+    }): Promise<ProductWithRelations> {
       const product = await db.prisma.$transaction(async (tx) => {
         const created = await tx.product.create({
           data: {
@@ -303,9 +401,11 @@ export function productRepository(ctx: RequestContext) {
         if (data?.images?.length) {
           await syncProductImages(tx, created.id, data.images);
         }
+
         if (data?.variants?.length) {
           await syncVariants(tx, created.id, data.variants);
         }
+
         if (data?.options?.length) {
           await syncOptions(tx, created.id, data.options, data.variants ?? []);
         }
@@ -324,14 +424,31 @@ export function productRepository(ctx: RequestContext) {
 
         await emitProductEvent(tx, "product.created");
 
-        return tx.product.findFirstOrThrow({
-          where: { id: created.id },
+        const createdProduct = await tx.product.findFirst({
+          where: {
+            id: created.id,
+            organizationId: ctx.organizationId,
+            deletedAt: null,
+          },
           include: {
             images: true,
-            variants: true,
+            // variants: true,
+            variants: {
+              include: {
+                optionValues: true,
+              },
+            },
             options: { include: { values: true } },
           },
         });
+
+        if (!createdProduct) {
+          throw new NotFoundError(
+            `Product ${created.id} not found after create`,
+          );
+        }
+
+        return createdProduct;
       });
 
       revalidateProductCache(ctx.organizationId, product.id);
@@ -341,7 +458,7 @@ export function productRepository(ctx: RequestContext) {
 
     async update(
       id: string,
-      version: number,
+      version: number | undefined,
       data: Partial<{
         title: string;
         description: string;
@@ -351,11 +468,13 @@ export function productRepository(ctx: RequestContext) {
         variants?: ProductVariantInput[];
         options?: VariantOptionInput[];
       }>,
-    ) {
+    ): Promise<ProductWithRelations> {
       const product = await db.prisma.$transaction(async (tx) => {
         if (!version || version < 1) {
           throw new VersionRequiredError();
         }
+
+        const { images, variants, options, ...productData } = data;
 
         const result = await tx.product.updateMany({
           where: {
@@ -365,7 +484,7 @@ export function productRepository(ctx: RequestContext) {
             deletedAt: null,
           },
           data: {
-            ...data,
+            ...productData,
             updatedById: ctx.userId,
             version: { increment: 1 },
           },
@@ -375,15 +494,19 @@ export function productRepository(ctx: RequestContext) {
           throw new ConcurrencyConflictError();
         }
 
-        if (data.images !== undefined) {
-          await syncProductImages(tx, id, data.images);
+        if (images !== undefined) {
+          await syncProductImages(tx, id, images);
         }
-        if (data.variants !== undefined)
-          await syncVariants(tx, id, data.variants);
-        if (data.options !== undefined)
-          await syncOptions(tx, id, data.options, data.variants ?? []);
 
-        const updated = await tx.product.findFirstOrThrow({
+        if (variants !== undefined) {
+          await syncVariants(tx, id, variants);
+        }
+
+        if (options !== undefined) {
+          await syncOptions(tx, id, options, variants ?? []);
+        }
+
+        const updatedProduct = await tx.product.findFirst({
           where: {
             id,
             organizationId: ctx.organizationId,
@@ -392,26 +515,35 @@ export function productRepository(ctx: RequestContext) {
           },
           include: {
             images: true,
-            variants: true,
+            // variants: true,
+            variants: {
+              include: {
+                optionValues: true,
+              },
+            },
             options: { include: { values: true } },
           },
         });
 
+        if (!updatedProduct) {
+          throw new NotFoundError(`Product ${id} not found after update`);
+        }
+
         await tx.productHistory.create({
           data: {
-            productId: updated.id,
-            version: updated.version,
-            title: updated.title,
-            description: updated.description,
-            price: updated.price,
-            status: updated.status,
+            productId: updatedProduct.id,
+            version: updatedProduct.version,
+            title: updatedProduct.title,
+            description: updatedProduct.description,
+            price: updatedProduct.price,
+            status: updatedProduct.status,
             updatedById: ctx.userId,
           },
         });
 
         await emitProductEvent(tx, "product.updated");
 
-        return updated;
+        return updatedProduct;
       });
 
       revalidateProductCache(ctx.organizationId, id);
@@ -419,41 +551,95 @@ export function productRepository(ctx: RequestContext) {
       return product;
     },
 
-    async delete(id: string) {
-      const images = await db.prisma.productImage.findMany({
-        where: { productId: id },
-        select: { key: true },
+    async delete(id: string): Promise<void> {
+      const product = await db.prisma.product.findFirst({
+        where: {
+          id,
+          organizationId: ctx.organizationId,
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          images: {
+            select: {
+              key: true,
+            },
+          },
+        },
       });
 
-      await db.product.delete(id);
+      if (!product) {
+        throw new NotFoundError(`Product ${id} not found`);
+      }
+
+      await db.prisma.$transaction(async (tx) => {
+        await tx.product.updateMany({
+          where: {
+            id,
+            organizationId: ctx.organizationId,
+            deletedAt: null,
+          },
+          data: {
+            deletedAt: new Date(),
+            updatedById: ctx.userId,
+          },
+        });
+
+        if (product.images.length > 0) {
+          await tx.productImage.deleteMany({
+            where: {
+              productId: id,
+            },
+          });
+        }
+      });
 
       await emitProductEvent(db.prisma, "product.deleted");
 
-      if (images.length > 0) {
+      if (product.images.length > 0) {
         await Promise.all(
-          images.map((img) => deleteS3Object(img.key).catch(() => {})),
+          product.images.map((img) => deleteS3Object(img.key).catch(() => {})),
         );
       }
 
       revalidateProductCache(ctx.organizationId, id);
     },
 
-    async getHistory(productId: string) {
-      return db.prisma.productHistory.findMany({
-        where: { productId },
-        orderBy: { version: "desc" },
-        include: { updatedBy: true },
-      });
-    },
-
-    async rollbackToVersion(productId: string, targetVersion: number) {
+    async rollbackToVersion(
+      productId: string,
+      targetVersion: number,
+    ): Promise<ProductWithRelations> {
       const history = await db.prisma.productHistory.findFirst({
-        where: { productId, version: targetVersion },
+        where: {
+          productId,
+          version: targetVersion,
+          product: {
+            organizationId: ctx.organizationId,
+            deletedAt: null,
+          },
+        },
       });
-      if (!history)
-        throw new NotFoundError(`Version ${targetVersion} not found`);
 
-      return this.update(productId, history.version - 1, {
+      if (!history) {
+        throw new NotFoundError(`Version ${targetVersion} not found`);
+      }
+
+      const currentProduct = await db.prisma.product.findFirst({
+        where: {
+          id: productId,
+          organizationId: ctx.organizationId,
+          deletedAt: null,
+        },
+        select: {
+          version: true,
+        },
+      });
+
+      if (!currentProduct) {
+        throw new NotFoundError("Product not found");
+      }
+
+      return this.update(productId, currentProduct.version, {
         title: history.title,
         description: history.description,
         price: Number(history.price),
@@ -461,15 +647,10 @@ export function productRepository(ctx: RequestContext) {
       });
     },
 
-    async previewVersion(productId: string, version: number) {
-      const history = await db.prisma.productHistory.findFirst({
-        where: { productId, version },
-      });
-      if (!history) throw new NotFoundError(`Version ${version} not found`);
-      return history;
-    },
-
-    async bulkUpdateStatus(productIds: string[], status: ProductStatus) {
+    async bulkUpdateStatus(
+      productIds: string[],
+      status: ProductStatus,
+    ): Promise<Product[]> {
       if (!productIds.length) return [];
 
       const updatedProducts = await db.prisma.$transaction(async (tx) => {
@@ -485,7 +666,7 @@ export function productRepository(ctx: RequestContext) {
           throw new NotFoundError("No products found for bulk update");
         }
 
-        const results = [];
+        const results: Product[] = [];
 
         for (const product of products) {
           const updated = await tx.product.update({
@@ -524,41 +705,128 @@ export function productRepository(ctx: RequestContext) {
       return updatedProducts;
     },
 
-    async bulkDelete(productIds: string[]) {
+    async bulkDelete(productIds: string[]): Promise<void> {
       if (!productIds.length) return;
 
-      const images = await db.prisma.productImage.findMany({
-        where: {
-          productId: { in: productIds },
-        },
-        select: {
-          key: true,
-          productId: true,
-        },
-      });
-
-      await db.prisma.product.updateMany({
+      const products = await db.prisma.product.findMany({
         where: {
           id: { in: productIds },
           organizationId: ctx.organizationId,
           deletedAt: null,
         },
-        data: {
-          deletedAt: new Date(),
+        select: {
+          id: true,
+          images: {
+            select: {
+              key: true,
+            },
+          },
         },
+      });
+
+      if (products.length === 0) {
+        throw new NotFoundError("No products found for bulk delete");
+      }
+
+      const validProductIds = products.map((product) => product.id);
+      const imageKeys = products.flatMap((product) =>
+        product.images.map((img) => img.key),
+      );
+
+      await db.prisma.$transaction(async (tx) => {
+        await tx.product.updateMany({
+          where: {
+            id: { in: validProductIds },
+            organizationId: ctx.organizationId,
+            deletedAt: null,
+          },
+          data: {
+            deletedAt: new Date(),
+            updatedById: ctx.userId,
+          },
+        });
+
+        if (validProductIds.length > 0) {
+          await tx.productImage.deleteMany({
+            where: {
+              productId: {
+                in: validProductIds,
+              },
+            },
+          });
+        }
       });
 
       await emitProductEvent(db.prisma, "product.deleted");
 
-      if (images.length > 0) {
+      if (imageKeys.length > 0) {
         await Promise.all(
-          images.map((img) => deleteS3Object(img.key).catch(() => {})),
+          imageKeys.map((key) => deleteS3Object(key).catch(() => {})),
         );
       }
 
-      for (const id of productIds) {
+      for (const id of validProductIds) {
         revalidateProductCache(ctx.organizationId, id);
       }
     },
   };
 }
+
+export type ProductRepo = {
+  // READ
+  getById(id: string): Promise<ProductWithRelations | null>;
+
+  getAll(params?: {
+    take?: number;
+    cursor?: string;
+    status?: ProductStatus;
+    minPrice?: number;
+    maxPrice?: number;
+    createdBy?: string;
+    updatedBy?: string;
+    search?: string;
+    sortBy?: "createdAt" | "price" | "title" | "status";
+    sortOrder?: "asc" | "desc";
+  }): Promise<{
+    products: ProductListItem[];
+    nextCursor?: string;
+  }>;
+
+  getHistory(productId: string): Promise<ProductHistory[]>;
+  previewVersion(productId: string, version: number): Promise<ProductHistory>;
+
+  // WRITE
+  create(data: {
+    title: string;
+    description: string;
+    price: number;
+    images?: ImageInput[];
+    variants?: ProductVariantInput[];
+    options?: VariantOptionInput[];
+  }): Promise<ProductWithRelations>;
+
+  update(
+    id: string,
+    version: number | undefined,
+    data: Partial<{
+      title: string;
+      description: string;
+      price: number;
+      images?: ImageInput[];
+      status?: ProductStatus;
+      variants?: ProductVariantInput[];
+      options?: VariantOptionInput[];
+    }>,
+  ): Promise<ProductWithRelations>;
+
+  delete(id: string): Promise<void>;
+  rollbackToVersion(
+    productId: string,
+    targetVersion: number,
+  ): Promise<ProductWithRelations>;
+  bulkUpdateStatus(
+    productIds: string[],
+    status: ProductStatus,
+  ): Promise<Product[]>;
+  bulkDelete(productIds: string[]): Promise<void>;
+};

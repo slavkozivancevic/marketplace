@@ -5,8 +5,10 @@ export async function GET() {
   const users = await prisma.user.findMany();
 
   return NextResponse.json({
-    success: true,
-    count: users.length,
-    users,
+    error: false,
+    data: {
+      count: users.length,
+      users,
+    },
   });
 }

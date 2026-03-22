@@ -9,6 +9,7 @@ const publicRoutes = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+  console.log("Running middleware for", req.url);
   if (!publicRoutes(req)) {
     await auth.protect();
   }
