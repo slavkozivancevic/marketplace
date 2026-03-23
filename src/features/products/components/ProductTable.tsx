@@ -19,13 +19,24 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Product, ProductStatus } from "@/generated/prisma/client";
-import { Decimal } from "@prisma/client/runtime/client";
+// import { Decimal } from "@prisma/client/runtime/client";
 
 interface ProductTableProps {
   products: Product[];
   showActions?: boolean;
   nextCursor?: string;
   onLoadMore?: (cursor: string) => void;
+}
+
+function getStatusVariant(status: ProductStatus) {
+  switch (status) {
+    case "PUBLISHED":
+      return "default";
+    case "DRAFT":
+      return "secondary";
+    default:
+      return "destructive";
+  }
 }
 
 export function ProductTable({
@@ -51,19 +62,9 @@ export function ProductTable({
             <TableRow key={product.id}>
               <TableCell>{product.title}</TableCell>
               <TableCell>{product.description}</TableCell>
+              <TableCell>${Number(product.price).toFixed(2)}</TableCell>
               <TableCell>
-                ${(product.price as Decimal).toNumber().toFixed(2)}
-              </TableCell>
-              <TableCell>
-                <Badge
-                  variant={
-                    product.status === ProductStatus.PUBLISHED
-                      ? "default"
-                      : product.status === ProductStatus.DRAFT
-                        ? "secondary"
-                        : "destructive"
-                  }
-                >
+                <Badge variant={getStatusVariant(product.status)}>
                   {product.status}
                 </Badge>
               </TableCell>

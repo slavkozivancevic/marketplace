@@ -1,26 +1,23 @@
 import Link from "next/link";
-
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
-export default function ProductNotFoundPage() {
+export default function UsersNotFoundPage() {
   return (
     <div className="container">
       <PageHeader
-        title="Product Not Found"
-        description="The requested product could not be found."
+        title="Not Found"
+        description="The requested user resource could not be found."
       />
-
       <Alert>
-        <AlertTitle>Product not found</AlertTitle>
+        <AlertTitle>404 — Not Found</AlertTitle>
         <AlertDescription className="space-y-4">
           <p>
-            The product you are looking for does not exist or is unavailable.
+            The user you are looking for does not exist or has been removed.
           </p>
-
           <Button asChild>
-            <Link href="/admin/products">Back to products</Link>
+            <Link href="/admin/users">Back to Users</Link>
           </Button>
         </AlertDescription>
       </Alert>

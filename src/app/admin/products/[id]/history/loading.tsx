@@ -3,7 +3,7 @@ import { SkeletonHistoryTable } from "@/components/ui/skeleton";
 
 export default function ProductHistoryLoadingPage() {
   return (
-    <div className="container my-6">
+    <div className="container">
       <PageHeader
         title="Product History"
         description="Loading product history..."

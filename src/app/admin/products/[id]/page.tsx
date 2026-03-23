@@ -1,7 +1,6 @@
-"use server";
-
 import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 
 import { getProductById } from "@/features/products/actions/products";
 import { productRepository } from "@/features/products/db/products";
@@ -16,8 +15,9 @@ import { isActionErrorResult } from "@/features/common/errors/domainErrors";
 
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { ProductDetails } from "@/features/products/components/ProductDetails";
-import { ActionErrorResult, ProductWithRelations } from "@/types/types";
+import { ProductWithRelations } from "@/types/types";
 
 interface ProductPageProps {
   params: Promise<{ id: string }>;
@@ -25,15 +25,23 @@ interface ProductPageProps {
 
 export default async function ProductPage({ params }: ProductPageProps) {
   const { id } = await params;
-  const result = await fetchProductWithContext(id);
+
+  const ctx = await resolveRequestContext();
+  requirePermission(ctx, "product:read");
+
+  const result = await fetchProduct(ctx.organizationId, ctx.userId, id);
 
   if (isActionErrorResult(result)) {
     return (
-      <div className="container my-6">
+      <div className="container">
         <PageHeader
           title="Product Details"
           description="View detailed information about this product."
-        />
+        >
+          <Button asChild variant="outline">
+            <Link href="/admin/products">Back to Products</Link>
+          </Button>
+        </PageHeader>
         <Alert variant="destructive">
           <AlertTitle>Error loading product</AlertTitle>
           <AlertDescription>{result.message}</AlertDescription>
@@ -42,46 +50,41 @@ export default async function ProductPage({ params }: ProductPageProps) {
     );
   }
 
-  const product: ProductWithRelations | null =
-    result as ProductWithRelations | null;
+  const product = result as ProductWithRelations | null;
 
-  if (!product) {
-    notFound();
-  }
-  // if (!product) {
-  //   return (
-  //     <div className="container my-6">
-  //       <PageHeader title="Product Details" />
-  //       <Alert>
-  //         <AlertTitle>Product not found</AlertTitle>
-  //         <AlertDescription>There is no product with ID {id}.</AlertDescription>
-  //       </Alert>
-  //     </div>
-  //   );
-  // }
+  if (!product) notFound();
 
   return (
-    <div className="container my-6">
+    <div className="container">
       <PageHeader
-        title={`Product: ${product.title}`}
+        title={product.title}
         description="View detailed information about this product."
-      />
+      >
+        <Button asChild variant="outline">
+          <Link href="/admin/products">Back to Products</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href={`/admin/products/${id}/history`}>History</Link>
+        </Button>
+        <Button asChild>
+          <Link href={`/admin/products/${id}/edit`}>Edit</Link>
+        </Button>
+      </PageHeader>
       <ProductDetails product={product} />
     </div>
   );
 }
 
-async function fetchProductWithContext(
+async function fetchProduct(
+  organizationId: string,
+  userId: string,
   id: string,
-): Promise<ProductWithRelations | null | ActionErrorResult> {
+) {
   "use cache";
 
-  const ctx = await resolveRequestContext();
-  requirePermission(ctx, "product:read");
+  cacheTag(getProductGlobalTag(organizationId));
+  cacheTag(getProductIdTag(organizationId, id));
 
-  cacheTag(getProductGlobalTag(ctx.organizationId));
-  cacheTag(getProductIdTag(ctx.organizationId, id));
-
-  const repo: ProductRepo = productRepository(ctx);
+  const repo: ProductRepo = productRepository({ organizationId, userId });
   return getProductById(repo, id);
 }

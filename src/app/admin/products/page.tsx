@@ -1,6 +1,5 @@
-"use server";
-
 import { cacheTag } from "next/cache";
+import Link from "next/link";
 
 import { getProducts } from "@/features/products/actions/products";
 import { productRepository } from "@/features/products/db/products";
@@ -12,15 +11,19 @@ import { ProductRepo } from "@/features/products/db/products";
 import { PageHeader } from "@/components/PageHeader";
 import { ProductTable } from "@/features/products/components/ProductTable";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { isActionErrorResult } from "@/features/common/errors/domainErrors";
-import { Product } from "@/generated/prisma/client";
+import { ProductListItem } from "@/types/types";
 
 export default async function ProductsPage() {
-  const result = await fetchProductsWithContext();
+  const ctx = await resolveRequestContext();
+  requirePermission(ctx, "product:read");
+
+  const result = await fetchProducts(ctx.organizationId, ctx.userId);
 
   if (isActionErrorResult(result)) {
     return (
-      <div className="container my-6">
+      <div className="container">
         <PageHeader
           title="Products"
           description="Browse and manage your product catalog."
@@ -33,20 +36,22 @@ export default async function ProductsPage() {
     );
   }
 
-  const products: Product[] = (
-    result as { products: Product[]; nextCursor?: string }
-  ).products;
-  const nextCursor: string | undefined = (
-    result as { products: Product[]; nextCursor?: string }
-  ).nextCursor;
+  const { products, nextCursor } = result as {
+    products: ProductListItem[];
+    nextCursor?: string;
+  };
 
   if (products.length === 0) {
     return (
-      <div className="container my-6">
+      <div className="container">
         <PageHeader
           title="Products"
           description="Browse and manage your product catalog."
-        />
+        >
+          <Button asChild>
+            <Link href="/admin/products/new">Add Product</Link>
+          </Button>
+        </PageHeader>
         <Alert>
           <AlertTitle>No products found</AlertTitle>
           <AlertDescription>
@@ -58,23 +63,25 @@ export default async function ProductsPage() {
   }
 
   return (
-    <div className="container my-6">
+    <div className="container">
       <PageHeader
         title="Products"
         description="Browse and manage your product catalog."
-      />
+      >
+        <Button asChild>
+          <Link href="/admin/products/new">Add Product</Link>
+        </Button>
+      </PageHeader>
       <ProductTable products={products} nextCursor={nextCursor} showActions />
     </div>
   );
 }
 
-async function fetchProductsWithContext() {
+async function fetchProducts(organizationId: string, userId: string) {
   "use cache";
-  const ctx = await resolveRequestContext();
-  requirePermission(ctx, "product:read");
 
-  cacheTag(getProductGlobalTag(ctx.organizationId));
+  cacheTag(getProductGlobalTag(organizationId));
 
-  const repo: ProductRepo = productRepository(ctx);
+  const repo: ProductRepo = productRepository({ organizationId, userId });
   return getProducts(repo);
 }

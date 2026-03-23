@@ -20,7 +20,7 @@ export default function ProductsErrorPage({
   }, [error]);
 
   return (
-    <div className="container my-6">
+    <div className="container">
       <PageHeader
         title="Products"
         description="An unexpected error occurred while loading this page."

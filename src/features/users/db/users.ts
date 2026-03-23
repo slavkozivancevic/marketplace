@@ -1,7 +1,8 @@
 import { prisma } from "@/core/db/prisma";
 import { cacheTag } from "next/cache";
 import { getUserGlobalTag, getUserIdTag, revalidateUserCache } from "./cache";
-import { UserRole } from "@/generated/prisma/client";
+import { syncClerkUserMetadata } from "@/services/clerk";
+import { UserRole } from "../schema/users";
 
 /* ================= READ ================= */
 
@@ -121,6 +122,27 @@ export async function deleteUser(clerkUserId: string) {
       name: "Deleted User",
       imageUrl: null,
     },
+  });
+
+  revalidateUserCache(user.id);
+
+  return user;
+}
+
+export async function updateUserRole(userId: string, role: UserRole) {
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { role },
+    include: { memberships: true },
+  });
+
+  const activeOrgId = user.memberships[0]?.orgId ?? null;
+
+  await syncClerkUserMetadata({
+    clerkUserId: user.clerkUserId,
+    dbId: user.id,
+    role: user.role,
+    activeOrgId,
   });
 
   revalidateUserCache(user.id);

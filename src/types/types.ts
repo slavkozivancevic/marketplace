@@ -40,20 +40,6 @@ export type VariantOptionInput = {
   values: string[];
 };
 
-// export type ProductCreateInput = {
-//   title: string;
-//   description: string;
-//   price: number;
-//   images?: ImageInput[];
-//   variants?: ProductVariantInput[];
-//   options?: VariantOptionInput[];
-//   status?: ProductStatus;
-// };
-
-// export type ProductUpdateInput = Partial<ProductCreateInput> & {
-//   version: number;
-// };
-
 export type ImageProcessingResult = {
   key: string;
   thumbKey: string;

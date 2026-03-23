@@ -1,13 +1,5 @@
-"use client";
-
 import Link from "next/link";
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  SignUpButton,
-  UserButton,
-} from "@clerk/nextjs";
+import { HeaderAuth } from "./header-auth";
 
 export function Header() {
   return (
@@ -15,21 +7,7 @@ export function Header() {
       <Link href="/" className="text-lg font-semibold">
         Marketplace
       </Link>
-
-      <div className="flex items-center gap-4">
-        <SignedOut>
-          <SignInButton mode="redirect" />
-          <SignUpButton mode="redirect">
-            <button className="rounded-md bg-black px-4 py-2 text-sm text-white">
-              Sign up
-            </button>
-          </SignUpButton>
-        </SignedOut>
-
-        <SignedIn>
-          <UserButton />
-        </SignedIn>
-      </div>
+      <HeaderAuth mode="redirect" showDashboardLink />
     </header>
   );
 }

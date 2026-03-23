@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 export default function ProductHistoryNotFound() {
   return (
-    <div className="container my-6">
+    <div className="container">
       <PageHeader
         title="Product Not Found"
         description="The requested product does not exist."

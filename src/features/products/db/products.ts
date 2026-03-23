@@ -228,7 +228,9 @@ async function syncOptions(
   }
 }
 
-export function productRepository(ctx: RequestContext) {
+export function productRepository(
+  ctx: Pick<RequestContext, "organizationId" | "userId">,
+) {
   const db = tenantPrisma({
     organizationId: ctx.organizationId,
     userId: ctx.userId,

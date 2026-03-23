@@ -1,13 +1,6 @@
-"use client";
-
+// src/components/layout/public-header.tsx
 import Link from "next/link";
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  SignUpButton,
-  UserButton,
-} from "@clerk/nextjs";
+import { HeaderAuth } from "./header-auth";
 
 export function PublicHeader() {
   return (
@@ -15,24 +8,7 @@ export function PublicHeader() {
       <Link href="/" className="text-lg font-semibold">
         Marketplace
       </Link>
-
-      <div className="flex items-center gap-4">
-        <SignedOut>
-          <SignInButton mode="redirect" />
-          <SignUpButton mode="redirect">
-            <button className="rounded-md bg-black px-4 py-2 text-sm text-white">
-              Sign up
-            </button>
-          </SignUpButton>
-        </SignedOut>
-
-        <SignedIn>
-          <Link href="/dashboard" className="text-sm">
-            Dashboard
-          </Link>
-          <UserButton />
-        </SignedIn>
-      </div>
+      <HeaderAuth mode="modal" showDashboardLink />
     </header>
   );
 }

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 export default function ProductsNotFoundPage() {
   return (
-    <div className="container my-6">
+    <div className="container">
       <PageHeader
         title="Not Found"
         description="The requested products resource could not be found."

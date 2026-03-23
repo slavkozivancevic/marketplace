@@ -1,18 +1,22 @@
+import { cacheTag } from "next/cache";
+import { notFound } from "next/navigation";
+import Link from "next/link";
+
 import { getProductHistory } from "@/features/products/actions/products";
 import {
   ProductRepo,
   productRepository,
 } from "@/features/products/db/products";
-import { PageHeader } from "@/components/PageHeader";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
-import { cacheTag } from "next/cache";
-import { notFound } from "next/navigation";
 import {
   getProductGlobalTag,
   getProductIdTag,
 } from "@/features/products/db/cache";
 import { isActionErrorResult } from "@/features/common/errors/domainErrors";
+
+import { PageHeader } from "@/components/PageHeader";
+import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ProductHistory } from "@/generated/prisma/client";
 import { ProductHistoryTable } from "@/features/products/components/ProductHistoryTable";
@@ -25,17 +29,25 @@ export default async function ProductHistoryPage({
   params,
 }: ProductHistoryPageProps) {
   const { id } = await params;
-  const result = await fetchProductsHistoryWithContext(id);
+
+  const ctx = await resolveRequestContext();
+  requirePermission(ctx, "product:read");
+
+  const result = await fetchProductHistory(ctx.organizationId, ctx.userId, id);
 
   if (!result) return notFound();
 
   if (isActionErrorResult(result)) {
     return (
-      <div className="container my-6">
+      <div className="container">
         <PageHeader
           title="Product History"
           description={`Version history for product ${id}.`}
-        />
+        >
+          <Button asChild variant="outline">
+            <Link href={`/admin/products/${id}`}>Back to Product</Link>
+          </Button>
+        </PageHeader>
         <Alert variant="destructive">
           <AlertTitle>Error loading product history</AlertTitle>
           <AlertDescription>{result.message}</AlertDescription>
@@ -44,17 +56,21 @@ export default async function ProductHistoryPage({
     );
   }
 
-  const history: ProductHistory[] = result as ProductHistory[];
+  const history = result as ProductHistory[];
 
   if (history.length === 0) {
     return (
-      <div className="container my-6">
+      <div className="container">
         <PageHeader
           title="Product History"
           description={`Version history for product ${id}.`}
-        />
+        >
+          <Button asChild variant="outline">
+            <Link href={`/admin/products/${id}`}>Back to Product</Link>
+          </Button>
+        </PageHeader>
         <Alert>
-          <AlertTitle>No product history found</AlertTitle>
+          <AlertTitle>No history found</AlertTitle>
           <AlertDescription>
             There is currently no version history for this product.
           </AlertDescription>
@@ -64,11 +80,15 @@ export default async function ProductHistoryPage({
   }
 
   return (
-    <div className="container my-6">
+    <div className="container">
       <PageHeader
         title="Product History"
         description={`Version history for product ${id}.`}
-      />
+      >
+        <Button asChild variant="outline">
+          <Link href={`/admin/products/${id}`}>Back to Product</Link>
+        </Button>
+      </PageHeader>
       <div className="mt-4">
         <ProductHistoryTable history={history} />
       </div>
@@ -76,14 +96,16 @@ export default async function ProductHistoryPage({
   );
 }
 
-async function fetchProductsHistoryWithContext(id: string) {
+async function fetchProductHistory(
+  organizationId: string,
+  userId: string,
+  id: string,
+) {
   "use cache";
-  const ctx = await resolveRequestContext();
-  requirePermission(ctx, "product:read");
 
-  cacheTag(getProductGlobalTag(ctx.organizationId));
-  cacheTag(getProductIdTag(ctx.organizationId, id));
+  cacheTag(getProductGlobalTag(organizationId));
+  cacheTag(getProductIdTag(organizationId, id));
 
-  const repo: ProductRepo = productRepository(ctx);
+  const repo: ProductRepo = productRepository({ organizationId, userId });
   return getProductHistory(repo, id);
 }
