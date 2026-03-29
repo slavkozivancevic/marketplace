@@ -1,4 +1,4 @@
-type CACHE_TAG = "users" | "products" | string;
+type CACHE_TAG = "users" | "products" | "organizations" | string;
 
 export function getGlobalTag(scope: CACHE_TAG) {
   return `global:${scope}` as const;

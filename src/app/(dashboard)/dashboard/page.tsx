@@ -40,6 +40,20 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle>Organization</CardTitle>
+            <CardDescription>
+              Manage your organization settings and members.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/dashboard/organization">Settings</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
         {userRole === "SELLER" && (
           <Card>
             <CardHeader>
@@ -64,6 +78,19 @@ export default async function DashboardPage() {
               <CardContent>
                 <Button asChild>
                   <Link href="/admin/products">Manage Products</Link>
+                </Button>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Admin Organizations</CardTitle>
+                <CardDescription>
+                  Verify and manage organizations.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button asChild>
+                  <Link href="/admin/organizations">Manage Organizations</Link>
                 </Button>
               </CardContent>
             </Card>

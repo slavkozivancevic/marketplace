@@ -99,3 +99,6 @@ export type ProductListItem = Prisma.ProductGetPayload<{
     images: true;
   };
 }>;
+
+export const INVITABLE_ROLES = ["ADMIN", "MEMBER"] as const;
+export type InvitableRole = (typeof INVITABLE_ROLES)[number];

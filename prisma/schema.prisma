@@ -26,9 +26,11 @@ model User {
   name         String?
   imageUrl     String?
   role         UserRole @default(USER)
+  activeOrgId  String?
   deletedAt    DateTime?
 
   memberships  Membership[]
+  createdInvites Invite[] @relation("InviteCreatedBy")
 
   createdProducts Product[] @relation("ProductCreatedBy")
   updatedProducts Product[] @relation("ProductUpdatedBy")
@@ -47,6 +49,7 @@ model Organization {
 
   members  Membership[]
   products Product[]
+  invites  Invite[]
 }
 
 enum MembershipRole {
@@ -181,6 +184,28 @@ model ProductImage {
 
   @@index([productId, order])
   @@unique([productId, key])
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  CANCELED
+}
+model Invite {
+  id          String         @id @default(uuid())
+  email       String
+  orgId       String
+  role        MembershipRole @default(MEMBER)
+  token       String         @unique
+  status      InviteStatus   @default(PENDING)
+  expiresAt   DateTime
+  createdById String
+  createdAt   DateTime       @default(now())
+  organization Organization @relation(fields: [orgId], references: [id])
+  createdBy    User         @relation("InviteCreatedBy", fields: [createdById], references: [id])
+  @@index([orgId])
+  @@index([token])
+  @@index([email])
 }
 
 model WebhookEvent {

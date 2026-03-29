@@ -19,7 +19,38 @@ export async function resolveRequestContext(): Promise<RequestContext> {
   let dbId = claims?.dbId;
   let activeOrgId = claims?.activeOrgId;
 
-  if (!dbId || !activeOrgId) {
+  const membership =
+    dbId && activeOrgId
+      ? await prisma.membership.findUnique({
+          where: {
+            userId_orgId: {
+              userId: dbId,
+              orgId: activeOrgId,
+            },
+          },
+          select: {
+            role: true,
+            organization: {
+              select: {
+                verified: true,
+              },
+            },
+            user: {
+              select: {
+                role: true,
+              },
+            },
+          },
+        })
+      : null;
+
+  const claimsOutOfSync =
+    !dbId ||
+    !activeOrgId ||
+    !membership ||
+    claims?.role !== membership.user.role;
+
+  if (claimsOutOfSync) {
     const ctx = await validateAuthSync({
       clerkUserId: userId,
       dbId,
@@ -28,42 +59,49 @@ export async function resolveRequestContext(): Promise<RequestContext> {
 
     dbId = ctx.dbId;
     activeOrgId = ctx.activeOrgId;
-  }
 
-  const membership = await prisma.membership.findUnique({
-    where: {
-      userId_orgId: {
-        userId: dbId!,
-        orgId: activeOrgId!,
-      },
-    },
-    select: {
-      role: true,
-      organization: {
-        select: {
-          verified: true,
+    const freshMembership = await prisma.membership.findUnique({
+      where: {
+        userId_orgId: {
+          userId: dbId,
+          orgId: activeOrgId,
         },
       },
-      user: {
-        select: {
-          role: true,
+      select: {
+        role: true,
+        organization: {
+          select: {
+            verified: true,
+          },
+        },
+        user: {
+          select: {
+            role: true,
+          },
         },
       },
-    },
-  });
+    });
 
-  if (!membership) {
-    throw new MembershipNotFoundError();
+    if (!freshMembership) {
+      throw new MembershipNotFoundError();
+    }
+
+    return {
+      clerkUserId: userId,
+      userId: dbId,
+      userRole: freshMembership.user.role,
+      organizationId: activeOrgId,
+      membershipRole: freshMembership.role,
+      organizationVerified: freshMembership.organization.verified,
+    };
   }
 
   return {
     clerkUserId: userId,
     userId: dbId!,
     userRole: membership.user.role,
-
     organizationId: activeOrgId!,
     membershipRole: membership.role,
-
     organizationVerified: membership.organization.verified,
   };
 }

@@ -23,6 +23,8 @@ export async function updateUserRoleAction(
     await updateUserRole(userId, parsed.data.role);
 
     revalidatePath("/admin/users");
+    revalidatePath("/admin/organizations");
+    revalidatePath("/dashboard/organization");
   } catch (error) {
     return handleActionError(error);
   }

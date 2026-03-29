@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
     dynamicOnHover: true,
     authInterrupts: true,
   },
+  reactCompiler: true,
   images: {
     // domains: [
     //   "marketplace-product-images-slavko.s3.eu-central-1.amazonaws.com",
