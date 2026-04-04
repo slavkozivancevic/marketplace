@@ -1,15 +1,18 @@
-import { getGlobalTag, getIdTag } from "@/lib/dataCache";
 import { revalidateTag } from "next/cache";
+import { CacheTags } from "@/lib/cache/tags";
 
-export function getOrganizationGlobalTag() {
-  return getGlobalTag("organizations");
+export function revalidateOrganizationCache(orgId: string) {
+  revalidateTag(CacheTags.organizations.all(), "max");
+  revalidateTag(CacheTags.organizations.byId(orgId), "max");
 }
 
-export function getOrganizationIdTag(id: string) {
-  return getIdTag("organizations", id);
+export function revalidateOrganizationMembers(orgId: string) {
+  revalidateTag(CacheTags.organizations.all(), "max");
+  revalidateTag(CacheTags.organizations.byId(orgId), "max");
+  revalidateTag(CacheTags.organizations.members(orgId), "max");
 }
 
-export function revalidateOrganizationCache(id: string) {
-  revalidateTag(getOrganizationGlobalTag(), "default");
-  revalidateTag(getOrganizationIdTag(id), "default");
+export function revalidateOrganizationInvites(orgId: string) {
+  revalidateTag(CacheTags.organizations.byId(orgId), "max");
+  revalidateTag(CacheTags.organizations.invites(orgId), "max");
 }

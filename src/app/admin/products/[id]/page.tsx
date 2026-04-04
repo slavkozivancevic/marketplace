@@ -2,28 +2,22 @@ import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
-import { getProductById } from "@/features/products/actions/products";
 import { productRepository } from "@/features/products/db/products";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
-import {
-  getProductGlobalTag,
-  getProductIdTag,
-} from "@/features/products/db/cache";
-import { ProductRepo } from "@/features/products/db/products";
+import { CacheTags } from "@/lib/cache/tags";
 import { isActionErrorResult } from "@/features/common/errors/domainErrors";
-
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ProductDetails } from "@/features/products/components/ProductDetails";
-import { ProductWithRelations } from "@/types/types";
+import { SerializedProductWithRelations } from "@/types/types";
 
 interface ProductPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function ProductPage({ params }: ProductPageProps) {
+export default async function AdminProductPage({ params }: ProductPageProps) {
   const { id } = await params;
 
   const ctx = await resolveRequestContext();
@@ -50,7 +44,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
     );
   }
 
-  const product = result as ProductWithRelations | null;
+  const product = result as SerializedProductWithRelations | null;
 
   if (!product) notFound();
 
@@ -79,12 +73,27 @@ async function fetchProduct(
   organizationId: string,
   userId: string,
   id: string,
-) {
+): Promise<
+  SerializedProductWithRelations | null | { error: boolean; message: string }
+> {
   "use cache";
+  cacheTag(CacheTags.products.all(organizationId));
+  cacheTag(CacheTags.products.byId(organizationId, id));
+  try {
+    const repo = productRepository({ organizationId, userId });
+    const result = await repo.getById(id);
 
-  cacheTag(getProductGlobalTag(organizationId));
-  cacheTag(getProductIdTag(organizationId, id));
+    if (!result) return null;
 
-  const repo: ProductRepo = productRepository({ organizationId, userId });
-  return getProductById(repo, id);
+    return {
+      ...result,
+      price: Number(result.price),
+      variants: result.variants.map((v) => ({
+        ...v,
+        price: Number(v.price),
+      })),
+    };
+  } catch {
+    return { error: true, message: "Failed to load product" };
+  }
 }

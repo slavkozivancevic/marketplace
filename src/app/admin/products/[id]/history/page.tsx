@@ -2,19 +2,11 @@ import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
-import { getProductHistory } from "@/features/products/actions/products";
-import {
-  ProductRepo,
-  productRepository,
-} from "@/features/products/db/products";
+import { productRepository } from "@/features/products/db/products";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
-import {
-  getProductGlobalTag,
-  getProductIdTag,
-} from "@/features/products/db/cache";
+import { CacheTags } from "@/lib/cache/tags";
 import { isActionErrorResult } from "@/features/common/errors/domainErrors";
-
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -25,7 +17,7 @@ interface ProductHistoryPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function ProductHistoryPage({
+export default async function AdminProductHistoryPage({
   params,
 }: ProductHistoryPageProps) {
   const { id } = await params;
@@ -58,27 +50,6 @@ export default async function ProductHistoryPage({
 
   const history = result as ProductHistory[];
 
-  if (history.length === 0) {
-    return (
-      <div className="container">
-        <PageHeader
-          title="Product History"
-          description={`Version history for product ${id}.`}
-        >
-          <Button asChild variant="outline">
-            <Link href={`/admin/products/${id}`}>Back to Product</Link>
-          </Button>
-        </PageHeader>
-        <Alert>
-          <AlertTitle>No history found</AlertTitle>
-          <AlertDescription>
-            There is currently no version history for this product.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
   return (
     <div className="container">
       <PageHeader
@@ -89,9 +60,19 @@ export default async function ProductHistoryPage({
           <Link href={`/admin/products/${id}`}>Back to Product</Link>
         </Button>
       </PageHeader>
-      <div className="mt-4">
-        <ProductHistoryTable history={history} />
-      </div>
+
+      {history.length === 0 ? (
+        <Alert>
+          <AlertTitle>No history found</AlertTitle>
+          <AlertDescription>
+            There is currently no version history for this product.
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <div className="mt-4">
+          <ProductHistoryTable history={history} />
+        </div>
+      )}
     </div>
   );
 }
@@ -102,10 +83,12 @@ async function fetchProductHistory(
   id: string,
 ) {
   "use cache";
-
-  cacheTag(getProductGlobalTag(organizationId));
-  cacheTag(getProductIdTag(organizationId, id));
-
-  const repo: ProductRepo = productRepository({ organizationId, userId });
-  return getProductHistory(repo, id);
+  cacheTag(CacheTags.products.byId(organizationId, id));
+  cacheTag(CacheTags.products.history(organizationId, id));
+  try {
+    const repo = productRepository({ organizationId, userId });
+    return await repo.getHistory(id);
+  } catch {
+    return { error: true, message: "Failed to load product history" };
+  }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   Table,
   TableBody,
@@ -45,6 +46,12 @@ export function ProductTable({
   nextCursor,
   onLoadMore,
 }: ProductTableProps) {
+  const router = useRouter();
+
+  const handleRowClick = (productId: string) => {
+    router.push(`/admin/products/${productId}`);
+  };
+
   return (
     <div>
       <Table>
@@ -59,7 +66,11 @@ export function ProductTable({
         </TableHeader>
         <TableBody>
           {products.map((product) => (
-            <TableRow key={product.id}>
+            <TableRow
+              key={product.id}
+              className="cursor-pointer hover:bg-muted/50"
+              onClick={() => handleRowClick(product.id)}
+            >
               <TableCell>{product.title}</TableCell>
               <TableCell>{product.description}</TableCell>
               <TableCell>${Number(product.price).toFixed(2)}</TableCell>
@@ -73,11 +84,15 @@ export function ProductTable({
                   <div className="flex items-center gap-2">
                     {/* Options dropdown */}
                     <DropdownMenu>
-                      <DropdownMenuTrigger>
-                        <Badge variant="secondary">Options</Badge>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
+                          <Badge variant="secondary">Options</Badge>
+                        </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
-                        <DropdownMenuItem>Edit</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => router.push(`/admin/products/${product.id}/edit`)}>
+                          Edit
+                        </DropdownMenuItem>
                         <DropdownMenuItem>Duplicate</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

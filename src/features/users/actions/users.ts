@@ -24,6 +24,7 @@ export async function updateUserRoleAction(
 
     revalidatePath("/admin/users");
     revalidatePath("/admin/organizations");
+    revalidatePath("/dashboard");
     revalidatePath("/dashboard/organization");
   } catch (error) {
     return handleActionError(error);

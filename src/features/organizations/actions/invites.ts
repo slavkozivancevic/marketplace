@@ -97,6 +97,7 @@ export async function acceptInviteAction(
     await acceptInvite(token, ctx.userId);
 
     revalidatePath("/dashboard/organization");
+    revalidatePath("/dashboard");
   } catch (error) {
     return handleActionError(error);
   }

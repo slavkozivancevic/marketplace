@@ -1,11 +1,12 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { Header } from "@/components/layout/header";
-import { prisma } from "@/core/db/prisma";
-import { OrganizationSwitcher } from "@/features/organizations/components/OrganizationSwitcher";
-import Link from "next/link";
 import { cacheTag } from "next/cache";
-import { getUserGlobalTag } from "@/features/users/db/cache";
+
+import { Header } from "@/components/layout/header";
+import { OrganizationSwitcher } from "@/features/organizations/components/OrganizationSwitcher";
+import { CacheTags } from "@/lib/cache/tags";
+import { prisma } from "@/core/db/prisma";
+import Link from "next/link";
 
 export default async function DashboardLayout({
   children,
@@ -18,7 +19,7 @@ export default async function DashboardLayout({
     redirect("/sign-in");
   }
 
-  const user = await getLayoutUser(userId);
+  const user = await fetchLayoutUser(userId);
 
   const userRole = user?.role ?? "USER";
   const organizations = user?.memberships.map((m) => m.organization) ?? [];
@@ -92,11 +93,10 @@ export default async function DashboardLayout({
   );
 }
 
-async function getLayoutUser(clerkUserId: string) {
+async function fetchLayoutUser(clerkUserId: string) {
   "use cache";
-
-  cacheTag(getUserGlobalTag());
-
+  cacheTag(CacheTags.users.all());
+  cacheTag(CacheTags.users.byClerkId(clerkUserId));
   return prisma.user.findUnique({
     where: { clerkUserId },
     select: {

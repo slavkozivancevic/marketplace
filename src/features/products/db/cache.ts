@@ -1,19 +1,15 @@
-import { getGlobalTag, getIdTag } from "@/lib/dataCache";
 import { revalidateTag } from "next/cache";
+import { CacheTags } from "@/lib/cache/tags";
 
-function scope(orgId: string) {
-  return `products-${orgId}`;
+export function revalidateProductCache(orgId: string, productId: string) {
+  revalidateTag(CacheTags.products.all(orgId), "max");
+  revalidateTag(CacheTags.products.byId(orgId, productId), "max");
 }
 
-export function getProductGlobalTag(orgId: string) {
-  return getGlobalTag(scope(orgId));
-}
-
-export function getProductIdTag(orgId: string, id: string) {
-  return getIdTag(scope(orgId), id);
-}
-
-export function revalidateProductCache(orgId: string, id: string) {
-  revalidateTag(getProductGlobalTag(orgId), "default");
-  revalidateTag(getProductIdTag(orgId, id), "default");
+export function revalidateProductHistoryCache(
+  orgId: string,
+  productId: string,
+) {
+  revalidateTag(CacheTags.products.byId(orgId, productId), "max");
+  revalidateTag(CacheTags.products.history(orgId, productId), "max");
 }

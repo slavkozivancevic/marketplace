@@ -53,14 +53,14 @@ export async function setOrganizationVerified(id: string, verified: boolean) {
     throw new NotFoundError(`Organization ${id} not found`);
   }
 
-  const updatedOrganization = await prisma.organization.update({
+  const updated = await prisma.organization.update({
     where: { id },
     data: { verified },
   });
 
   revalidateOrganizationCache(id);
 
-  return updatedOrganization;
+  return updated;
 }
 
 export async function updateOrganizationName(id: string, name: string) {
@@ -72,12 +72,12 @@ export async function updateOrganizationName(id: string, name: string) {
     throw new NotFoundError(`Organization ${id} not found`);
   }
 
-  const updatedOrganization = await prisma.organization.update({
+  const updated = await prisma.organization.update({
     where: { id },
     data: { name },
   });
 
   revalidateOrganizationCache(id);
 
-  return updatedOrganization;
+  return updated;
 }

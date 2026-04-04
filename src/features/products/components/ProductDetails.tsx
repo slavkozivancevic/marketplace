@@ -5,16 +5,15 @@ import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
-import { ProductWithRelations } from "@/types/types";
+import { SerializedProductWithRelations } from "@/types/types";
 
 interface ProductDetailsProps {
-  product: ProductWithRelations;
+  product: SerializedProductWithRelations;
 }
 
 export const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
   return (
     <div className="space-y-6">
-      {/* Basic info */}
       <Card>
         <CardHeader>
           <CardTitle>Basic Information</CardTitle>
@@ -40,7 +39,6 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
 
       <Separator />
 
-      {/* Images */}
       <Card>
         <CardHeader>
           <CardTitle>Images</CardTitle>
@@ -68,7 +66,6 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
 
       <Separator />
 
-      {/* Variants */}
       <Card>
         <CardHeader>
           <CardTitle>Variants</CardTitle>

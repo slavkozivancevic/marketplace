@@ -1,9 +1,10 @@
 import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
+
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { getOrganizationById } from "@/features/organizations/db/organizations";
 import { getPendingInvitesByOrg } from "@/features/organizations/db/invites";
-import { getOrganizationIdTag } from "@/features/organizations/db/cache";
+import { CacheTags } from "@/lib/cache/tags";
 import { OrganizationSettingsForm } from "@/features/organizations/components/OrganizationSettingsForm";
 import { InviteForm } from "@/features/organizations/components/InviteForm";
 import { InviteList } from "@/features/organizations/components/InviteList";
@@ -15,6 +16,7 @@ import { MembershipRole } from "@/generated/prisma/client";
 
 export default async function OrganizationPage() {
   const ctx = await resolveRequestContext();
+
   const [organization, invites] = await Promise.all([
     fetchOrganization(ctx.organizationId),
     fetchInvites(ctx.organizationId),
@@ -111,12 +113,14 @@ export default async function OrganizationPage() {
 
 async function fetchOrganization(organizationId: string) {
   "use cache";
-  cacheTag(getOrganizationIdTag(organizationId));
+  cacheTag(CacheTags.organizations.byId(organizationId));
+  cacheTag(CacheTags.organizations.members(organizationId));
   return getOrganizationById(organizationId);
 }
 
 async function fetchInvites(organizationId: string) {
   "use cache";
-  cacheTag(getOrganizationIdTag(organizationId));
+  cacheTag(CacheTags.organizations.byId(organizationId));
+  cacheTag(CacheTags.organizations.invites(organizationId));
   return getPendingInvitesByOrg(organizationId);
 }

@@ -1,15 +1,10 @@
-import { getGlobalTag, getIdTag } from "@/lib/dataCache";
 import { revalidateTag } from "next/cache";
+import { CacheTags } from "@/lib/cache/tags";
 
-export function getUserGlobalTag() {
-  return getGlobalTag("users");
-}
-
-export function getUserIdTag(id: string) {
-  return getIdTag("users", id);
-}
-
-export function revalidateUserCache(id: string) {
-  revalidateTag(getUserGlobalTag(), "default");
-  revalidateTag(getUserIdTag(id), "default");
+export function revalidateUserCache(userId: string, clerkId?: string) {
+  revalidateTag(CacheTags.users.all(), "max");
+  revalidateTag(CacheTags.users.byId(userId), "max");
+  if (clerkId) {
+    revalidateTag(CacheTags.users.byClerkId(clerkId), "max");
+  }
 }

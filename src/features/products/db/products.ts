@@ -1,5 +1,5 @@
 import { tenantPrisma } from "@/core/db/tenantPrisma";
-import { revalidateProductCache } from "./cache";
+import { revalidateProductCache, revalidateProductHistoryCache } from "./cache";
 import {
   ImageInput,
   ProductListItem,
@@ -22,8 +22,6 @@ import {
 import { emitProductEvent } from "@/features/webhooks/productEvents";
 import { deleteS3Object } from "@/services/s3Delete";
 import { env } from "@/env/server";
-
-const S3_BASE = env.S3_PUBLIC_URL!;
 
 async function syncProductImages(
   tx: Prisma.TransactionClient,
@@ -62,7 +60,7 @@ async function syncProductImages(
       data: toInsert.map((img, index) => ({
         productId,
         key: img.key,
-        url: `${S3_BASE}/${img.key}`,
+        url: `${env.S3_PUBLIC_URL}/${img.key}`,
         order: index,
       })),
     });
@@ -549,6 +547,7 @@ export function productRepository(
       });
 
       revalidateProductCache(ctx.organizationId, id);
+      revalidateProductHistoryCache(ctx.organizationId, id);
 
       return product;
     },

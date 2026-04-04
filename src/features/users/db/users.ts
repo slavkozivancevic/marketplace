@@ -1,8 +1,9 @@
 import { prisma } from "@/core/db/prisma";
 import { cacheTag, revalidatePath } from "next/cache";
-import { getUserGlobalTag, getUserIdTag, revalidateUserCache } from "./cache";
+import { revalidateUserCache } from "./cache";
 import { revalidateOrganizationCache } from "@/features/organizations/db/cache";
 import { syncClerkUserMetadata } from "@/services/clerk";
+import { CacheTags } from "@/lib/cache/tags";
 import { UserRole } from "../schema/users";
 
 /* ================= READ ================= */
@@ -10,33 +11,24 @@ import { UserRole } from "../schema/users";
 export async function getUserById(id: string) {
   "use cache";
 
-  cacheTag(getUserIdTag(id));
-  cacheTag(getUserGlobalTag());
+  cacheTag(CacheTags.users.all());
+  cacheTag(CacheTags.users.byId(id));
 
   return prisma.user.findUnique({
-    where: {
-      id,
-      deletedAt: null,
-    },
-    include: {
-      memberships: true,
-    },
+    where: { id, deletedAt: null },
+    include: { memberships: true },
   });
 }
 
 export async function getUserByClerkId(clerkUserId: string) {
   "use cache";
 
-  cacheTag(getUserGlobalTag());
+  cacheTag(CacheTags.users.all());
+  cacheTag(CacheTags.users.byClerkId(clerkUserId));
 
   return prisma.user.findUnique({
-    where: {
-      clerkUserId,
-      deletedAt: null,
-    },
-    include: {
-      memberships: true,
-    },
+    where: { clerkUserId, deletedAt: null },
+    include: { memberships: true },
   });
 }
 
@@ -100,14 +92,12 @@ export async function createOrUpdateUserFromClerk(params: {
 
     return tx.user.findUnique({
       where: { id: dbUser.id },
-      include: {
-        memberships: true,
-      },
+      include: { memberships: true },
     });
   });
 
   if (user) {
-    revalidateUserCache(user.id);
+    revalidateUserCache(user.id, params.clerkUserId);
     revalidatePath("/dashboard");
     revalidatePath("/admin");
   }
@@ -120,7 +110,9 @@ export async function switchActiveOrg(userId: string, orgId: string) {
     where: { id: userId },
     data: { activeOrgId: orgId },
   });
-  revalidateUserCache(user.id);
+
+  revalidateUserCache(user.id, user.clerkUserId);
+
   return user;
 }
 
@@ -129,30 +121,19 @@ export async function deleteUser(clerkUserId: string) {
     where: { clerkUserId },
     include: {
       memberships: {
-        include: {
-          organization: true,
-        },
+        include: { organization: true },
       },
     },
   });
 
-  if (!existingUser) {
-    return null;
-  }
+  if (!existingUser) return null;
 
   await prisma.$transaction(async (tx) => {
-    // Cancel pending invites koje je user kreirao
     await tx.invite.updateMany({
-      where: {
-        createdById: existingUser.id,
-        status: "PENDING",
-      },
-      data: {
-        status: "CANCELED",
-      },
+      where: { createdById: existingUser.id, status: "PENDING" },
+      data: { status: "CANCELED" },
     });
 
-    // Za svaku org gdje je jedini OWNER — obriši org i sve memberships
     for (const membership of existingUser.memberships) {
       if (membership.role === "OWNER") {
         const otherOwners = await tx.membership.count({
@@ -165,10 +146,7 @@ export async function deleteUser(clerkUserId: string) {
 
         if (otherOwners === 0) {
           await tx.invite.updateMany({
-            where: {
-              orgId: membership.orgId,
-              status: "PENDING",
-            },
+            where: { orgId: membership.orgId, status: "PENDING" },
             data: { status: "CANCELED" },
           });
 
@@ -216,7 +194,7 @@ export async function deleteUser(clerkUserId: string) {
     revalidateOrganizationCache(membership.orgId);
   }
 
-  revalidateUserCache(existingUser.id);
+  revalidateUserCache(existingUser.id, existingUser.clerkUserId);
 
   return existingUser;
 }
@@ -227,14 +205,12 @@ export async function updateUserRole(userId: string, role: UserRole) {
     data: { role },
     include: {
       memberships: {
-        include: {
-          organization: true,
-        },
+        include: { organization: true },
       },
     },
   });
 
-  const activeOrgId = user.memberships[0]?.orgId ?? null;
+  const activeOrgId = user.activeOrgId ?? user.memberships[0]?.orgId ?? null;
 
   for (const membership of user.memberships) {
     if (
@@ -250,27 +226,17 @@ export async function updateUserRole(userId: string, role: UserRole) {
 
     revalidateOrganizationCache(membership.orgId);
   }
-  // if (role === "SELLER") {
-  //   for (const membership of user.memberships) {
-  //     if (membership.role === "OWNER" && !membership.organization.verified) {
-  //       await prisma.organization.update({
-  //         where: { id: membership.orgId },
-  //         data: { verified: true },
-  //       });
 
-  //       revalidateOrganizationCache(membership.orgId);
-  //     }
-  //   }
-  // }
+  if (activeOrgId) {
+    await syncClerkUserMetadata({
+      clerkUserId: user.clerkUserId,
+      dbId: user.id,
+      role: user.role,
+      activeOrgId,
+    });
+  }
 
-  await syncClerkUserMetadata({
-    clerkUserId: user.clerkUserId,
-    dbId: user.id,
-    role: user.role,
-    activeOrgId,
-  });
-
-  revalidateUserCache(user.id);
+  revalidateUserCache(user.id, user.clerkUserId);
 
   return user;
 }

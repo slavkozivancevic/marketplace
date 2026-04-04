@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
+import { useState, useTransition, KeyboardEvent } from "react";
+import { useForm, useFieldArray, useWatch, Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "@/components/ui/sonner";
 import {
@@ -15,6 +15,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { ProductImageUpload } from "@/components/product/ProductImageUpload";
 import {
   createProductSchema,
@@ -23,36 +25,90 @@ import {
   UpdateProductInput,
 } from "../schema/products";
 import { createProduct, updateProduct } from "../actions/products";
-import { ProductWithRelations, PresignedUploadedImage } from "@/types/types";
+import {
+  SerializedProductWithRelations,
+  PresignedUploadedImage,
+} from "@/types/types";
+import { X, Plus, RefreshCw } from "lucide-react";
 
-type ProductFormData = CreateProductInput & { version?: number };
+type ProductFormData = {
+  title: string;
+  description: string;
+  price: number;
+  images: { key: string }[];
+  options: { name: string; values: string[] }[];
+  variants: {
+    sku: string;
+    price: number;
+    stock: number;
+    options: { name: string; value: string }[];
+  }[];
+  version: number;
+};
 
 interface ProductFormProps {
   mode: "create" | "update";
-  product?: ProductWithRelations;
+  product?: SerializedProductWithRelations;
   onSuccess?: () => void;
+}
+
+function cartesianProduct(
+  options: { name: string; values: string[] }[],
+): { name: string; value: string }[][] {
+  const valid = options.filter((o) => o.name.trim() && o.values.length > 0);
+  if (!valid.length) return [];
+
+  return valid.reduce<{ name: string; value: string }[][]>(
+    (acc, option) => {
+      const result: { name: string; value: string }[][] = [];
+      for (const combo of acc) {
+        for (const value of option.values) {
+          result.push([...combo, { name: option.name, value }]);
+        }
+      }
+      return result;
+    },
+    [[]],
+  );
 }
 
 export function ProductForm({ mode, product, onSuccess }: ProductFormProps) {
   const [isPending, startTransition] = useTransition();
-  const [uploadedImages, setUploadedImages] = useState<PresignedUploadedImage[]>(
-    product?.images.map(img => ({ key: img.key, url: img.url })) || []
+
+  const [uploadedImages, setUploadedImages] = useState<
+    PresignedUploadedImage[]
+  >(product?.images.map((img) => ({ key: img.key, url: img.url })) ?? []);
+
+  const [optionValueInputs, setOptionValueInputs] = useState<string[]>(
+    () => product?.options.map(() => "") ?? [],
   );
 
-  const form = useForm({
-    resolver: zodResolver(mode === "create" ? createProductSchema : updateProductSchema),
+  const optionById = new Map(product?.options.map((o) => [o.id, o.name]) ?? []);
+
+  const schema = mode === "create" ? createProductSchema : updateProductSchema;
+
+  const form = useForm<ProductFormData>({
+    resolver: zodResolver(schema) as unknown as Resolver<ProductFormData>,
     defaultValues: product
       ? {
           title: product.title,
           description: product.description,
-          price: Number(product.price),
-          images: product.images.map(img => ({ key: img.key })),
-          options: product.options.map(opt => ({
+          price: product.price,
+          images: product.images.map((img) => ({ key: img.key })),
+          options: product.options.map((opt) => ({
             name: opt.name,
-            values: opt.values.map(v => v.value),
+            values: opt.values.map((v) => v.value),
           })),
-          variants: [], // TODO
-          ...(mode === "update" && { version: product.version }),
+          variants: product.variants.map((v) => ({
+            sku: v.sku,
+            price: v.price,
+            stock: v.stock,
+            options: v.optionValues.map((ov) => ({
+              name: optionById.get(ov.optionId) ?? "",
+              value: ov.value,
+            })),
+          })),
+          version: product.version,
         }
       : {
           title: "",
@@ -61,93 +117,478 @@ export function ProductForm({ mode, product, onSuccess }: ProductFormProps) {
           images: [],
           options: [],
           variants: [],
+          version: 1,
         },
   });
 
+  const {
+    fields: optionFields,
+    append: appendOption,
+    remove: removeOption,
+  } = useFieldArray({ control: form.control, name: "options" });
+
+  const {
+    fields: variantFields,
+    append: appendVariant,
+    remove: removeVariant,
+    replace: replaceVariants,
+  } = useFieldArray({ control: form.control, name: "variants" });
+
+  const watchedOptions = useWatch({ control: form.control, name: "options" });
+  const watchedVariants = useWatch({ control: form.control, name: "variants" });
+
+  const handleAddOptionValue = (optionIndex: number) => {
+    const input = optionValueInputs[optionIndex]?.trim();
+    if (!input) return;
+
+    const current = form.getValues(`options.${optionIndex}.values`) ?? [];
+    if (current.includes(input)) {
+      toast.error("Value already exists");
+      return;
+    }
+
+    form.setValue(`options.${optionIndex}.values`, [...current, input]);
+    setOptionValueInputs((prev) => {
+      const next = [...prev];
+      next[optionIndex] = "";
+      return next;
+    });
+  };
+
+  const handleRemoveOptionValue = (optionIndex: number, value: string) => {
+    const current = form.getValues(`options.${optionIndex}.values`) ?? [];
+    form.setValue(
+      `options.${optionIndex}.values`,
+      current.filter((v) => v !== value),
+    );
+  };
+
+  const handleOptionValueKeyDown = (
+    e: KeyboardEvent<HTMLInputElement>,
+    optionIndex: number,
+  ) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      handleAddOptionValue(optionIndex);
+    }
+  };
+
+  const handleGenerateVariants = () => {
+    const options = form.getValues("options");
+    const combinations = cartesianProduct(options);
+
+    if (combinations.length === 0) {
+      toast.error("Add at least one option with values to generate variants");
+      return;
+    }
+
+    replaceVariants(
+      combinations.map((combo) => ({
+        sku: combo.map((o) => o.value.toUpperCase().slice(0, 3)).join("-"),
+        price: form.getValues("price"),
+        stock: 0,
+        options: combo,
+      })),
+    );
+
+    toast.success(`Generated ${combinations.length} variant(s)`);
+  };
+
+  const handleImageUpload = (images: PresignedUploadedImage[]) => {
+    setUploadedImages(images);
+    form.setValue(
+      "images",
+      images.map((img) => ({ key: img.key })),
+    );
+  };
+
   const onSubmit = (data: ProductFormData) => {
     startTransition(async () => {
-      const result = mode === "create"
-        ? await createProduct(data as CreateProductInput)
-        : await updateProduct(product!.id, data as UpdateProductInput);
+      let result;
+
+      if (mode === "create") {
+        const createData: CreateProductInput = {
+          title: data.title,
+          description: data.description,
+          price: data.price,
+          images: data.images,
+          options: data.options,
+          variants: data.variants,
+        };
+        result = await createProduct(createData);
+      } else {
+        result = await updateProduct(product!.id, data as UpdateProductInput);
+      }
 
       if (result && "error" in result) {
         toast.error(result.message);
       } else {
-        toast.success(mode === "create" ? "Product created" : "Product updated");
+        toast.success(
+          mode === "create" ? "Product created" : "Product updated",
+        );
         onSuccess?.();
       }
     });
   };
 
-  const handleImageUpload = (images: PresignedUploadedImage[]) => {
-    setUploadedImages(images);
-    form.setValue("images", images.map(img => ({ key: img.key })));
-  };
-
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Title</FormLabel>
-              <FormControl>
-                <Input placeholder="Product title" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        {/* ── Basic Info ── */}
+        <div className="space-y-4">
+          <FormField
+            control={form.control}
+            name="title"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Title</FormLabel>
+                <FormControl>
+                  <Input placeholder="Product title" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea placeholder="Product description" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Description</FormLabel>
+                <FormControl>
+                  <Textarea placeholder="Product description" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <FormField
-          control={form.control}
-          name="price"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Price</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  {...field}
-                  value={field.value as string}
-                  onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <FormField
+            control={form.control}
+            name="price"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Base Price</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={field.value}
+                    onChange={(e) =>
+                      field.onChange(parseFloat(e.target.value) || 0)
+                    }
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
-        <div>
-          <FormLabel>Images</FormLabel>
+        <Separator />
+
+        {/* ── Images ── */}
+        <div className="space-y-2">
+          <FormLabel className="text-base font-semibold">Images</FormLabel>
           <ProductImageUpload
             onUploadComplete={handleImageUpload}
             initialImages={uploadedImages}
           />
         </div>
 
-        {/* TODO: Add options and variants fields */}
+        <Separator />
+
+        {/* ── Options ── */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold">Options</h3>
+              <p className="text-sm text-muted-foreground">
+                Add options like Color or Size, then generate variants below.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                appendOption({ name: "", values: [] });
+                setOptionValueInputs((prev) => [...prev, ""]);
+              }}
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Add Option
+            </Button>
+          </div>
+
+          {optionFields.length === 0 && (
+            <p className="text-sm text-muted-foreground py-6 text-center border rounded-md">
+              No options added. Click &quot;Add Option&quot; to add product
+              options like Color or Size.
+            </p>
+          )}
+
+          {optionFields.map((optionField, optionIndex) => {
+            const values = watchedOptions?.[optionIndex]?.values ?? [];
+
+            return (
+              <div
+                key={optionField.id}
+                className="border rounded-md p-4 space-y-3"
+              >
+                <div className="flex items-center gap-2">
+                  <FormField
+                    control={form.control}
+                    name={`options.${optionIndex}.name`}
+                    render={({ field }) => (
+                      <FormItem className="flex-1">
+                        <FormControl>
+                          <Input
+                            placeholder="Option name (e.g. Color)"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      removeOption(optionIndex);
+                      setOptionValueInputs((prev) =>
+                        prev.filter((_, i) => i !== optionIndex),
+                      );
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  <FormLabel className="text-xs text-muted-foreground">
+                    Values — press Enter or comma to add
+                  </FormLabel>
+
+                  {values.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {values.map((value: string) => (
+                        <Badge
+                          key={value}
+                          variant="secondary"
+                          className="gap-1 cursor-pointer"
+                          onClick={() =>
+                            handleRemoveOptionValue(optionIndex, value)
+                          }
+                        >
+                          {value}
+                          <X className="w-3 h-3" />
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Add value..."
+                      value={optionValueInputs[optionIndex] ?? ""}
+                      onChange={(e) =>
+                        setOptionValueInputs((prev) => {
+                          const next = [...prev];
+                          next[optionIndex] = e.target.value;
+                          return next;
+                        })
+                      }
+                      onKeyDown={(e) =>
+                        handleOptionValueKeyDown(e, optionIndex)
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleAddOptionValue(optionIndex)}
+                    >
+                      Add
+                    </Button>
+                  </div>
+
+                  {form.formState.errors.options?.[optionIndex]?.values && (
+                    <p className="text-sm text-destructive">
+                      {
+                        form.formState.errors.options[optionIndex]?.values
+                          ?.message
+                      }
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <Separator />
+
+        {/* ── Variants ── */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold">Variants</h3>
+              <p className="text-sm text-muted-foreground">
+                Each variant has its own SKU, price and stock.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {optionFields.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGenerateVariants}
+                >
+                  <RefreshCw className="w-4 h-4 mr-1" />
+                  Generate from Options
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  appendVariant({
+                    sku: "",
+                    price: form.getValues("price"),
+                    stock: 0,
+                    options: [],
+                  })
+                }
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Add Manually
+              </Button>
+            </div>
+          </div>
+
+          {variantFields.length === 0 && (
+            <p className="text-sm text-muted-foreground py-6 text-center border rounded-md">
+              No variants yet. Add options above and click &quot;Generate from
+              Options&quot;, or add variants manually.
+            </p>
+          )}
+
+          {variantFields.map((variantField, variantIndex) => {
+            const variantOptions =
+              watchedVariants?.[variantIndex]?.options ?? [];
+
+            return (
+              <div
+                key={variantField.id}
+                className="border rounded-md p-4 space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap gap-1">
+                    {variantOptions.length > 0 ? (
+                      variantOptions.map(
+                        (opt: { name: string; value: string }) => (
+                          <Badge
+                            key={`${opt.name}-${opt.value}`}
+                            variant="outline"
+                          >
+                            {opt.name}: {opt.value}
+                          </Badge>
+                        ),
+                      )
+                    ) : (
+                      <span className="text-sm text-muted-foreground">
+                        Manual variant
+                      </span>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeVariant(variantIndex)}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <FormField
+                    control={form.control}
+                    name={`variants.${variantIndex}.sku`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">SKU</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. RED-SM" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name={`variants.${variantIndex}.price`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Price</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={field.value}
+                            onChange={(e) =>
+                              field.onChange(parseFloat(e.target.value) || 0)
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name={`variants.${variantIndex}.stock`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Stock</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="0"
+                            value={field.value}
+                            onChange={(e) =>
+                              field.onChange(parseInt(e.target.value) || 0)
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <Separator />
 
         <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving..." : mode === "create" ? "Create Product" : "Update Product"}
+          {isPending
+            ? "Saving..."
+            : mode === "create"
+              ? "Create Product"
+              : "Update Product"}
         </Button>
       </form>
     </Form>

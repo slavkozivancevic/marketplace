@@ -1,15 +1,16 @@
 import { prisma } from "@/core/db/prisma";
 import { MembershipRole, InviteStatus } from "@/generated/prisma/client";
 import { NotFoundError } from "@/features/common/errors/domainErrors";
-import { revalidateOrganizationCache } from "./cache";
+import {
+  revalidateOrganizationInvites,
+  revalidateOrganizationMembers,
+} from "./cache";
 import { randomUUID } from "crypto";
 
 export async function getInviteByToken(token: string) {
   return prisma.invite.findUnique({
     where: { token },
-    include: {
-      organization: true,
-    },
+    include: { organization: true },
   });
 }
 
@@ -62,7 +63,7 @@ export async function createInvite({
     },
   });
 
-  revalidateOrganizationCache(orgId);
+  revalidateOrganizationInvites(orgId);
 
   return invite;
 }
@@ -113,7 +114,8 @@ export async function acceptInvite(token: string, userId: string) {
     });
   });
 
-  revalidateOrganizationCache(invite.orgId);
+  revalidateOrganizationMembers(invite.orgId);
+  revalidateOrganizationInvites(invite.orgId);
 
   return invite;
 }
@@ -132,5 +134,5 @@ export async function cancelInvite(inviteId: string, orgId: string) {
     data: { status: InviteStatus.CANCELED },
   });
 
-  revalidateOrganizationCache(orgId);
+  revalidateOrganizationInvites(orgId);
 }

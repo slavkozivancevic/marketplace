@@ -102,3 +102,17 @@ export type ProductListItem = Prisma.ProductGetPayload<{
 
 export const INVITABLE_ROLES = ["ADMIN", "MEMBER"] as const;
 export type InvitableRole = (typeof INVITABLE_ROLES)[number];
+
+export type SerializedProductWithRelations = Omit<
+  ProductWithRelations,
+  "price" | "variants"
+> & {
+  price: number;
+  variants: (Omit<ProductWithRelations["variants"][number], "price"> & {
+    price: number;
+  })[];
+};
+
+export type SerializedProductListItem = Omit<ProductListItem, "price"> & {
+  price: number;
+};

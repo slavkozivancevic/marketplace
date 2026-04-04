@@ -1,6 +1,7 @@
 import { cacheTag } from "next/cache";
+
 import { getAllOrganizations } from "@/features/organizations/db/organizations";
-import { getOrganizationGlobalTag } from "@/features/organizations/db/cache";
+import { CacheTags } from "@/lib/cache/tags";
 import { OrganizationCard } from "@/features/organizations/components/OrganizationCard";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -35,8 +36,6 @@ export default async function AdminOrganizationsPage() {
 
 async function fetchOrganizations() {
   "use cache";
-
-  cacheTag(getOrganizationGlobalTag());
-
+  cacheTag(CacheTags.organizations.all());
   return getAllOrganizations();
 }

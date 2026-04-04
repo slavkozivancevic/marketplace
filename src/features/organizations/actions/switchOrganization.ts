@@ -41,7 +41,7 @@ export async function switchOrganizationAction(
       activeOrgId: targetOrgId,
     });
 
-    revalidateUserCache(ctx.userId);
+    revalidateUserCache(ctx.userId, ctx.clerkUserId);
     revalidateOrganizationCache(targetOrgId);
   } catch (error) {
     return handleActionError(error);
