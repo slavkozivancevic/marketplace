@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ProductImageUpload } from "@/components/product/ProductImageUpload";
 import {
   createProductSchema,
@@ -45,6 +46,32 @@ type ProductFormData = {
   }[];
   version: number;
 };
+
+type OptionSnapshot = { name: string; values: string[] };
+
+function snapshotOptions(
+  options: { name: string; values: string[] }[],
+): OptionSnapshot[] {
+  return options.map((o) => ({
+    name: o.name,
+    values: [...o.values].sort(),
+  }));
+}
+
+function optionsAreSynced(
+  current: { name: string; values: string[] }[] | undefined,
+  snapshot: OptionSnapshot[],
+): boolean {
+  if (!current) return true;
+  if (current.length !== snapshot.length) return false;
+  return current.every((opt, i) => {
+    const snap = snapshot[i];
+    if (!snap || opt.name !== snap.name) return false;
+    const sorted = [...opt.values].sort();
+    if (sorted.length !== snap.values.length) return false;
+    return sorted.every((v, j) => v === snap.values[j]);
+  });
+}
 
 interface ProductFormProps {
   mode: "create" | "update";
@@ -83,6 +110,17 @@ export function ProductForm({ mode, product, onSuccess }: ProductFormProps) {
     () => product?.options.map(() => "") ?? [],
   );
 
+  const [syncedOptionsSnapshot, setSyncedOptionsSnapshot] = useState<
+    OptionSnapshot[]
+  >(() =>
+    snapshotOptions(
+      product?.options.map((opt) => ({
+        name: opt.name,
+        values: Array.from(new Set(opt.values.map((v) => v.value))),
+      })) ?? [],
+    ),
+  );
+
   const optionById = new Map(product?.options.map((o) => [o.id, o.name]) ?? []);
 
   const schema = mode === "create" ? createProductSchema : updateProductSchema;
@@ -97,7 +135,7 @@ export function ProductForm({ mode, product, onSuccess }: ProductFormProps) {
           images: product.images.map((img) => ({ key: img.key })),
           options: product.options.map((opt) => ({
             name: opt.name,
-            values: opt.values.map((v) => v.value),
+            values: Array.from(new Set(opt.values.map((v) => v.value))),
           })),
           variants: product.variants.map((v) => ({
             sku: v.sku,
@@ -136,6 +174,11 @@ export function ProductForm({ mode, product, onSuccess }: ProductFormProps) {
 
   const watchedOptions = useWatch({ control: form.control, name: "options" });
   const watchedVariants = useWatch({ control: form.control, name: "variants" });
+
+  const optionsChanged = !optionsAreSynced(
+    watchedOptions,
+    syncedOptionsSnapshot,
+  );
 
   const handleAddOptionValue = (optionIndex: number) => {
     const input = optionValueInputs[optionIndex]?.trim();
@@ -191,6 +234,7 @@ export function ProductForm({ mode, product, onSuccess }: ProductFormProps) {
       })),
     );
 
+    setSyncedOptionsSnapshot(snapshotOptions(options));
     toast.success(`Generated ${combinations.length} variant(s)`);
   };
 
@@ -376,7 +420,7 @@ export function ProductForm({ mode, product, onSuccess }: ProductFormProps) {
 
                   {values.length > 0 && (
                     <div className="flex flex-wrap gap-1">
-                      {values.map((value: string) => (
+                      {Array.from(new Set(values)).map((value: string) => (
                         <Badge
                           key={value}
                           variant="secondary"
@@ -446,12 +490,13 @@ export function ProductForm({ mode, product, onSuccess }: ProductFormProps) {
               {optionFields.length > 0 && (
                 <Button
                   type="button"
-                  variant="outline"
+                  variant={optionsChanged ? "default" : "outline"}
                   size="sm"
                   onClick={handleGenerateVariants}
                 >
                   <RefreshCw className="w-4 h-4 mr-1" />
                   Generate from Options
+                  {optionsChanged && " (required)"}
                 </Button>
               )}
               <Button
@@ -472,6 +517,19 @@ export function ProductForm({ mode, product, onSuccess }: ProductFormProps) {
               </Button>
             </div>
           </div>
+
+          {mode === "update" && optionsChanged && (
+            <Alert className="border-orange-200 bg-orange-50">
+              <RefreshCw className="h-4 w-4 text-orange-600" />
+              <AlertTitle className="text-orange-800">
+                Options changed
+              </AlertTitle>
+              <AlertDescription className="text-orange-700">
+                Regenerate variants to sync all combinations with current
+                options.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {variantFields.length === 0 && (
             <p className="text-sm text-muted-foreground py-6 text-center border rounded-md">

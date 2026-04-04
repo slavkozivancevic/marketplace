@@ -132,22 +132,22 @@ async function syncVariants(
   }
 }
 
-function resolveVariantIdForOptionValue(
-  optionName: string,
-  optionValue: string,
-  variants: ProductVariantInput[],
-): string | undefined {
-  for (const variant of variants) {
-    if (
-      variant.options?.some(
-        (o) => o.name === optionName && o.value === optionValue,
-      )
-    ) {
-      return variant.id;
-    }
-  }
-  return undefined;
-}
+// function resolveVariantIdForOptionValue(
+//   optionName: string,
+//   optionValue: string,
+//   variants: ProductVariantInput[],
+// ): string | undefined {
+//   for (const variant of variants) {
+//     if (
+//       variant.options?.some(
+//         (o) => o.name === optionName && o.value === optionValue,
+//       )
+//     ) {
+//       return variant.id;
+//     }
+//   }
+//   return undefined;
+// }
 
 async function syncOptions(
   tx: Prisma.TransactionClient,
@@ -181,50 +181,104 @@ async function syncOptions(
       optionId = createdOption.id;
     }
 
-    const existingValues = await tx.variantOptionValue.findMany({
-      where: { optionId },
-    });
-    const existingValueMap = new Map(existingValues.map((v) => [v.value, v]));
+    // Brišemo sve postojeće vrijednosti za ovu opciju i kreiramo iznova
+    // jer se mapping variantId može promijeniti
+    await tx.variantOptionValue.deleteMany({ where: { optionId } });
 
-    const incomingValues = new Set(option.values);
-    const toDeleteValues = existingValues.filter(
-      (v) => !incomingValues.has(v.value),
-    );
+    // Za svaki variant koji ima ovu opciju, kreiramo VariantOptionValue
+    for (const variant of variants) {
+      if (!variant.id) continue;
 
-    if (toDeleteValues.length > 0) {
-      await tx.variantOptionValue.deleteMany({
-        where: { id: { in: toDeleteValues.map((v) => v.id) } },
+      const optionValue = variant.options?.find((o) => o.name === option.name);
+      if (!optionValue) continue;
+
+      await tx.variantOptionValue.create({
+        data: {
+          optionId,
+          value: optionValue.value,
+          variantId: variant.id,
+        },
       });
-    }
-
-    for (const val of option.values) {
-      const variantId = resolveVariantIdForOptionValue(
-        option.name,
-        val,
-        variants,
-      );
-
-      if (!variantId) {
-        continue;
-      }
-
-      const existingValue = existingValueMap.get(val);
-
-      if (existingValue) {
-        if (existingValue.variantId !== variantId) {
-          await tx.variantOptionValue.update({
-            where: { id: existingValue.id },
-            data: { variantId },
-          });
-        }
-      } else {
-        await tx.variantOptionValue.create({
-          data: { optionId, value: val, variantId },
-        });
-      }
     }
   }
 }
+
+// async function syncOptions(
+//   tx: Prisma.TransactionClient,
+//   productId: string,
+//   options: VariantOptionInput[],
+//   variants: ProductVariantInput[],
+// ) {
+//   const existingOptions = await tx.variantOption.findMany({
+//     where: { productId },
+//   });
+//   const existingMap = new Map(existingOptions.map((o) => [o.name, o]));
+
+//   const incomingOptionNames = new Set(options.map((o) => o.name));
+
+//   const toDelete = existingOptions.filter(
+//     (o) => !incomingOptionNames.has(o.name),
+//   );
+
+//   for (const del of toDelete) {
+//     await tx.variantOptionValue.deleteMany({ where: { optionId: del.id } });
+//     await tx.variantOption.delete({ where: { id: del.id } });
+//   }
+
+//   for (const option of options) {
+//     let optionId = existingMap.get(option.name)?.id;
+
+//     if (!optionId) {
+//       const createdOption = await tx.variantOption.create({
+//         data: { productId, name: option.name },
+//       });
+//       optionId = createdOption.id;
+//     }
+
+//     const existingValues = await tx.variantOptionValue.findMany({
+//       where: { optionId },
+//     });
+//     const existingValueMap = new Map(existingValues.map((v) => [v.value, v]));
+
+//     const incomingValues = new Set(option.values);
+//     const toDeleteValues = existingValues.filter(
+//       (v) => !incomingValues.has(v.value),
+//     );
+
+//     if (toDeleteValues.length > 0) {
+//       await tx.variantOptionValue.deleteMany({
+//         where: { id: { in: toDeleteValues.map((v) => v.id) } },
+//       });
+//     }
+
+//     for (const val of option.values) {
+//       const variantId = resolveVariantIdForOptionValue(
+//         option.name,
+//         val,
+//         variants,
+//       );
+
+//       if (!variantId) {
+//         continue;
+//       }
+
+//       const existingValue = existingValueMap.get(val);
+
+//       if (existingValue) {
+//         if (existingValue.variantId !== variantId) {
+//           await tx.variantOptionValue.update({
+//             where: { id: existingValue.id },
+//             data: { variantId },
+//           });
+//         }
+//       } else {
+//         await tx.variantOptionValue.create({
+//           data: { optionId, value: val, variantId },
+//         });
+//       }
+//     }
+//   }
+// }
 
 export function productRepository(
   ctx: Pick<RequestContext, "organizationId" | "userId">,

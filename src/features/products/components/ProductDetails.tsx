@@ -34,6 +34,9 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
           <div>
             <strong>Price:</strong> ${product.price.toFixed(2)}
           </div>
+          <div>
+            <strong>Version:</strong> {product.version}
+          </div>
         </CardContent>
       </Card>
 
@@ -59,35 +62,88 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
               </div>
             ))
           ) : (
-            <p>No images uploaded</p>
+            <p className="text-sm text-muted-foreground">No images uploaded</p>
           )}
         </CardContent>
       </Card>
 
       <Separator />
 
+      {product.options.map((option) => (
+        <div key={option.id} className="flex items-center gap-2">
+          <span className="text-sm font-medium w-20">{option.name}:</span>
+          <div className="flex flex-wrap gap-1">
+            {Array.from(new Set(option.values.map((v) => v.value))).map(
+              (value) => (
+                <Badge key={value} variant="secondary">
+                  {value}
+                </Badge>
+              ),
+            )}
+          </div>
+        </div>
+      ))}
+      {/* {product.options?.length > 0 && (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Options</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {product.options.map((option) => (
+                <div key={option.id} className="flex items-center gap-2">
+                  <span className="text-sm font-medium w-20">
+                    {option.name}:
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {option.values.map((v) => (
+                      <Badge key={v.id} variant="secondary">
+                        {v.value}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+          <Separator />
+        </>
+      )} */}
+
       <Card>
         <CardHeader>
-          <CardTitle>Variants</CardTitle>
+          <CardTitle>Variants ({product.variants?.length ?? 0})</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {product.variants?.length ? (
             product.variants.map((variant) => (
-              <div key={variant.id} className="border p-2 rounded">
-                <div>
-                  <strong>SKU:</strong> {variant.sku} | <strong>Price:</strong>{" "}
-                  ${variant.price.toFixed(2)} | <strong>Stock:</strong>{" "}
-                  {variant.stock}
+              <div key={variant.id} className="border p-3 rounded space-y-1">
+                <div className="flex items-center gap-4 text-sm">
+                  <span>
+                    <strong>SKU:</strong> {variant.sku}
+                  </span>
+                  <span>
+                    <strong>Price:</strong> ${variant.price.toFixed(2)}
+                  </span>
+                  <span>
+                    <strong>Stock:</strong> {variant.stock}
+                  </span>
                 </div>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {variant.optionValues?.map((opt) => (
-                    <Badge key={opt.id}>{opt.value}</Badge>
-                  ))}
-                </div>
+                {variant.optionValues?.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {variant.optionValues.map((ov) => (
+                      <Badge key={ov.id} variant="outline">
+                        {ov.value}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
             ))
           ) : (
-            <p>No variants available</p>
+            <p className="text-sm text-muted-foreground">
+              No variants available
+            </p>
           )}
         </CardContent>
       </Card>
