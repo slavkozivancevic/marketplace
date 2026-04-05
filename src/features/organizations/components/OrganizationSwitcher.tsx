@@ -45,12 +45,12 @@ export function OrganizationSwitcher({
       onValueChange={handleSwitch}
       disabled={isPending}
     >
-      <SelectTrigger className="w-full text-sm">
+      <SelectTrigger className="w-full text-sm cursor-pointer">
         <SelectValue placeholder="Select organization" />
       </SelectTrigger>
       <SelectContent>
         {organizations.map((org) => (
-          <SelectItem key={org.id} value={org.id}>
+          <SelectItem key={org.id} value={org.id} className="cursor-pointer">
             {org.name}
           </SelectItem>
         ))}

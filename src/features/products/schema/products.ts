@@ -21,9 +21,6 @@ export const productVariantSchema = z.object({
   price: z.coerce.number().nonnegative("Price must be 0 or greater"),
   stock: z.coerce.number().int().nonnegative("Stock must be 0 or greater"),
   options: z.array(productVariantOptionSchema).default([]),
-  // options: z
-  //   .array(productVariantOptionSchema)
-  //   .min(1, "Variant must have at least one option"),
 });
 
 export const createProductSchema = z.object({

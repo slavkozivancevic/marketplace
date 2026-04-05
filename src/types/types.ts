@@ -116,3 +116,30 @@ export type SerializedProductWithRelations = Omit<
 export type SerializedProductListItem = Omit<ProductListItem, "price"> & {
   price: number;
 };
+
+export type ProductHistory = Prisma.ProductHistoryGetPayload<
+  Record<string, never>
+>;
+
+export type SerializedProductHistory = Omit<ProductHistory, "price"> & {
+  price: number;
+  updatedBy: { id: string; name: string | null; email: string } | null;
+};
+
+export type PublicProduct = Prisma.ProductGetPayload<{
+  include: {
+    images: true;
+    variants: { include: { optionValues: true } };
+    options: { include: { values: true } };
+  };
+}>;
+
+export type SerializedPublicProduct = Omit<
+  PublicProduct,
+  "price" | "variants"
+> & {
+  price: number;
+  variants: (Omit<PublicProduct["variants"][number], "price"> & {
+    price: number;
+  })[];
+};

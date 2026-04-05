@@ -4,30 +4,27 @@ import { syncClerkUserMetadata } from "@/services/clerk";
 export async function validateAuthSync({
   clerkUserId,
   dbId,
-  activeOrgId,
 }: {
   clerkUserId: string;
   dbId?: string;
   activeOrgId?: string;
 }) {
   const user = await prisma.user.findFirst({
-    where: dbId
-      ? { id: dbId }
-      : {
-          clerkUserId,
-        },
-    include: {
-      memberships: true,
-    },
+    where: dbId ? { id: dbId } : { clerkUserId },
+    include: { memberships: true },
   });
 
   if (!user || user.deletedAt) {
     throw new Error("User not found during auth sync");
   }
 
-  const membership = activeOrgId
-    ? user.memberships.find((m) => m.orgId === activeOrgId)
-    : user.memberships[0];
+  const resolvedOrgId = user.activeOrgId ?? user.memberships[0]?.orgId;
+
+  if (!resolvedOrgId) {
+    throw new Error("User has no membership");
+  }
+
+  const membership = user.memberships.find((m) => m.orgId === resolvedOrgId);
 
   if (!membership) {
     throw new Error("User has no membership");

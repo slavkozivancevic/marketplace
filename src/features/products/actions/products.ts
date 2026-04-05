@@ -13,11 +13,15 @@ import { productRepository } from "../db/products";
 import { ActionErrorResult } from "@/types/types";
 import { requirePermission } from "@/lib/auth/permissions";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
-
-// WRITE
+import {
+  publishProduct as workflowPublish,
+  unpublishProduct as workflowUnpublish,
+  archiveProduct as workflowArchive,
+} from "../services/productWorkflow";
 
 export async function createProduct(
   unsafeData: CreateProductInput,
+  redirectTo = "/admin/products",
 ): Promise<void | ActionErrorResult> {
   try {
     const parsed = createProductSchema.safeParse(unsafeData);
@@ -25,7 +29,7 @@ export async function createProduct(
     if (!parsed.success) {
       return {
         error: true,
-        message: parsed.error.issues.map((issue) => issue.message).join(", "),
+        message: parsed.error.issues.map((i) => i.message).join(", "),
       };
     }
 
@@ -38,12 +42,13 @@ export async function createProduct(
     return handleActionError(error);
   }
 
-  redirect("/admin/products");
+  redirect(redirectTo);
 }
 
 export async function updateProduct(
   id: string,
   unsafeData: UpdateProductInput,
+  redirectTo = `/admin/products/${id}`,
 ): Promise<void | ActionErrorResult> {
   try {
     const parsed = updateProductSchema.safeParse(unsafeData);
@@ -51,7 +56,7 @@ export async function updateProduct(
     if (!parsed.success) {
       return {
         error: true,
-        message: parsed.error.issues.map((issue) => issue.message).join(", "),
+        message: parsed.error.issues.map((i) => i.message).join(", "),
       };
     }
 
@@ -66,11 +71,12 @@ export async function updateProduct(
     return handleActionError(error);
   }
 
-  redirect(`/admin/products/${id}`);
+  redirect(redirectTo);
 }
 
 export async function deleteProduct(
   id: string,
+  redirectTo = "/admin/products",
 ): Promise<void | ActionErrorResult> {
   try {
     const ctx = await resolveRequestContext();
@@ -82,7 +88,7 @@ export async function deleteProduct(
     return handleActionError(error);
   }
 
-  redirect("/admin/products");
+  redirect(redirectTo);
 }
 
 export async function rollbackProductVersion(
@@ -98,65 +104,48 @@ export async function rollbackProductVersion(
   } catch (error) {
     return handleActionError(error);
   }
-
-  redirect(`/admin/products/${productId}/history`);
 }
 
 export async function publishProduct(
   productId: string,
-  version: number,
+  redirectTo = `/admin/products/${productId}`,
 ): Promise<void | ActionErrorResult> {
   try {
     const ctx = await resolveRequestContext();
-    requirePermission(ctx, "product:update");
-    const repo = productRepository(ctx);
-
-    await repo.update(productId, version, {
-      status: ProductStatus.PUBLISHED,
-    });
+    await workflowPublish(ctx, productId);
   } catch (error) {
     return handleActionError(error);
   }
 
-  redirect("/admin/products");
+  redirect(redirectTo);
 }
 
 export async function unpublishProduct(
   productId: string,
-  version: number,
+  redirectTo = `/admin/products/${productId}`,
 ): Promise<void | ActionErrorResult> {
   try {
     const ctx = await resolveRequestContext();
-    requirePermission(ctx, "product:update");
-    const repo = productRepository(ctx);
-
-    await repo.update(productId, version, {
-      status: ProductStatus.DRAFT,
-    });
+    await workflowUnpublish(ctx, productId);
   } catch (error) {
     return handleActionError(error);
   }
 
-  redirect("/admin/products");
+  redirect(redirectTo);
 }
 
 export async function archiveProduct(
   productId: string,
-  version: number,
+  redirectTo = `/admin/products/${productId}`,
 ): Promise<void | ActionErrorResult> {
   try {
     const ctx = await resolveRequestContext();
-    requirePermission(ctx, "product:update");
-    const repo = productRepository(ctx);
-
-    await repo.update(productId, version, {
-      status: ProductStatus.ARCHIVED,
-    });
+    await workflowArchive(ctx, productId);
   } catch (error) {
     return handleActionError(error);
   }
 
-  redirect("/admin/products");
+  redirect(redirectTo);
 }
 
 export async function bulkUpdateProductStatus(
@@ -197,68 +186,3 @@ export async function bulkDeleteProducts(
     return handleActionError(error);
   }
 }
-
-// // READ
-// export async function getProducts(
-//   repo: ProductRepo,
-// ): Promise<
-//   { products: ProductListItem[]; nextCursor?: string } | ActionErrorResult
-// > {
-//   // "use cache";
-//   try {
-//     // const ctx = await resolveRequestContext();
-//     // requirePermission(ctx, "product:read");
-//     // cacheTag(getProductGlobalTag(ctx.organizationId));
-//     // const repo = productRepository(ctx);
-
-//     return await repo.getAll();
-//   } catch (error) {
-//     return handleActionError(error);
-//   }
-// }
-
-// export async function getProductById(
-//   repo: ProductRepo,
-//   id: string,
-// ): Promise<ProductWithRelations | null | ActionErrorResult> {
-//   try {
-//     // const ctx = await resolveRequestContext();
-//     // requirePermission(ctx, "product:read");
-//     // const repo = productRepository(ctx);
-
-//     return await repo.getById(id);
-//   } catch (error) {
-//     return handleActionError(error);
-//   }
-// }
-
-// export async function getProductHistory(
-//   repo: ProductRepo,
-//   productId: string,
-// ): Promise<ProductHistory[] | ActionErrorResult> {
-//   try {
-//     // const ctx = await resolveRequestContext();
-//     // requirePermission(ctx, "product:read");
-//     // const repo = productRepository(ctx);
-
-//     return await repo.getHistory(productId);
-//   } catch (error) {
-//     return handleActionError(error);
-//   }
-// }
-
-// export async function previewProductVersion(
-//   repo: ProductRepo,
-//   productId: string,
-//   version: number,
-// ): Promise<ProductHistory | ActionErrorResult> {
-//   try {
-//     // const ctx = await resolveRequestContext();
-//     // requirePermission(ctx, "product:read");
-//     // const repo = productRepository(ctx);
-
-//     return await repo.previewVersion(productId, version);
-//   } catch (error) {
-//     return handleActionError(error);
-//   }
-// }

@@ -1,4 +1,3 @@
-// src/app/admin/products/[id]/history/not-found.tsx
 import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";

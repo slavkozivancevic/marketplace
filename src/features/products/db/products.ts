@@ -132,23 +132,6 @@ async function syncVariants(
   }
 }
 
-// function resolveVariantIdForOptionValue(
-//   optionName: string,
-//   optionValue: string,
-//   variants: ProductVariantInput[],
-// ): string | undefined {
-//   for (const variant of variants) {
-//     if (
-//       variant.options?.some(
-//         (o) => o.name === optionName && o.value === optionValue,
-//       )
-//     ) {
-//       return variant.id;
-//     }
-//   }
-//   return undefined;
-// }
-
 async function syncOptions(
   tx: Prisma.TransactionClient,
   productId: string,
@@ -181,11 +164,8 @@ async function syncOptions(
       optionId = createdOption.id;
     }
 
-    // Brišemo sve postojeće vrijednosti za ovu opciju i kreiramo iznova
-    // jer se mapping variantId može promijeniti
     await tx.variantOptionValue.deleteMany({ where: { optionId } });
 
-    // Za svaki variant koji ima ovu opciju, kreiramo VariantOptionValue
     for (const variant of variants) {
       if (!variant.id) continue;
 
@@ -203,83 +183,6 @@ async function syncOptions(
   }
 }
 
-// async function syncOptions(
-//   tx: Prisma.TransactionClient,
-//   productId: string,
-//   options: VariantOptionInput[],
-//   variants: ProductVariantInput[],
-// ) {
-//   const existingOptions = await tx.variantOption.findMany({
-//     where: { productId },
-//   });
-//   const existingMap = new Map(existingOptions.map((o) => [o.name, o]));
-
-//   const incomingOptionNames = new Set(options.map((o) => o.name));
-
-//   const toDelete = existingOptions.filter(
-//     (o) => !incomingOptionNames.has(o.name),
-//   );
-
-//   for (const del of toDelete) {
-//     await tx.variantOptionValue.deleteMany({ where: { optionId: del.id } });
-//     await tx.variantOption.delete({ where: { id: del.id } });
-//   }
-
-//   for (const option of options) {
-//     let optionId = existingMap.get(option.name)?.id;
-
-//     if (!optionId) {
-//       const createdOption = await tx.variantOption.create({
-//         data: { productId, name: option.name },
-//       });
-//       optionId = createdOption.id;
-//     }
-
-//     const existingValues = await tx.variantOptionValue.findMany({
-//       where: { optionId },
-//     });
-//     const existingValueMap = new Map(existingValues.map((v) => [v.value, v]));
-
-//     const incomingValues = new Set(option.values);
-//     const toDeleteValues = existingValues.filter(
-//       (v) => !incomingValues.has(v.value),
-//     );
-
-//     if (toDeleteValues.length > 0) {
-//       await tx.variantOptionValue.deleteMany({
-//         where: { id: { in: toDeleteValues.map((v) => v.id) } },
-//       });
-//     }
-
-//     for (const val of option.values) {
-//       const variantId = resolveVariantIdForOptionValue(
-//         option.name,
-//         val,
-//         variants,
-//       );
-
-//       if (!variantId) {
-//         continue;
-//       }
-
-//       const existingValue = existingValueMap.get(val);
-
-//       if (existingValue) {
-//         if (existingValue.variantId !== variantId) {
-//           await tx.variantOptionValue.update({
-//             where: { id: existingValue.id },
-//             data: { variantId },
-//           });
-//         }
-//       } else {
-//         await tx.variantOptionValue.create({
-//           data: { optionId, value: val, variantId },
-//         });
-//       }
-//     }
-//   }
-// }
-
 export function productRepository(
   ctx: Pick<RequestContext, "organizationId" | "userId">,
 ) {
@@ -292,12 +195,7 @@ export function productRepository(
   type SortOrder = "asc" | "desc";
 
   return {
-    // READ
     async getById(id: string): Promise<ProductWithRelations | null> {
-      // "use cache";
-      // cacheTag(getProductGlobalTag(db.organizationId));
-      // cacheTag(getProductIdTag(db.organizationId, id));
-
       return db.prisma.product.findFirst({
         where: {
           id,
@@ -331,9 +229,6 @@ export function productRepository(
       products: ProductListItem[];
       nextCursor?: string;
     }> {
-      // "use cache";
-      // cacheTag(getProductGlobalTag(db.organizationId));
-
       const take = params?.take ?? 20;
       const cursor = params?.cursor;
 
@@ -375,8 +270,6 @@ export function productRepository(
             take: 1,
             orderBy: { order: "asc" },
           },
-          // variants: true,
-          // options: { include: { values: true } },
         },
       });
 
@@ -392,10 +285,7 @@ export function productRepository(
       };
     },
 
-    async getHistory(productId: string): Promise<ProductHistory[]> {
-      // "use cache";
-      // cacheTag(getProductGlobalTag(db.organizationId));
-      // cacheTag(getProductIdTag(db.organizationId, productId));
+    async getHistory(productId: string) {
       return db.prisma.productHistory.findMany({
         where: {
           productId,
@@ -405,15 +295,19 @@ export function productRepository(
           },
         },
         orderBy: { version: "desc" },
-        // include: { updatedBy: true },
+        include: {
+          updatedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
       });
     },
 
     async previewVersion(productId: string, version: number) {
-      // "use cache";
-      // cacheTag(getProductGlobalTag(db.organizationId));
-      // cacheTag(getProductIdTag(db.organizationId, productId));
-
       const history = await db.prisma.productHistory.findFirst({
         where: {
           productId,
@@ -432,7 +326,6 @@ export function productRepository(
       return history;
     },
 
-    // WRITE
     async create(data: {
       title: string;
       description: string;
@@ -486,7 +379,6 @@ export function productRepository(
           },
           include: {
             images: true,
-            // variants: true,
             variants: {
               include: {
                 optionValues: true,
@@ -569,7 +461,6 @@ export function productRepository(
           },
           include: {
             images: true,
-            // variants: true,
             variants: {
               include: {
                 optionValues: true,
@@ -828,7 +719,6 @@ export function productRepository(
 }
 
 export type ProductRepo = {
-  // READ
   getById(id: string): Promise<ProductWithRelations | null>;
 
   getAll(params?: {
@@ -847,10 +737,13 @@ export type ProductRepo = {
     nextCursor?: string;
   }>;
 
-  getHistory(productId: string): Promise<ProductHistory[]>;
+  getHistory(productId: string): Promise<
+    (ProductHistory & {
+      updatedBy: { id: string; name: string | null; email: string } | null;
+    })[]
+  >;
   previewVersion(productId: string, version: number): Promise<ProductHistory>;
 
-  // WRITE
   create(data: {
     title: string;
     description: string;

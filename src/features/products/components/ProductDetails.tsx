@@ -6,17 +6,28 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
 import { SerializedProductWithRelations } from "@/types/types";
+import { ProductStatusActions } from "./ProductStatusActions";
 
 interface ProductDetailsProps {
   product: SerializedProductWithRelations;
+  showActions?: boolean;
 }
 
-export const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
+export const ProductDetails: React.FC<ProductDetailsProps> = ({
+  product,
+  showActions = true,
+}) => {
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Basic Information</CardTitle>
+          {showActions && (
+            <ProductStatusActions
+              productId={product.id}
+              status={product.status}
+            />
+          )}
         </CardHeader>
         <CardContent className="space-y-2">
           <div>
@@ -69,21 +80,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
 
       <Separator />
 
-      {product.options.map((option) => (
-        <div key={option.id} className="flex items-center gap-2">
-          <span className="text-sm font-medium w-20">{option.name}:</span>
-          <div className="flex flex-wrap gap-1">
-            {Array.from(new Set(option.values.map((v) => v.value))).map(
-              (value) => (
-                <Badge key={value} variant="secondary">
-                  {value}
-                </Badge>
-              ),
-            )}
-          </div>
-        </div>
-      ))}
-      {/* {product.options?.length > 0 && (
+      {product.options?.length > 0 && (
         <>
           <Card>
             <CardHeader>
@@ -96,11 +93,13 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
                     {option.name}:
                   </span>
                   <div className="flex flex-wrap gap-1">
-                    {option.values.map((v) => (
-                      <Badge key={v.id} variant="secondary">
-                        {v.value}
-                      </Badge>
-                    ))}
+                    {Array.from(new Set(option.values.map((v) => v.value))).map(
+                      (value) => (
+                        <Badge key={value} variant="secondary">
+                          {value}
+                        </Badge>
+                      ),
+                    )}
                   </div>
                 </div>
               ))}
@@ -108,7 +107,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
           </Card>
           <Separator />
         </>
-      )} */}
+      )}
 
       <Card>
         <CardHeader>

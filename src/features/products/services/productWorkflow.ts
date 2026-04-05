@@ -11,7 +11,7 @@ function assertCanPublish(product: {
   title: string;
   description: string;
   price: unknown;
-  images?: { key: string }[];
+  images: { key: string }[];
 }) {
   if (!product.title.trim()) {
     throw new ForbiddenError("Product title is required before publishing");
@@ -23,12 +23,16 @@ function assertCanPublish(product: {
     );
   }
 
-  if (!product.price) {
-    throw new ForbiddenError("Product price must be set before publishing");
+  if (!product.price || Number(product.price) <= 0) {
+    throw new ForbiddenError(
+      "Product price must be greater than 0 before publishing",
+    );
   }
 
-  if (!product.images || product.images.length === 0) {
-    throw new ForbiddenError("At least one product image is required");
+  if (product.images.length === 0) {
+    throw new ForbiddenError(
+      "At least one product image is required before publishing",
+    );
   }
 }
 
@@ -54,7 +58,6 @@ export async function publishProduct(ctx: RequestContext, productId: string) {
   requirePermission(ctx, "product:update");
 
   const repo = productRepository(ctx);
-
   const product = await repo.getById(productId);
 
   if (!product) {
@@ -62,7 +65,6 @@ export async function publishProduct(ctx: RequestContext, productId: string) {
   }
 
   assertStatusTransition(product.status, ProductStatus.PUBLISHED);
-
   assertCanPublish(product);
 
   return repo.update(productId, product.version, {
@@ -74,7 +76,6 @@ export async function unpublishProduct(ctx: RequestContext, productId: string) {
   requirePermission(ctx, "product:update");
 
   const repo = productRepository(ctx);
-
   const product = await repo.getById(productId);
 
   if (!product) {
@@ -92,7 +93,6 @@ export async function archiveProduct(ctx: RequestContext, productId: string) {
   requirePermission(ctx, "product:update");
 
   const repo = productRepository(ctx);
-
   const product = await repo.getById(productId);
 
   if (!product) {

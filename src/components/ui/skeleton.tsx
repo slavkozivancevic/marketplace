@@ -4,9 +4,6 @@ import { cn } from "@/lib/utils";
 
 import { buttonVariants } from "./button";
 
-// -----------------------------
-// Generic Skeleton komponenta
-// -----------------------------
 export function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -17,9 +14,6 @@ export function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-// -----------------------------
-// Skeleton za dugme
-// -----------------------------
 export function SkeletonButton({ className }: { className?: string }) {
   return (
     <div
@@ -34,9 +28,6 @@ export function SkeletonButton({ className }: { className?: string }) {
   );
 }
 
-// -----------------------------
-// Skeleton za niz elemenata
-// -----------------------------
 export function SkeletonArray({
   amount,
   children,
@@ -53,9 +44,6 @@ export function SkeletonArray({
   );
 }
 
-// -----------------------------
-// Skeleton za tekst (više redova)
-// -----------------------------
 export function SkeletonText({
   rows = 1,
   size = "md",
@@ -83,9 +71,6 @@ export function SkeletonText({
   );
 }
 
-// -----------------------------
-// Skeleton za sekcijski header
-// -----------------------------
 export function SkeletonSectionHeader({ className }: { className?: string }) {
   return (
     <div className={cn("space-y-2", className)}>
@@ -95,9 +80,6 @@ export function SkeletonSectionHeader({ className }: { className?: string }) {
   );
 }
 
-// -----------------------------
-// Skeleton za product table
-// -----------------------------
 export function SkeletonProductTable({
   rows = 5,
   showActions = false,
@@ -138,9 +120,6 @@ export function SkeletonProductTable({
   );
 }
 
-// -----------------------------
-// Skeleton za history table
-// -----------------------------
 export function SkeletonHistoryTable({ rows = 5 }: { rows?: number }) {
   const columns = "grid-cols-[1fr_2fr_1fr_1.5fr_1fr]";
 
@@ -171,9 +150,6 @@ export function SkeletonHistoryTable({ rows = 5 }: { rows?: number }) {
   );
 }
 
-// -----------------------------
-// Skeleton za product details card
-// -----------------------------
 export function SkeletonProductCard() {
   return (
     <div className="space-y-6">

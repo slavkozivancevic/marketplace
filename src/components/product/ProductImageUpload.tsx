@@ -56,10 +56,15 @@ type SortableItemProps = {
   onRemove: () => void;
 };
 
-// Sortable thumbnail sa CardAction overlay
 function SortableItem({ img, onClick, onRemove }: SortableItemProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: img.key });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: img.key });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -72,7 +77,7 @@ function SortableItem({ img, onClick, onRemove }: SortableItemProps) {
       style={style}
       {...attributes}
       {...listeners}
-      className={`group py-0 relative h-24 w-full cursor-pointer overflow-hidden ${isDragging ? 'z-1' : ''}`}
+      className={`group py-0 relative h-24 w-full cursor-pointer overflow-hidden ${isDragging ? "z-1" : ""}`}
     >
       <CardContent className="h-full w-full p-0" onClick={onClick}>
         <Image
@@ -122,12 +127,14 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
   const [previewImage, setPreviewImage] =
     useState<PresignedUploadedImage | null>(null);
 
-  const sensors = useSensors(useSensor(PointerSensor, {
-    activationConstraint: {
-      delay: 200,
-      tolerance: 5,
-    },
-  }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 5,
+      },
+    }),
+  );
 
   /**
    * Ako parent promeni initialImages (npr edit mode / reset forme),
@@ -176,7 +183,6 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
         setImages((prev) => [...prev, tempImage]);
 
         try {
-          // 1) Uzmi presigned PUT URL (bez downloadUrl fallback-a)
           const { data } = await axios.post<CreateProductImageUploadResponse>(
             "/api/uploads/product-image",
             {
@@ -191,7 +197,6 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
 
           const { key, url: uploadUrl } = data.data;
 
-          // 2) Upload na S3 preko presigned PUT URL
           await axios.put(uploadUrl, file, {
             headers: {
               "Content-Type": file.type,
@@ -209,7 +214,6 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
             },
           });
 
-          // 3) Procesiraj sliku (thumb + signed GET URL-ovi)
           const { data: processed } =
             await axios.post<ProcessProductImageResponse>(
               "/api/uploads/product-image/process",
@@ -220,7 +224,11 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
             throw new Error(processed.message || "Image processing failed");
           }
 
-          const { key: processedKey, thumbnailDownloadUrl, originalDownloadUrl } = processed.data;
+          const {
+            key: processedKey,
+            thumbnailDownloadUrl,
+            originalDownloadUrl,
+          } = processed.data;
 
           const uploadedImage: PresignedUploadedImage = {
             key: processedKey,
@@ -259,7 +267,6 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
     setImages((prev) => {
       const imageToRemove = prev.find((img) => img.key === key);
 
-      // Revoke samo za blob URL-eve (lokalni preview), ne za signed https URL-eve
       if (imageToRemove?.url.startsWith("blob:")) {
         URL.revokeObjectURL(imageToRemove.url);
       }
@@ -271,9 +278,9 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
         URL.revokeObjectURL(imageToRemove.downloadUrl);
       }
 
-      // Delete from S3 if uploaded
       if (imageToRemove && !imageToRemove.url.startsWith("blob:")) {
-        axios.post("/api/uploads/product-image/delete", { key: imageToRemove.key })
+        axios
+          .post("/api/uploads/product-image/delete", { key: imageToRemove.key })
           .catch((err) => console.error("Failed to delete from S3:", err));
       }
 

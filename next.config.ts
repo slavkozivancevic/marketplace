@@ -9,12 +9,6 @@ const nextConfig: NextConfig = {
   },
   reactCompiler: true,
   images: {
-    // domains: [
-    //   "marketplace-product-images-slavko.s3.eu-central-1.amazonaws.com",
-    //   "marketplace-product-images.s3.amazonaws.com",
-    //   "images.unsplash.com",
-    //   "res.cloudinary.com",
-    // ],
     remotePatterns: [
       {
         protocol: "https",

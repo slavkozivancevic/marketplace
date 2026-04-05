@@ -7,10 +7,10 @@ import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
 import { CacheTags } from "@/lib/cache/tags";
 import { isActionErrorResult } from "@/features/common/errors/domainErrors";
+import { SerializedProductHistory } from "@/types/types";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ProductHistory } from "@/generated/prisma/client";
 import { ProductHistoryTable } from "@/features/products/components/ProductHistoryTable";
 
 interface ProductHistoryPageProps {
@@ -48,7 +48,7 @@ export default async function AdminProductHistoryPage({
     );
   }
 
-  const history = result as ProductHistory[];
+  const history = result as SerializedProductHistory[];
 
   return (
     <div className="container">
@@ -70,9 +70,21 @@ export default async function AdminProductHistoryPage({
         </Alert>
       ) : (
         <div className="mt-4">
-          <ProductHistoryTable history={history} />
+          <ProductHistoryTable history={history} productId={id} />
         </div>
       )}
+      {/* {history.length === 0 ? (
+        <Alert>
+          <AlertTitle>No history found</AlertTitle>
+          <AlertDescription>
+            There is currently no version history for this product.
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <div className="mt-4">
+          <ProductHistoryTable history={history} />
+        </div>
+      )} */}
     </div>
   );
 }
@@ -81,13 +93,17 @@ async function fetchProductHistory(
   organizationId: string,
   userId: string,
   id: string,
-) {
+): Promise<SerializedProductHistory[] | { error: boolean; message: string }> {
   "use cache";
   cacheTag(CacheTags.products.byId(organizationId, id));
   cacheTag(CacheTags.products.history(organizationId, id));
   try {
     const repo = productRepository({ organizationId, userId });
-    return await repo.getHistory(id);
+    const result = await repo.getHistory(id);
+    return result.map((entry) => ({
+      ...entry,
+      price: Number(entry.price),
+    }));
   } catch {
     return { error: true, message: "Failed to load product history" };
   }

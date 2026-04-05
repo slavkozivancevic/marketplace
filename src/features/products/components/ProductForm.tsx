@@ -77,6 +77,7 @@ interface ProductFormProps {
   mode: "create" | "update";
   product?: SerializedProductWithRelations;
   onSuccess?: () => void;
+  redirectTo?: string;
 }
 
 function cartesianProduct(
@@ -99,7 +100,12 @@ function cartesianProduct(
   );
 }
 
-export function ProductForm({ mode, product, onSuccess }: ProductFormProps) {
+export function ProductForm({
+  mode,
+  product,
+  onSuccess,
+  redirectTo,
+}: ProductFormProps) {
   const [isPending, startTransition] = useTransition();
 
   const [uploadedImages, setUploadedImages] = useState<
@@ -259,9 +265,13 @@ export function ProductForm({ mode, product, onSuccess }: ProductFormProps) {
           options: data.options,
           variants: data.variants,
         };
-        result = await createProduct(createData);
+        result = await createProduct(createData, redirectTo);
       } else {
-        result = await updateProduct(product!.id, data as UpdateProductInput);
+        result = await updateProduct(
+          product!.id,
+          data as UpdateProductInput,
+          redirectTo,
+        );
       }
 
       if (result && "error" in result) {

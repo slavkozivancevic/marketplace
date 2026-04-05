@@ -4,7 +4,6 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import sharp from "sharp";
 import { ImageInput, ImageProcessingResult } from "@/types/types";
 import { ImageProcessorError } from "@/features/common/errors/domainErrors";
-// import { env } from "@/env/server";
 
 export async function processImage({
   key,
@@ -39,7 +38,6 @@ export async function processImage({
       }),
     );
 
-    // Signed GET URL za original
     const originalGetCommand = new GetObjectCommand({
       Bucket: S3_BUCKET,
       Key: key,
@@ -48,7 +46,6 @@ export async function processImage({
       expiresIn: 3600,
     });
 
-    // Signed GET URL za thumbnail
     const thumbGetCommand = new GetObjectCommand({
       Bucket: S3_BUCKET,
       Key: thumbKey,
@@ -63,11 +60,6 @@ export async function processImage({
       originalDownloadUrl,
       thumbnailDownloadUrl,
     };
-    // const region: string = env.AWS_REGION!;
-    // const originalUrl = `https://${S3_BUCKET}.s3.${region}.amazonaws.com/${key}`;
-    // const thumbnailUrl = `https://${S3_BUCKET}.s3.${region}.amazonaws.com/${thumbKey}`;
-
-    // return { originalUrl, thumbnailUrl, key, thumbKey };
   } catch (err) {
     if (err instanceof Error) {
       throw new ImageProcessorError(err.message);

@@ -23,7 +23,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { sendInviteSchema, SendInviteInput } from "../schema/invites";
 import { sendInviteAction } from "../actions/invites";
-// import { MembershipRole } from "@/generated/prisma/client";
 import { INVITABLE_ROLES } from "@/types/types";
 
 export function InviteForm() {
@@ -34,7 +33,6 @@ export function InviteForm() {
     defaultValues: {
       email: "",
       role: "MEMBER",
-      // role: MembershipRole.MEMBER,
     },
   });
 

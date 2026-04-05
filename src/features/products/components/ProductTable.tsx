@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { useTransition } from "react";
 import {
   Table,
   TableBody,
@@ -19,25 +20,96 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Product, ProductStatus } from "@/generated/prisma/client";
-// import { Decimal } from "@prisma/client/runtime/client";
+import { toast } from "@/components/ui/sonner";
+import { deleteProduct } from "@/features/products/actions/products";
+import { SerializedProductListItem } from "@/types/types";
 
 interface ProductTableProps {
-  products: Product[];
+  products: SerializedProductListItem[];
   showActions?: boolean;
   nextCursor?: string;
   onLoadMore?: (cursor: string) => void;
 }
 
-function getStatusVariant(status: ProductStatus) {
+function getStatusVariant(status: string) {
   switch (status) {
     case "PUBLISHED":
-      return "default";
+      return "default" as const;
     case "DRAFT":
-      return "secondary";
+      return "secondary" as const;
     default:
-      return "destructive";
+      return "destructive" as const;
   }
+}
+
+function ProductTableRow({
+  product,
+  showActions,
+}: {
+  product: SerializedProductListItem;
+  showActions: boolean;
+}) {
+  const router = useRouter();
+  const [isDeleting, startDelete] = useTransition();
+
+  const handleDelete = () => {
+    startDelete(async () => {
+      const result = await deleteProduct(product.id);
+      if (result && "error" in result) {
+        toast.error(result.message);
+      }
+    });
+  };
+
+  return (
+    <TableRow
+      className="cursor-pointer hover:bg-muted/50"
+      onClick={() => router.push(`/admin/products/${product.id}`)}
+    >
+      <TableCell>{product.title}</TableCell>
+      <TableCell>{product.description}</TableCell>
+      <TableCell>${product.price.toFixed(2)}</TableCell>
+      <TableCell>
+        <Badge variant={getStatusVariant(product.status)}>
+          {product.status}
+        </Badge>
+      </TableCell>
+      {showActions && (
+        <TableCell onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                {/* <Button variant="ghost" size="sm"> */}
+                  Options
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem
+                  onClick={() =>
+                    router.push(`/admin/products/${product.id}/edit`)
+                  }
+                >
+                  Edit
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <ActionButton
+              title="Delete Product"
+              description={`Are you sure you want to delete "${product.title}"?`}
+              confirmText="Delete"
+              onConfirm={handleDelete}
+            >
+              <Button variant="destructive" size="sm" disabled={isDeleting}>
+                {isDeleting ? "Deleting..." : "Delete"}
+              </Button>
+            </ActionButton>
+          </div>
+        </TableCell>
+      )}
+    </TableRow>
+  );
 }
 
 export function ProductTable({
@@ -46,12 +118,6 @@ export function ProductTable({
   nextCursor,
   onLoadMore,
 }: ProductTableProps) {
-  const router = useRouter();
-
-  const handleRowClick = (productId: string) => {
-    router.push(`/admin/products/${productId}`);
-  };
-
   return (
     <div>
       <Table>
@@ -66,57 +132,15 @@ export function ProductTable({
         </TableHeader>
         <TableBody>
           {products.map((product) => (
-            <TableRow
+            <ProductTableRow
               key={product.id}
-              className="cursor-pointer hover:bg-muted/50"
-              onClick={() => handleRowClick(product.id)}
-            >
-              <TableCell>{product.title}</TableCell>
-              <TableCell>{product.description}</TableCell>
-              <TableCell>${Number(product.price).toFixed(2)}</TableCell>
-              <TableCell>
-                <Badge variant={getStatusVariant(product.status)}>
-                  {product.status}
-                </Badge>
-              </TableCell>
-              {showActions && (
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    {/* Options dropdown */}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
-                          <Badge variant="secondary">Options</Badge>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => router.push(`/admin/products/${product.id}/edit`)}>
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>Duplicate</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-
-                    {/* Delete button */}
-                    <ActionButton
-                      title="Delete Product"
-                      description={`Are you sure you want to delete ${product.title}?`}
-                      confirmText="Delete"
-                      onConfirm={() => console.log("Deleting", product.id)}
-                      variant="destructive"
-                      size="sm"
-                    >
-                      <Badge variant="destructive">Delete</Badge>
-                    </ActionButton>
-                  </div>
-                </TableCell>
-              )}
-            </TableRow>
+              product={product}
+              showActions={showActions}
+            />
           ))}
         </TableBody>
       </Table>
 
-      {/* Load More button */}
       {nextCursor && onLoadMore && (
         <div className="flex justify-center mt-4">
           <Button variant="default" onClick={() => onLoadMore(nextCursor)}>

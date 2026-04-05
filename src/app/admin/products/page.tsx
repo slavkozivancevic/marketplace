@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { ProductTable } from "@/features/products/components/ProductTable";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { ProductListItem } from "@/types/types";
+import { SerializedProductListItem } from "@/types/types";
 
 export default async function AdminProductsPage() {
   const ctx = await resolveRequestContext();
@@ -38,7 +38,7 @@ export default async function AdminProductsPage() {
   }
 
   const { products, nextCursor } = result as {
-    products: ProductListItem[];
+    products: SerializedProductListItem[];
     nextCursor?: string;
   };
 
@@ -67,24 +67,26 @@ export default async function AdminProductsPage() {
   );
 }
 
-async function fetchProducts(organizationId: string, userId: string) {
+async function fetchProducts(
+  organizationId: string,
+  userId: string,
+): Promise<
+  | { products: SerializedProductListItem[]; nextCursor?: string }
+  | { error: boolean; message: string }
+> {
   "use cache";
   cacheTag(CacheTags.products.all(organizationId));
   try {
     const repo = productRepository({ organizationId, userId });
     const result = await repo.getAll();
 
-    if ("products" in result && Array.isArray(result.products)) {
-      return {
-        ...result,
-        products: result.products.map((product) => ({
-          ...product,
-          price: Number(product.price),
-        })),
-      };
-    }
-
-    return result;
+    return {
+      ...result,
+      products: result.products.map((product) => ({
+        ...product,
+        price: Number(product.price),
+      })),
+    };
   } catch {
     return { error: true, message: "Failed to load products" };
   }

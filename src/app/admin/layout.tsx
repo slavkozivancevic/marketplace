@@ -1,4 +1,3 @@
-// src/app/admin/layout.tsx
 import { redirect } from "next/navigation";
 import { AdminHeader } from "@/components/layout/admin-header";
 import { requireRole } from "@/lib/auth/requireRole";

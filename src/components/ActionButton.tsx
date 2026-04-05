@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Button, type ButtonProps } from "@/components/ui/button";
+import { type ButtonProps } from "@/components/ui/button";
 
 interface ActionButtonProps extends ButtonProps {
   title?: string;
@@ -30,7 +30,6 @@ export function ActionButton({
   cancelText = "Cancel",
   onConfirm,
   children,
-  ...buttonProps
 }: ActionButtonProps) {
   return (
     <AlertDialog>
@@ -45,7 +44,7 @@ export function ActionButton({
         <AlertDialogFooter>
           <AlertDialogCancel>{cancelText}</AlertDialogCancel>
           <AlertDialogAction variant="destructive" onClick={onConfirm}>
-            <Button {...buttonProps}>{confirmText}</Button>
+            {confirmText}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

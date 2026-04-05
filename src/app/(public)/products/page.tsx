@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/core/db/prisma";
 import { PageHeader } from "@/components/PageHeader";
 import {
@@ -52,7 +53,9 @@ export default async function ProductsPage() {
                 <p className="text-lg font-semibold mt-2">
                   ${Number(product.price).toFixed(2)}
                 </p>
-                <Button className="mt-4">View Details</Button>
+                <Button asChild className="mt-4">
+                  <Link href={`/products/${product.id}`}>View Details</Link>
+                </Button>
               </CardContent>
             </Card>
           ))}

@@ -1,4 +1,3 @@
-// import { SignUp } from "@clerk/nextjs";
 "use client";
 import dynamic from "next/dynamic";
 
