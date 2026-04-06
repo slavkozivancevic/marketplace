@@ -95,18 +95,21 @@ export async function acceptInvite(token: string, userId: string) {
     },
   });
 
-  if (existingMembership) {
-    throw new Error("You are already a member of this organization");
-  }
-
   await prisma.$transaction(async (tx) => {
-    await tx.membership.create({
-      data: {
-        userId,
-        orgId: invite.orgId,
-        role: invite.role,
-      },
-    });
+    if (existingMembership) {
+      await tx.membership.update({
+        where: { userId_orgId: { userId, orgId: invite.orgId } },
+        data: { role: invite.role },
+      });
+    } else {
+      await tx.membership.create({
+        data: {
+          userId,
+          orgId: invite.orgId,
+          role: invite.role,
+        },
+      });
+    }
 
     await tx.invite.update({
       where: { token },

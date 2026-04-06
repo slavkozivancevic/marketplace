@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import Link from "next/link";
 import { prisma } from "@/core/db/prisma";
 import { PageHeader } from "@/components/PageHeader";
@@ -13,6 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Image from "next/image";
 
 export default async function ProductsPage() {
+  await connection();
   const products = await prisma.product.findMany({
     where: { status: "PUBLISHED", deletedAt: null },
     include: { images: { orderBy: { order: "asc" }, take: 1 } },

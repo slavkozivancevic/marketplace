@@ -51,18 +51,24 @@ export async function sendInviteAction(
 
     const inviteUrl = `${env.APP_URL}/invite/${invite.token}`;
 
-    await sendEmail({
-      to: parsed.data.email,
-      subject: `You've been invited to join ${organization.name}`,
-      html: buildInviteEmailHtml({
-        organizationName: organization.name,
-        inviteUrl,
-        role: parsed.data.role,
-      }),
-    });
+    try {
+      await sendEmail({
+        to: parsed.data.email,
+        subject: `You've been invited to join ${organization.name}`,
+        html: buildInviteEmailHtml({
+          organizationName: organization.name,
+          inviteUrl,
+          role: parsed.data.role,
+        }),
+      });
+    } catch (emailError) {
+      await cancelInvite(invite.id, ctx.organizationId);
+      throw emailError;
+    }
 
     revalidatePath("/dashboard/organization");
   } catch (error) {
+    console.error("[sendInviteAction] error:", error);
     return handleActionError(error);
   }
 }
