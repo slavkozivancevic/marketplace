@@ -4,9 +4,9 @@ import React from "react";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import Image from "next/image";
 import { SerializedProductWithRelations } from "@/types/types";
 import { ProductStatusActions } from "./ProductStatusActions";
+import { ProductImageCarousel } from "@/components/product/ProductImageCarousel";
 
 interface ProductDetailsProps {
   product: SerializedProductWithRelations;
@@ -57,24 +57,11 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
         <CardHeader>
           <CardTitle>Images</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-4">
-          {product.images?.length ? (
-            product.images.map((img) => (
-              <div
-                key={img.id}
-                className="relative w-32 h-32 border rounded overflow-hidden"
-              >
-                <Image
-                  src={img.url}
-                  alt={`Product image ${img.key}`}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-muted-foreground">No images uploaded</p>
-          )}
+        <CardContent>
+          <ProductImageCarousel
+            images={product.images ?? []}
+            title={product.title}
+          />
         </CardContent>
       </Card>
 

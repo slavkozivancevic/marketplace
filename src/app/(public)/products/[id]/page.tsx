@@ -1,7 +1,6 @@
 import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 
 import { prisma } from "@/core/db/prisma";
 import { CacheTags } from "@/lib/cache/tags";
@@ -11,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ProductImageCarousel } from "@/components/product/ProductImageCarousel";
 
 interface PublicProductPageProps {
   params: Promise<{ id: string }>;
@@ -35,39 +35,7 @@ export default async function PublicProductPage({
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="space-y-4">
-          {product.images.length > 0 ? (
-            <>
-              <div className="relative w-full h-96 rounded-lg overflow-hidden border">
-                <Image
-                  src={product.images[0].url}
-                  alt={product.title}
-                  fill
-                  className="object-cover"
-                />
-              </div>
-              {product.images.length > 1 && (
-                <div className="flex gap-2 flex-wrap">
-                  {product.images.slice(1).map((img) => (
-                    <div
-                      key={img.id}
-                      className="relative w-20 h-20 rounded border overflow-hidden"
-                    >
-                      <Image
-                        src={img.url}
-                        alt={product.title}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="w-full h-96 rounded-lg border flex items-center justify-center text-muted-foreground">
-              No images available
-            </div>
-          )}
+          <ProductImageCarousel images={product.images} title={product.title} />
         </div>
 
         <div className="space-y-6">
