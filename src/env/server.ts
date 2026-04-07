@@ -13,6 +13,8 @@ export const env = createEnv({
     S3_PUBLIC_URL: z.string().min(1),
     SES_FROM_EMAIL: z.email(),
     APP_URL: z.url(),
+    STRIPE_SECRET_KEY: z.string().min(1),
+    STRIPE_WEBHOOK_SECRET: z.string().min(1),
   },
   experimental__runtimeEnv: process.env,
 });

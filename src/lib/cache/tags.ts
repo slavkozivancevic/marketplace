@@ -18,4 +18,8 @@ export const CacheTags = {
     publicAll: () => "global:products:public" as const,
     publicById: (id: string) => `id:products:public:${id}` as const,
   },
+  orders: {
+    byUser: (userId: string) => `id:orders:user:${userId}` as const,
+    byId: (id: string) => `id:orders:${id}` as const,
+  },
 } as const;

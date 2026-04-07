@@ -42,6 +42,18 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader>
+            <CardTitle>My Orders</CardTitle>
+            <CardDescription>View your purchase history.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/dashboard/orders">View Orders</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Organization</CardTitle>
             <CardDescription>
               Manage your organization settings and members.

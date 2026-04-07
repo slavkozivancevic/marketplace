@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ProductImageCarousel } from "@/components/product/ProductImageCarousel";
+import { AddToCart } from "@/features/cart/components/AddToCart";
 
 interface PublicProductPageProps {
   params: Promise<{ id: string }>;
@@ -43,6 +44,7 @@ export default async function PublicProductPage({
             <CardContent className="pt-6 space-y-4">
               <p className="text-3xl font-bold">${product.price.toFixed(2)}</p>
               <p className="text-muted-foreground">{product.description}</p>
+              <AddToCart product={product} />
             </CardContent>
           </Card>
 

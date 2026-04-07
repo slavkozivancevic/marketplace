@@ -49,6 +49,12 @@ export default async function DashboardLayout({
               Browse Products
             </Link>
             <Link
+              href="/dashboard/orders"
+              className="block text-sm hover:underline"
+            >
+              My Orders
+            </Link>
+            <Link
               href="/dashboard/organization"
               className="block text-sm hover:underline"
             >
