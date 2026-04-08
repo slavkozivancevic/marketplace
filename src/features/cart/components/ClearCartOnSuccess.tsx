@@ -4,11 +4,15 @@ import { useEffect } from "react";
 import { useCartStore } from "../store/cartStore";
 
 export function ClearCartOnSuccess() {
-  const clearCart = useCartStore((s) => s.clearCart);
-
   useEffect(() => {
-    clearCart();
-  }, [clearCart]);
+    if (useCartStore.persist.hasHydrated()) {
+      useCartStore.getState().clearCart();
+      return;
+    }
+    return useCartStore.persist.onFinishHydration(() => {
+      useCartStore.getState().clearCart();
+    });
+  }, []);
 
   return null;
 }

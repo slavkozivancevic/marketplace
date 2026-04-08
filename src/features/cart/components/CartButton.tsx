@@ -5,19 +5,14 @@ import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "../store/cartStore";
 
-function useIsHydrated() {
-  return useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
-}
-
 export function CartButton() {
-  const { openCart, totalItems } = useCartStore();
-  const isHydrated = useIsHydrated();
+  const openCart = useCartStore((s) => s.openCart);
 
-  const count = isHydrated ? totalItems() : 0;
+  const count = useSyncExternalStore(
+    useCartStore.subscribe,
+    () => useCartStore.getState().totalItems(),
+    () => 0,
+  );
 
   return (
     <div className="relative">
