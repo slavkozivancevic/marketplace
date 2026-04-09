@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { stripe } from "@/services/stripe";
 import { env } from "@/env/server";
-import { fulfillOrder } from "@/features/orders/db/orders";
+import { fulfillOrder, refundOrder } from "@/features/orders/db/orders";
 import type Stripe from "stripe";
 
 export async function POST(req: Request) {
@@ -55,6 +55,44 @@ export async function POST(req: Request) {
         });
 
         console.log("Order fulfilled for session:", session.id);
+        break;
+      }
+
+      case "checkout.session.expired": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        console.log("Checkout session expired:", session.id);
+        break;
+      }
+
+      case "charge.refunded": {
+        const charge = event.data.object as Stripe.Charge;
+        const paymentIntentId =
+          typeof charge.payment_intent === "string"
+            ? charge.payment_intent
+            : charge.payment_intent?.id;
+
+        if (!paymentIntentId) {
+          console.error("No payment_intent on charge", charge.id);
+          break;
+        }
+
+        const sessions = await stripe.checkout.sessions.list({
+          payment_intent: paymentIntentId,
+          limit: 1,
+        });
+
+        const sessionId = sessions.data[0]?.id;
+
+        if (!sessionId) {
+          console.error(
+            "No checkout session found for payment_intent",
+            paymentIntentId,
+          );
+          break;
+        }
+
+        await refundOrder(sessionId);
+        console.log("Order refunded for session:", sessionId);
         break;
       }
 

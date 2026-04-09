@@ -38,7 +38,7 @@ export function InviteList({ invites, canManage }: InviteListProps) {
           <div>
             <p className="text-sm font-medium">{invite.email}</p>
             <p className="text-xs text-muted-foreground">
-              Expires {new Date(invite.expiresAt).toLocaleDateString()}
+              Expires {new Date(invite.expiresAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
             </p>
           </div>
           <div className="flex items-center gap-2">

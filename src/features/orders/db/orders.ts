@@ -1,6 +1,7 @@
 import { prisma } from "@/core/db/prisma";
 import { cacheTag } from "next/cache";
 import { CacheTags } from "@/lib/cache/tags";
+import { revalidateOrderCache } from "./cache";
 
 export async function getUserOrders(userId: string) {
   "use cache";
@@ -132,6 +133,45 @@ export async function fulfillOrder({
       },
     });
 
+    revalidateOrderCache(userId, order.id);
+    return order;
+  });
+}
+
+export async function refundOrder(stripeSessionId: string) {
+  const order = await prisma.order.findUnique({
+    where: { stripeSessionId },
+    include: {
+      items: { select: { variantId: true, quantity: true } },
+    },
+  });
+
+  if (!order) {
+    console.log(`No order found for session ${stripeSessionId}, skipping refund`);
+    return null;
+  }
+
+  if (order.status === "REFUNDED") {
+    console.log(`Order ${order.id} already refunded, skipping`);
+    return order;
+  }
+
+  return prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: order.id },
+      data: { status: "REFUNDED" },
+    });
+
+    for (const item of order.items) {
+      if (item.variantId) {
+        await tx.productVariant.update({
+          where: { id: item.variantId },
+          data: { stock: { increment: item.quantity } },
+        });
+      }
+    }
+
+    revalidateOrderCache(order.userId, order.id);
     return order;
   });
 }

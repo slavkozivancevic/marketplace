@@ -4,17 +4,15 @@ import Link from "next/link";
 import { prisma } from "@/core/db/prisma";
 import { getUserOrders } from "@/features/orders/db/orders";
 import { PageHeader } from "@/components/PageHeader";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { OrderTableRow } from "@/features/orders/components/OrderTableRow";
 
 export default async function OrdersPage() {
   const { userId: clerkUserId } = await auth();
@@ -51,65 +49,15 @@ export default async function OrdersPage() {
               <TableHead>Items</TableHead>
               <TableHead>Total</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
             {orders.map((order) => (
-              <TableRow key={order.id}>
-                <TableCell className="font-mono text-xs text-muted-foreground">
-                  {order.id.slice(0, 8)}...
-                </TableCell>
-                <TableCell>
-                  {new Date(order.createdAt).toLocaleDateString()}
-                </TableCell>
-                <TableCell>
-                  {order.items.map((item) => (
-                    <div key={item.id} className="text-sm">
-                      {item.product.title}
-                      {item.variant && (
-                        <span className="text-muted-foreground">
-                          {" "}· {item.variant.sku}
-                        </span>
-                      )}
-                      {item.quantity > 1 && (
-                        <span className="text-muted-foreground">
-                          {" "}× {item.quantity}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </TableCell>
-                <TableCell className="font-semibold">
-                  ${order.total.toFixed(2)}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={getStatusVariant(order.status)}>
-                    {order.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/dashboard/orders/${order.id}`}>Details</Link>
-                  </Button>
-                </TableCell>
-              </TableRow>
+              <OrderTableRow key={order.id} order={order} />
             ))}
           </TableBody>
         </Table>
       )}
     </div>
   );
-}
-
-function getStatusVariant(status: string) {
-  switch (status) {
-    case "COMPLETED":
-      return "default" as const;
-    case "CANCELLED":
-    case "REFUNDED":
-      return "destructive" as const;
-    default:
-      return "secondary" as const;
-  }
 }

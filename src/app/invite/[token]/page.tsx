@@ -75,7 +75,7 @@ export default async function InvitePage({ params }: InvitePageProps) {
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            Invite expires on {new Date(invite.expiresAt).toLocaleDateString()}.
+            Invite expires on {new Date(invite.expiresAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}.
           </p>
 
           <form

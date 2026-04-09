@@ -32,7 +32,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
     <div className="container max-w-2xl">
       <PageHeader
         title={`Order Details`}
-        description={`Placed on ${new Date(order.createdAt).toLocaleDateString()}`}
+        description={`Placed on ${new Date(order.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}`}
       >
         <Button asChild variant="outline">
           <Link href="/dashboard/orders">Back to Orders</Link>
