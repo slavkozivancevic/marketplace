@@ -45,6 +45,12 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
           <div>
             <strong>Price:</strong> ${product.price.toFixed(2)}
           </div>
+          {product.variants?.length === 0 && (
+            <div>
+              <strong>Stock:</strong>{" "}
+              {product.stock !== null ? product.stock : "Unlimited"}
+            </div>
+          )}
           <div>
             <strong>Version:</strong> {product.version}
           </div>

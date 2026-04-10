@@ -10,6 +10,7 @@ export interface CartItem {
   variantLabel: string | null; // e.g. "Red / XL"
   price: number;
   quantity: number;
+  maxStock: number | null; // null = unlimited
 }
 
 interface CartStore {
@@ -74,9 +75,12 @@ export const useCartStore = create<CartStore>()(
           return;
         }
         set((state) => ({
-          items: state.items.map((i) =>
-            isSameItem(i, productId, variantId) ? { ...i, quantity } : i,
-          ),
+          items: state.items.map((i) => {
+            if (!isSameItem(i, productId, variantId)) return i;
+            const capped =
+              i.maxStock !== null ? Math.min(quantity, i.maxStock) : quantity;
+            return { ...i, quantity: capped };
+          }),
         }));
       },
 

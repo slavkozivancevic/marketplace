@@ -36,6 +36,7 @@ type ProductFormData = {
   title: string;
   description: string;
   price: number;
+  stock: number | null;
   images: { key: string }[];
   options: { name: string; values: string[] }[];
   variants: {
@@ -138,6 +139,7 @@ export function ProductForm({
           title: product.title,
           description: product.description,
           price: product.price,
+          stock: product.stock ?? null,
           images: product.images.map((img) => ({ key: img.key })),
           options: product.options.map((opt) => ({
             name: opt.name,
@@ -158,6 +160,7 @@ export function ProductForm({
           title: "",
           description: "",
           price: 0,
+          stock: null,
           images: [],
           options: [],
           variants: [],
@@ -261,6 +264,7 @@ export function ProductForm({
           title: data.title,
           description: data.description,
           price: data.price,
+          stock: data.variants.length === 0 ? data.stock : null,
           images: data.images,
           options: data.options,
           variants: data.variants,
@@ -339,6 +343,36 @@ export function ProductForm({
               </FormItem>
             )}
           />
+
+          {watchedVariants?.length === 0 && (
+            <FormField
+              control={form.control}
+              name="stock"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Stock
+                    <span className="ml-1.5 font-normal text-muted-foreground">
+                      — leave blank for unlimited
+                    </span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      placeholder="Unlimited"
+                      value={field.value ?? ""}
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value === "" ? null : parseInt(e.target.value, 10),
+                        )
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
         </div>
 
         <Separator />

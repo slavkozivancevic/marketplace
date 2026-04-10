@@ -330,6 +330,7 @@ export function productRepository(
       title: string;
       description: string;
       price: number;
+      stock?: number | null;
       images?: ImageInput[];
       variants?: ProductVariantInput[];
       options?: VariantOptionInput[];
@@ -340,6 +341,7 @@ export function productRepository(
             title: data.title,
             description: data.description,
             price: data.price,
+            stock: data.stock ?? null,
             organizationId: ctx.organizationId,
             createdById: ctx.userId,
           },
@@ -409,6 +411,7 @@ export function productRepository(
         title: string;
         description: string;
         price: number;
+        stock?: number | null;
         images?: ImageInput[];
         status?: ProductStatus;
         variants?: ProductVariantInput[];
@@ -748,6 +751,7 @@ export type ProductRepo = {
     title: string;
     description: string;
     price: number;
+    stock?: number | null;
     images?: ImageInput[];
     variants?: ProductVariantInput[];
     options?: VariantOptionInput[];
@@ -760,6 +764,7 @@ export type ProductRepo = {
       title: string;
       description: string;
       price: number;
+      stock?: number | null;
       images?: ImageInput[];
       status?: ProductStatus;
       variants?: ProductVariantInput[];

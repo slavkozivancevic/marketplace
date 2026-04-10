@@ -27,6 +27,10 @@ export const createProductSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
   price: z.coerce.number().nonnegative("Price must be 0 or greater"),
+  stock: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
+    z.number().int().nonnegative("Stock must be 0 or greater").nullable(),
+  ).default(null),
   images: z.array(productImageSchema).default([]),
   options: z.array(productOptionSchema).default([]),
   variants: z.array(productVariantSchema).default([]),

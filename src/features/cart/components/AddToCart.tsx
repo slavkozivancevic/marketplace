@@ -73,7 +73,8 @@ export function AddToCart({ product }: AddToCartProps) {
         !activeVariant ||
         activeVariant.stock === 0 ||
         cartQuantity >= activeVariant.stock
-      : false;
+      : product.stock !== null &&
+        (product.stock === 0 || cartQuantity >= product.stock);
 
   function isCompatible(optionId: string, value: string): boolean {
     const otherEntries = Object.entries(selectedValues).filter(
@@ -185,6 +186,10 @@ export function AddToCart({ product }: AddToCartProps) {
       .join(" / ");
     const variantLabel = optionLabel || activeVariant?.sku || null;
 
+    const maxStock = activeVariant
+      ? activeVariant.stock
+      : (product.stock ?? null);
+
     addItem({
       productId: product.id,
       productTitle: product.title,
@@ -193,6 +198,7 @@ export function AddToCart({ product }: AddToCartProps) {
       variantSku: activeVariant?.sku ?? null,
       variantLabel,
       price,
+      maxStock,
     });
 
     openCart();
@@ -315,6 +321,26 @@ export function AddToCart({ product }: AddToCartProps) {
             ? `${activeVariant.stock} in stock`
             : activeVariant.stock > 0
               ? `Only ${activeVariant.stock} left in stock!`
+              : "Out of stock"}
+        </p>
+      )}
+
+      {/* Stock indicator for variant-less products */}
+      {product.variants.length === 0 && product.stock !== null && (
+        <p
+          className={cn(
+            "text-sm",
+            product.stock > 0
+              ? product.stock <= 5
+                ? "text-amber-600 dark:text-amber-400"
+                : "text-muted-foreground"
+              : "text-destructive",
+          )}
+        >
+          {product.stock > 5
+            ? `${product.stock} in stock`
+            : product.stock > 0
+              ? `Only ${product.stock} left in stock!`
               : "Out of stock"}
         </p>
       )}

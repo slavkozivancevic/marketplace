@@ -2,6 +2,7 @@ import { prisma } from "@/core/db/prisma";
 import { cacheTag } from "next/cache";
 import { CacheTags } from "@/lib/cache/tags";
 import { revalidateOrderCache } from "./cache";
+import { revalidateProductCache } from "@/features/products/db/cache";
 
 export async function getUserOrders(userId: string) {
   "use cache";
@@ -92,7 +93,7 @@ export async function fulfillOrder({
     return existing;
   }
 
-  return prisma.$transaction(async (tx) => {
+  const order = await prisma.$transaction(async (tx) => {
     const order = await tx.order.create({
       data: {
         userId,
@@ -119,6 +120,13 @@ export async function fulfillOrder({
                   where: { id: item.productId },
                 });
                 price = Number(product.price);
+
+                if (product.stock !== null) {
+                  await tx.product.update({
+                    where: { id: item.productId },
+                    data: { stock: { decrement: item.quantity } },
+                  });
+                }
               }
 
               return {
@@ -136,13 +144,22 @@ export async function fulfillOrder({
     revalidateOrderCache(userId, order.id);
     return order;
   });
+
+  const productIds = [...new Set(items.map((i) => i.productId))];
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, organizationId: true },
+  });
+  products.forEach((p) => revalidateProductCache(p.organizationId, p.id));
+
+  return order;
 }
 
 export async function refundOrder(stripeSessionId: string) {
   const order = await prisma.order.findUnique({
     where: { stripeSessionId },
     include: {
-      items: { select: { variantId: true, quantity: true } },
+      items: { select: { productId: true, variantId: true, quantity: true } },
     },
   });
 
@@ -156,7 +173,7 @@ export async function refundOrder(stripeSessionId: string) {
     return order;
   }
 
-  return prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     await tx.order.update({
       where: { id: order.id },
       data: { status: "REFUNDED" },
@@ -168,10 +185,29 @@ export async function refundOrder(stripeSessionId: string) {
           where: { id: item.variantId },
           data: { stock: { increment: item.quantity } },
         });
+      } else {
+        const product = await tx.product.findUnique({
+          where: { id: item.productId },
+          select: { stock: true },
+        });
+        if (product?.stock !== null && product?.stock !== undefined) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } },
+          });
+        }
       }
     }
-
-    revalidateOrderCache(order.userId, order.id);
-    return order;
   });
+
+  revalidateOrderCache(order.userId, order.id);
+
+  const productIds = [...new Set(order.items.map((i) => i.productId))];
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, organizationId: true },
+  });
+  products.forEach((p) => revalidateProductCache(p.organizationId, p.id));
+
+  return order;
 }

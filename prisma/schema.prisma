@@ -86,6 +86,7 @@ model Product {
   title       String
   description String
   price Decimal @db.Decimal(10,2)
+  stock Int?
 
   status ProductStatus @default(DRAFT)
 

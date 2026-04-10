@@ -86,7 +86,7 @@ export function CartDrawer() {
                         ${(item.price * item.quantity).toFixed(2)}
                       </p>
 
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-2 mt-1 select-none">
                         <Button
                           variant="outline"
                           size="icon"
@@ -108,6 +108,10 @@ export function CartDrawer() {
                           variant="outline"
                           size="icon"
                           className="h-6 w-6"
+                          disabled={
+                            item.maxStock !== null &&
+                            item.quantity >= item.maxStock
+                          }
                           onClick={() =>
                             updateQuantity(
                               item.productId,
@@ -135,7 +139,7 @@ export function CartDrawer() {
               ))}
             </div>
 
-            <div className="space-y-4 pt-4 border-t mt-4">
+            <div className="space-y-4 pt-4 border-t mt-4 select-none">
               <div className="flex items-center justify-between font-semibold">
                 <span>Total</span>
                 <span>${totalPrice().toFixed(2)}</span>
