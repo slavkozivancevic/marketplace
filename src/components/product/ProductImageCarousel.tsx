@@ -14,6 +14,10 @@ import {
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  IMAGE_ZOOM_FACTOR,
+  IMAGE_ZOOM_LENS_SIZE,
+} from "@/constants/constants";
 
 interface ProductImage {
   id: string;
@@ -33,6 +37,29 @@ export function ProductImageCarousel({
   const [current, setCurrent] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [zoomState, setZoomState] = useState<{
+    index: number;
+    x: number;
+    y: number;
+    containerW: number;
+    containerH: number;
+  } | null>(null);
+
+  const handleZoomMove = (
+    e: React.MouseEvent<HTMLDivElement>,
+    index: number,
+  ) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setZoomState({
+      index,
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+      containerW: rect.width,
+      containerH: rect.height,
+    });
+  };
+
+  const handleZoomLeave = () => setZoomState(null);
 
   const setApiAndListen = useCallback(
     (newApi: CarouselApi) => {
@@ -74,6 +101,8 @@ export function ProductImageCarousel({
                 <div
                   className="relative w-full h-96 rounded-lg overflow-hidden border cursor-zoom-in"
                   onClick={() => openLightbox(index)}
+                  onMouseMove={(e) => handleZoomMove(e, index)}
+                  onMouseLeave={handleZoomLeave}
                 >
                   <Image
                     src={img.url}
@@ -82,6 +111,47 @@ export function ProductImageCarousel({
                     className="object-cover"
                     priority={index === 0}
                   />
+                  {zoomState?.index === index &&
+                    (() => {
+                      const { x, y, containerW, containerH } = zoomState;
+                      const lensX = Math.max(
+                        0,
+                        Math.min(x - IMAGE_ZOOM_LENS_SIZE / 2, containerW - IMAGE_ZOOM_LENS_SIZE),
+                      );
+                      const lensY = Math.max(
+                        0,
+                        Math.min(y - IMAGE_ZOOM_LENS_SIZE / 2, containerH - IMAGE_ZOOM_LENS_SIZE),
+                      );
+                      return (
+                        <div
+                          className="pointer-events-none absolute rounded-md border-2 border-white shadow-2xl overflow-hidden"
+                          style={{
+                            left: lensX,
+                            top: lensY,
+                            width: IMAGE_ZOOM_LENS_SIZE,
+                            height: IMAGE_ZOOM_LENS_SIZE,
+                          }}
+                        >
+                          <div
+                            className="relative"
+                            style={{
+                              position: "absolute",
+                              left: x - lensX - x * IMAGE_ZOOM_FACTOR,
+                              top: y - lensY - y * IMAGE_ZOOM_FACTOR,
+                              width: containerW * IMAGE_ZOOM_FACTOR,
+                              height: containerH * IMAGE_ZOOM_FACTOR,
+                            }}
+                          >
+                            <Image
+                              src={img.url}
+                              alt=""
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
                 </div>
               </CarouselItem>
             ))}
@@ -125,11 +195,11 @@ export function ProductImageCarousel({
       <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
         <DialogContent
           showCloseButton={false}
-          className="max-w-5xl w-full p-0 bg-black/95 border-none overflow-hidden"
+          className="max-w-[95vw]! w-[95vw] h-[95vh] p-0 gap-0 bg-white border-none overflow-hidden sm:max-w-[95vw]!"
         >
           <DialogTitle className="sr-only">{title}</DialogTitle>
 
-          <div className="relative flex items-center justify-center h-[85vh]">
+          <div className="relative flex items-center justify-center w-full h-full">
             <button
               onClick={() => setLightboxOpen(false)}
               className="absolute top-3 right-3 z-10 cursor-pointer rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70 transition-colors"
