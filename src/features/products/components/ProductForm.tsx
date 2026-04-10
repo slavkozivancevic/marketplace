@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, KeyboardEvent } from "react";
+import { useEffect, useState, useTransition, KeyboardEvent } from "react";
 import { useForm, useFieldArray, useWatch, Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "@/components/ui/sonner";
@@ -184,6 +184,40 @@ export function ProductForm({
   const watchedOptions = useWatch({ control: form.control, name: "options" });
   const watchedVariants = useWatch({ control: form.control, name: "variants" });
 
+  useEffect(() => {
+    if (mode !== "update" || !product) return;
+
+    const productId = product.id;
+    const variantIds = product.variants.map((v) => v.id);
+    let cancelled = false;
+
+    fetch(`/api/admin/products/${productId}/stock`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { stock: number | null; variants: { id: string; stock: number }[] } | null) => {
+        if (cancelled || !data) return;
+
+        form.setValue("stock", data.stock, { shouldDirty: false });
+
+        const freshMap = new Map(data.variants.map((v) => [v.id, v.stock]));
+        variantIds.forEach((variantId, index) => {
+          const fresh = freshMap.get(variantId);
+          if (fresh !== undefined) {
+            form.setValue(`variants.${index}.stock`, fresh, {
+              shouldDirty: false,
+            });
+          }
+        });
+      })
+      .catch(() => {
+        // Non-fatal: keep the (potentially stale) server-rendered values.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id]);
+
   const optionsChanged = !optionsAreSynced(
     watchedOptions,
     syncedOptionsSnapshot,
@@ -199,7 +233,9 @@ export function ProductForm({
       return;
     }
 
-    form.setValue(`options.${optionIndex}.values`, [...current, input]);
+    form.setValue(`options.${optionIndex}.values`, [...current, input], {
+      shouldValidate: true,
+    });
     setOptionValueInputs((prev) => {
       const next = [...prev];
       next[optionIndex] = "";
@@ -212,6 +248,7 @@ export function ProductForm({
     form.setValue(
       `options.${optionIndex}.values`,
       current.filter((v) => v !== value),
+      { shouldValidate: true },
     );
   };
 
