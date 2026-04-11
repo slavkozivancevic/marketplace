@@ -30,7 +30,9 @@ import {
   SerializedProductWithRelations,
   PresignedUploadedImage,
 } from "@/types/types";
-import { X, Plus, RefreshCw } from "lucide-react";
+import { X, Plus, RefreshCw, ImageOff } from "lucide-react";
+import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 type ProductFormData = {
   title: string;
@@ -43,6 +45,7 @@ type ProductFormData = {
     sku: string;
     price: number;
     stock: number;
+    imageKey?: string | null;
     options: { name: string; value: string }[];
   }[];
   version: number;
@@ -129,6 +132,9 @@ export function ProductForm({
   );
 
   const optionById = new Map(product?.options.map((o) => [o.id, o.name]) ?? []);
+  const imageKeyById = new Map(
+    product?.images.map((img) => [img.id, img.key]) ?? [],
+  );
 
   const schema = mode === "create" ? createProductSchema : updateProductSchema;
 
@@ -149,6 +155,7 @@ export function ProductForm({
             sku: v.sku,
             price: v.price,
             stock: v.stock,
+            imageKey: v.imageId ? (imageKeyById.get(v.imageId) ?? null) : null,
             options: v.optionValues.map((ov) => ({
               name: optionById.get(ov.optionId) ?? "",
               value: ov.value,
@@ -271,13 +278,21 @@ export function ProductForm({
       return;
     }
 
+    const previousVariants = form.getValues("variants") ?? [];
+    const previousBySku = new Map(previousVariants.map((v) => [v.sku, v]));
+
     replaceVariants(
-      combinations.map((combo) => ({
-        sku: combo.map((o) => o.value.toUpperCase().slice(0, 3)).join("-"),
-        price: form.getValues("price"),
-        stock: 0,
-        options: combo,
-      })),
+      combinations.map((combo) => {
+        const sku = combo.map((o) => o.value.toUpperCase().slice(0, 3)).join("-");
+        const previous = previousBySku.get(sku);
+        return {
+          sku,
+          price: previous?.price ?? form.getValues("price"),
+          stock: previous?.stock ?? 0,
+          imageKey: previous?.imageKey ?? null,
+          options: combo,
+        };
+      }),
     );
 
     setSyncedOptionsSnapshot(snapshotOptions(options));
@@ -290,6 +305,16 @@ export function ProductForm({
       "images",
       images.map((img) => ({ key: img.key })),
     );
+
+    const validKeys = new Set(images.map((img) => img.key));
+    const currentVariants = form.getValues("variants") ?? [];
+    currentVariants.forEach((variant, index) => {
+      if (variant.imageKey && !validKeys.has(variant.imageKey)) {
+        form.setValue(`variants.${index}.imageKey`, null, {
+          shouldDirty: true,
+        });
+      }
+    });
   };
 
   const onSubmit = (data: ProductFormData) => {
@@ -622,6 +647,8 @@ export function ProductForm({
           {variantFields.map((variantField, variantIndex) => {
             const variantOptions =
               watchedVariants?.[variantIndex]?.options ?? [];
+            const selectedImageKey =
+              watchedVariants?.[variantIndex]?.imageKey ?? null;
 
             return (
               <div
@@ -714,6 +741,69 @@ export function ProductForm({
                       </FormItem>
                     )}
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <FormLabel className="text-xs text-muted-foreground">
+                    Variant image — optional. When selected on the product
+                    page, the carousel will shift to this image.
+                  </FormLabel>
+                  {uploadedImages.length === 0 ? (
+                    <div className="flex items-center gap-2 rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
+                      <ImageOff className="w-3.5 h-3.5" />
+                      Upload product images first to link one to this variant.
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          form.setValue(
+                            `variants.${variantIndex}.imageKey`,
+                            null,
+                            { shouldDirty: true },
+                          )
+                        }
+                        className={cn(
+                          "flex items-center justify-center w-16 h-16 rounded border-2 text-xs transition-all cursor-pointer",
+                          selectedImageKey === null
+                            ? "border-primary bg-primary/5 text-primary"
+                            : "border-input text-muted-foreground hover:border-muted-foreground",
+                        )}
+                      >
+                        None
+                      </button>
+                      {uploadedImages.map((img) => {
+                        const isSelected = selectedImageKey === img.key;
+                        return (
+                          <button
+                            type="button"
+                            key={img.key}
+                            onClick={() =>
+                              form.setValue(
+                                `variants.${variantIndex}.imageKey`,
+                                img.key,
+                                { shouldDirty: true },
+                              )
+                            }
+                            className={cn(
+                              "relative w-16 h-16 rounded border-2 overflow-hidden shrink-0 transition-all cursor-pointer",
+                              isSelected
+                                ? "border-primary opacity-100 ring-2 ring-primary/30"
+                                : "border-transparent opacity-60 hover:opacity-100",
+                            )}
+                          >
+                            <Image
+                              src={img.url}
+                              alt="Variant image"
+                              fill
+                              className="object-cover"
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             );

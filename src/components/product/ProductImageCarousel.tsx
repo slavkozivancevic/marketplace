@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import {
@@ -27,11 +27,13 @@ interface ProductImage {
 interface ProductImageCarouselProps {
   images: ProductImage[];
   title: string;
+  activeImageId?: string | null;
 }
 
 export function ProductImageCarousel({
   images,
   title,
+  activeImageId,
 }: ProductImageCarouselProps) {
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
@@ -72,6 +74,13 @@ export function ProductImageCarousel({
     },
     [],
   );
+
+  useEffect(() => {
+    if (!api || !activeImageId) return;
+    const targetIndex = images.findIndex((img) => img.id === activeImageId);
+    if (targetIndex === -1 || targetIndex === current) return;
+    api.scrollTo(targetIndex);
+  }, [api, activeImageId, images, current]);
 
   const openLightbox = (index: number) => {
     setLightboxIndex(index);

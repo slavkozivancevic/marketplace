@@ -20,6 +20,7 @@ export const productVariantSchema = z.object({
   sku: z.string().min(1, "SKU is required"),
   price: z.coerce.number().nonnegative("Price must be 0 or greater"),
   stock: z.coerce.number().int().nonnegative("Stock must be 0 or greater"),
+  imageKey: z.string().nullable().optional(),
   options: z.array(productVariantOptionSchema).default([]),
 });
 

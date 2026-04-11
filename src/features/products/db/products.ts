@@ -27,7 +27,7 @@ async function syncProductImages(
   tx: Prisma.TransactionClient,
   productId: string,
   images: ImageInput[],
-) {
+): Promise<Map<string, string>> {
   const existing = await tx.productImage.findMany({
     where: { productId },
     orderBy: { order: "asc" },
@@ -86,12 +86,20 @@ async function syncProductImages(
   if (reorderOperations.length > 0) {
     await Promise.all(reorderOperations);
   }
+
+  const allImages = await tx.productImage.findMany({
+    where: { productId },
+    select: { id: true, key: true },
+  });
+
+  return new Map(allImages.map((img) => [img.key, img.id]));
 }
 
 async function syncVariants(
   tx: Prisma.TransactionClient,
   productId: string,
   variants: ProductVariantInput[],
+  imageIdByKey: Map<string, string>,
 ) {
   const existing = await tx.productVariant.findMany({ where: { productId } });
   const existingMap = new Map(existing.map((v) => [v.sku, v]));
@@ -108,6 +116,9 @@ async function syncVariants(
   for (const [index, variant] of variants.entries()) {
     const existingVariant = existingMap.get(variant.sku);
 
+    const imageId =
+      variant.imageKey != null ? (imageIdByKey.get(variant.imageKey) ?? null) : null;
+
     if (existingVariant) {
       await tx.productVariant.update({
         where: { id: existingVariant.id },
@@ -115,6 +126,7 @@ async function syncVariants(
           price: variant.price,
           stock: variant.stock,
           order: index,
+          imageId,
           updatedAt: new Date(),
         },
       });
@@ -127,6 +139,7 @@ async function syncVariants(
           price: variant.price,
           stock: variant.stock,
           order: index,
+          imageId,
         },
       });
       variant.id = created.id;
@@ -361,12 +374,12 @@ export function productRepository(
           },
         });
 
-        if (data?.images?.length) {
-          await syncProductImages(tx, created.id, data.images);
-        }
+        const imageIdByKey = data?.images?.length
+          ? await syncProductImages(tx, created.id, data.images)
+          : new Map<string, string>();
 
         if (data?.variants?.length) {
-          await syncVariants(tx, created.id, data.variants);
+          await syncVariants(tx, created.id, data.variants, imageIdByKey);
         }
 
         if (data?.options?.length) {
@@ -461,12 +474,21 @@ export function productRepository(
           throw new ConcurrencyConflictError();
         }
 
+        let imageIdByKey: Map<string, string>;
         if (images !== undefined) {
-          await syncProductImages(tx, id, images);
+          imageIdByKey = await syncProductImages(tx, id, images);
+        } else {
+          const existingImages = await tx.productImage.findMany({
+            where: { productId: id },
+            select: { id: true, key: true },
+          });
+          imageIdByKey = new Map(
+            existingImages.map((img) => [img.key, img.id]),
+          );
         }
 
         if (variants !== undefined) {
-          await syncVariants(tx, id, variants);
+          await syncVariants(tx, id, variants, imageIdByKey);
         }
 
         if (options !== undefined) {

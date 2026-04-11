@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -10,12 +9,15 @@ import { SerializedPublicProduct } from "@/types/types";
 
 interface ProductPurchaseSectionProps {
   product: SerializedPublicProduct;
+  activeVariantId: string | null;
+  onActiveVariantChange: (variantId: string | null) => void;
 }
 
 export function ProductPurchaseSection({
   product,
+  activeVariantId,
+  onActiveVariantChange,
 }: ProductPurchaseSectionProps) {
-  const [activeVariantId, setActiveVariantId] = useState<string | null>(null);
 
   return (
     <div className="space-y-6">
@@ -25,7 +27,7 @@ export function ProductPurchaseSection({
           <p className="text-muted-foreground">{product.description}</p>
           <AddToCart
             product={product}
-            onActiveVariantChange={setActiveVariantId}
+            onActiveVariantChange={onActiveVariantChange}
           />
         </CardContent>
       </Card>

@@ -32,6 +32,7 @@ export type ProductVariantInput = {
   price: number;
   stock: number;
   id?: string;
+  imageKey?: string | null;
   options?: VariantOptionValueInput[];
 };
 

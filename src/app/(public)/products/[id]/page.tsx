@@ -7,8 +7,7 @@ import { CacheTags } from "@/lib/cache/tags";
 import { SerializedPublicProduct } from "@/types/types";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
-import { ProductImageCarousel } from "@/components/product/ProductImageCarousel";
-import { ProductPurchaseSection } from "@/features/products/components/ProductPurchaseSection";
+import { ProductDetailLayout } from "@/features/products/components/ProductDetailLayout";
 
 interface PublicProductPageProps {
   params: Promise<{ id: string }>;
@@ -31,13 +30,7 @@ export default async function PublicProductPage({
         </Button>
       </PageHeader>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="space-y-4">
-          <ProductImageCarousel images={product.images} title={product.title} />
-        </div>
-
-        <ProductPurchaseSection product={product} />
-      </div>
+      <ProductDetailLayout product={product} />
     </div>
   );
 }
