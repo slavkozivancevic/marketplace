@@ -37,6 +37,12 @@ export function OrderTableRow({ order }: { order: Order }) {
           day: "numeric",
         })}
       </TableCell>
+      <TableCell className="text-muted-foreground">
+        {new Date(order.createdAt).toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}
+      </TableCell>
       <TableCell>
         {order.items.map((item) => (
           <div key={item.id} className="text-sm">

@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { HoverImageCycler } from "@/components/product/HoverImageCycler";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ActionButton";
@@ -17,7 +17,7 @@ interface MyProductCardProps {
     description: string;
     price: number;
     status: string;
-    imageUrl: string | null;
+    imageUrls: string[];
   };
 }
 
@@ -35,15 +35,12 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
 
   return (
     <div className="border rounded overflow-hidden">
-      {product.imageUrl && (
-        <div className="relative w-full h-48">
-          <Image
-            src={product.imageUrl}
-            alt={product.title}
-            fill
-            className="object-cover"
-          />
-        </div>
+      {product.imageUrls.length > 0 && (
+        <HoverImageCycler
+          images={product.imageUrls}
+          alt={product.title}
+          className="w-full h-48"
+        />
       )}
       <div className="p-4 space-y-2">
         <h2 className="font-semibold">{product.title}</h2>

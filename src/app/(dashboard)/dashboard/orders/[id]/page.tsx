@@ -14,7 +14,9 @@ interface OrderDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function OrderDetailPage({ params }: OrderDetailPageProps) {
+export default async function OrderDetailPage({
+  params,
+}: OrderDetailPageProps) {
   const { id } = await params;
   const { userId: clerkUserId } = await auth();
   if (!clerkUserId) notFound();
@@ -65,7 +67,10 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
           </CardHeader>
           <CardContent className="space-y-0">
             {order.items.map((item, index) => {
-              const imageUrl = item.product.images[0]?.url ?? null;
+              const variantImageUrl =
+                item.variant?.images[0]?.image.url ?? null;
+              const imageUrl =
+                variantImageUrl ?? item.product.images[0]?.url ?? null;
               const variantLabel = item.variant?.optionValues
                 .map((ov) => ov.value)
                 .join(" / ");
@@ -87,7 +92,9 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm">{item.product.title}</p>
+                      <p className="font-medium text-sm">
+                        {item.product.title}
+                      </p>
                       {variantLabel && (
                         <p className="text-xs text-muted-foreground">
                           {variantLabel}

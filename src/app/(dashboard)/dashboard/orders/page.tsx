@@ -46,6 +46,7 @@ export default async function OrdersPage() {
             <TableRow>
               <TableHead>Order</TableHead>
               <TableHead>Date</TableHead>
+              <TableHead>Time</TableHead>
               <TableHead>Items</TableHead>
               <TableHead>Total</TableHead>
               <TableHead>Status</TableHead>

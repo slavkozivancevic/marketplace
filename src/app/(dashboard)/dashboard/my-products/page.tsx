@@ -41,7 +41,7 @@ export default async function MyProductsPage() {
       organizationId: user.activeOrgId,
       deletedAt: null,
     },
-    include: { images: { take: 1, orderBy: { order: "asc" } } },
+    include: { images: { orderBy: { order: "asc" }, take: 5 } },
     orderBy: { createdAt: "desc" },
   });
 
@@ -74,7 +74,7 @@ export default async function MyProductsPage() {
                 description: product.description,
                 price: Number(product.price),
                 status: product.status,
-                imageUrl: product.images[0]?.url ?? null,
+                imageUrls: product.images.map((img) => img.url),
               }}
             />
           ))}

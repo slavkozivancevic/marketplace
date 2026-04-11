@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import {
@@ -14,10 +14,7 @@ import {
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  IMAGE_ZOOM_FACTOR,
-  IMAGE_ZOOM_LENS_SIZE,
-} from "@/constants/constants";
+import { IMAGE_ZOOM_FACTOR, IMAGE_ZOOM_LENS_SIZE } from "@/constants/constants";
 
 interface ProductImage {
   id: string;
@@ -27,13 +24,15 @@ interface ProductImage {
 interface ProductImageCarouselProps {
   images: ProductImage[];
   title: string;
-  activeImageId?: string | null;
+  jumpToImageId?: string | null;
+  jumpTicket?: number;
 }
 
 export function ProductImageCarousel({
   images,
   title,
-  activeImageId,
+  jumpToImageId,
+  jumpTicket,
 }: ProductImageCarouselProps) {
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
@@ -63,24 +62,27 @@ export function ProductImageCarousel({
 
   const handleZoomLeave = () => setZoomState(null);
 
-  const setApiAndListen = useCallback(
-    (newApi: CarouselApi) => {
-      setApi(newApi);
-      if (!newApi) return;
+  const setApiAndListen = useCallback((newApi: CarouselApi) => {
+    setApi(newApi);
+    if (!newApi) return;
+    setCurrent(newApi.selectedScrollSnap());
+    newApi.on("select", () => {
       setCurrent(newApi.selectedScrollSnap());
-      newApi.on("select", () => {
-        setCurrent(newApi.selectedScrollSnap());
-      });
-    },
-    [],
-  );
+    });
+  }, []);
+
+  const lastHandledTicket = useRef<number | undefined>(jumpTicket);
 
   useEffect(() => {
-    if (!api || !activeImageId) return;
-    const targetIndex = images.findIndex((img) => img.id === activeImageId);
-    if (targetIndex === -1 || targetIndex === current) return;
+    if (!api) return;
+    if (jumpTicket === undefined) return;
+    if (lastHandledTicket.current === jumpTicket) return;
+    lastHandledTicket.current = jumpTicket;
+    if (!jumpToImageId) return;
+    const targetIndex = images.findIndex((img) => img.id === jumpToImageId);
+    if (targetIndex === -1) return;
     api.scrollTo(targetIndex);
-  }, [api, activeImageId, images, current]);
+  }, [api, jumpTicket, jumpToImageId, images]);
 
   const openLightbox = (index: number) => {
     setLightboxIndex(index);
@@ -89,8 +91,7 @@ export function ProductImageCarousel({
 
   const lightboxPrev = () =>
     setLightboxIndex((i) => (i - 1 + images.length) % images.length);
-  const lightboxNext = () =>
-    setLightboxIndex((i) => (i + 1) % images.length);
+  const lightboxNext = () => setLightboxIndex((i) => (i + 1) % images.length);
 
   if (images.length === 0) {
     return (
@@ -125,11 +126,17 @@ export function ProductImageCarousel({
                       const { x, y, containerW, containerH } = zoomState;
                       const lensX = Math.max(
                         0,
-                        Math.min(x - IMAGE_ZOOM_LENS_SIZE / 2, containerW - IMAGE_ZOOM_LENS_SIZE),
+                        Math.min(
+                          x - IMAGE_ZOOM_LENS_SIZE / 2,
+                          containerW - IMAGE_ZOOM_LENS_SIZE,
+                        ),
                       );
                       const lensY = Math.max(
                         0,
-                        Math.min(y - IMAGE_ZOOM_LENS_SIZE / 2, containerH - IMAGE_ZOOM_LENS_SIZE),
+                        Math.min(
+                          y - IMAGE_ZOOM_LENS_SIZE / 2,
+                          containerH - IMAGE_ZOOM_LENS_SIZE,
+                        ),
                       );
                       return (
                         <div
@@ -167,8 +174,14 @@ export function ProductImageCarousel({
           </CarouselContent>
           {images.length > 1 && (
             <>
-              <CarouselPrevious className="left-2" />
-              <CarouselNext className="right-2" />
+              {/*
+                disabled:pointer-events-auto keeps the arrow button catching
+                clicks even when it's at the end of the carousel — otherwise
+                the click falls through to the image underneath and opens
+                the lightbox, which the user never asked for.
+              */}
+              <CarouselPrevious className="left-2 active:translate-y-[calc(-50%+1px)] disabled:pointer-events-auto disabled:cursor-default" />
+              <CarouselNext className="right-2 active:translate-y-[calc(-50%+1px)] disabled:pointer-events-auto disabled:cursor-default" />
             </>
           )}
         </Carousel>
@@ -217,12 +230,14 @@ export function ProductImageCarousel({
             </button>
 
             <div className="relative w-full h-full">
-              <Image
-                src={images[lightboxIndex].url}
-                alt={`${title} - image ${lightboxIndex + 1}`}
-                fill
-                className="object-contain"
-              />
+              {images[lightboxIndex] && (
+                <Image
+                  src={images[lightboxIndex].url}
+                  alt={`${title} - image ${lightboxIndex + 1}`}
+                  fill
+                  className="object-contain"
+                />
+              )}
             </div>
 
             {images.length > 1 && (

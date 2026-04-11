@@ -14,10 +14,7 @@ interface AddToCartProps {
 
 type SelectedValues = Record<string, string>;
 
-export function AddToCart({
-  product,
-  onActiveVariantChange,
-}: AddToCartProps) {
+export function AddToCart({ product, onActiveVariantChange }: AddToCartProps) {
   const { addItem, openCart, items } = useCartStore();
   const hasOptions = product.options.length > 0;
 
@@ -188,7 +185,12 @@ export function AddToCart({
   }
 
   function handleAdd() {
-    const firstImage = product.images[0]?.url ?? null;
+    const variantFirstImageId = activeVariant?.images[0]?.imageId;
+    const variantFirstImageUrl = variantFirstImageId
+      ? (product.images.find((img) => img.id === variantFirstImageId)?.url ??
+        null)
+      : null;
+    const firstImage = variantFirstImageUrl ?? product.images[0]?.url ?? null;
     const optionLabel = activeVariant?.optionValues
       .map((ov) => ov.value)
       .join(" / ");

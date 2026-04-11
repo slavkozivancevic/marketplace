@@ -32,7 +32,7 @@ export type ProductVariantInput = {
   price: number;
   stock: number;
   id?: string;
-  imageKey?: string | null;
+  imageKeys?: string[];
   options?: VariantOptionValueInput[];
 };
 
@@ -85,6 +85,7 @@ export type ProductWithRelations = Prisma.ProductGetPayload<{
     variants: {
       include: {
         optionValues: true;
+        images: true;
       };
     };
     options: {
@@ -130,7 +131,7 @@ export type SerializedProductHistory = Omit<ProductHistory, "price"> & {
 export type PublicProduct = Prisma.ProductGetPayload<{
   include: {
     images: true;
-    variants: { include: { optionValues: true } };
+    variants: { include: { optionValues: true; images: true } };
     options: { include: { values: true } };
   };
 }>;

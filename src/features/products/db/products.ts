@@ -95,42 +95,121 @@ async function syncProductImages(
   return new Map(allImages.map((img) => [img.key, img.id]));
 }
 
+/**
+ * Builds a stable, unique key for a variant from its option values.
+ * This is the *semantic* identity of a variant — independent of the
+ * (user-editable) SKU, so two variants like `Color=Black, Size=37` and
+ * `Color=Black-brown, Size=37` are always distinguishable even if their
+ * SKUs happen to collide.
+ *
+ * Returns null for variants with no options (manual variants), which
+ * fall back to SKU-based identity.
+ */
+function variantSignature(
+  options: { name: string; value: string }[] | undefined,
+): string | null {
+  if (!options || options.length === 0) return null;
+  return [...options]
+    .map((o) => `${o.name.trim()}\u0000${o.value.trim()}`)
+    .sort()
+    .join("\u0001");
+}
+
 async function syncVariants(
   tx: Prisma.TransactionClient,
   productId: string,
   variants: ProductVariantInput[],
   imageIdByKey: Map<string, string>,
 ) {
-  const existing = await tx.productVariant.findMany({ where: { productId } });
-  const existingMap = new Map(existing.map((v) => [v.sku, v]));
+  const existing = await tx.productVariant.findMany({
+    where: { productId },
+    include: {
+      optionValues: {
+        include: { option: { select: { name: true } } },
+      },
+    },
+  });
 
-  const incomingSkus = new Set(variants.map((v) => v.sku));
+  const existingBySignature = new Map<string, (typeof existing)[number]>();
+  const existingBySku = new Map<string, (typeof existing)[number]>();
+  for (const v of existing) {
+    const sig = variantSignature(
+      v.optionValues.map((ov) => ({
+        name: ov.option.name,
+        value: ov.value,
+      })),
+    );
+    if (sig !== null) {
+      existingBySignature.set(sig, v);
+    } else {
+      existingBySku.set(v.sku, v);
+    }
+  }
 
-  const toDelete = existing.filter((v) => !incomingSkus.has(v.sku));
+  const seenSignatures = new Set<string>();
+  const seenManualSkus = new Set<string>();
+  const resolved: {
+    variant: ProductVariantInput;
+    existingId: string | null;
+  }[] = [];
+
+  for (const variant of variants) {
+    const sig = variantSignature(variant.options);
+    if (sig !== null) {
+      if (seenSignatures.has(sig)) {
+        throw new Error(
+          `Duplicate variant option combination: ${sig.replace(/\u0000/g, "=").replace(/\u0001/g, ", ")}`,
+        );
+      }
+      seenSignatures.add(sig);
+      resolved.push({
+        variant,
+        existingId: existingBySignature.get(sig)?.id ?? null,
+      });
+    } else {
+      if (seenManualSkus.has(variant.sku)) {
+        throw new Error(`Duplicate manual variant SKU: ${variant.sku}`);
+      }
+      seenManualSkus.add(variant.sku);
+      resolved.push({
+        variant,
+        existingId: existingBySku.get(variant.sku)?.id ?? null,
+      });
+    }
+  }
+
+  const retainedIds = new Set(
+    resolved.map((r) => r.existingId).filter((id): id is string => id !== null),
+  );
+  const toDelete = existing.filter((v) => !retainedIds.has(v.id));
   if (toDelete.length > 0) {
     await tx.productVariant.deleteMany({
-      where: { productId, sku: { in: toDelete.map((v) => v.sku) } },
+      where: { productId, id: { in: toDelete.map((v) => v.id) } },
     });
   }
 
-  for (const [index, variant] of variants.entries()) {
-    const existingVariant = existingMap.get(variant.sku);
-
-    const imageId =
-      variant.imageKey != null ? (imageIdByKey.get(variant.imageKey) ?? null) : null;
-
-    if (existingVariant) {
+  for (const { existingId } of resolved) {
+    if (existingId) {
       await tx.productVariant.update({
-        where: { id: existingVariant.id },
+        where: { id: existingId },
+        data: { sku: `__sync_${existingId}__` },
+      });
+    }
+  }
+
+  for (const [index, { variant, existingId }] of resolved.entries()) {
+    if (existingId) {
+      await tx.productVariant.update({
+        where: { id: existingId },
         data: {
+          sku: variant.sku,
           price: variant.price,
           stock: variant.stock,
           order: index,
-          imageId,
           updatedAt: new Date(),
         },
       });
-      variant.id = existingVariant.id;
+      variant.id = existingId;
     } else {
       const created = await tx.productVariant.create({
         data: {
@@ -139,10 +218,26 @@ async function syncVariants(
           price: variant.price,
           stock: variant.stock,
           order: index,
-          imageId,
         },
       });
       variant.id = created.id;
+    }
+
+    await tx.productVariantImage.deleteMany({
+      where: { variantId: variant.id },
+    });
+
+    const incomingKeys = variant.imageKeys ?? [];
+    const rows: { variantId: string; imageId: string; order: number }[] = [];
+    const seenImageIds = new Set<string>();
+    for (const [imgIndex, key] of incomingKeys.entries()) {
+      const imageId = imageIdByKey.get(key);
+      if (!imageId || seenImageIds.has(imageId)) continue;
+      seenImageIds.add(imageId);
+      rows.push({ variantId: variant.id, imageId, order: imgIndex });
+    }
+    if (rows.length > 0) {
+      await tx.productVariantImage.createMany({ data: rows });
     }
   }
 }
@@ -186,8 +281,11 @@ async function syncOptions(
 
     await tx.variantOptionValue.deleteMany({ where: { optionId } });
 
+    const writtenForVariant = new Set<string>();
+
     for (const variant of variants) {
       if (!variant.id) continue;
+      if (writtenForVariant.has(variant.id)) continue;
 
       const optionValue = variant.options?.find((o) => o.name === option.name);
       if (!optionValue) continue;
@@ -202,6 +300,7 @@ async function syncOptions(
           order: valueOrder >= 0 ? valueOrder : 0,
         },
       });
+      writtenForVariant.add(variant.id);
     }
   }
 }
@@ -230,7 +329,10 @@ export function productRepository(
           variants: {
             orderBy: { order: "asc" },
             include: {
-              optionValues: { orderBy: { order: "asc" } },
+              optionValues: {
+                orderBy: [{ option: { order: "asc" } }, { order: "asc" }],
+              },
+              images: { orderBy: { order: "asc" } },
             },
           },
           options: {
@@ -411,7 +513,10 @@ export function productRepository(
             variants: {
               orderBy: { order: "asc" },
               include: {
-                optionValues: { orderBy: { order: "asc" } },
+                optionValues: {
+                  orderBy: [{ option: { order: "asc" } }, { order: "asc" }],
+                },
+                images: { orderBy: { order: "asc" } },
               },
             },
             options: {
@@ -507,7 +612,10 @@ export function productRepository(
             variants: {
               orderBy: { order: "asc" },
               include: {
-                optionValues: { orderBy: { order: "asc" } },
+                optionValues: {
+                  orderBy: [{ option: { order: "asc" } }, { order: "asc" }],
+                },
+                images: { orderBy: { order: "asc" } },
               },
             },
             options: {

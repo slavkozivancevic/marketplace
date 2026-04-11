@@ -45,7 +45,7 @@ type ProductFormData = {
     sku: string;
     price: number;
     stock: number;
-    imageKey?: string | null;
+    imageKeys: string[];
     options: { name: string; value: string }[];
   }[];
   version: number;
@@ -151,16 +151,26 @@ export function ProductForm({
             name: opt.name,
             values: Array.from(new Set(opt.values.map((v) => v.value))),
           })),
-          variants: product.variants.map((v) => ({
-            sku: v.sku,
-            price: v.price,
-            stock: v.stock,
-            imageKey: v.imageId ? (imageKeyById.get(v.imageId) ?? null) : null,
-            options: v.optionValues.map((ov) => ({
-              name: optionById.get(ov.optionId) ?? "",
-              value: ov.value,
-            })),
-          })),
+          variants: product.variants.map((v) => {
+            const seenOptionNames = new Set<string>();
+            const dedupedOptions: { name: string; value: string }[] = [];
+            for (const ov of v.optionValues) {
+              const name = optionById.get(ov.optionId) ?? "";
+              if (seenOptionNames.has(name)) continue;
+              seenOptionNames.add(name);
+              dedupedOptions.push({ name, value: ov.value });
+            }
+            const imageKeys = v.images
+              .map((vi) => imageKeyById.get(vi.imageId))
+              .filter((k): k is string => Boolean(k));
+            return {
+              sku: v.sku,
+              price: v.price,
+              stock: v.stock,
+              imageKeys,
+              options: dedupedOptions,
+            };
+          }),
           version: product.version,
         }
       : {
@@ -200,21 +210,28 @@ export function ProductForm({
 
     fetch(`/api/admin/products/${productId}/stock`)
       .then((res) => (res.ok ? res.json() : null))
-      .then((data: { stock: number | null; variants: { id: string; stock: number }[] } | null) => {
-        if (cancelled || !data) return;
+      .then(
+        (
+          data: {
+            stock: number | null;
+            variants: { id: string; stock: number }[];
+          } | null,
+        ) => {
+          if (cancelled || !data) return;
 
-        form.setValue("stock", data.stock, { shouldDirty: false });
+          form.setValue("stock", data.stock, { shouldDirty: false });
 
-        const freshMap = new Map(data.variants.map((v) => [v.id, v.stock]));
-        variantIds.forEach((variantId, index) => {
-          const fresh = freshMap.get(variantId);
-          if (fresh !== undefined) {
-            form.setValue(`variants.${index}.stock`, fresh, {
-              shouldDirty: false,
-            });
-          }
-        });
-      })
+          const freshMap = new Map(data.variants.map((v) => [v.id, v.stock]));
+          variantIds.forEach((variantId, index) => {
+            const fresh = freshMap.get(variantId);
+            if (fresh !== undefined) {
+              form.setValue(`variants.${index}.stock`, fresh, {
+                shouldDirty: false,
+              });
+            }
+          });
+        },
+      )
       .catch(() => {
         // Non-fatal: keep the (potentially stale) server-rendered values.
       });
@@ -279,17 +296,40 @@ export function ProductForm({
     }
 
     const previousVariants = form.getValues("variants") ?? [];
-    const previousBySku = new Map(previousVariants.map((v) => [v.sku, v]));
+    const signatureOf = (opts: { name: string; value: string }[]) =>
+      [...opts]
+        .map((o) => `${o.name}\u0000${o.value}`)
+        .sort()
+        .join("\u0001");
+    const previousBySignature = new Map(
+      previousVariants.map((v) => [signatureOf(v.options), v]),
+    );
+
+    const usedSkus = new Set<string>();
+    const makeSku = (combo: { name: string; value: string }[]) => {
+      const base =
+        combo
+          .map((o) => o.value.toUpperCase().replace(/[^A-Z0-9]+/g, ""))
+          .filter((s) => s.length > 0)
+          .join("-") || "VARIANT";
+      let sku = base;
+      let n = 2;
+      while (usedSkus.has(sku)) {
+        sku = `${base}-${n++}`;
+      }
+      usedSkus.add(sku);
+      return sku;
+    };
 
     replaceVariants(
       combinations.map((combo) => {
-        const sku = combo.map((o) => o.value.toUpperCase().slice(0, 3)).join("-");
-        const previous = previousBySku.get(sku);
+        const sku = makeSku(combo);
+        const previous = previousBySignature.get(signatureOf(combo));
         return {
           sku,
           price: previous?.price ?? form.getValues("price"),
           stock: previous?.stock ?? 0,
-          imageKey: previous?.imageKey ?? null,
+          imageKeys: previous?.imageKeys ?? [],
           options: combo,
         };
       }),
@@ -309,8 +349,10 @@ export function ProductForm({
     const validKeys = new Set(images.map((img) => img.key));
     const currentVariants = form.getValues("variants") ?? [];
     currentVariants.forEach((variant, index) => {
-      if (variant.imageKey && !validKeys.has(variant.imageKey)) {
-        form.setValue(`variants.${index}.imageKey`, null, {
+      const current = variant.imageKeys ?? [];
+      const filtered = current.filter((k) => validKeys.has(k));
+      if (filtered.length !== current.length) {
+        form.setValue(`variants.${index}.imageKeys`, filtered, {
           shouldDirty: true,
         });
       }
@@ -425,7 +467,9 @@ export function ProductForm({
                       value={field.value ?? ""}
                       onChange={(e) =>
                         field.onChange(
-                          e.target.value === "" ? null : parseInt(e.target.value, 10),
+                          e.target.value === ""
+                            ? null
+                            : parseInt(e.target.value, 10),
                         )
                       }
                     />
@@ -614,6 +658,7 @@ export function ProductForm({
                     sku: "",
                     price: form.getValues("price"),
                     stock: 0,
+                    imageKeys: [],
                     options: [],
                   })
                 }
@@ -647,8 +692,8 @@ export function ProductForm({
           {variantFields.map((variantField, variantIndex) => {
             const variantOptions =
               watchedVariants?.[variantIndex]?.options ?? [];
-            const selectedImageKey =
-              watchedVariants?.[variantIndex]?.imageKey ?? null;
+            const selectedImageKeys =
+              watchedVariants?.[variantIndex]?.imageKeys ?? [];
 
             return (
               <div
@@ -659,9 +704,12 @@ export function ProductForm({
                   <div className="flex flex-wrap gap-1">
                     {variantOptions.length > 0 ? (
                       variantOptions.map(
-                        (opt: { name: string; value: string }) => (
+                        (
+                          opt: { name: string; value: string },
+                          optIdx: number,
+                        ) => (
                           <Badge
-                            key={`${opt.name}-${opt.value}`}
+                            key={`${optIdx}-${opt.name}`}
                             variant="outline"
                           >
                             {opt.name}: {opt.value}
@@ -745,47 +793,33 @@ export function ProductForm({
 
                 <div className="space-y-2">
                   <FormLabel className="text-xs text-muted-foreground">
-                    Variant image — optional. When selected on the product
-                    page, the carousel will shift to this image.
+                    Variant images — optional. Select one or more. When selected
+                    on the product page, the carousel will jump to the first of
+                    these images.
                   </FormLabel>
                   {uploadedImages.length === 0 ? (
                     <div className="flex items-center gap-2 rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
                       <ImageOff className="w-3.5 h-3.5" />
-                      Upload product images first to link one to this variant.
+                      Upload product images first to link them to this variant.
                     </div>
                   ) : (
                     <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          form.setValue(
-                            `variants.${variantIndex}.imageKey`,
-                            null,
-                            { shouldDirty: true },
-                          )
-                        }
-                        className={cn(
-                          "flex items-center justify-center w-16 h-16 rounded border-2 text-xs transition-all cursor-pointer",
-                          selectedImageKey === null
-                            ? "border-primary bg-primary/5 text-primary"
-                            : "border-input text-muted-foreground hover:border-muted-foreground",
-                        )}
-                      >
-                        None
-                      </button>
                       {uploadedImages.map((img) => {
-                        const isSelected = selectedImageKey === img.key;
+                        const isSelected = selectedImageKeys.includes(img.key);
                         return (
                           <button
                             type="button"
                             key={img.key}
-                            onClick={() =>
+                            onClick={() => {
+                              const next = isSelected
+                                ? selectedImageKeys.filter((k) => k !== img.key)
+                                : [...selectedImageKeys, img.key];
                               form.setValue(
-                                `variants.${variantIndex}.imageKey`,
-                                img.key,
+                                `variants.${variantIndex}.imageKeys`,
+                                next,
                                 { shouldDirty: true },
-                              )
-                            }
+                              );
+                            }}
                             className={cn(
                               "relative w-16 h-16 rounded border-2 overflow-hidden shrink-0 transition-all cursor-pointer",
                               isSelected

@@ -47,7 +47,17 @@ export async function getOrderById(id: string, userId: string) {
               images: { orderBy: { order: "asc" }, take: 1 },
             },
           },
-          variant: { select: { sku: true, optionValues: true } },
+          variant: {
+            select: {
+              sku: true,
+              optionValues: true,
+              images: {
+                orderBy: { order: "asc" },
+                take: 1,
+                select: { image: { select: { url: true } } },
+              },
+            },
+          },
         },
       },
     },

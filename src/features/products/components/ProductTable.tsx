@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
+import Image from "next/image";
 import {
   Table,
   TableBody,
@@ -61,11 +62,28 @@ function ProductTableRow({
     });
   };
 
+  const thumbnailUrl = product.images?.[0]?.url;
+
   return (
     <TableRow
       className="cursor-pointer hover:bg-muted/50"
       onClick={() => router.push(`/admin/products/${product.id}`)}
     >
+      <TableCell>
+        {thumbnailUrl ? (
+          <div className="relative h-12 w-12 overflow-hidden rounded border bg-muted">
+            <Image
+              src={thumbnailUrl}
+              alt={product.title}
+              fill
+              sizes="48px"
+              className="object-cover"
+            />
+          </div>
+        ) : (
+          <div className="h-12 w-12 rounded border bg-muted" />
+        )}
+      </TableCell>
       <TableCell>{product.title}</TableCell>
       <TableCell>{product.description}</TableCell>
       <TableCell>${product.price.toFixed(2)}</TableCell>
@@ -123,6 +141,7 @@ export function ProductTable({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-16">Image</TableHead>
             <TableHead>Title</TableHead>
             <TableHead>Description</TableHead>
             <TableHead>Price</TableHead>
