@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  allowedDevOrigins: ["localhost", "*.ngrok-free.dev", "*.ngrok-free.app"],
   async headers() {
     return [
       {
@@ -28,6 +29,10 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "**.ngrok-free.app",
+      },
+      {
+        protocol: "https",
+        hostname: "**.ngrok-free.dev",
       },
     ],
   },

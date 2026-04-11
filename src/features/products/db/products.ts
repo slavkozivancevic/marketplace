@@ -105,7 +105,7 @@ async function syncVariants(
     });
   }
 
-  for (const variant of variants) {
+  for (const [index, variant] of variants.entries()) {
     const existingVariant = existingMap.get(variant.sku);
 
     if (existingVariant) {
@@ -114,6 +114,7 @@ async function syncVariants(
         data: {
           price: variant.price,
           stock: variant.stock,
+          order: index,
           updatedAt: new Date(),
         },
       });
@@ -125,6 +126,7 @@ async function syncVariants(
           sku: variant.sku,
           price: variant.price,
           stock: variant.stock,
+          order: index,
         },
       });
       variant.id = created.id;
@@ -154,12 +156,17 @@ async function syncOptions(
     await tx.variantOption.delete({ where: { id: del.id } });
   }
 
-  for (const option of options) {
+  for (const [optionIndex, option] of options.entries()) {
     let optionId = existingMap.get(option.name)?.id;
 
-    if (!optionId) {
+    if (optionId) {
+      await tx.variantOption.update({
+        where: { id: optionId },
+        data: { order: optionIndex },
+      });
+    } else {
       const createdOption = await tx.variantOption.create({
-        data: { productId, name: option.name },
+        data: { productId, name: option.name, order: optionIndex },
       });
       optionId = createdOption.id;
     }
@@ -172,11 +179,14 @@ async function syncOptions(
       const optionValue = variant.options?.find((o) => o.name === option.name);
       if (!optionValue) continue;
 
+      const valueOrder = option.values.indexOf(optionValue.value);
+
       await tx.variantOptionValue.create({
         data: {
           optionId,
           value: optionValue.value,
           variantId: variant.id,
+          order: valueOrder >= 0 ? valueOrder : 0,
         },
       });
     }
@@ -203,13 +213,17 @@ export function productRepository(
           deletedAt: null,
         },
         include: {
-          images: true,
+          images: { orderBy: { order: "asc" } },
           variants: {
+            orderBy: { order: "asc" },
             include: {
-              optionValues: true,
+              optionValues: { orderBy: { order: "asc" } },
             },
           },
-          options: { include: { values: true } },
+          options: {
+            orderBy: { order: "asc" },
+            include: { values: { orderBy: { order: "asc" } } },
+          },
         },
       });
     },
@@ -380,13 +394,17 @@ export function productRepository(
             deletedAt: null,
           },
           include: {
-            images: true,
+            images: { orderBy: { order: "asc" } },
             variants: {
+              orderBy: { order: "asc" },
               include: {
-                optionValues: true,
+                optionValues: { orderBy: { order: "asc" } },
               },
             },
-            options: { include: { values: true } },
+            options: {
+              orderBy: { order: "asc" },
+              include: { values: { orderBy: { order: "asc" } } },
+            },
           },
         });
 
@@ -463,13 +481,17 @@ export function productRepository(
             version: version + 1,
           },
           include: {
-            images: true,
+            images: { orderBy: { order: "asc" } },
             variants: {
+              orderBy: { order: "asc" },
               include: {
-                optionValues: true,
+                optionValues: { orderBy: { order: "asc" } },
               },
             },
-            options: { include: { values: true } },
+            options: {
+              orderBy: { order: "asc" },
+              include: { values: { orderBy: { order: "asc" } } },
+            },
           },
         });
 

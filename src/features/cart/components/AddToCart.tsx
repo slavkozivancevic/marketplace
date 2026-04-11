@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -9,11 +9,15 @@ import { SerializedPublicProduct } from "@/types/types";
 
 interface AddToCartProps {
   product: SerializedPublicProduct;
+  onActiveVariantChange?: (variantId: string | null) => void;
 }
 
 type SelectedValues = Record<string, string>;
 
-export function AddToCart({ product }: AddToCartProps) {
+export function AddToCart({
+  product,
+  onActiveVariantChange,
+}: AddToCartProps) {
   const { addItem, openCart, items } = useCartStore();
   const hasOptions = product.options.length > 0;
 
@@ -52,6 +56,10 @@ export function AddToCart({ product }: AddToCartProps) {
   );
 
   const activeVariant = manualSelectedVariant ?? optionSelectedVariant;
+
+  useEffect(() => {
+    onActiveVariantChange?.(activeVariant?.id ?? null);
+  }, [activeVariant?.id, onActiveVariantChange]);
 
   const allOptionsSelected =
     !hasOptions ||
