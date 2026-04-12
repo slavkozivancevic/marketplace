@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes";
 import { Suspense } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryProvider } from "./QueryProvider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -12,7 +13,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <ClerkProvider>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <QueryProvider>
-            {children}
+            <TooltipProvider>
+              {children}
+            </TooltipProvider>
             <Toaster />
           </QueryProvider>
         </ThemeProvider>

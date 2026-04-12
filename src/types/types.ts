@@ -145,3 +145,16 @@ export type SerializedPublicProduct = Omit<
     price: number;
   })[];
 };
+
+export type SerializedProductReview = {
+  id: string;
+  rating: number;
+  comment: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  user: {
+    id: string;
+    name: string | null;
+    imageUrl: string | null;
+  };
+};

@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { SerializedProductListItem } from "@/types/types";
+import { StarRating } from "@/features/reviews/components/StarRating";
 import { GRID_PAGE_SIZE, MAX_PAGES } from "@/constants/queryConstants";
 import type { ProductFilters } from "@/lib/query/searchParams";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
@@ -52,6 +53,14 @@ function ProductCard({ product }: { product: SerializedProductListItem }) {
         <CardContent className="pt-4">
           <CardTitle>{product.title}</CardTitle>
           <CardDescription>{product.description}</CardDescription>
+          {product.ratingCount > 0 && (
+            <div className="flex items-center gap-1.5 mt-1">
+              <StarRating rating={Math.round(product.avgRating)} size={14} />
+              <span className="text-xs text-muted-foreground">
+                {product.avgRating.toFixed(1)} ({product.ratingCount})
+              </span>
+            </div>
+          )}
           <p className="text-lg font-semibold mt-2">
             ${product.price.toFixed(2)}
           </p>

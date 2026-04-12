@@ -289,8 +289,7 @@ export function AddToCart({ product, onActiveVariantChange }: AddToCartProps) {
               return (
                 <button
                   key={variant.id}
-                  onClick={() => !outOfStock && handleSelectManual(variant.id)}
-                  disabled={outOfStock}
+                  onClick={() => handleSelectManual(variant.id)}
                   className={cn(
                     "relative px-3 py-1.5 text-sm rounded-md border transition-all select-none",
                     isSelected &&
@@ -298,10 +297,19 @@ export function AddToCart({ product, onActiveVariantChange }: AddToCartProps) {
                     !isSelected &&
                       !outOfStock &&
                       "border-input bg-background hover:border-primary cursor-pointer",
-                    outOfStock &&
-                      "border-input bg-muted text-muted-foreground opacity-40 cursor-not-allowed",
+                    !isSelected &&
+                      outOfStock &&
+                      "border-input bg-background text-muted-foreground cursor-pointer",
                   )}
                 >
+                  {outOfStock && !isSelected && (
+                    <span
+                      aria-hidden
+                      className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                    >
+                      <span className="absolute w-[calc(100%+4px)] h-px bg-muted-foreground/50 -rotate-12" />
+                    </span>
+                  )}
                   {variant.sku ?? `Variant ${variant.id.slice(-4)}`}
                   {variant.price !== product.price && (
                     <span className="ml-1.5 text-xs opacity-75">

@@ -8,6 +8,7 @@ import { SerializedPublicProduct } from "@/types/types";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { ProductDetailLayout } from "@/features/products/components/ProductDetailLayout";
+import { ProductReviewsSection } from "@/features/reviews/components/ProductReviewsSection";
 
 interface PublicProductPageProps {
   params: Promise<{ id: string }>;
@@ -31,6 +32,14 @@ export default async function PublicProductPage({
       </PageHeader>
 
       <ProductDetailLayout product={product} />
+
+      <div className="mt-12">
+        <ProductReviewsSection
+          productId={product.id}
+          avgRating={product.avgRating}
+          ratingCount={product.ratingCount}
+        />
+      </div>
     </div>
   );
 }

@@ -22,4 +22,10 @@ export const CacheTags = {
     byUser: (userId: string) => `id:orders:user:${userId}` as const,
     byId: (id: string) => `id:orders:${id}` as const,
   },
+  reviews: {
+    byProduct: (productId: string) =>
+      `id:reviews:product:${productId}` as const,
+    userReview: (productId: string, userId: string) =>
+      `id:reviews:product:${productId}:user:${userId}` as const,
+  },
 } as const;

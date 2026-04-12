@@ -2,7 +2,7 @@ import { prisma } from "@/core/db/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { SerializedProductListItem } from "@/types/types";
 
-type SortField = "createdAt" | "price" | "title";
+type SortField = "createdAt" | "price" | "title" | "avgRating";
 type SortOrder = "asc" | "desc";
 
 /**
