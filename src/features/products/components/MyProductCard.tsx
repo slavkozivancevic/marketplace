@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { HoverImageCycler } from "@/components/product/HoverImageCycler";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ interface MyProductCardProps {
 }
 
 export function MyProductCard({ canWrite, product }: MyProductCardProps) {
+  const queryClient = useQueryClient();
   const [isDeleting, startDelete] = useTransition();
 
   const handleDelete = () => {
@@ -29,6 +31,8 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
       const result = await deleteProduct(product.id, "/dashboard/my-products");
       if (result && "error" in result) {
         toast.error(result.message);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["products"] });
       }
     });
   };

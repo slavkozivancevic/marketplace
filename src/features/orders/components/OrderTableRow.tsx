@@ -2,10 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { TableCell, TableRow } from "@/components/ui/table";
-import { getUserOrders } from "../db/orders";
-
-type Order = Awaited<ReturnType<typeof getUserOrders>>[number];
+import type { UserOrderListItem } from "../db/orders";
 
 function getStatusVariant(status: string) {
   switch (status) {
@@ -19,31 +16,32 @@ function getStatusVariant(status: string) {
   }
 }
 
-export function OrderTableRow({ order }: { order: Order }) {
+export function OrderTableRow({ order }: { order: UserOrderListItem }) {
   const router = useRouter();
 
   return (
-    <TableRow
-      className="cursor-pointer"
+    <div
+      role="row"
+      className="grid grid-cols-[1fr_1fr_1fr_2fr_1fr_1fr] items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors"
       onClick={() => router.push(`/dashboard/orders/${order.id}`)}
     >
-      <TableCell className="font-mono text-xs text-muted-foreground">
+      <div role="cell" className="font-mono text-xs text-muted-foreground">
         {order.id.slice(0, 8)}...
-      </TableCell>
-      <TableCell>
+      </div>
+      <div role="cell">
         {new Date(order.createdAt).toLocaleDateString("en-US", {
           year: "numeric",
           month: "short",
           day: "numeric",
         })}
-      </TableCell>
-      <TableCell className="text-muted-foreground">
+      </div>
+      <div role="cell" className="text-muted-foreground">
         {new Date(order.createdAt).toLocaleTimeString("en-US", {
           hour: "2-digit",
           minute: "2-digit",
         })}
-      </TableCell>
-      <TableCell>
+      </div>
+      <div role="cell">
         {order.items.map((item) => (
           <div key={item.id} className="text-sm">
             {item.product.title}
@@ -59,15 +57,15 @@ export function OrderTableRow({ order }: { order: Order }) {
             )}
           </div>
         ))}
-      </TableCell>
-      <TableCell className="font-semibold">
+      </div>
+      <div role="cell" className="font-semibold">
         ${order.total.toFixed(2)}
-      </TableCell>
-      <TableCell>
+      </div>
+      <div role="cell">
         <Badge variant={getStatusVariant(order.status)}>
           {order.status}
         </Badge>
-      </TableCell>
-    </TableRow>
+      </div>
+    </div>
   );
 }

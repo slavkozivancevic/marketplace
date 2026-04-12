@@ -26,10 +26,10 @@ export default async function DashboardLayout({
   const currentOrgId = user?.activeOrgId ?? organizations[0]?.id ?? "";
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex h-screen flex-col overflow-hidden">
       <Header />
-      <div className="flex flex-1">
-        <aside className="w-64 border-r p-6">
+      <div className="flex flex-1 min-h-0">
+        <aside className="w-64 border-r p-6 overflow-y-auto">
           <nav className="space-y-2">
             <h2 className="font-semibold mb-4">Dashboard</h2>
 
@@ -93,7 +93,7 @@ export default async function DashboardLayout({
           </nav>
         </aside>
 
-        <main className="flex-1 p-4">{children}</main>
+        <main className="flex-1 p-4 overflow-y-auto min-h-0">{children}</main>
       </div>
     </div>
   );

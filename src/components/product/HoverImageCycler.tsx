@@ -46,13 +46,11 @@ export function HoverImageCycler({
     setIndex(0);
   };
 
-  const hasMultiple = images.length > 1;
-
   return (
     <div
       className={cn(
         "relative overflow-hidden",
-        hasMultiple && "cursor-grab",
+        images.length > 1 && "cursor-grab",
         className,
       )}
       onMouseEnter={handleEnter}

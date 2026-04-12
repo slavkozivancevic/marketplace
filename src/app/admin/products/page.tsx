@@ -1,46 +1,37 @@
-import { cacheTag } from "next/cache";
 import Link from "next/link";
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 
 import { productRepository } from "@/features/products/db/products";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
-import { CacheTags } from "@/lib/cache/tags";
-import { isActionErrorResult } from "@/features/common/errors/domainErrors";
+import { getQueryClient } from "@/lib/query/getQueryClient";
 import { PageHeader } from "@/components/PageHeader";
-import { ProductTable } from "@/features/products/components/ProductTable";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AdminProductsList } from "@/features/products/components/AdminProductsList";
 import { Button } from "@/components/ui/button";
 import { SerializedProductListItem } from "@/types/types";
+import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 
 export default async function AdminProductsPage() {
   const ctx = await resolveRequestContext();
   requirePermission(ctx, "product:read");
 
-  const result = await fetchProducts(ctx.organizationId, ctx.userId);
+  const queryClient = getQueryClient();
 
-  if (isActionErrorResult(result)) {
-    return (
-      <div className="container">
-        <PageHeader
-          title="Products"
-          description="Browse and manage your product catalog."
-        >
-          <Button asChild>
-            <Link href="/admin/products/new">Add Product</Link>
-          </Button>
-        </PageHeader>
-        <Alert variant="destructive">
-          <AlertTitle>Error loading products</AlertTitle>
-          <AlertDescription>{result.message}</AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
-  const { products, nextCursor } = result as {
-    products: SerializedProductListItem[];
-    nextCursor?: string;
-  };
+  await queryClient.prefetchInfiniteQuery({
+    queryKey: ["products", "admin"],
+    queryFn: async () => {
+      const repo = productRepository(ctx);
+      const result = await repo.getAll({ take: LIST_PAGE_SIZE });
+      return {
+        items: result.products.map((p): SerializedProductListItem => ({
+          ...p,
+          price: Number(p.price),
+        })),
+        nextCursor: result.nextCursor,
+      };
+    },
+    initialPageParam: undefined as string | undefined,
+  });
 
   return (
     <div className="container">
@@ -53,41 +44,9 @@ export default async function AdminProductsPage() {
         </Button>
       </PageHeader>
 
-      {products.length === 0 ? (
-        <Alert>
-          <AlertTitle>No products found</AlertTitle>
-          <AlertDescription>
-            There are currently no products to display.
-          </AlertDescription>
-        </Alert>
-      ) : (
-        <ProductTable products={products} nextCursor={nextCursor} showActions />
-      )}
+      <HydrationBoundary state={dehydrate(queryClient)}>
+        <AdminProductsList />
+      </HydrationBoundary>
     </div>
   );
-}
-
-async function fetchProducts(
-  organizationId: string,
-  userId: string,
-): Promise<
-  | { products: SerializedProductListItem[]; nextCursor?: string }
-  | { error: boolean; message: string }
-> {
-  "use cache";
-  cacheTag(CacheTags.products.all(organizationId));
-  try {
-    const repo = productRepository({ organizationId, userId });
-    const result = await repo.getAll();
-
-    return {
-      ...result,
-      products: result.products.map((product) => ({
-        ...product,
-        price: Number(product.price),
-      })),
-    };
-  } catch {
-    return { error: true, message: "Failed to load products" };
-  }
 }

@@ -396,7 +396,7 @@ export function productRepository(
         skip: cursor ? 1 : 0,
         include: {
           images: {
-            take: 1,
+            take: 5,
             orderBy: { order: "asc" },
           },
         },

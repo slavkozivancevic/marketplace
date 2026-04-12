@@ -1,10 +1,15 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { prisma } from "@/core/db/prisma";
+import { productRepository } from "@/features/products/db/products";
+import { getQueryClient } from "@/lib/query/getQueryClient";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import Link from "next/link";
-import { MyProductCard } from "@/features/products/components/MyProductCard";
+import { MyProductsGrid } from "@/features/products/components/MyProductsGrid";
+import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
+import { SerializedProductListItem } from "@/types/types";
 
 export default async function MyProductsPage() {
   const { userId } = await auth();
@@ -36,13 +41,28 @@ export default async function MyProductsPage() {
   const canWrite =
     activeMembership?.role === "OWNER" || activeMembership?.role === "ADMIN";
 
-  const products = await prisma.product.findMany({
-    where: {
-      organizationId: user.activeOrgId,
-      deletedAt: null,
+  const queryClient = getQueryClient();
+  const orgId = user.activeOrgId;
+
+  await queryClient.prefetchInfiniteQuery({
+    queryKey: ["products", "my-products"],
+    queryFn: async () => {
+      const repo = productRepository({
+        organizationId: orgId,
+        userId: user.id,
+      });
+      const result = await repo.getAll({ take: GRID_PAGE_SIZE });
+      return {
+        items: result.products.map(
+          (p): SerializedProductListItem => ({
+            ...p,
+            price: Number(p.price),
+          }),
+        ),
+        nextCursor: result.nextCursor,
+      };
     },
-    include: { images: { orderBy: { order: "asc" }, take: 5 } },
-    orderBy: { createdAt: "desc" },
+    initialPageParam: undefined as string | undefined,
   });
 
   return (
@@ -58,28 +78,9 @@ export default async function MyProductsPage() {
         )}
       </PageHeader>
 
-      {products.length === 0 ? (
-        <p className="text-muted-foreground">
-          No products yet.{canWrite ? " Create your first product!" : ""}
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product) => (
-            <MyProductCard
-              key={product.id}
-              canWrite={canWrite}
-              product={{
-                id: product.id,
-                title: product.title,
-                description: product.description,
-                price: Number(product.price),
-                status: product.status,
-                imageUrls: product.images.map((img) => img.url),
-              }}
-            />
-          ))}
-        </div>
-      )}
+      <HydrationBoundary state={dehydrate(queryClient)}>
+        <MyProductsGrid canWrite={canWrite} />
+      </HydrationBoundary>
     </div>
   );
 }

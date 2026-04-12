@@ -31,6 +31,59 @@ export async function getUserOrders(userId: string) {
   }));
 }
 
+export type UserOrderListItem = Awaited<
+  ReturnType<typeof getUserOrders>
+>[number];
+
+/**
+ * Cursor-paginated variant of {@link getUserOrders}.
+ *
+ * Not cached via "use cache" — TanStack Query owns the client cache,
+ * and Next.js cache for paginated endpoints causes unbounded growth.
+ */
+export async function getUserOrdersPage({
+  userId,
+  take,
+  cursor,
+}: {
+  userId: string;
+  take: number;
+  cursor?: string;
+}): Promise<{ items: UserOrderListItem[]; nextCursor?: string }> {
+  const rows = await prisma.order.findMany({
+    where: { userId },
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    take: take + 1,
+    cursor: cursor ? { id: cursor } : undefined,
+    skip: cursor ? 1 : 0,
+    include: {
+      items: {
+        include: {
+          product: { select: { title: true } },
+          variant: { select: { sku: true } },
+        },
+      },
+    },
+  });
+
+  let nextCursor: string | undefined;
+  if (rows.length > take) {
+    const next = rows.pop();
+    nextCursor = next?.id;
+  }
+
+  const items = rows.map((order) => ({
+    ...order,
+    total: Number(order.total),
+    items: order.items.map((item) => ({
+      ...item,
+      price: Number(item.price),
+    })),
+  }));
+
+  return { items, nextCursor };
+}
+
 export async function getOrderById(id: string, userId: string) {
   "use cache";
   cacheTag(CacheTags.orders.byId(id));

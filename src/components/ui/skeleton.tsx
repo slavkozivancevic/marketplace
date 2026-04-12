@@ -150,6 +150,59 @@ export function SkeletonHistoryTable({ rows = 5 }: { rows?: number }) {
   );
 }
 
+export function SkeletonProductGridCard() {
+  return (
+    <div className="border rounded overflow-hidden">
+      <Skeleton className="w-full h-48 rounded-none rounded-t" />
+      <div className="p-4 space-y-2">
+        <SkeletonText rows={1} size="md" className="w-3/4" />
+        <SkeletonText rows={2} size="sm" className="w-full" />
+        <div className="flex items-center justify-between pt-1">
+          <SkeletonText rows={1} size="md" className="w-16" />
+          <Skeleton className="h-5 w-16 rounded-full" />
+        </div>
+        <SkeletonButton className="w-full" />
+      </div>
+    </div>
+  );
+}
+
+export function SkeletonProductTableRow({
+  showActions = false,
+}: {
+  showActions?: boolean;
+}) {
+  return (
+    <div
+      role="row"
+      className="grid grid-cols-[64px_1fr_2fr_1fr_1fr_auto] items-center gap-4 border-b p-3"
+    >
+      <Skeleton className="h-12 w-12 rounded border" />
+      <SkeletonText rows={1} size="md" className="w-3/4" />
+      <SkeletonText rows={1} size="md" className="w-full" />
+      <SkeletonText rows={1} size="md" className="w-1/2" />
+      <Skeleton className="h-5 w-16 rounded-full" />
+      {showActions ? <SkeletonButton className="w-24" /> : <span />}
+    </div>
+  );
+}
+
+export function SkeletonOrderRow() {
+  return (
+    <div
+      role="row"
+      className="grid grid-cols-[1fr_1fr_1fr_2fr_1fr_1fr] items-center gap-4 border-b p-3"
+    >
+      <SkeletonText rows={1} size="md" className="w-20" />
+      <SkeletonText rows={1} size="md" className="w-24" />
+      <SkeletonText rows={1} size="md" className="w-16" />
+      <SkeletonText rows={1} size="md" className="w-full" />
+      <SkeletonText rows={1} size="md" className="w-12" />
+      <Skeleton className="h-5 w-20 rounded-full" />
+    </div>
+  );
+}
+
 export function SkeletonProductCard() {
   return (
     <div className="space-y-6">
