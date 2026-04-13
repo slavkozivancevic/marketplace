@@ -5,6 +5,7 @@ import { getPublicProductsPage } from "@/features/products/db/publicProducts";
 import { productSearchParams } from "@/lib/query/searchParams";
 import { PageHeader } from "@/components/PageHeader";
 import { PublicProductsGrid } from "@/features/products/components/PublicProductsGrid";
+import { Footer } from "@/components/layout/footer";
 import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
 
 const searchParamsCache = createSearchParamsCache(productSearchParams);
@@ -37,15 +38,21 @@ export default async function ProductsPage({
   });
 
   return (
-    <div className="container">
-      <PageHeader
-        title="Products"
-        description="Browse our available products."
-      />
-
-      <HydrationBoundary state={dehydrate(queryClient)}>
-        <PublicProductsGrid filters={filters} />
-      </HydrationBoundary>
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="shrink-0 px-6">
+        <PageHeader
+          title="Products"
+          description="Browse our available products."
+        />
+      </div>
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="px-6 pb-6">
+          <HydrationBoundary state={dehydrate(queryClient)}>
+            <PublicProductsGrid filters={filters} />
+          </HydrationBoundary>
+        </div>
+        <Footer />
+      </div>
     </div>
   );
 }

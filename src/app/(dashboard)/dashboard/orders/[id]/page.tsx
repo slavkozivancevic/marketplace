@@ -31,17 +31,19 @@ export default async function OrderDetailPage({
   if (!order) notFound();
 
   return (
-    <div className="container max-w-2xl">
-      <PageHeader
-        title={`Order Details`}
-        description={`Placed on ${new Date(order.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}`}
-      >
-        <Button asChild variant="outline">
-          <Link href="/dashboard/orders">Back to Orders</Link>
-        </Button>
-      </PageHeader>
-
-      <div className="space-y-6">
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="shrink-0 px-6">
+        <PageHeader
+          title={`Order Details`}
+          description={`Placed on ${new Date(order.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}`}
+        >
+          <Button asChild variant="outline">
+            <Link href="/dashboard/orders">Back to Orders</Link>
+          </Button>
+        </PageHeader>
+      </div>
+      <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
+        <div className="max-w-2xl space-y-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Order Summary</CardTitle>
@@ -119,6 +121,7 @@ export default async function OrderDetailPage({
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

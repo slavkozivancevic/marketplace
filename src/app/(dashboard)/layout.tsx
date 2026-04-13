@@ -3,10 +3,9 @@ import { redirect } from "next/navigation";
 import { cacheTag } from "next/cache";
 
 import { Header } from "@/components/layout/header";
-import { OrganizationSwitcher } from "@/features/organizations/components/OrganizationSwitcher";
+import { DashboardSidebar } from "@/components/layout/dashboard-sidebar";
 import { CacheTags } from "@/lib/cache/tags";
 import { prisma } from "@/core/db/prisma";
-import Link from "next/link";
 
 export default async function DashboardLayout({
   children,
@@ -29,71 +28,14 @@ export default async function DashboardLayout({
     <div className="flex h-screen flex-col overflow-hidden">
       <Header />
       <div className="flex flex-1 min-h-0">
-        <aside className="w-64 border-r p-6 overflow-y-auto">
-          <nav className="space-y-2">
-            <h2 className="font-semibold mb-4">Dashboard</h2>
-
-            {organizations.length > 1 && (
-              <div className="mb-4">
-                <p className="text-xs text-muted-foreground mb-1">
-                  Organization
-                </p>
-                <OrganizationSwitcher
-                  organizations={organizations}
-                  currentOrgId={currentOrgId}
-                />
-              </div>
-            )}
-
-            <Link href="/products" className="block text-sm hover:underline">
-              Browse Products
-            </Link>
-            <Link
-              href="/dashboard/orders"
-              className="block text-sm hover:underline"
-            >
-              My Orders
-            </Link>
-            <Link
-              href="/dashboard/organization"
-              className="block text-sm hover:underline"
-            >
-              Organization
-            </Link>
-            {userRole === "SELLER" && (
-              <Link
-                href="/dashboard/my-products"
-                className="block text-sm hover:underline"
-              >
-                My Products
-              </Link>
-            )}
-            {userRole === "ADMIN" && (
-              <>
-                <Link
-                  href="/admin/products"
-                  className="block text-sm hover:underline"
-                >
-                  Admin Products
-                </Link>
-                <Link
-                  href="/admin/organizations"
-                  className="block text-sm hover:underline"
-                >
-                  Admin Organizations
-                </Link>
-                <Link
-                  href="/admin/users"
-                  className="block text-sm hover:underline"
-                >
-                  Admin Users
-                </Link>
-              </>
-            )}
-          </nav>
-        </aside>
-
-        <main className="flex-1 p-4 overflow-y-auto min-h-0">{children}</main>
+        <DashboardSidebar
+          userRole={userRole}
+          organizations={organizations}
+          currentOrgId={currentOrgId}
+        />
+        <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {children}
+        </main>
       </div>
     </div>
   );

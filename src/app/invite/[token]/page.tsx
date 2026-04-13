@@ -34,7 +34,7 @@ export default async function InvitePage({ params }: InvitePageProps) {
 
   if (isInvalid) {
     return (
-      <div className="container">
+      <div className="container px-6">
         <PageHeader
           title="Invalid Invite"
           description="This invite is no longer valid."
@@ -57,7 +57,7 @@ export default async function InvitePage({ params }: InvitePageProps) {
   }
 
   return (
-    <div className="container max-w-md">
+    <div className="container max-w-md px-6">
       <PageHeader
         title="Organization Invite"
         description="You have been invited to join an organization."

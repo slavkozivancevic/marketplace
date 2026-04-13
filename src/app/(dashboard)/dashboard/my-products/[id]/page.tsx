@@ -156,19 +156,22 @@ export default async function MyProductPage({
   const canWrite = membership?.role === "OWNER" || membership?.role === "ADMIN";
 
   return (
-    <div className="container">
-      <PageHeader
-        title={canWrite ? "Edit Product" : "View Product"}
-        description={
-          canWrite ? "Update the product details." : "View product details."
-        }
-      >
-        <Button asChild variant="outline">
-          <Link href="/dashboard/my-products">Back to My Products</Link>
-        </Button>
-      </PageHeader>
-
-      <ProductContent productId={id} />
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="shrink-0 px-6">
+        <PageHeader
+          title={canWrite ? "Edit Product" : "View Product"}
+          description={
+            canWrite ? "Update the product details." : "View product details."
+          }
+        >
+          <Button asChild variant="outline">
+            <Link href="/dashboard/my-products">Back to My Products</Link>
+          </Button>
+        </PageHeader>
+      </div>
+      <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
+        <ProductContent productId={id} />
+      </div>
     </div>
   );
 }

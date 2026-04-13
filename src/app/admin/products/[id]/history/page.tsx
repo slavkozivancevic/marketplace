@@ -31,7 +31,32 @@ export default async function AdminProductHistoryPage({
 
   if (isActionErrorResult(result)) {
     return (
-      <div className="container">
+      <div className="flex-1 flex flex-col min-h-0">
+        <div className="shrink-0 px-6">
+          <PageHeader
+            title="Product History"
+            description={`Version history for product ${id}.`}
+          >
+            <Button asChild variant="outline">
+              <Link href={`/admin/products/${id}`}>Back to Product</Link>
+            </Button>
+          </PageHeader>
+        </div>
+        <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
+          <Alert variant="destructive">
+            <AlertTitle>Error loading product history</AlertTitle>
+            <AlertDescription>{result.message}</AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    );
+  }
+
+  const history = result as SerializedProductHistory[];
+
+  return (
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="shrink-0 px-6">
         <PageHeader
           title="Product History"
           description={`Version history for product ${id}.`}
@@ -40,51 +65,19 @@ export default async function AdminProductHistoryPage({
             <Link href={`/admin/products/${id}`}>Back to Product</Link>
           </Button>
         </PageHeader>
-        <Alert variant="destructive">
-          <AlertTitle>Error loading product history</AlertTitle>
-          <AlertDescription>{result.message}</AlertDescription>
-        </Alert>
       </div>
-    );
-  }
-
-  const history = result as SerializedProductHistory[];
-
-  return (
-    <div className="container">
-      <PageHeader
-        title="Product History"
-        description={`Version history for product ${id}.`}
-      >
-        <Button asChild variant="outline">
-          <Link href={`/admin/products/${id}`}>Back to Product</Link>
-        </Button>
-      </PageHeader>
-
-      {history.length === 0 ? (
-        <Alert>
-          <AlertTitle>No history found</AlertTitle>
-          <AlertDescription>
-            There is currently no version history for this product.
-          </AlertDescription>
-        </Alert>
-      ) : (
-        <div className="mt-4">
+      <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
+        {history.length === 0 ? (
+          <Alert>
+            <AlertTitle>No history found</AlertTitle>
+            <AlertDescription>
+              There is currently no version history for this product.
+            </AlertDescription>
+          </Alert>
+        ) : (
           <ProductHistoryTable history={history} productId={id} />
-        </div>
-      )}
-      {/* {history.length === 0 ? (
-        <Alert>
-          <AlertTitle>No history found</AlertTitle>
-          <AlertDescription>
-            There is currently no version history for this product.
-          </AlertDescription>
-        </Alert>
-      ) : (
-        <div className="mt-4">
-          <ProductHistoryTable history={history} />
-        </div>
-      )} */}
+        )}
+      </div>
     </div>
   );
 }

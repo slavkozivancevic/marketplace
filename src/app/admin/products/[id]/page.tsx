@@ -27,19 +27,23 @@ export default async function AdminProductPage({ params }: ProductPageProps) {
 
   if (isActionErrorResult(result)) {
     return (
-      <div className="container">
-        <PageHeader
-          title="Product Details"
-          description="View detailed information about this product."
-        >
-          <Button asChild variant="outline">
-            <Link href="/admin/products">Back to Products</Link>
-          </Button>
-        </PageHeader>
-        <Alert variant="destructive">
-          <AlertTitle>Error loading product</AlertTitle>
-          <AlertDescription>{result.message}</AlertDescription>
-        </Alert>
+      <div className="flex-1 flex flex-col min-h-0">
+        <div className="shrink-0 px-6">
+          <PageHeader
+            title="Product Details"
+            description="View detailed information about this product."
+          >
+            <Button asChild variant="outline">
+              <Link href="/admin/products">Back to Products</Link>
+            </Button>
+          </PageHeader>
+        </div>
+        <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
+          <Alert variant="destructive">
+            <AlertTitle>Error loading product</AlertTitle>
+            <AlertDescription>{result.message}</AlertDescription>
+          </Alert>
+        </div>
       </div>
     );
   }
@@ -49,22 +53,26 @@ export default async function AdminProductPage({ params }: ProductPageProps) {
   if (!product) notFound();
 
   return (
-    <div className="container">
-      <PageHeader
-        title={product.title}
-        description="View detailed information about this product."
-      >
-        <Button asChild variant="outline">
-          <Link href="/admin/products">Back to Products</Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href={`/admin/products/${id}/history`}>History</Link>
-        </Button>
-        <Button asChild>
-          <Link href={`/admin/products/${id}/edit`}>Edit</Link>
-        </Button>
-      </PageHeader>
-      <ProductDetails product={product} />
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="shrink-0 px-6">
+        <PageHeader
+          title={product.title}
+          description="View detailed information about this product."
+        >
+          <Button asChild variant="outline">
+            <Link href="/admin/products">Back to Products</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href={`/admin/products/${id}/history`}>History</Link>
+          </Button>
+          <Button asChild>
+            <Link href={`/admin/products/${id}/edit`}>Edit</Link>
+          </Button>
+        </PageHeader>
+      </div>
+      <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
+        <ProductDetails product={product} />
+      </div>
     </div>
   );
 }

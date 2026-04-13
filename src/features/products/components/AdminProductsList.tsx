@@ -76,12 +76,11 @@ export function AdminProductsList() {
 
   // Large dataset — virtualized scroll container.
   return (
-    <div role="table" className="rounded-lg border">
+    <div role="table" className="rounded-lg border flex flex-col flex-1 min-h-0">
       <ProductTableHeader showActions />
       <div
         ref={parentRef}
-        className="overflow-auto"
-        style={{ maxHeight: "calc(100vh - 280px)" }}
+        className="overflow-auto flex-1 min-h-0"
       >
         <div
           style={{

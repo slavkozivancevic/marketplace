@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { ProductDetailLayout } from "@/features/products/components/ProductDetailLayout";
 import { ProductReviewsSection } from "@/features/reviews/components/ProductReviewsSection";
+import { Footer } from "@/components/layout/footer";
 
 interface PublicProductPageProps {
   params: Promise<{ id: string }>;
@@ -24,21 +25,27 @@ export default async function PublicProductPage({
   if (!product) notFound();
 
   return (
-    <div className="container">
-      <PageHeader title={product.title} description={product.description}>
-        <Button asChild variant="outline">
-          <Link href="/products">Back to Products</Link>
-        </Button>
-      </PageHeader>
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="shrink-0 px-6">
+        <PageHeader title={product.title} description={product.description}>
+          <Button asChild variant="outline">
+            <Link href="/products">Back to Products</Link>
+          </Button>
+        </PageHeader>
+      </div>
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="px-6 pb-6">
+          <ProductDetailLayout product={product} />
 
-      <ProductDetailLayout product={product} />
-
-      <div className="mt-12">
-        <ProductReviewsSection
-          productId={product.id}
-          avgRating={product.avgRating}
-          ratingCount={product.ratingCount}
-        />
+          <div className="mt-12">
+            <ProductReviewsSection
+              productId={product.id}
+              avgRating={product.avgRating}
+              ratingCount={product.ratingCount}
+            />
+          </div>
+        </div>
+        <Footer />
       </div>
     </div>
   );

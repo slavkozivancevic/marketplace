@@ -8,7 +8,7 @@ export default function NotFoundPage() {
   return (
     <>
       <PublicHeader />
-      <div className="container">
+      <div className="container px-6">
         <PageHeader
           title="Page Not Found"
           description="The page you are looking for does not exist."

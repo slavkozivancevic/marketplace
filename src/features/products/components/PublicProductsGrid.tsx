@@ -39,8 +39,8 @@ function buildFetcher(filters: ProductFilters) {
 
 function ProductCard({ product }: { product: SerializedProductListItem }) {
   return (
-    <Link href={`/products/${product.id}`} className="block cursor-pointer">
-      <Card className="h-full transition-shadow hover:shadow-lg">
+    <Link href={`/products/${product.id}`} className="block group">
+      <Card className="h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 border-border/50">
         {product.images.length > 0 && (
           <CardHeader className="p-0">
             <HoverImageCycler

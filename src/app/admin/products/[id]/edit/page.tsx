@@ -52,17 +52,20 @@ export default async function EditProductPage({
   const { id } = await params;
 
   return (
-    <div className="container">
-      <PageHeader
-        title="Edit Product"
-        description="Update the product details."
-      >
-        <Button asChild variant="outline">
-          <Link href={`/admin/products/${id}`}>Back to Product</Link>
-        </Button>
-      </PageHeader>
-
-      <EditProductForm productId={id} />
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="shrink-0 px-6">
+        <PageHeader
+          title="Edit Product"
+          description="Update the product details."
+        >
+          <Button asChild variant="outline">
+            <Link href={`/admin/products/${id}`}>Back to Product</Link>
+          </Button>
+        </PageHeader>
+      </div>
+      <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
+        <EditProductForm productId={id} />
+      </div>
     </div>
   );
 }

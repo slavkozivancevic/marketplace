@@ -38,7 +38,7 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
   };
 
   return (
-    <div className="border rounded overflow-hidden">
+    <div className="border border-border/50 rounded-lg overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5">
       {product.imageUrls.length > 0 && (
         <HoverImageCycler
           images={product.imageUrls}

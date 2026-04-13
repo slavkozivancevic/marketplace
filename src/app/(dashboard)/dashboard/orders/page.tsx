@@ -27,12 +27,15 @@ export default async function OrdersPage() {
   });
 
   return (
-    <div className="container">
-      <PageHeader title="My Orders" description="Your purchase history." />
-
-      <HydrationBoundary state={dehydrate(queryClient)}>
-        <OrdersList />
-      </HydrationBoundary>
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="shrink-0 px-6">
+        <PageHeader title="My Orders" description="Your purchase history." />
+      </div>
+      <div className="flex-1 flex flex-col min-h-0 px-6 pb-6">
+        <HydrationBoundary state={dehydrate(queryClient)}>
+          <OrdersList />
+        </HydrationBoundary>
+      </div>
     </div>
   );
 }

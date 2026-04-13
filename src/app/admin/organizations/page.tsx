@@ -10,26 +10,29 @@ export default async function AdminOrganizationsPage() {
   const organizations = await fetchOrganizations();
 
   return (
-    <div className="container">
-      <PageHeader
-        title="Manage Organizations"
-        description="View and verify organizations on the platform."
-      />
-
-      {organizations.length === 0 ? (
-        <Alert>
-          <AlertTitle>No organizations found</AlertTitle>
-          <AlertDescription>
-            There are currently no organizations to display.
-          </AlertDescription>
-        </Alert>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {organizations.map((org) => (
-            <OrganizationCard key={org.id} organization={org} />
-          ))}
-        </div>
-      )}
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="shrink-0 px-6">
+        <PageHeader
+          title="Manage Organizations"
+          description="View and verify organizations on the platform."
+        />
+      </div>
+      <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
+        {organizations.length === 0 ? (
+          <Alert>
+            <AlertTitle>No organizations found</AlertTitle>
+            <AlertDescription>
+              There are currently no organizations to display.
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {organizations.map((org) => (
+              <OrganizationCard key={org.id} organization={org} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

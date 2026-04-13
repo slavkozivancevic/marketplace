@@ -11,11 +11,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <Suspense fallback={null}>
       <ClerkProvider>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          themes={["light", "dark", "cosmos", "system"]}
+        >
           <QueryProvider>
-            <TooltipProvider>
-              {children}
-            </TooltipProvider>
+            <TooltipProvider>{children}</TooltipProvider>
             <Toaster />
           </QueryProvider>
         </ThemeProvider>

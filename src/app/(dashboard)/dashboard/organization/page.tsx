@@ -29,13 +29,15 @@ export default async function OrganizationPage() {
     ctx.membershipRole === MembershipRole.ADMIN;
 
   return (
-    <div className="container">
-      <PageHeader
-        title="Organization Settings"
-        description="Manage your organization details and members."
-      />
-
-      <div className="space-y-6">
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="shrink-0 px-6">
+        <PageHeader
+          title="Organization Settings"
+          description="Manage your organization details and members."
+        />
+      </div>
+      <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
+        <div className="space-y-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>General</CardTitle>
@@ -106,6 +108,7 @@ export default async function OrganizationPage() {
             <InviteList invites={invites} canManage={canEdit} />
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

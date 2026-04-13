@@ -49,7 +49,7 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
   };
 
   return (
-    <Card>
+    <Card className="border-border/50 transition-all duration-300 hover:shadow-md hover:shadow-primary/5">
       <CardHeader className="flex flex-row items-center justify-between">
         <div className="space-y-1">
           <CardTitle className="text-lg">{organization.name}</CardTitle>
