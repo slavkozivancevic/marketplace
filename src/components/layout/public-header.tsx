@@ -52,7 +52,7 @@ export function PublicHeader() {
                 <span className="text-lg font-bold tracking-tight leading-tight">
                   Marketplace
                 </span>
-                <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight hidden sm:block">
+                <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight">
                   Enterprise Platform
                 </span>
               </div>

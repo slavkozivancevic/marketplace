@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { HeaderAuth } from "./header-auth";
 import { ThemeSwitcher } from "./theme-switcher";
-import { Store } from "lucide-react";
+import { Store, Menu, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function AdminHeader() {
   const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     const main = document.querySelector("main");
@@ -40,7 +42,7 @@ export function AdminHeader() {
               <span className="text-lg font-bold tracking-tight leading-tight">
                 Marketplace
               </span>
-              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight hidden sm:block">
+              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight">
                 Admin Panel
               </span>
             </div>
@@ -52,6 +54,33 @@ export function AdminHeader() {
             <div className="hidden sm:flex items-center gap-2 ml-1">
               <HeaderAuth mode="redirect" showDashboardLink={false} />
             </div>
+            {/* Mobile menu button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="sm:hidden h-9 w-9"
+              onClick={() => setMobileOpen(!mobileOpen)}
+            >
+              {mobileOpen ? (
+                <X className="h-4 w-4" />
+              ) : (
+                <Menu className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile menu */}
+      <div
+        className={cn(
+          "sm:hidden overflow-hidden transition-all duration-300 border-t border-border/50",
+          mobileOpen ? "max-h-60" : "max-h-0 border-t-0"
+        )}
+      >
+        <div className="px-4 py-3 space-y-1">
+          <div className="pt-2 px-3 sm:hidden">
+            <HeaderAuth mode="redirect" showDashboardLink={false} />
           </div>
         </div>
       </div>
