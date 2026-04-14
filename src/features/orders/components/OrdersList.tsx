@@ -27,7 +27,7 @@ function OrderTableHeader() {
   return (
     <div
       role="row"
-      className="grid grid-cols-[1fr_1fr_1fr_2fr_1fr_1fr] items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg"
+      className="grid grid-cols-[100px_100px_80px_minmax(200px,2fr)_80px_100px] items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit"
     >
       <div role="columnheader">Order</div>
       <div role="columnheader">Date</div>
@@ -85,56 +85,33 @@ export function OrdersList() {
   // Small dataset — render rows directly without virtualization.
   if (!query.hasNextPage) {
     return (
-      <div role="table" className="rounded-lg border flex flex-col flex-1 min-h-0">
+      <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto">
         <OrderTableHeader />
-        <div className="overflow-auto flex-1 min-h-0">
-          {items.map((order) => (
-            <OrderTableRow key={order.id} order={order} />
-          ))}
-        </div>
+        {items.map((order) => (
+          <OrderTableRow key={order.id} order={order} />
+        ))}
       </div>
     );
   }
 
   // Large dataset — virtualized scroll container.
   return (
-    <div role="table" className="rounded-lg border flex flex-col flex-1 min-h-0">
+    <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto"
+      ref={parentRef}
+    >
       <OrderTableHeader />
       <div
-        ref={parentRef}
-        className="overflow-auto flex-1 min-h-0"
+        style={{
+          height: virtualizer.getTotalSize(),
+          position: "relative",
+          width: "100%",
+        }}
       >
-        <div
-          style={{
-            height: virtualizer.getTotalSize(),
-            position: "relative",
-            width: "100%",
-          }}
-        >
-          {virtualizer.getVirtualItems().map((vRow) => {
-            if (isSentinelIndex(vRow.index)) {
-              return (
-                <div
-                  key="sentinel"
-                  ref={virtualizer.measureElement}
-                  data-index={vRow.index}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    transform: `translateY(${vRow.start}px)`,
-                  }}
-                >
-                  <SkeletonOrderRow />
-                </div>
-              );
-            }
-
-            const order = items[vRow.index];
+        {virtualizer.getVirtualItems().map((vRow) => {
+          if (isSentinelIndex(vRow.index)) {
             return (
               <div
-                key={order.id}
+                key="sentinel"
                 ref={virtualizer.measureElement}
                 data-index={vRow.index}
                 style={{
@@ -145,11 +122,29 @@ export function OrdersList() {
                   transform: `translateY(${vRow.start}px)`,
                 }}
               >
-                <OrderTableRow order={order} />
+                <SkeletonOrderRow />
               </div>
             );
-          })}
-        </div>
+          }
+
+          const order = items[vRow.index];
+          return (
+            <div
+              key={order.id}
+              ref={virtualizer.measureElement}
+              data-index={vRow.index}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${vRow.start}px)`,
+              }}
+            >
+              <OrderTableRow order={order} />
+            </div>
+          );
+        })}
       </div>
     </div>
   );

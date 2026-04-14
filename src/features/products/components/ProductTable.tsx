@@ -40,15 +40,15 @@ export function ProductTableHeader({
   return (
     <div
       role="row"
-      className="grid grid-cols-[64px_1fr_2fr_80px_100px] items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg"
-      style={showActions ? { gridTemplateColumns: "64px 1fr 2fr 80px 100px 140px" } : undefined}
+      className="grid grid-cols-[64px_minmax(100px,1fr)_minmax(150px,2fr)_80px_100px] items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit"
+      style={showActions ? { gridTemplateColumns: "64px minmax(100px,1fr) minmax(150px,2fr) 80px 100px 140px" } : undefined}
     >
-      <div role="columnheader">Image</div>
-      <div role="columnheader">Title</div>
-      <div role="columnheader">Description</div>
-      <div role="columnheader">Price</div>
-      <div role="columnheader">Status</div>
-      {showActions && <div role="columnheader">Actions</div>}
+      <div role="columnheader" className="truncate">Image</div>
+      <div role="columnheader" className="truncate">Title</div>
+      <div role="columnheader" className="truncate">Description</div>
+      <div role="columnheader" className="truncate">Price</div>
+      <div role="columnheader" className="truncate">Status</div>
+      {showActions && <div role="columnheader" className="truncate">Actions</div>}
     </div>
   );
 }
@@ -85,11 +85,11 @@ export function ProductTableRow({
   return (
     <div
       role="row"
-      className="grid items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+      className="grid items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors min-w-fit"
       style={{
         gridTemplateColumns: showActions
-          ? "64px 1fr 2fr 80px 100px 140px"
-          : "64px 1fr 2fr 80px 100px",
+          ? "64px minmax(100px,1fr) minmax(150px,2fr) 80px 100px 140px"
+          : "64px minmax(100px,1fr) minmax(150px,2fr) 80px 100px",
       }}
       onClick={() => router.push(`${basePath}/${product.id}`)}
     >

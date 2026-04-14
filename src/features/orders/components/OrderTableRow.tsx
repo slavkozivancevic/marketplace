@@ -22,7 +22,7 @@ export function OrderTableRow({ order }: { order: UserOrderListItem }) {
   return (
     <div
       role="row"
-      className="grid grid-cols-[1fr_1fr_1fr_2fr_1fr_1fr] items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+      className="grid grid-cols-[100px_100px_80px_minmax(200px,2fr)_80px_100px] items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors min-w-fit"
       onClick={() => router.push(`/dashboard/orders/${order.id}`)}
     >
       <div role="cell" className="font-mono text-xs text-muted-foreground">

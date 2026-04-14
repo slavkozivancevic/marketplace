@@ -31,17 +31,17 @@ function HistoryTableHeader() {
   return (
     <div
       role="row"
-      className={`grid ${GRID_COLS} items-center gap-2 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg`}
+      className={`grid ${GRID_COLS} items-center gap-2 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit`}
     >
-      <div role="columnheader">Version</div>
+      <div role="columnheader" className="truncate">Version</div>
       <div role="columnheader"><Badge variant="outline" className="text-xs invisible">current</Badge></div>
-      <div role="columnheader">Title</div>
-      <div role="columnheader">Description</div>
-      <div role="columnheader">Price</div>
-      <div role="columnheader">Status</div>
-      <div role="columnheader">Updated By</div>
-      <div role="columnheader">Created At</div>
-      <div role="columnheader">Actions</div>
+      <div role="columnheader" className="truncate">Title</div>
+      <div role="columnheader" className="truncate">Description</div>
+      <div role="columnheader" className="truncate">Price</div>
+      <div role="columnheader" className="truncate">Status</div>
+      <div role="columnheader" className="truncate">Updated By</div>
+      <div role="columnheader" className="truncate">Created At</div>
+      <div role="columnheader" className="truncate">Actions</div>
     </div>
   );
 }
@@ -74,7 +74,7 @@ function HistoryRow({
   return (
     <div
       role="row"
-      className={`grid ${GRID_COLS} items-center gap-2 border-b p-3 transition-colors`}
+      className={`grid ${GRID_COLS} items-center gap-2 border-b p-3 transition-colors min-w-fit`}
     >
       <div role="cell">{entry.version}</div>
       <div role="cell">
@@ -117,18 +117,16 @@ export function ProductHistoryTable({
   const latestVersion = history[0]?.version;
 
   return (
-    <div role="table" className="rounded-lg border flex flex-col flex-1 min-h-0">
+    <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto">
       <HistoryTableHeader />
-      <div className="overflow-auto flex-1 min-h-0">
-        {history.map((entry) => (
-          <HistoryRow
-            key={entry.id}
-            entry={entry}
-            productId={productId}
-            isLatest={entry.version === latestVersion}
-          />
-        ))}
-      </div>
+      {history.map((entry) => (
+        <HistoryRow
+          key={entry.id}
+          entry={entry}
+          productId={productId}
+          isLatest={entry.version === latestVersion}
+        />
+      ))}
     </div>
   );
 }

@@ -65,56 +65,33 @@ export function AdminProductsList() {
   // Small dataset — render rows directly without virtualization.
   if (!query.hasNextPage) {
     return (
-      <div role="table" className="rounded-lg border flex flex-col flex-1 min-h-0">
+      <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto">
         <ProductTableHeader showActions />
-        <div className="overflow-auto flex-1 min-h-0">
-          {items.map((product) => (
-            <ProductTableRow key={product.id} product={product} showActions />
-          ))}
-        </div>
+        {items.map((product) => (
+          <ProductTableRow key={product.id} product={product} showActions />
+        ))}
       </div>
     );
   }
 
   // Large dataset — virtualized scroll container.
   return (
-    <div role="table" className="rounded-lg border flex flex-col flex-1 min-h-0">
+    <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto"
+      ref={parentRef}
+    >
       <ProductTableHeader showActions />
       <div
-        ref={parentRef}
-        className="overflow-auto flex-1 min-h-0"
+        style={{
+          height: virtualizer.getTotalSize(),
+          position: "relative",
+          width: "100%",
+        }}
       >
-        <div
-          style={{
-            height: virtualizer.getTotalSize(),
-            position: "relative",
-            width: "100%",
-          }}
-        >
-          {virtualizer.getVirtualItems().map((vRow) => {
-            if (isSentinelIndex(vRow.index)) {
-              return (
-                <div
-                  key="sentinel"
-                  ref={virtualizer.measureElement}
-                  data-index={vRow.index}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    transform: `translateY(${vRow.start}px)`,
-                  }}
-                >
-                  <SkeletonProductTableRow showActions />
-                </div>
-              );
-            }
-
-            const product = items[vRow.index];
+        {virtualizer.getVirtualItems().map((vRow) => {
+          if (isSentinelIndex(vRow.index)) {
             return (
               <div
-                key={product.id}
+                key="sentinel"
                 ref={virtualizer.measureElement}
                 data-index={vRow.index}
                 style={{
@@ -125,11 +102,29 @@ export function AdminProductsList() {
                   transform: `translateY(${vRow.start}px)`,
                 }}
               >
-                <ProductTableRow product={product} showActions />
+                <SkeletonProductTableRow showActions />
               </div>
             );
-          })}
-        </div>
+          }
+
+          const product = items[vRow.index];
+          return (
+            <div
+              key={product.id}
+              ref={virtualizer.measureElement}
+              data-index={vRow.index}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${vRow.start}px)`,
+              }}
+            >
+              <ProductTableRow product={product} showActions />
+            </div>
+          );
+        })}
       </div>
     </div>
   );
