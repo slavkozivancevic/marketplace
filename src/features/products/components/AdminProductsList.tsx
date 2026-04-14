@@ -65,11 +65,13 @@ export function AdminProductsList() {
   // Small dataset — render rows directly without virtualization.
   if (!query.hasNextPage) {
     return (
-      <div role="table" className="rounded-lg border">
+      <div role="table" className="rounded-lg border flex flex-col flex-1 min-h-0">
         <ProductTableHeader showActions />
-        {items.map((product) => (
-          <ProductTableRow key={product.id} product={product} showActions />
-        ))}
+        <div className="overflow-auto flex-1 min-h-0">
+          {items.map((product) => (
+            <ProductTableRow key={product.id} product={product} showActions />
+          ))}
+        </div>
       </div>
     );
   }

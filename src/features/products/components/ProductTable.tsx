@@ -40,7 +40,7 @@ export function ProductTableHeader({
   return (
     <div
       role="row"
-      className="grid grid-cols-[64px_1fr_2fr_80px_100px] items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground"
+      className="grid grid-cols-[64px_1fr_2fr_80px_100px] items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg"
       style={showActions ? { gridTemplateColumns: "64px 1fr 2fr 80px 100px 140px" } : undefined}
     >
       <div role="columnheader">Image</div>

@@ -1,16 +1,7 @@
 "use client";
 
-import * as React from "react";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ActionButton";
@@ -23,6 +14,8 @@ interface ProductHistoryTableProps {
   productId: string;
 }
 
+const GRID_COLS = "grid-cols-[60px_64px_minmax(140px,1fr)_minmax(200px,2fr)_80px_100px_minmax(120px,1fr)_minmax(180px,1fr)_100px]";
+
 function getStatusVariant(status: string) {
   switch (status) {
     case "PUBLISHED":
@@ -32,6 +25,25 @@ function getStatusVariant(status: string) {
     default:
       return "destructive" as const;
   }
+}
+
+function HistoryTableHeader() {
+  return (
+    <div
+      role="row"
+      className={`grid ${GRID_COLS} items-center gap-2 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg`}
+    >
+      <div role="columnheader">Version</div>
+      <div role="columnheader"><Badge variant="outline" className="text-xs invisible">current</Badge></div>
+      <div role="columnheader">Title</div>
+      <div role="columnheader">Description</div>
+      <div role="columnheader">Price</div>
+      <div role="columnheader">Status</div>
+      <div role="columnheader">Updated By</div>
+      <div role="columnheader">Created At</div>
+      <div role="columnheader">Actions</div>
+    </div>
+  );
 }
 
 function HistoryRow({
@@ -60,28 +72,27 @@ function HistoryRow({
   };
 
   return (
-    <TableRow className="hover:bg-transparent">
-      <TableCell>
-        <div className="flex items-center gap-2">
-          {entry.version}
-          {isLatest && (
-            <Badge variant="outline" className="text-xs">
-              current
-            </Badge>
-          )}
-        </div>
-      </TableCell>
-      <TableCell>{entry.title}</TableCell>
-      <TableCell>{entry.description}</TableCell>
-      <TableCell>${entry.price.toFixed(2)}</TableCell>
-      <TableCell>
+    <div
+      role="row"
+      className={`grid ${GRID_COLS} items-center gap-2 border-b p-3 transition-colors`}
+    >
+      <div role="cell">{entry.version}</div>
+      <div role="cell">
+        <Badge variant="outline" className={`text-xs ${isLatest ? "" : "invisible"}`}>
+          current
+        </Badge>
+      </div>
+      <div role="cell" className="truncate">{entry.title}</div>
+      <div role="cell" className="truncate text-muted-foreground">{entry.description}</div>
+      <div role="cell">${entry.price.toFixed(2)}</div>
+      <div role="cell">
         <Badge variant={getStatusVariant(entry.status)}>{entry.status}</Badge>
-      </TableCell>
-      <TableCell>
+      </div>
+      <div role="cell" className="truncate">
         {entry.updatedBy?.name ?? entry.updatedBy?.email ?? "—"}
-      </TableCell>
-      <TableCell>{new Date(entry.createdAt).toLocaleString()}</TableCell>
-      <TableCell>
+      </div>
+      <div role="cell" className="truncate">{new Date(entry.createdAt).toLocaleString()}</div>
+      <div role="cell">
         {!isLatest && (
           <ActionButton
             title="Rollback to this version"
@@ -94,8 +105,8 @@ function HistoryRow({
             </Button>
           </ActionButton>
         )}
-      </TableCell>
-    </TableRow>
+      </div>
+    </div>
   );
 }
 
@@ -106,20 +117,9 @@ export function ProductHistoryTable({
   const latestVersion = history[0]?.version;
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Version</TableHead>
-          <TableHead>Title</TableHead>
-          <TableHead>Description</TableHead>
-          <TableHead>Price</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Updated By</TableHead>
-          <TableHead>Created At</TableHead>
-          <TableHead>Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <div role="table" className="rounded-lg border flex flex-col flex-1 min-h-0">
+      <HistoryTableHeader />
+      <div className="overflow-auto flex-1 min-h-0">
         {history.map((entry) => (
           <HistoryRow
             key={entry.id}
@@ -128,7 +128,7 @@ export function ProductHistoryTable({
             isLatest={entry.version === latestVersion}
           />
         ))}
-      </TableBody>
-    </Table>
+      </div>
+    </div>
   );
 }

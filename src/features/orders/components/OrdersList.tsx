@@ -27,7 +27,7 @@ function OrderTableHeader() {
   return (
     <div
       role="row"
-      className="grid grid-cols-[1fr_1fr_1fr_2fr_1fr_1fr] items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground"
+      className="grid grid-cols-[1fr_1fr_1fr_2fr_1fr_1fr] items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg"
     >
       <div role="columnheader">Order</div>
       <div role="columnheader">Date</div>
@@ -85,11 +85,13 @@ export function OrdersList() {
   // Small dataset — render rows directly without virtualization.
   if (!query.hasNextPage) {
     return (
-      <div role="table" className="rounded-lg border">
+      <div role="table" className="rounded-lg border flex flex-col flex-1 min-h-0">
         <OrderTableHeader />
-        {items.map((order) => (
-          <OrderTableRow key={order.id} order={order} />
-        ))}
+        <div className="overflow-auto flex-1 min-h-0">
+          {items.map((order) => (
+            <OrderTableRow key={order.id} order={order} />
+          ))}
+        </div>
       </div>
     );
   }
