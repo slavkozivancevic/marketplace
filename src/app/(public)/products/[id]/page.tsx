@@ -33,8 +33,8 @@ export default async function PublicProductPage({
           </Button>
         </PageHeader>
       </div>
-      <div className="flex-1 overflow-y-auto min-h-0">
-        <div className="px-6 pb-6">
+      <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
+        <div className="flex-1 px-6 pb-6">
           <ProductDetailLayout product={product} />
 
           <div className="mt-12">

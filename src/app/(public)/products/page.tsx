@@ -50,8 +50,8 @@ export default async function ProductsRoute({
           description="Browse our available products."
         />
       </div>
-      <div className="flex-1 overflow-y-auto min-h-0">
-        <div className="px-6 pb-6 pt-1">
+      <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
+        <div className="flex-1 px-6 pb-6 pt-1">
           <HydrationBoundary state={dehydrate(queryClient)}>
             <PublicProductsPage />
           </HydrationBoundary>
