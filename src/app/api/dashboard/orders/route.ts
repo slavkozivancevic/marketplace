@@ -5,6 +5,15 @@ import { prisma } from "@/core/db/prisma";
 import { getUserOrdersPage } from "@/features/orders/db/orders";
 import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 
+const ALLOWED_SORTS = ["createdAt", "total"] as const;
+type SortField = (typeof ALLOWED_SORTS)[number];
+
+function parseSort(value: string | null): SortField {
+  return ALLOWED_SORTS.includes(value as SortField)
+    ? (value as SortField)
+    : "createdAt";
+}
+
 export async function GET(req: NextRequest) {
   await connection();
   const { userId: clerkUserId } = await auth();
@@ -26,12 +35,21 @@ export async function GET(req: NextRequest) {
     100,
   );
   const cursor = searchParams.get("cursor") ?? undefined;
+  const search = searchParams.get("search") ?? undefined;
+  const sortBy = parseSort(searchParams.get("sortBy"));
+  const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
+  const statusParam = searchParams.get("status");
+  const status = statusParam ? statusParam.split(",").filter(Boolean) : undefined;
 
   try {
     const result = await getUserOrdersPage({
       userId: user.id,
       take,
       cursor,
+      search,
+      status,
+      sortBy,
+      sortOrder,
     });
     return NextResponse.json(result);
   } catch (error) {

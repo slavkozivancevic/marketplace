@@ -8,19 +8,27 @@ import Link from "next/link";
 import type { UserOrderListItem } from "../db/orders";
 import { LIST_PAGE_SIZE, MAX_PAGES } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
+import type { OrderFilters } from "@/lib/query/searchParams";
 
-async function fetchOrders({
-  pageParam,
-}: {
-  pageParam: string | undefined;
-}): Promise<InfinitePage<UserOrderListItem>> {
-  const params = new URLSearchParams();
-  params.set("take", String(LIST_PAGE_SIZE));
-  if (pageParam) params.set("cursor", pageParam);
+function buildFetcher(filters: OrderFilters) {
+  return async ({
+    pageParam,
+  }: {
+    pageParam: string | undefined;
+  }): Promise<InfinitePage<UserOrderListItem>> => {
+    const params = new URLSearchParams();
+    params.set("take", String(LIST_PAGE_SIZE));
+    if (pageParam) params.set("cursor", pageParam);
+    if (filters.search) params.set("search", filters.search);
+    if (filters.sortBy) params.set("sortBy", filters.sortBy);
+    if (filters.sortOrder) params.set("sortOrder", filters.sortOrder);
+    if (filters.status.length > 0)
+      params.set("status", filters.status.join(","));
 
-  const res = await fetch(`/api/dashboard/orders?${params.toString()}`);
-  if (!res.ok) throw new Error("Failed to fetch orders");
-  return res.json();
+    const res = await fetch(`/api/dashboard/orders?${params.toString()}`);
+    if (!res.ok) throw new Error("Failed to fetch orders");
+    return res.json();
+  };
 }
 
 function OrderTableHeader() {
@@ -39,11 +47,19 @@ function OrderTableHeader() {
   );
 }
 
-export function OrdersList() {
+export function OrdersList({ filters }: { filters?: OrderFilters }) {
+  const defaultFilters: OrderFilters = {
+    search: "",
+    sortBy: "createdAt",
+    sortOrder: "desc",
+    status: [],
+  };
+  const f = filters ?? defaultFilters;
+
   const { parentRef, virtualizer, items, query, isSentinelIndex } =
     useInfiniteVirtualList<UserOrderListItem>({
-      queryKey: ["orders", "user"],
-      queryFn: fetchOrders,
+      queryKey: ["orders", "user", f],
+      queryFn: buildFetcher(f),
       estimateSize: 56,
       maxPages: MAX_PAGES,
     });
@@ -69,14 +85,21 @@ export function OrdersList() {
   }
 
   if (items.length === 0) {
+    const hasFilters = f.search || f.status.length > 0;
     return (
       <Alert>
-        <AlertTitle>No orders yet</AlertTitle>
+        <AlertTitle>{hasFilters ? "No orders found" : "No orders yet"}</AlertTitle>
         <AlertDescription>
-          You haven&apos;t placed any orders yet.{" "}
-          <Link href="/products" className="underline">
-            Browse products
-          </Link>
+          {hasFilters ? (
+            "Try adjusting your search or filters."
+          ) : (
+            <>
+              You haven&apos;t placed any orders yet.{" "}
+              <Link href="/products" className="underline">
+                Browse products
+              </Link>
+            </>
+          )}
         </AlertDescription>
       </Alert>
     );
@@ -85,7 +108,10 @@ export function OrdersList() {
   // Small dataset — render rows directly without virtualization.
   if (!query.hasNextPage) {
     return (
-      <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto">
+      <div
+        role="table"
+        className="rounded-lg border flex-1 min-h-0 overflow-auto"
+      >
         <OrderTableHeader />
         {items.map((order) => (
           <OrderTableRow key={order.id} order={order} />
@@ -96,7 +122,9 @@ export function OrdersList() {
 
   // Large dataset — virtualized scroll container.
   return (
-    <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto"
+    <div
+      role="table"
+      className="rounded-lg border flex-1 min-h-0 overflow-auto"
       ref={parentRef}
     >
       <OrderTableHeader />

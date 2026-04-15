@@ -1,12 +1,13 @@
 import { prisma } from "@/core/db/prisma";
-import { UserForm } from "@/features/users/components/UserForm";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AdminUsersPage } from "@/features/users/components/AdminUsersPage";
 
-export default async function AdminUsersPage() {
+export default async function AdminUsersRoute() {
   const users = await prisma.user.findMany({
     where: { deletedAt: null },
     include: { memberships: { include: { organization: true } } },
+    orderBy: { createdAt: "desc" },
   });
 
   return (
@@ -26,18 +27,7 @@ export default async function AdminUsersPage() {
             </AlertDescription>
           </Alert>
         ) : (
-          <div className="space-y-4">
-            {users.map((user) => (
-              <div key={user.id} className="border rounded p-4">
-                <div className="mb-4">
-                  <p className="font-semibold">{user.name || user.email}</p>
-                  <p className="text-sm text-muted-foreground">{user.email}</p>
-                  <p className="text-sm">Role: {user.role}</p>
-                </div>
-                <UserForm userId={user.id} currentRole={user.role} />
-              </div>
-            ))}
-          </div>
+          <AdminUsersPage users={JSON.parse(JSON.stringify(users))} />
         )}
       </div>
     </div>

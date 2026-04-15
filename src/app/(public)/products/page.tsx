@@ -4,13 +4,14 @@ import { getQueryClient } from "@/lib/query/getQueryClient";
 import { getPublicProductsPage } from "@/features/products/db/publicProducts";
 import { productSearchParams } from "@/lib/query/searchParams";
 import { PageHeader } from "@/components/PageHeader";
-import { PublicProductsGrid } from "@/features/products/components/PublicProductsGrid";
+import { PublicProductsPage } from "@/features/products/components/PublicProductsPage";
 import { Footer } from "@/components/layout/footer";
+
 import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
 
 const searchParamsCache = createSearchParamsCache(productSearchParams);
 
-export default async function ProductsPage({
+export default async function ProductsRoute({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -21,6 +22,8 @@ export default async function ProductsPage({
     search: params.search,
     sortBy: params.sortBy,
     sortOrder: params.sortOrder,
+    minPrice: params.minPrice,
+    maxPrice: params.maxPrice,
   };
 
   const queryClient = getQueryClient();
@@ -33,6 +36,8 @@ export default async function ProductsPage({
         search: filters.search || undefined,
         sortBy: filters.sortBy,
         sortOrder: filters.sortOrder,
+        minPrice: filters.minPrice ?? undefined,
+        maxPrice: filters.maxPrice ?? undefined,
       }),
     initialPageParam: undefined as string | undefined,
   });
@@ -46,9 +51,9 @@ export default async function ProductsPage({
         />
       </div>
       <div className="flex-1 overflow-y-auto min-h-0">
-        <div className="px-6 pb-6">
+        <div className="px-6 pb-6 pt-1">
           <HydrationBoundary state={dehydrate(queryClient)}>
-            <PublicProductsGrid filters={filters} />
+            <PublicProductsPage />
           </HydrationBoundary>
         </div>
         <Footer />

@@ -17,12 +17,16 @@ export async function getPublicProductsPage({
   search,
   sortBy = "createdAt",
   sortOrder = "desc",
+  minPrice,
+  maxPrice,
 }: {
   take: number;
   cursor?: string;
   search?: string;
   sortBy?: SortField;
   sortOrder?: SortOrder;
+  minPrice?: number;
+  maxPrice?: number;
 }): Promise<{ items: SerializedProductListItem[]; nextCursor?: string }> {
   const where: Prisma.ProductWhereInput = {
     status: "PUBLISHED",
@@ -34,6 +38,12 @@ export async function getPublicProductsPage({
       { title: { contains: search, mode: "insensitive" } },
       { description: { contains: search, mode: "insensitive" } },
     ];
+  }
+
+  if (minPrice != null || maxPrice != null) {
+    where.price = {};
+    if (minPrice != null) where.price.gte = minPrice;
+    if (maxPrice != null) where.price.lte = maxPrice;
   }
 
   const orderBy: Prisma.ProductOrderByWithRelationInput[] = [

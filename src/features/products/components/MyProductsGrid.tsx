@@ -7,19 +7,26 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SerializedProductListItem } from "@/types/types";
 import { GRID_PAGE_SIZE, MAX_PAGES } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
+import type { MyProductFilters } from "@/lib/query/searchParams";
 
-async function fetchMyProducts({
-  pageParam,
-}: {
-  pageParam: string | undefined;
-}): Promise<InfinitePage<SerializedProductListItem>> {
-  const params = new URLSearchParams();
-  params.set("take", String(GRID_PAGE_SIZE));
-  if (pageParam) params.set("cursor", pageParam);
+function buildFetcher(filters: MyProductFilters) {
+  return async ({
+    pageParam,
+  }: {
+    pageParam: string | undefined;
+  }): Promise<InfinitePage<SerializedProductListItem>> => {
+    const params = new URLSearchParams();
+    params.set("take", String(GRID_PAGE_SIZE));
+    if (pageParam) params.set("cursor", pageParam);
+    if (filters.search) params.set("search", filters.search);
+    if (filters.sortBy) params.set("sortBy", filters.sortBy);
+    if (filters.sortOrder) params.set("sortOrder", filters.sortOrder);
+    if (filters.status.length === 1) params.set("status", filters.status[0]);
 
-  const res = await fetch(`/api/dashboard/my-products?${params.toString()}`);
-  if (!res.ok) throw new Error("Failed to fetch products");
-  return res.json();
+    const res = await fetch(`/api/dashboard/my-products?${params.toString()}`);
+    if (!res.ok) throw new Error("Failed to fetch products");
+    return res.json();
+  };
 }
 
 function renderCard(
@@ -42,7 +49,21 @@ function renderCard(
   );
 }
 
-export function MyProductsGrid({ canWrite }: { canWrite: boolean }) {
+export function MyProductsGrid({
+  canWrite,
+  filters,
+}: {
+  canWrite: boolean;
+  filters?: MyProductFilters;
+}) {
+  const defaultFilters: MyProductFilters = {
+    search: "",
+    sortBy: "createdAt",
+    sortOrder: "desc",
+    status: [],
+  };
+  const f = filters ?? defaultFilters;
+
   const {
     parentRef,
     virtualizer,
@@ -53,8 +74,8 @@ export function MyProductsGrid({ canWrite }: { canWrite: boolean }) {
     getRowItems,
     isSentinelRow,
   } = useInfiniteVirtualGrid<SerializedProductListItem>({
-    queryKey: ["products", "my-products"],
-    queryFn: fetchMyProducts,
+    queryKey: ["products", "my-products", f],
+    queryFn: buildFetcher(f),
     minCardWidth: 280,
     gap: 24,
     estimateRowHeight: 340,
@@ -81,7 +102,15 @@ export function MyProductsGrid({ canWrite }: { canWrite: boolean }) {
   }
 
   if (items.length === 0) {
-    return (
+    const hasFilters = f.search || f.status.length > 0;
+    return hasFilters ? (
+      <Alert>
+        <AlertTitle>No products found</AlertTitle>
+        <AlertDescription>
+          Try adjusting your search or filters.
+        </AlertDescription>
+      </Alert>
+    ) : (
       <p className="text-muted-foreground">
         No products yet.{canWrite ? " Create your first product!" : ""}
       </p>

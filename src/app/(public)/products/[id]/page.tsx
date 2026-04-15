@@ -66,10 +66,7 @@ async function fetchPublicProduct(
         orderBy: { order: "asc" },
         include: {
           optionValues: {
-            orderBy: [
-              { option: { order: "asc" } },
-              { order: "asc" },
-            ],
+            orderBy: [{ option: { order: "asc" } }, { order: "asc" }],
           },
           images: { orderBy: { order: "asc" } },
         },

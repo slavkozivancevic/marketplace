@@ -30,9 +30,14 @@ function buildFetcher(filters: ProductFilters) {
     if (filters.search) params.set("search", filters.search);
     if (filters.sortBy) params.set("sortBy", filters.sortBy);
     if (filters.sortOrder) params.set("sortOrder", filters.sortOrder);
+    if (filters.minPrice != null) params.set("minPrice", String(filters.minPrice));
+    if (filters.maxPrice != null) params.set("maxPrice", String(filters.maxPrice));
 
     const res = await fetch(`/api/products?${params.toString()}`);
-    if (!res.ok) throw new Error("Failed to fetch products");
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`Failed to fetch products (${res.status}): ${body}`);
+    }
     return res.json();
   };
 }
@@ -109,10 +114,15 @@ export function PublicProductsGrid({ filters }: { filters: ProductFilters }) {
   }
 
   if (items.length === 0) {
+    const hasFilters = filters.search || filters.minPrice != null || filters.maxPrice != null;
     return (
       <Alert>
-        <AlertTitle>No products available</AlertTitle>
-        <AlertDescription>Check back later for new products.</AlertDescription>
+        <AlertTitle>{hasFilters ? "No products found" : "No products available"}</AlertTitle>
+        <AlertDescription>
+          {hasFilters
+            ? "Try adjusting your search or filters."
+            : "Check back later for new products."}
+        </AlertDescription>
       </Alert>
     );
   }

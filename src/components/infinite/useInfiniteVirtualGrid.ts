@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   useInfiniteQuery,
   type QueryKey,
@@ -70,29 +70,37 @@ export function useInfiniteVirtualGrid<TItem>({
   const parentRef = useRef<HTMLDivElement>(null);
   const [columnCount, setColumnCount] = useState(1);
 
-  // Observe parent width to compute column count.
-  useLayoutEffect(() => {
-    const el = parentRef.current;
-    if (!el) return;
+  // Callback ref instead of useLayoutEffect([minCardWidth, gap]) so that column
+  // count is re-measured every time the element is attached to the DOM.
+  // useLayoutEffect with static deps only runs once on mount; when filters change
+  // the query goes through a "pending" state that renders without parentRef,
+  // setting parentRef.current = null. When data arrives the element is
+  // re-attached but useLayoutEffect would not re-fire, leaving columnCount at 1.
+  const parentRefCallback = useCallback(
+    (el: HTMLDivElement | null) => {
+      (parentRef as { current: HTMLDivElement | null }).current = el;
+      if (!el) return;
 
-    const update = (width: number) => {
-      const usable = width;
-      const cols = Math.max(
-        1,
-        Math.floor((usable + gap) / (minCardWidth + gap)),
-      );
-      setColumnCount((prev) => (prev === cols ? prev : cols));
-    };
+      const update = (width: number) => {
+        const cols = Math.max(
+          1,
+          Math.floor((width + gap) / (minCardWidth + gap)),
+        );
+        setColumnCount((prev) => (prev === cols ? prev : cols));
+      };
 
-    update(el.clientWidth);
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        update(entry.contentRect.width);
-      }
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [minCardWidth, gap]);
+      update(el.clientWidth);
+      const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          update(entry.contentRect.width);
+        }
+      });
+      observer.observe(el);
+      // React calls this callback with null on unmount, which disconnects the
+      // observer via the closure — no explicit cleanup needed here.
+    },
+    [minCardWidth, gap],
+  );
 
   const query = useInfiniteQuery<
     InfinitePage<TItem>,
@@ -153,7 +161,7 @@ export function useInfiniteVirtualGrid<TItem>({
   };
 
   return {
-    parentRef,
+    parentRef: parentRefCallback as unknown as React.RefObject<HTMLDivElement>,
     virtualizer,
     items,
     query,

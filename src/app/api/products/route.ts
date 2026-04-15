@@ -3,13 +3,19 @@ import { connection } from "next/server";
 import { getPublicProductsPage } from "@/features/products/db/publicProducts";
 import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
 
-const ALLOWED_SORTS = ["createdAt", "price", "title"] as const;
+const ALLOWED_SORTS = ["createdAt", "price", "title", "avgRating"] as const;
 type SortField = (typeof ALLOWED_SORTS)[number];
 
 function parseSort(value: string | null): SortField {
   return ALLOWED_SORTS.includes(value as SortField)
     ? (value as SortField)
     : "createdAt";
+}
+
+function parseOptionalFloat(value: string | null): number | undefined {
+  if (value == null) return undefined;
+  const n = Number(value);
+  return isNaN(n) ? undefined : n;
 }
 
 export async function GET(req: NextRequest) {
@@ -24,6 +30,8 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get("search") ?? undefined;
   const sortBy = parseSort(searchParams.get("sortBy"));
   const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
+  const minPrice = parseOptionalFloat(searchParams.get("minPrice"));
+  const maxPrice = parseOptionalFloat(searchParams.get("maxPrice"));
 
   try {
     const result = await getPublicProductsPage({
@@ -32,6 +40,8 @@ export async function GET(req: NextRequest) {
       search,
       sortBy,
       sortOrder,
+      minPrice,
+      maxPrice,
     });
     return NextResponse.json(result);
   } catch (error) {

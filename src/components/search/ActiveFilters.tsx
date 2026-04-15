@@ -1,0 +1,84 @@
+"use client";
+
+import { X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import type { FilterGroup, FilterValues } from "./FilterSidebar";
+
+interface ActiveFiltersProps {
+  groups: FilterGroup[];
+  values: FilterValues;
+  onRemove: (key: string, value?: string) => void;
+  onClearAll: () => void;
+}
+
+export function ActiveFilters({
+  groups,
+  values,
+  onRemove,
+  onClearAll,
+}: ActiveFiltersProps) {
+  const chips: { key: string; value: string; label: string }[] = [];
+
+  for (const group of groups) {
+    const val = values[group.key];
+    if (!val) continue;
+
+    if (group.type === "checkbox" && Array.isArray(val)) {
+      for (const v of val as string[]) {
+        const option = group.options.find((o) => o.value === v);
+        chips.push({
+          key: group.key,
+          value: v,
+          label: `${group.label}: ${option?.label ?? v}`,
+        });
+      }
+    }
+
+    if (group.type === "range") {
+      const [min, max] = val as [number?, number?];
+      if (min != null || max != null) {
+        const prefix = group.prefix ?? "";
+        let label = group.label + ": ";
+        if (min != null && max != null) {
+          label += `${prefix}${min} - ${prefix}${max}`;
+        } else if (min != null) {
+          label += `${prefix}${min}+`;
+        } else {
+          label += `up to ${prefix}${max}`;
+        }
+        chips.push({ key: group.key, value: "__range__", label });
+      }
+    }
+  }
+
+  if (chips.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {chips.map((chip) => (
+        <Badge
+          key={`${chip.key}-${chip.value}`}
+          variant="secondary"
+          className="gap-1 pr-1 cursor-pointer hover:bg-secondary/80 transition-colors"
+          onClick={() =>
+            chip.value === "__range__"
+              ? onRemove(chip.key)
+              : onRemove(chip.key, chip.value)
+          }
+        >
+          {chip.label}
+          <X className="size-3" />
+        </Badge>
+      ))}
+      {chips.length > 1 && (
+        <button
+          type="button"
+          onClick={onClearAll}
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors underline"
+        >
+          Clear all
+        </button>
+      )}
+    </div>
+  );
+}

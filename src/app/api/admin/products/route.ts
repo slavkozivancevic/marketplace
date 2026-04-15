@@ -16,6 +16,12 @@ function parseSort(value: string | null): SortField | undefined {
     : undefined;
 }
 
+function parseOptionalFloat(value: string | null): number | undefined {
+  if (value == null) return undefined;
+  const n = Number(value);
+  return isNaN(n) ? undefined : n;
+}
+
 export async function GET(req: NextRequest) {
   await connection();
   let ctx;
@@ -40,6 +46,8 @@ export async function GET(req: NextRequest) {
     statusParam && Object.values(ProductStatus).includes(statusParam)
       ? statusParam
       : undefined;
+  const minPrice = parseOptionalFloat(searchParams.get("minPrice"));
+  const maxPrice = parseOptionalFloat(searchParams.get("maxPrice"));
 
   try {
     const repo = productRepository(ctx);
@@ -50,6 +58,8 @@ export async function GET(req: NextRequest) {
       sortBy,
       sortOrder,
       status,
+      minPrice,
+      maxPrice,
     });
 
     return NextResponse.json({

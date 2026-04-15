@@ -2,11 +2,11 @@ import { cacheTag } from "next/cache";
 
 import { getAllOrganizations } from "@/features/organizations/db/organizations";
 import { CacheTags } from "@/lib/cache/tags";
-import { OrganizationCard } from "@/features/organizations/components/OrganizationCard";
 import { PageHeader } from "@/components/PageHeader";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AdminOrganizationsPage } from "@/features/organizations/components/AdminOrganizationsPage";
 
-export default async function AdminOrganizationsPage() {
+export default async function AdminOrganizationsRoute() {
   const organizations = await fetchOrganizations();
 
   return (
@@ -26,11 +26,9 @@ export default async function AdminOrganizationsPage() {
             </AlertDescription>
           </Alert>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {organizations.map((org) => (
-              <OrganizationCard key={org.id} organization={org} />
-            ))}
-          </div>
+          <AdminOrganizationsPage
+            organizations={JSON.parse(JSON.stringify(organizations))}
+          />
         )}
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { prisma } from "@/core/db/prisma";
+import { Prisma, OrderStatus } from "@/generated/prisma/client";
 import { cacheTag } from "next/cache";
 import { CacheTags } from "@/lib/cache/tags";
 import { revalidateOrderCache } from "./cache";
@@ -45,14 +46,41 @@ export async function getUserOrdersPage({
   userId,
   take,
   cursor,
+  search,
+  status,
+  sortBy = "createdAt",
+  sortOrder = "desc",
 }: {
   userId: string;
   take: number;
   cursor?: string;
+  search?: string;
+  status?: string[];
+  sortBy?: "createdAt" | "total";
+  sortOrder?: "asc" | "desc";
 }): Promise<{ items: UserOrderListItem[]; nextCursor?: string }> {
+  const where: Prisma.OrderWhereInput = {
+    userId,
+  };
+
+  if (status && status.length > 0) {
+    where.status = { in: status as OrderStatus[] };
+  }
+
+  if (search) {
+    where.items = {
+      some: {
+        product: { title: { contains: search, mode: "insensitive" } },
+      },
+    };
+  }
+
+  const sortField: Prisma.OrderOrderByWithRelationInput = sortBy === "createdAt" ? { createdAt: sortOrder } : { total: sortOrder };
+  const orderBy: Prisma.OrderOrderByWithRelationInput[] = [sortField, { id: "asc" }];
+
   const rows = await prisma.order.findMany({
-    where: { userId },
-    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    where,
+    orderBy,
     take: take + 1,
     cursor: cursor ? { id: cursor } : undefined,
     skip: cursor ? 1 : 0,
