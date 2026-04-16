@@ -32,6 +32,8 @@ function buildFetcher(filters: ProductFilters) {
     if (filters.sortOrder) params.set("sortOrder", filters.sortOrder);
     if (filters.minPrice != null) params.set("minPrice", String(filters.minPrice));
     if (filters.maxPrice != null) params.set("maxPrice", String(filters.maxPrice));
+    if (filters.onSale === true) params.set("onSale", "true");
+    if (filters.isDigital != null) params.set("isDigital", String(filters.isDigital));
 
     const res = await fetch(`/api/products?${params.toString()}`);
     if (!res.ok) {
@@ -43,18 +45,26 @@ function buildFetcher(filters: ProductFilters) {
 }
 
 function ProductCard({ product }: { product: SerializedProductListItem }) {
+  const isOnSale =
+    product.compareAtPrice != null && product.compareAtPrice > product.price;
+
   return (
     <Link href={`/products/${product.id}`} className="block group">
       <Card className="h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 border-border/50">
-        {product.images.length > 0 && (
-          <CardHeader className="p-0">
+        <CardHeader className="p-0 relative">
+          {product.images.length > 0 && (
             <HoverImageCycler
               images={product.images.map((img) => img.url)}
               alt={product.title}
               className="w-full h-48 rounded-t"
             />
-          </CardHeader>
-        )}
+          )}
+          {isOnSale && (
+            <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-semibold px-2 py-0.5 rounded">
+              -{Math.round(((product.compareAtPrice! - product.price) / product.compareAtPrice!) * 100)}%
+            </span>
+          )}
+        </CardHeader>
         <CardContent className="pt-4">
           <CardTitle>{product.title}</CardTitle>
           <CardDescription>{product.description}</CardDescription>
@@ -66,9 +76,20 @@ function ProductCard({ product }: { product: SerializedProductListItem }) {
               </span>
             </div>
           )}
-          <p className="text-lg font-semibold mt-2">
-            ${product.price.toFixed(2)}
-          </p>
+          {isOnSale ? (
+            <div className="flex items-baseline gap-2 mt-2">
+              <p className="text-lg font-semibold text-red-500">
+                ${product.price.toFixed(2)}
+              </p>
+              <p className="text-sm text-muted-foreground line-through">
+                ${product.compareAtPrice!.toFixed(2)}
+              </p>
+            </div>
+          ) : (
+            <p className="text-lg font-semibold mt-2">
+              ${product.price.toFixed(2)}
+            </p>
+          )}
         </CardContent>
       </Card>
     </Link>

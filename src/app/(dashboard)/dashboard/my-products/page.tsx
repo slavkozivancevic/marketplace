@@ -81,6 +81,8 @@ export default async function MyProductsRoute({
           (p): SerializedProductListItem => ({
             ...p,
             price: Number(p.price),
+            compareAtPrice: p.compareAtPrice != null ? Number(p.compareAtPrice) : null,
+            costPrice: p.costPrice != null ? Number(p.costPrice) : null,
           }),
         ),
         nextCursor: result.nextCursor,

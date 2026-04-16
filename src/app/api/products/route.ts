@@ -32,6 +32,10 @@ export async function GET(req: NextRequest) {
   const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
   const minPrice = parseOptionalFloat(searchParams.get("minPrice"));
   const maxPrice = parseOptionalFloat(searchParams.get("maxPrice"));
+  const onSaleParam = searchParams.get("onSale");
+  const onSale = onSaleParam === "true" ? true : onSaleParam === "false" ? false : null;
+  const isDigitalParam = searchParams.get("isDigital");
+  const isDigital = isDigitalParam === "true" ? true : isDigitalParam === "false" ? false : null;
 
   try {
     const result = await getPublicProductsPage({
@@ -42,6 +46,8 @@ export async function GET(req: NextRequest) {
       sortOrder,
       minPrice,
       maxPrice,
+      onSale,
+      isDigital,
     });
     return NextResponse.json(result);
   } catch (error) {

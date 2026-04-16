@@ -198,27 +198,27 @@ async function syncVariants(
   }
 
   for (const [index, { variant, existingId }] of resolved.entries()) {
+    const variantScalars = {
+      sku: variant.sku,
+      price: variant.price,
+      compareAtPrice: variant.compareAtPrice ?? null,
+      costPrice: variant.costPrice ?? null,
+      stock: variant.stock,
+      barcode: variant.barcode,
+      weight: variant.weight ?? null,
+      weightUnit: (variant.weightUnit as never) ?? null,
+      order: index,
+    };
+
     if (existingId) {
       await tx.productVariant.update({
         where: { id: existingId },
-        data: {
-          sku: variant.sku,
-          price: variant.price,
-          stock: variant.stock,
-          order: index,
-          updatedAt: new Date(),
-        },
+        data: { ...variantScalars, updatedAt: new Date() },
       });
       variant.id = existingId;
     } else {
       const created = await tx.productVariant.create({
-        data: {
-          productId,
-          sku: variant.sku,
-          price: variant.price,
-          stock: variant.stock,
-          order: index,
-        },
+        data: { productId, ...variantScalars },
       });
       variant.id = created.id;
     }
@@ -380,7 +380,9 @@ export function productRepository(
       if (params?.search) {
         where.OR = [
           { title: { contains: params.search, mode: "insensitive" } },
+          { shortDescription: { contains: params.search, mode: "insensitive" } },
           { description: { contains: params.search, mode: "insensitive" } },
+          { barcode: { contains: params.search, mode: "insensitive" } },
         ];
       }
 
@@ -457,20 +459,58 @@ export function productRepository(
 
     async create(data: {
       title: string;
+      slug?: string;
       description: string;
+      shortDescription?: string;
       price: number;
+      compareAtPrice?: number | null;
+      costPrice?: number | null;
       stock?: number | null;
+      barcode?: string;
+      taxable?: boolean;
+      taxCode?: string;
+      requiresShipping?: boolean;
+      isDigital?: boolean;
+      weight?: number | null;
+      weightUnit?: string | null;
+      length?: number | null;
+      width?: number | null;
+      height?: number | null;
+      dimensionUnit?: string | null;
+      metaTitle?: string;
+      metaDescription?: string;
+      brandId?: string;
       images?: ImageInput[];
       variants?: ProductVariantInput[];
       options?: VariantOptionInput[];
     }): Promise<ProductWithRelations> {
+      const { slugify } = await import("@/lib/utils");
       const product = await db.prisma.$transaction(async (tx) => {
+        const slug = data.slug?.trim() || slugify(data.title) + "-" + Date.now().toString(36);
         const created = await tx.product.create({
           data: {
             title: data.title,
+            slug,
             description: data.description,
+            shortDescription: data.shortDescription,
             price: data.price,
+            compareAtPrice: data.compareAtPrice ?? null,
+            costPrice: data.costPrice ?? null,
             stock: data.stock ?? null,
+            barcode: data.barcode,
+            taxable: data.taxable ?? true,
+            taxCode: data.taxCode,
+            requiresShipping: data.requiresShipping ?? true,
+            isDigital: data.isDigital ?? false,
+            weight: data.weight ?? null,
+            weightUnit: (data.weightUnit as never) ?? null,
+            length: data.length ?? null,
+            width: data.width ?? null,
+            height: data.height ?? null,
+            dimensionUnit: (data.dimensionUnit as never) ?? null,
+            metaTitle: data.metaTitle,
+            metaDescription: data.metaDescription,
+            brandId: data.brandId,
             organizationId: ctx.organizationId,
             createdById: ctx.userId,
           },
@@ -545,9 +585,27 @@ export function productRepository(
       version: number | undefined,
       data: Partial<{
         title: string;
+        slug?: string;
         description: string;
+        shortDescription?: string;
         price: number;
+        compareAtPrice?: number | null;
+        costPrice?: number | null;
         stock?: number | null;
+        barcode?: string;
+        taxable?: boolean;
+        taxCode?: string;
+        requiresShipping?: boolean;
+        isDigital?: boolean;
+        weight?: number | null;
+        weightUnit?: string | null;
+        length?: number | null;
+        width?: number | null;
+        height?: number | null;
+        dimensionUnit?: string | null;
+        metaTitle?: string;
+        metaDescription?: string;
+        brandId?: string;
         images?: ImageInput[];
         status?: ProductStatus;
         variants?: ProductVariantInput[];
@@ -559,7 +617,7 @@ export function productRepository(
           throw new VersionRequiredError();
         }
 
-        const { images, variants, options, ...productData } = data;
+        const { images, variants, options, weightUnit, dimensionUnit, ...productData } = data;
 
         const result = await tx.product.updateMany({
           where: {
@@ -570,6 +628,8 @@ export function productRepository(
           },
           data: {
             ...productData,
+            ...(weightUnit !== undefined && { weightUnit: weightUnit as never }),
+            ...(dimensionUnit !== undefined && { dimensionUnit: dimensionUnit as never }),
             updatedById: ctx.userId,
             version: { increment: 1 },
           },
@@ -901,9 +961,27 @@ export type ProductRepo = {
 
   create(data: {
     title: string;
+    slug?: string;
     description: string;
+    shortDescription?: string;
     price: number;
+    compareAtPrice?: number | null;
+    costPrice?: number | null;
     stock?: number | null;
+    barcode?: string;
+    taxable?: boolean;
+    taxCode?: string;
+    requiresShipping?: boolean;
+    isDigital?: boolean;
+    weight?: number | null;
+    weightUnit?: string | null;
+    length?: number | null;
+    width?: number | null;
+    height?: number | null;
+    dimensionUnit?: string | null;
+    metaTitle?: string;
+    metaDescription?: string;
+    brandId?: string;
     images?: ImageInput[];
     variants?: ProductVariantInput[];
     options?: VariantOptionInput[];
@@ -914,9 +992,27 @@ export type ProductRepo = {
     version: number | undefined,
     data: Partial<{
       title: string;
+      slug?: string;
       description: string;
+      shortDescription?: string;
       price: number;
+      compareAtPrice?: number | null;
+      costPrice?: number | null;
       stock?: number | null;
+      barcode?: string;
+      taxable?: boolean;
+      taxCode?: string;
+      requiresShipping?: boolean;
+      isDigital?: boolean;
+      weight?: number | null;
+      weightUnit?: string | null;
+      length?: number | null;
+      width?: number | null;
+      height?: number | null;
+      dimensionUnit?: string | null;
+      metaTitle?: string;
+      metaDescription?: string;
+      brandId?: string;
       images?: ImageInput[];
       status?: ProductStatus;
       variants?: ProductVariantInput[];

@@ -69,6 +69,7 @@ export function tenantPrisma({
 
       async create(data: {
         title: string;
+        slug: string;
         description: string;
         price: number;
       }) {

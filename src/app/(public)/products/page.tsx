@@ -24,6 +24,8 @@ export default async function ProductsRoute({
     sortOrder: params.sortOrder,
     minPrice: params.minPrice,
     maxPrice: params.maxPrice,
+    onSale: params.onSale,
+    isDigital: params.isDigital,
   };
 
   const queryClient = getQueryClient();
@@ -38,6 +40,8 @@ export default async function ProductsRoute({
         sortOrder: filters.sortOrder,
         minPrice: filters.minPrice ?? undefined,
         maxPrice: filters.maxPrice ?? undefined,
+        onSale: filters.onSale,
+        isDigital: filters.isDigital,
       }),
     initialPageParam: undefined as string | undefined,
   });

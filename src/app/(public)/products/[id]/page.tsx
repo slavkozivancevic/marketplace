@@ -83,9 +83,13 @@ async function fetchPublicProduct(
   return {
     ...product,
     price: Number(product.price),
+    compareAtPrice: product.compareAtPrice != null ? Number(product.compareAtPrice) : null,
+    costPrice: product.costPrice != null ? Number(product.costPrice) : null,
     variants: product.variants.map((v) => ({
       ...v,
       price: Number(v.price),
+      compareAtPrice: v.compareAtPrice != null ? Number(v.compareAtPrice) : null,
+      costPrice: v.costPrice != null ? Number(v.costPrice) : null,
     })),
   };
 }

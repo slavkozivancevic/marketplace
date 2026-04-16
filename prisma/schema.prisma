@@ -81,36 +81,138 @@ enum ProductStatus {
   ARCHIVED
 }
 
+enum WeightUnit {
+  G
+  KG
+  LB
+  OZ
+}
+
+enum DimensionUnit {
+  CM
+  IN
+}
+
+model Brand {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  logoUrl     String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String
+  slug        String
+  description String?
+  imageUrl    String?
+  parentId    String?
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  parent   Category?  @relation("CategoryChildren", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryChildren")
+
+  products ProductCategory[]
+
+  @@unique([slug, parentId])
+  @@index([parentId])
+}
+
+model ProductCategory {
+  productId  String
+  categoryId String
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([productId, categoryId])
+  @@index([categoryId])
+}
+
+model Tag {
+  id   String @id @default(uuid())
+  name String @unique
+  slug String @unique
+
+  products ProductTag[]
+}
+
+model ProductTag {
+  productId String
+  tagId     String
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([productId, tagId])
+  @@index([tagId])
+}
+
 model Product {
   id          String @id @default(uuid())
 
-  title       String
-  description String
-  price Decimal @db.Decimal(10,2)
-  stock Int?
+  title            String
+  slug             String
+  description      String
+  shortDescription String?
+  price            Decimal  @db.Decimal(10, 2)
+  compareAtPrice   Decimal? @db.Decimal(10, 2)
+  costPrice        Decimal? @db.Decimal(10, 2)
+  stock            Int?
 
   status ProductStatus @default(DRAFT)
 
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+
+  // Shipping
+  requiresShipping Boolean @default(true)
+  weight           Float?
+  weightUnit       WeightUnit?
+  length           Float?
+  width            Float?
+  height           Float?
+  dimensionUnit    DimensionUnit?
+
+  // Inventory
+  barcode String?
+  taxable Boolean @default(true)
+  taxCode String?
+
+  // Digital
+  isDigital Boolean @default(false)
+
+  // Relations
+  brandId        String?
   organizationId String
+  createdById    String?
+  updatedById    String?
 
-  createdById String?
-  updatedById String?
+  version Int @default(1)
 
-  version   Int      @default(1)
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  publishedAt DateTime?
+  featuredAt  DateTime?
 
-  images ProductImage[]
+  brand        Brand?        @relation(fields: [brandId], references: [id])
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  createdBy    User?         @relation("ProductCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User?         @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
 
+  images   ProductImage[]
   variants ProductVariant[]
   options  VariantOption[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
-
-  organization Organization @relation(fields: [organizationId], references: [id])
-
-  createdBy User? @relation("ProductCreatedBy", fields: [createdById], references: [id])
-  updatedBy User? @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
 
   avgRating   Float @default(0)
   ratingCount Int   @default(0)
@@ -118,11 +220,16 @@ model Product {
   histories   ProductHistory[]
   orderItems  OrderItem[]
   reviews     ProductReview[]
+  categories  ProductCategory[]
+  tags        ProductTag[]
 
+  @@unique([organizationId, slug])
   @@index([organizationId, deletedAt])
   @@index([organizationId, status])
   @@index([organizationId, title])
   @@index([organizationId, status, deletedAt])
+  @@index([brandId])
+  @@index([featuredAt])
 }
 
 model ProductHistory {
@@ -142,20 +249,27 @@ model ProductHistory {
 }
 
 model ProductVariant {
-  id String @id @default(uuid())
-  productId String
-  sku   String
-  price Decimal @db.Decimal(10,2)
-  stock Int     @default(0)
-  order Int     @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  images ProductVariantImage[]
+  id             String      @id @default(uuid())
+  productId      String
+  sku            String
+  price          Decimal     @db.Decimal(10, 2)
+  compareAtPrice Decimal?    @db.Decimal(10, 2)
+  costPrice      Decimal?    @db.Decimal(10, 2)
+  stock          Int         @default(0)
+  barcode        String?
+  weight         Float?
+  weightUnit     WeightUnit?
+  order          Int         @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  product      Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  images       ProductVariantImage[]
   optionValues VariantOptionValue[]
   orderItems   OrderItem[]
-  @@index([productId])
+
   @@unique([productId, sku])
+  @@index([productId])
 }
 
 model ProductVariantImage {

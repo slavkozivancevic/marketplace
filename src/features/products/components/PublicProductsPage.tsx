@@ -30,6 +30,21 @@ const FILTER_GROUPS: FilterGroup[] = [
     min: 0,
     step: 1,
   },
+  {
+    type: "checkbox",
+    key: "onSale",
+    label: "Deals",
+    options: [{ value: "true", label: "On Sale" }],
+  },
+  {
+    type: "checkbox",
+    key: "isDigital",
+    label: "Product Type",
+    options: [
+      { value: "false", label: "Physical" },
+      { value: "true", label: "Digital" },
+    ],
+  },
 ];
 
 export function PublicProductsPage() {
@@ -44,10 +59,14 @@ export function PublicProductsPage() {
     sortOrder: params.sortOrder,
     minPrice: params.minPrice,
     maxPrice: params.maxPrice,
+    onSale: params.onSale,
+    isDigital: params.isDigital,
   };
 
   const filterValues: FilterValues = {
     price: [params.minPrice ?? undefined, params.maxPrice ?? undefined],
+    onSale: params.onSale === true ? ["true"] : [],
+    isDigital: params.isDigital != null ? [String(params.isDigital)] : [],
   };
 
   const handleFilterChange = (
@@ -57,17 +76,28 @@ export function PublicProductsPage() {
     if (key === "price") {
       const [min, max] = value as [number?, number?];
       setParams({ minPrice: min ?? null, maxPrice: max ?? null });
+    } else if (key === "onSale") {
+      const vals = value as string[];
+      setParams({ onSale: vals.includes("true") ? true : null });
+    } else if (key === "isDigital") {
+      const vals = value as string[];
+      // If both or neither selected → clear filter
+      if (vals.length === 0 || vals.length === 2) {
+        setParams({ isDigital: null });
+      } else {
+        setParams({ isDigital: vals[0] === "true" });
+      }
     }
   };
 
   const handleFilterClear = () => {
-    setParams({ minPrice: null, maxPrice: null });
+    setParams({ minPrice: null, maxPrice: null, onSale: null, isDigital: null });
   };
 
   const handleFilterRemove = (key: string) => {
-    if (key === "price") {
-      setParams({ minPrice: null, maxPrice: null });
-    }
+    if (key === "price") setParams({ minPrice: null, maxPrice: null });
+    else if (key === "onSale") setParams({ onSale: null });
+    else if (key === "isDigital") setParams({ isDigital: null });
   };
 
   return (

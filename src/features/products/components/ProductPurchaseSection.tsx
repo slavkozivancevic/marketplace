@@ -13,17 +13,46 @@ interface ProductPurchaseSectionProps {
   onActiveVariantChange: (variantId: string | null) => void;
 }
 
+function discountPct(price: number, compareAtPrice: number): number {
+  return Math.round(((compareAtPrice - price) / compareAtPrice) * 100);
+}
+
 export function ProductPurchaseSection({
   product,
   activeVariantId,
   onActiveVariantChange,
 }: ProductPurchaseSectionProps) {
+  const activeVariant = activeVariantId
+    ? product.variants.find((v) => v.id === activeVariantId)
+    : null;
+
+  const displayPrice = activeVariant ? activeVariant.price : product.price;
+  const displayCompareAt = activeVariant
+    ? activeVariant.compareAtPrice
+    : product.compareAtPrice;
+  const isOnSale = displayCompareAt != null && displayCompareAt > displayPrice;
 
   return (
     <div className="space-y-6">
       <Card>
         <CardContent className="pt-6 space-y-4">
-          <p className="text-3xl font-bold">${product.price.toFixed(2)}</p>
+          <div className="flex items-baseline gap-3 flex-wrap">
+            {isOnSale ? (
+              <>
+                <span className="text-3xl font-bold text-red-500">
+                  ${displayPrice.toFixed(2)}
+                </span>
+                <span className="text-xl text-muted-foreground line-through">
+                  ${displayCompareAt!.toFixed(2)}
+                </span>
+                <Badge className="bg-red-500 text-white hover:bg-red-600">
+                  -{discountPct(displayPrice, displayCompareAt!)}%
+                </Badge>
+              </>
+            ) : (
+              <span className="text-3xl font-bold">${displayPrice.toFixed(2)}</span>
+            )}
+          </div>
           <p className="text-muted-foreground">{product.description}</p>
           <AddToCart
             product={product}
@@ -64,6 +93,9 @@ export function ProductPurchaseSection({
           <CardContent className="space-y-2">
             {product.variants.map((variant) => {
               const isSelected = variant.id === activeVariantId;
+              const variantOnSale =
+                variant.compareAtPrice != null &&
+                variant.compareAtPrice > variant.price;
 
               return (
                 <div
@@ -93,7 +125,21 @@ export function ProductPurchaseSection({
                         : "text-muted-foreground",
                     )}
                   >
-                    <span>${variant.price.toFixed(2)}</span>
+                    {variantOnSale ? (
+                      <span className="flex items-baseline gap-1.5">
+                        <span className="text-red-500 font-semibold">
+                          ${variant.price.toFixed(2)}
+                        </span>
+                        <span className="text-xs line-through text-muted-foreground">
+                          ${variant.compareAtPrice!.toFixed(2)}
+                        </span>
+                        <Badge className="bg-red-500 text-white hover:bg-red-600 text-xs py-0">
+                          -{discountPct(variant.price, variant.compareAtPrice!)}%
+                        </Badge>
+                      </span>
+                    ) : (
+                      <span>${variant.price.toFixed(2)}</span>
+                    )}
                     <span>
                       {variant.stock > 0
                         ? `${variant.stock} in stock`

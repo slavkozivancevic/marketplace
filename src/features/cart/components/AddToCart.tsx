@@ -64,6 +64,13 @@ export function AddToCart({ product, onActiveVariantChange }: AddToCartProps) {
     product.options.every((opt) => Boolean(selectedValues[opt.id]));
 
   const price = activeVariant ? activeVariant.price : product.price;
+  const compareAtPrice = activeVariant
+    ? activeVariant.compareAtPrice
+    : product.compareAtPrice;
+  const isOnSale = compareAtPrice != null && compareAtPrice > price;
+  const salePct = isOnSale
+    ? Math.round(((compareAtPrice! - price) / compareAtPrice!) * 100)
+    : 0;
 
   const cartQuantity =
     items.find(
@@ -364,7 +371,7 @@ export function AddToCart({ product, onActiveVariantChange }: AddToCartProps) {
       )}
 
       <Button
-        className="w-full"
+        className="w-full relative"
         size="lg"
         onClick={handleAdd}
         disabled={isOutOfStock}
@@ -375,6 +382,11 @@ export function AddToCart({ product, onActiveVariantChange }: AddToCartProps) {
           : isOutOfStock
             ? "Out of Stock"
             : `Add to Cart — $${price.toFixed(2)}`}
+        {isOnSale && !isOutOfStock && allOptionsSelected && (
+          <span className="ml-2 bg-white/20 text-white text-xs font-bold px-1.5 py-0.5 rounded-4xl">
+            -{salePct}%
+          </span>
+        )}
       </Button>
     </div>
   );

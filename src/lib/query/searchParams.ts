@@ -3,6 +3,7 @@ import {
   parseAsStringEnum,
   parseAsFloat,
   parseAsArrayOf,
+  parseAsBoolean,
 } from "nuqs/server";
 
 // ---------- Public products ----------
@@ -13,6 +14,8 @@ export const productSearchParams = {
   sortOrder: parseAsStringEnum(["asc", "desc"] as const).withDefault("desc"),
   minPrice: parseAsFloat,
   maxPrice: parseAsFloat,
+  onSale: parseAsBoolean,
+  isDigital: parseAsBoolean,
 };
 
 export type ProductFilters = {
@@ -21,6 +24,8 @@ export type ProductFilters = {
   sortOrder: "asc" | "desc";
   minPrice: number | null;
   maxPrice: number | null;
+  onSale: boolean | null;
+  isDigital: boolean | null;
 };
 
 // ---------- Admin products ----------

@@ -96,9 +96,13 @@ async function fetchProduct(
     return {
       ...result,
       price: Number(result.price),
+      compareAtPrice: result.compareAtPrice != null ? Number(result.compareAtPrice) : null,
+      costPrice: result.costPrice != null ? Number(result.costPrice) : null,
       variants: result.variants.map((v) => ({
         ...v,
         price: Number(v.price),
+        compareAtPrice: v.compareAtPrice != null ? Number(v.compareAtPrice) : null,
+        costPrice: v.costPrice != null ? Number(v.costPrice) : null,
       })),
     };
   } catch {

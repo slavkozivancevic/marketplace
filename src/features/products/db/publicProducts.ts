@@ -19,6 +19,8 @@ export async function getPublicProductsPage({
   sortOrder = "desc",
   minPrice,
   maxPrice,
+  onSale,
+  isDigital,
 }: {
   take: number;
   cursor?: string;
@@ -27,6 +29,8 @@ export async function getPublicProductsPage({
   sortOrder?: SortOrder;
   minPrice?: number;
   maxPrice?: number;
+  onSale?: boolean | null;
+  isDigital?: boolean | null;
 }): Promise<{ items: SerializedProductListItem[]; nextCursor?: string }> {
   const where: Prisma.ProductWhereInput = {
     status: "PUBLISHED",
@@ -36,6 +40,7 @@ export async function getPublicProductsPage({
   if (search) {
     where.OR = [
       { title: { contains: search, mode: "insensitive" } },
+      { shortDescription: { contains: search, mode: "insensitive" } },
       { description: { contains: search, mode: "insensitive" } },
     ];
   }
@@ -44,6 +49,15 @@ export async function getPublicProductsPage({
     where.price = {};
     if (minPrice != null) where.price.gte = minPrice;
     if (maxPrice != null) where.price.lte = maxPrice;
+  }
+
+  // Products with a compareAtPrice set are considered "on sale" — seller sets it only when discounting
+  if (onSale === true) {
+    where.compareAtPrice = { not: null };
+  }
+
+  if (isDigital != null) {
+    where.isDigital = isDigital;
   }
 
   const orderBy: Prisma.ProductOrderByWithRelationInput[] = [
@@ -71,6 +85,8 @@ export async function getPublicProductsPage({
   const items: SerializedProductListItem[] = rows.map((p) => ({
     ...p,
     price: Number(p.price),
+    compareAtPrice: p.compareAtPrice != null ? Number(p.compareAtPrice) : null,
+    costPrice: p.costPrice != null ? Number(p.costPrice) : null,
   }));
 
   return { items, nextCursor };

@@ -30,7 +30,12 @@ export type VariantOptionValueInput = {
 export type ProductVariantInput = {
   sku: string;
   price: number;
+  compareAtPrice?: number | null;
+  costPrice?: number | null;
   stock: number;
+  barcode?: string;
+  weight?: number | null;
+  weightUnit?: string | null;
   id?: string;
   imageKeys?: string[];
   options?: VariantOptionValueInput[];
@@ -107,16 +112,22 @@ export type InvitableRole = (typeof INVITABLE_ROLES)[number];
 
 export type SerializedProductWithRelations = Omit<
   ProductWithRelations,
-  "price" | "variants"
+  "price" | "compareAtPrice" | "costPrice" | "variants"
 > & {
   price: number;
-  variants: (Omit<ProductWithRelations["variants"][number], "price"> & {
+  compareAtPrice: number | null;
+  costPrice: number | null;
+  variants: (Omit<ProductWithRelations["variants"][number], "price" | "compareAtPrice" | "costPrice"> & {
     price: number;
+    compareAtPrice: number | null;
+    costPrice: number | null;
   })[];
 };
 
-export type SerializedProductListItem = Omit<ProductListItem, "price"> & {
+export type SerializedProductListItem = Omit<ProductListItem, "price" | "compareAtPrice" | "costPrice"> & {
   price: number;
+  compareAtPrice: number | null;
+  costPrice: number | null;
 };
 
 export type ProductHistory = Prisma.ProductHistoryGetPayload<
@@ -138,11 +149,15 @@ export type PublicProduct = Prisma.ProductGetPayload<{
 
 export type SerializedPublicProduct = Omit<
   PublicProduct,
-  "price" | "variants"
+  "price" | "compareAtPrice" | "costPrice" | "variants"
 > & {
   price: number;
-  variants: (Omit<PublicProduct["variants"][number], "price"> & {
+  compareAtPrice: number | null;
+  costPrice: number | null;
+  variants: (Omit<PublicProduct["variants"][number], "price" | "compareAtPrice" | "costPrice"> & {
     price: number;
+    compareAtPrice: number | null;
+    costPrice: number | null;
   })[];
 };
 
