@@ -82,6 +82,7 @@ export function PublicProductsGrid({ filters }: { filters: ProductFilters }) {
     items,
     query,
     columnCount,
+    columnCountReady,
     gap,
     getRowItems,
     isSentinelRow,
@@ -131,6 +132,13 @@ export function PublicProductsGrid({ filters }: { filters: ProductFilters }) {
   if (!query.hasNextPage) {
     return (
       <div ref={parentRef}>
+        {!columnCountReady ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonProductGridCard key={i} />
+            ))}
+          </div>
+        ) : (
         <div
           className="grid gap-6"
           style={{
@@ -141,6 +149,7 @@ export function PublicProductsGrid({ filters }: { filters: ProductFilters }) {
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
+        )}
       </div>
     );
   }
@@ -152,6 +161,13 @@ export function PublicProductsGrid({ filters }: { filters: ProductFilters }) {
       className="overflow-auto"
       style={{ maxHeight: "calc(100vh - 220px)" }}
     >
+      {!columnCountReady ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonProductGridCard key={i} />
+          ))}
+        </div>
+      ) : (
       <div
         style={{
           height: virtualizer.getTotalSize(),
@@ -208,6 +224,7 @@ export function PublicProductsGrid({ filters }: { filters: ProductFilters }) {
           );
         })}
       </div>
+      )}
     </div>
   );
 }

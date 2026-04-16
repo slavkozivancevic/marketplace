@@ -70,6 +70,7 @@ export function MyProductsGrid({
     items,
     query,
     columnCount,
+    columnCountReady,
     gap,
     getRowItems,
     isSentinelRow,
@@ -121,18 +122,26 @@ export function MyProductsGrid({
   if (!query.hasNextPage) {
     return (
       <div ref={parentRef}>
-        <div
-          className="grid gap-6"
-          style={{
-            gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
-          }}
-        >
-          {items.map((product) => renderCard(product, canWrite))}
-          {query.isFetchingNextPage &&
-            Array.from({ length: columnCount }).map((_, i) => (
-              <SkeletonProductGridCard key={`skel-${i}`} />
+        {!columnCountReady ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonProductGridCard key={i} />
             ))}
-        </div>
+          </div>
+        ) : (
+          <div
+            className="grid gap-6"
+            style={{
+              gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+            }}
+          >
+            {items.map((product) => renderCard(product, canWrite))}
+            {query.isFetchingNextPage &&
+              Array.from({ length: columnCount }).map((_, i) => (
+                <SkeletonProductGridCard key={`skel-${i}`} />
+              ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -144,18 +153,49 @@ export function MyProductsGrid({
       className="overflow-auto"
       style={{ maxHeight: "calc(100vh - 220px)" }}
     >
-      <div
-        style={{
-          height: virtualizer.getTotalSize(),
-          position: "relative",
-          width: "100%",
-        }}
-      >
-        {virtualizer.getVirtualItems().map((vRow) => {
-          if (isSentinelRow(vRow.index)) {
+      {!columnCountReady ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonProductGridCard key={i} />
+          ))}
+        </div>
+      ) : (
+        <div
+          style={{
+            height: virtualizer.getTotalSize(),
+            position: "relative",
+            width: "100%",
+          }}
+        >
+          {virtualizer.getVirtualItems().map((vRow) => {
+            if (isSentinelRow(vRow.index)) {
+              return (
+                <div
+                  key="sentinel"
+                  ref={virtualizer.measureElement}
+                  data-index={vRow.index}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${vRow.start}px)`,
+                    display: "grid",
+                    gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+                    gap: `${gap}px`,
+                  }}
+                >
+                  {Array.from({ length: columnCount }).map((_, i) => (
+                    <SkeletonProductGridCard key={i} />
+                  ))}
+                </div>
+              );
+            }
+
+            const rowItems = getRowItems(vRow.index);
             return (
               <div
-                key="sentinel"
+                key={vRow.key}
                 ref={virtualizer.measureElement}
                 data-index={vRow.index}
                 style={{
@@ -169,35 +209,12 @@ export function MyProductsGrid({
                   gap: `${gap}px`,
                 }}
               >
-                {Array.from({ length: columnCount }).map((_, i) => (
-                  <SkeletonProductGridCard key={i} />
-                ))}
+                {rowItems.map((product) => renderCard(product, canWrite))}
               </div>
             );
-          }
-
-          const rowItems = getRowItems(vRow.index);
-          return (
-            <div
-              key={vRow.key}
-              ref={virtualizer.measureElement}
-              data-index={vRow.index}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                transform: `translateY(${vRow.start}px)`,
-                display: "grid",
-                gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
-                gap: `${gap}px`,
-              }}
-            >
-              {rowItems.map((product) => renderCard(product, canWrite))}
-            </div>
-          );
-        })}
-      </div>
+          })}
+        </div>
+      )}
     </div>
   );
 }

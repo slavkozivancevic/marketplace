@@ -69,6 +69,7 @@ export function useInfiniteVirtualGrid<TItem>({
 }: Options<TItem>) {
   const parentRef = useRef<HTMLDivElement>(null);
   const [columnCount, setColumnCount] = useState(1);
+  const [columnCountReady, setColumnCountReady] = useState(false);
 
   // Callback ref instead of useLayoutEffect([minCardWidth, gap]) so that column
   // count is re-measured every time the element is attached to the DOM.
@@ -87,6 +88,7 @@ export function useInfiniteVirtualGrid<TItem>({
           Math.floor((width + gap) / (minCardWidth + gap)),
         );
         setColumnCount((prev) => (prev === cols ? prev : cols));
+        setColumnCountReady(true);
       };
 
       update(el.clientWidth);
@@ -166,6 +168,7 @@ export function useInfiniteVirtualGrid<TItem>({
     items,
     query,
     columnCount,
+    columnCountReady,
     gap,
     itemRowCount,
     getRowItems,
