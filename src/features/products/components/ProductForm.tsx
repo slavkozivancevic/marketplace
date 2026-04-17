@@ -43,6 +43,7 @@ import {
 import { X, Plus, RefreshCw, ImageOff, AlertCircle } from "lucide-react";
 import Image from "next/image";
 import { cn, slugify } from "@/lib/utils";
+import { BrandSelect, type BrandOption } from "@/features/brands/components/BrandSelect";
 
 type ProductFormData = {
   title: string;
@@ -66,6 +67,7 @@ type ProductFormData = {
   dimensionUnit: "CM" | "IN" | null;
   metaTitle: string;
   metaDescription: string;
+  brandId: string | undefined;
   images: { key: string }[];
   options: { name: string; values: string[] }[];
   variants: {
@@ -128,6 +130,7 @@ function cartesianProduct(
 interface ProductFormProps {
   mode: "create" | "update";
   product?: SerializedProductWithRelations;
+  brands?: BrandOption[];
   onSuccess?: () => void;
   redirectTo?: string;
 }
@@ -147,6 +150,7 @@ const DIMENSION_UNITS = [
 export function ProductForm({
   mode,
   product,
+  brands = [],
   onSuccess,
   redirectTo,
 }: ProductFormProps) {
@@ -205,6 +209,7 @@ export function ProductForm({
           dimensionUnit: (product.dimensionUnit ?? null) as ProductFormData["dimensionUnit"],
           metaTitle: product.metaTitle ?? "",
           metaDescription: product.metaDescription ?? "",
+          brandId: product.brandId ?? undefined,
           images: product.images.map((img) => ({ key: img.key })),
           options: product.options.map((opt) => ({
             name: opt.name,
@@ -259,6 +264,7 @@ export function ProductForm({
           dimensionUnit: null,
           metaTitle: "",
           metaDescription: "",
+          brandId: undefined,
           images: [],
           options: [],
           variants: [],
@@ -448,6 +454,7 @@ export function ProductForm({
           dimensionUnit: data.dimensionUnit,
           metaTitle: data.metaTitle || undefined,
           metaDescription: data.metaDescription || undefined,
+          brandId: data.brandId || undefined,
           images: data.images,
           options: data.options,
           variants: data.variants,
@@ -590,6 +597,29 @@ export function ProductForm({
                 </FormItem>
               )}
             />
+
+            {brands.length > 0 && (
+              <FormField
+                control={form.control}
+                name="brandId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Brand
+                      <span className="ml-1.5 font-normal text-muted-foreground">— optional</span>
+                    </FormLabel>
+                    <FormControl>
+                      <BrandSelect
+                        brands={brands}
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <Separator />
 

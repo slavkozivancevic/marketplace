@@ -326,6 +326,7 @@ export function productRepository(
         },
         include: {
           images: { orderBy: { order: "asc" } },
+          brand: { select: { id: true, name: true, logoUrl: true } },
           variants: {
             orderBy: { order: "asc" },
             include: {
@@ -354,6 +355,7 @@ export function productRepository(
       search?: string;
       sortBy?: SortField;
       sortOrder?: SortOrder;
+      brandId?: string;
     }): Promise<{
       products: ProductListItem[];
       nextCursor?: string;
@@ -376,6 +378,7 @@ export function productRepository(
 
       if (params?.createdBy) where.createdById = params.createdBy;
       if (params?.updatedBy) where.updatedById = params.updatedBy;
+      if (params?.brandId) where.brandId = params.brandId;
 
       if (params?.search) {
         where.OR = [
@@ -401,6 +404,7 @@ export function productRepository(
             take: 5,
             orderBy: { order: "asc" },
           },
+          brand: { select: { id: true, name: true, logoUrl: true } },
         },
       });
 
@@ -550,6 +554,7 @@ export function productRepository(
           },
           include: {
             images: { orderBy: { order: "asc" } },
+            brand: { select: { id: true, name: true, logoUrl: true } },
             variants: {
               orderBy: { order: "asc" },
               include: {
@@ -669,6 +674,7 @@ export function productRepository(
           },
           include: {
             images: { orderBy: { order: "asc" } },
+            brand: { select: { id: true, name: true, logoUrl: true } },
             variants: {
               orderBy: { order: "asc" },
               include: {
@@ -703,7 +709,7 @@ export function productRepository(
 
         await emitProductEvent(tx, "product.updated");
 
-        return updatedProduct;
+        return updatedProduct as ProductWithRelations;
       });
 
       revalidateProductCache(ctx.organizationId, id);

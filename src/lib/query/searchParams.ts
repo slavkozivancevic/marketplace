@@ -16,6 +16,7 @@ export const productSearchParams = {
   maxPrice: parseAsFloat,
   onSale: parseAsBoolean,
   isDigital: parseAsBoolean,
+  brandId: parseAsString,
 };
 
 export type ProductFilters = {
@@ -26,6 +27,7 @@ export type ProductFilters = {
   maxPrice: number | null;
   onSale: boolean | null;
   isDigital: boolean | null;
+  brandId: string | null;
 };
 
 // ---------- Admin products ----------
@@ -37,6 +39,7 @@ export const adminProductSearchParams = {
   status: parseAsArrayOf(parseAsString).withDefault([]),
   minPrice: parseAsFloat,
   maxPrice: parseAsFloat,
+  brandId: parseAsString,
 };
 
 export type AdminProductFilters = {
@@ -46,6 +49,7 @@ export type AdminProductFilters = {
   status: string[];
   minPrice: number | null;
   maxPrice: number | null;
+  brandId: string | null;
 };
 
 // ---------- My products (seller dashboard) ----------

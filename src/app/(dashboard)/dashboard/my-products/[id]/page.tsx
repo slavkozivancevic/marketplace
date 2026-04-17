@@ -10,6 +10,7 @@ import {
   isActionErrorResult,
 } from "@/features/common/errors/domainErrors";
 import { CacheTags } from "@/lib/cache/tags";
+import { getAllBrands } from "@/features/brands/db/brands";
 import { ProductForm } from "@/features/products/components/ProductForm";
 import { ProductStatusActions } from "@/features/products/components/ProductStatusActions";
 import { ProductDetails } from "@/features/products/components/ProductDetails";
@@ -66,11 +67,10 @@ async function ProductContent({ productId }: { productId: string }) {
 
   const canWrite = membership.role === "OWNER" || membership.role === "ADMIN";
 
-  const result = await fetchProductForEdit(
-    product.organizationId,
-    user.id,
-    productId,
-  );
+  const [result, brands] = await Promise.all([
+    fetchProductForEdit(product.organizationId, user.id, productId),
+    fetchBrands(),
+  ]);
 
   if (isActionErrorResult(result)) {
     return (
@@ -116,10 +116,17 @@ async function ProductContent({ productId }: { productId: string }) {
       <ProductForm
         mode="update"
         product={productData}
+        brands={brands}
         redirectTo="/dashboard/my-products"
       />
     </>
   );
+}
+
+async function fetchBrands() {
+  "use cache";
+  cacheTag(CacheTags.brands.all());
+  return getAllBrands();
 }
 
 export default async function MyProductPage({

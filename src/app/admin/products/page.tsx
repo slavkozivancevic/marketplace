@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cacheTag } from "next/cache";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createSearchParamsCache } from "nuqs/server";
 
@@ -13,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { SerializedProductListItem } from "@/types/types";
 import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import { ProductStatus } from "@/generated/prisma/client";
+import { CacheTags } from "@/lib/cache/tags";
+import { getAllBrands } from "@/features/brands/db/brands";
 
 const searchParamsCache = createSearchParamsCache(adminProductSearchParams);
 
@@ -33,9 +36,13 @@ export default async function AdminProductsRoute({
     status: params.status,
     minPrice: params.minPrice,
     maxPrice: params.maxPrice,
+    brandId: params.brandId,
   };
 
-  const queryClient = getQueryClient();
+  const [queryClient, brands] = await Promise.all([
+    Promise.resolve(getQueryClient()),
+    fetchBrands(),
+  ]);
 
   await queryClient.prefetchInfiniteQuery({
     queryKey: ["products", "admin", filters],
@@ -49,6 +56,7 @@ export default async function AdminProductsRoute({
         status: (filters.status[0] as ProductStatus) || undefined,
         minPrice: filters.minPrice ?? undefined,
         maxPrice: filters.maxPrice ?? undefined,
+        brandId: filters.brandId ?? undefined,
       });
       return {
         items: result.products.map(
@@ -79,9 +87,15 @@ export default async function AdminProductsRoute({
       </div>
       <div className="flex-1 flex flex-col min-h-0 px-6 pb-6">
         <HydrationBoundary state={dehydrate(queryClient)}>
-          <AdminProductsPage />
+          <AdminProductsPage brands={brands} />
         </HydrationBoundary>
       </div>
     </div>
   );
+}
+
+async function fetchBrands() {
+  "use cache";
+  cacheTag(CacheTags.brands.all());
+  return getAllBrands();
 }

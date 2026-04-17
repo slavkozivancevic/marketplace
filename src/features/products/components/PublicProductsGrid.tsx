@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useInfiniteVirtualGrid } from "@/components/infinite/useInfiniteVirtualGrid";
 import { HoverImageCycler } from "@/components/product/HoverImageCycler";
 import { SkeletonProductGridCard } from "@/components/ui/skeleton";
@@ -34,6 +35,7 @@ function buildFetcher(filters: ProductFilters) {
     if (filters.maxPrice != null) params.set("maxPrice", String(filters.maxPrice));
     if (filters.onSale === true) params.set("onSale", "true");
     if (filters.isDigital != null) params.set("isDigital", String(filters.isDigital));
+    if (filters.brandId != null) params.set("brandId", filters.brandId);
 
     const res = await fetch(`/api/products?${params.toString()}`);
     if (!res.ok) {
@@ -60,9 +62,33 @@ function ProductCard({ product }: { product: SerializedProductListItem }) {
             />
           )}
           {isOnSale && (
-            <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-semibold px-2 py-0.5 rounded">
-              -{Math.round(((product.compareAtPrice! - product.price) / product.compareAtPrice!) * 100)}%
-            </span>
+            <div className="absolute top-3 left-0 flex flex-col items-start gap-1 pointer-events-none">
+              <span className="bg-linear-to-r from-red-500 to-rose-600 text-white text-sm font-black px-4 py-1.5 rounded-r-full shadow-lg shadow-red-500/50 tracking-wider uppercase">
+                -{Math.round(((product.compareAtPrice! - product.price) / product.compareAtPrice!) * 100)}%
+              </span>
+            </div>
+          )}
+          {product.brand && (
+            <div className="absolute top-2 right-2 pointer-events-none">
+              {product.brand.logoUrl ? (
+                <div className="flex items-center gap-2 bg-background/85 backdrop-blur-sm border border-border/60 rounded-full px-2.5 py-1.5 shadow-sm">
+                  <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded-full border border-border/40 bg-white">
+                    <Image
+                      src={product.brand.logoUrl}
+                      alt={product.brand.name}
+                      fill
+                      sizes="20px"
+                      className="object-contain"
+                    />
+                  </div>
+                  <span className="text-xs font-semibold leading-none">{product.brand.name}</span>
+                </div>
+              ) : (
+                <div className="bg-background/85 backdrop-blur-sm border border-border/60 rounded-full px-2.5 py-1.5 shadow-sm">
+                  <span className="text-xs font-semibold leading-none">{product.brand.name}</span>
+                </div>
+              )}
+            </div>
           )}
         </CardHeader>
         <CardContent className="pt-4">

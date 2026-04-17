@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQueryStates } from "nuqs";
 import {
   adminProductSearchParams,
@@ -13,6 +14,7 @@ import {
 } from "@/components/search/FilterSidebar";
 import { ActiveFilters } from "@/components/search/ActiveFilters";
 import { AdminProductsList } from "./AdminProductsList";
+import type { BrandOption } from "@/features/brands/components/BrandSelect";
 
 const SORT_OPTIONS = [
   { value: "createdAt", label: "Date Added" },
@@ -21,7 +23,7 @@ const SORT_OPTIONS = [
   { value: "status", label: "Status" },
 ];
 
-const FILTER_GROUPS: FilterGroup[] = [
+const BASE_FILTER_GROUPS: FilterGroup[] = [
   {
     type: "checkbox",
     key: "status",
@@ -42,11 +44,24 @@ const FILTER_GROUPS: FilterGroup[] = [
   },
 ];
 
-export function AdminProductsPage() {
+export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
   const [params, setParams] = useQueryStates(adminProductSearchParams, {
     shallow: false,
     throttleMs: 300,
   });
+
+  const filterGroups: FilterGroup[] = useMemo(() => {
+    if (brands.length === 0) return BASE_FILTER_GROUPS;
+    return [
+      ...BASE_FILTER_GROUPS,
+      {
+        type: "checkbox" as const,
+        key: "brandId",
+        label: "Brand",
+        options: brands.map((b) => ({ value: b.id, label: b.name })),
+      },
+    ];
+  }, [brands]);
 
   const filters: AdminProductFilters = {
     search: params.search,
@@ -55,11 +70,13 @@ export function AdminProductsPage() {
     status: params.status,
     minPrice: params.minPrice,
     maxPrice: params.maxPrice,
+    brandId: params.brandId,
   };
 
   const filterValues: FilterValues = {
     status: params.status,
     price: [params.minPrice ?? undefined, params.maxPrice ?? undefined],
+    brandId: params.brandId != null ? [params.brandId] : [],
   };
 
   const handleFilterChange = (
@@ -71,11 +88,14 @@ export function AdminProductsPage() {
     } else if (key === "price") {
       const [min, max] = value as [number?, number?];
       setParams({ minPrice: min ?? null, maxPrice: max ?? null });
+    } else if (key === "brandId") {
+      const vals = value as string[];
+      setParams({ brandId: vals[0] ?? null });
     }
   };
 
   const handleFilterClear = () => {
-    setParams({ status: [], minPrice: null, maxPrice: null });
+    setParams({ status: [], minPrice: null, maxPrice: null, brandId: null });
   };
 
   const handleFilterRemove = (key: string, value?: string) => {
@@ -83,13 +103,15 @@ export function AdminProductsPage() {
       setParams({ status: params.status.filter((s) => s !== value) });
     } else if (key === "price") {
       setParams({ minPrice: null, maxPrice: null });
+    } else if (key === "brandId") {
+      setParams({ brandId: null });
     }
   };
 
   return (
     <div className="flex gap-6 flex-1 min-h-0">
       <FilterSidebar
-        groups={FILTER_GROUPS}
+        groups={filterGroups}
         values={filterValues}
         onChange={handleFilterChange}
         onClear={handleFilterClear}
@@ -106,13 +128,13 @@ export function AdminProductsPage() {
           }
           onSortOrderChange={(v) => setParams({ sortOrder: v })}
           sortOptions={SORT_OPTIONS}
-          filterGroups={FILTER_GROUPS}
+          filterGroups={filterGroups}
           filterValues={filterValues}
           onFilterChange={handleFilterChange}
           onFilterClear={handleFilterClear}
         />
         <ActiveFilters
-          groups={FILTER_GROUPS}
+          groups={filterGroups}
           values={filterValues}
           onRemove={handleFilterRemove}
           onClearAll={handleFilterClear}

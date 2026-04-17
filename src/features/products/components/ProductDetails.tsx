@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -33,6 +34,23 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
           <div>
             <strong>Title:</strong> {product.title}
           </div>
+          {product.brand && (
+            <div className="flex items-center gap-2">
+              <strong>Brand:</strong>
+              {product.brand.logoUrl && (
+                <div className="relative h-5 w-5 overflow-hidden rounded-sm border bg-muted shrink-0">
+                  <Image
+                    src={product.brand.logoUrl}
+                    alt={product.brand.name}
+                    fill
+                    sizes="20px"
+                    className="object-contain"
+                  />
+                </div>
+              )}
+              <span>{product.brand.name}</span>
+            </div>
+          )}
           <div>
             <strong>Description:</strong> {product.description || "—"}
           </div>

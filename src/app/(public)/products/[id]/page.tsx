@@ -75,6 +75,7 @@ async function fetchPublicProduct(
         orderBy: { order: "asc" },
         include: { values: { orderBy: { order: "asc" } } },
       },
+      brand: { select: { id: true, name: true, logoUrl: true } },
     },
   });
 

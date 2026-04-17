@@ -8,6 +8,7 @@ import {
   Shield,
   Users,
   LayoutDashboard,
+  Tag,
 } from "lucide-react";
 import { OrganizationSwitcher } from "@/features/organizations/components/OrganizationSwitcher";
 import { SidebarNav, type SidebarLink } from "./sidebar-nav";
@@ -25,6 +26,7 @@ const sellerLinks: SidebarLink[] = [
 
 const adminLinks: SidebarLink[] = [
   { href: "/admin/products", label: "Products", icon: Shield },
+  { href: "/admin/brands", label: "Brands", icon: Tag },
   { href: "/admin/organizations", label: "Organizations", icon: Building2 },
   { href: "/admin/users", label: "Users", icon: Users },
 ];

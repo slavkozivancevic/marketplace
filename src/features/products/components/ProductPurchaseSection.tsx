@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -53,6 +54,23 @@ export function ProductPurchaseSection({
               <span className="text-3xl font-bold">${displayPrice.toFixed(2)}</span>
             )}
           </div>
+          {product.brand && (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground font-medium">Brand:</span>
+              {product.brand.logoUrl && (
+                <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded-sm border bg-muted">
+                  <Image
+                    src={product.brand.logoUrl}
+                    alt={product.brand.name}
+                    fill
+                    sizes="20px"
+                    className="object-contain"
+                  />
+                </div>
+              )}
+              <span className="font-medium">{product.brand.name}</span>
+            </div>
+          )}
           <p className="text-muted-foreground">{product.description}</p>
           <AddToCart
             product={product}

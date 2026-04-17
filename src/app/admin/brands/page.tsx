@@ -1,28 +1,28 @@
+import Link from "next/link";
 import { cacheTag } from "next/cache";
-import { ProductForm } from "@/features/products/components/ProductForm";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import { CacheTags } from "@/lib/cache/tags";
 import { getAllBrands } from "@/features/brands/db/brands";
+import { AdminBrandsPage } from "@/features/brands/components/AdminBrandsPage";
 
-export default async function NewProductPage() {
+export default async function AdminBrandsRoute() {
   const brands = await fetchBrands();
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6">
         <PageHeader
-          title="Create New Product"
-          description="Fill out the form to add a new product."
+          title="Brands"
+          description="Manage product brands."
         >
-          <Button asChild variant="outline">
-            <Link href="/admin/products">Back to Products</Link>
+          <Button asChild>
+            <Link href="/admin/brands/new">Add Brand</Link>
           </Button>
         </PageHeader>
       </div>
-      <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
-        <ProductForm mode="create" brands={brands} />
+      <div className="flex-1 flex flex-col min-h-0 px-6 pb-6">
+        <AdminBrandsPage brands={brands} />
       </div>
     </div>
   );

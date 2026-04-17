@@ -44,6 +44,7 @@ function renderCard(
         price: product.price,
         status: product.status,
         imageUrls: product.images?.map((img) => img.url) ?? [],
+        brand: product.brand ?? null,
       }}
     />
   );

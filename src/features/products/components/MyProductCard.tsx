@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
+import Image from "next/image";
 import { HoverImageCycler } from "@/components/product/HoverImageCycler";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ interface MyProductCardProps {
     price: number;
     status: string;
     imageUrls: string[];
+    brand?: { name: string; logoUrl: string | null } | null;
   };
 }
 
@@ -48,6 +50,22 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
       )}
       <div className="p-4 space-y-2">
         <h2 className="font-semibold">{product.title}</h2>
+        {product.brand && (
+          <div className="flex items-center gap-1.5">
+            {product.brand.logoUrl && (
+              <div className="relative h-4 w-4 shrink-0 overflow-hidden rounded-sm border bg-muted">
+                <Image
+                  src={product.brand.logoUrl}
+                  alt={product.brand.name}
+                  fill
+                  sizes="16px"
+                  className="object-contain"
+                />
+              </div>
+            )}
+            <span className="text-xs text-muted-foreground">{product.brand.name}</span>
+          </div>
+        )}
         <p className="text-sm text-muted-foreground line-clamp-2">
           {product.description}
         </p>

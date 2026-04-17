@@ -1,3 +1,4 @@
+import { cacheTag } from "next/cache";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createSearchParamsCache } from "nuqs/server";
 import { getQueryClient } from "@/lib/query/getQueryClient";
@@ -6,6 +7,8 @@ import { productSearchParams } from "@/lib/query/searchParams";
 import { PageHeader } from "@/components/PageHeader";
 import { PublicProductsPage } from "@/features/products/components/PublicProductsPage";
 import { Footer } from "@/components/layout/footer";
+import { CacheTags } from "@/lib/cache/tags";
+import { getAllBrands } from "@/features/brands/db/brands";
 
 import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
 
@@ -26,9 +29,13 @@ export default async function ProductsRoute({
     maxPrice: params.maxPrice,
     onSale: params.onSale,
     isDigital: params.isDigital,
+    brandId: params.brandId,
   };
 
-  const queryClient = getQueryClient();
+  const [queryClient, brands] = await Promise.all([
+    Promise.resolve(getQueryClient()),
+    fetchBrands(),
+  ]);
 
   await queryClient.prefetchInfiniteQuery({
     queryKey: ["products", "public", filters],
@@ -42,6 +49,7 @@ export default async function ProductsRoute({
         maxPrice: filters.maxPrice ?? undefined,
         onSale: filters.onSale,
         isDigital: filters.isDigital,
+        brandId: filters.brandId ?? undefined,
       }),
     initialPageParam: undefined as string | undefined,
   });
@@ -57,11 +65,17 @@ export default async function ProductsRoute({
       <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
         <div className="flex-1 px-6 pb-6 pt-1">
           <HydrationBoundary state={dehydrate(queryClient)}>
-            <PublicProductsPage />
+            <PublicProductsPage brands={brands} />
           </HydrationBoundary>
         </div>
         <Footer />
       </div>
     </div>
   );
+}
+
+async function fetchBrands() {
+  "use cache";
+  cacheTag(CacheTags.brands.all());
+  return getAllBrands();
 }

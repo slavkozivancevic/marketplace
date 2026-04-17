@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SerializedProductWithRelations } from "@/types/types";
+import { getAllBrands } from "@/features/brands/db/brands";
 
 interface EditProductPageProps {
   params: Promise<{ id: string }>;
@@ -24,11 +25,10 @@ async function EditProductForm({ productId }: { productId: string }) {
   const ctx = await resolveRequestContext();
   requirePermission(ctx, "product:read");
 
-  const result = await fetchProductForEdit(
-    ctx.organizationId,
-    ctx.userId,
-    productId,
-  );
+  const [result, brands] = await Promise.all([
+    fetchProductForEdit(ctx.organizationId, ctx.userId, productId),
+    fetchBrands(),
+  ]);
 
   if (isActionErrorResult(result)) {
     return (
@@ -43,7 +43,13 @@ async function EditProductForm({ productId }: { productId: string }) {
 
   if (!product) notFound();
 
-  return <ProductForm mode="update" product={product} />;
+  return <ProductForm mode="update" product={product} brands={brands} />;
+}
+
+async function fetchBrands() {
+  "use cache";
+  cacheTag(CacheTags.brands.all());
+  return getAllBrands();
 }
 
 export default async function EditProductPage({

@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQueryStates } from "nuqs";
 import {
   productSearchParams,
@@ -13,6 +14,7 @@ import {
 } from "@/components/search/FilterSidebar";
 import { ActiveFilters } from "@/components/search/ActiveFilters";
 import { PublicProductsGrid } from "./PublicProductsGrid";
+import type { BrandOption } from "@/features/brands/components/BrandSelect";
 
 const SORT_OPTIONS = [
   { value: "createdAt", label: "Date Added" },
@@ -21,7 +23,7 @@ const SORT_OPTIONS = [
   { value: "avgRating", label: "Rating" },
 ];
 
-const FILTER_GROUPS: FilterGroup[] = [
+const BASE_FILTER_GROUPS: FilterGroup[] = [
   {
     type: "range",
     key: "price",
@@ -47,11 +49,24 @@ const FILTER_GROUPS: FilterGroup[] = [
   },
 ];
 
-export function PublicProductsPage() {
+export function PublicProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
   const [params, setParams] = useQueryStates(productSearchParams, {
     shallow: false,
     throttleMs: 300,
   });
+
+  const filterGroups: FilterGroup[] = useMemo(() => {
+    if (brands.length === 0) return BASE_FILTER_GROUPS;
+    return [
+      ...BASE_FILTER_GROUPS,
+      {
+        type: "checkbox" as const,
+        key: "brandId",
+        label: "Brand",
+        options: brands.map((b) => ({ value: b.id, label: b.name })),
+      },
+    ];
+  }, [brands]);
 
   const filters: ProductFilters = {
     search: params.search,
@@ -61,12 +76,14 @@ export function PublicProductsPage() {
     maxPrice: params.maxPrice,
     onSale: params.onSale,
     isDigital: params.isDigital,
+    brandId: params.brandId,
   };
 
   const filterValues: FilterValues = {
     price: [params.minPrice ?? undefined, params.maxPrice ?? undefined],
     onSale: params.onSale === true ? ["true"] : [],
     isDigital: params.isDigital != null ? [String(params.isDigital)] : [],
+    brandId: params.brandId != null ? [params.brandId] : [],
   };
 
   const handleFilterChange = (
@@ -81,29 +98,32 @@ export function PublicProductsPage() {
       setParams({ onSale: vals.includes("true") ? true : null });
     } else if (key === "isDigital") {
       const vals = value as string[];
-      // If both or neither selected → clear filter
       if (vals.length === 0 || vals.length === 2) {
         setParams({ isDigital: null });
       } else {
         setParams({ isDigital: vals[0] === "true" });
       }
+    } else if (key === "brandId") {
+      const vals = value as string[];
+      setParams({ brandId: vals[0] ?? null });
     }
   };
 
   const handleFilterClear = () => {
-    setParams({ minPrice: null, maxPrice: null, onSale: null, isDigital: null });
+    setParams({ minPrice: null, maxPrice: null, onSale: null, isDigital: null, brandId: null });
   };
 
   const handleFilterRemove = (key: string) => {
     if (key === "price") setParams({ minPrice: null, maxPrice: null });
     else if (key === "onSale") setParams({ onSale: null });
     else if (key === "isDigital") setParams({ isDigital: null });
+    else if (key === "brandId") setParams({ brandId: null });
   };
 
   return (
     <div className="flex gap-6">
       <FilterSidebar
-        groups={FILTER_GROUPS}
+        groups={filterGroups}
         values={filterValues}
         onChange={handleFilterChange}
         onClear={handleFilterClear}
@@ -121,13 +141,13 @@ export function PublicProductsPage() {
           }
           onSortOrderChange={(v) => setParams({ sortOrder: v })}
           sortOptions={SORT_OPTIONS}
-          filterGroups={FILTER_GROUPS}
+          filterGroups={filterGroups}
           filterValues={filterValues}
           onFilterChange={handleFilterChange}
           onFilterClear={handleFilterClear}
         />
         <ActiveFilters
-          groups={FILTER_GROUPS}
+          groups={filterGroups}
           values={filterValues}
           onRemove={handleFilterRemove}
           onClearAll={handleFilterClear}

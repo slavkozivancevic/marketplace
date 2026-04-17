@@ -21,6 +21,7 @@ export async function getPublicProductsPage({
   maxPrice,
   onSale,
   isDigital,
+  brandId,
 }: {
   take: number;
   cursor?: string;
@@ -31,6 +32,7 @@ export async function getPublicProductsPage({
   maxPrice?: number;
   onSale?: boolean | null;
   isDigital?: boolean | null;
+  brandId?: string;
 }): Promise<{ items: SerializedProductListItem[]; nextCursor?: string }> {
   const where: Prisma.ProductWhereInput = {
     status: "PUBLISHED",
@@ -60,6 +62,10 @@ export async function getPublicProductsPage({
     where.isDigital = isDigital;
   }
 
+  if (brandId) {
+    where.brandId = brandId;
+  }
+
   const orderBy: Prisma.ProductOrderByWithRelationInput[] = [
     { [sortBy]: sortOrder },
     { id: "asc" },
@@ -73,6 +79,7 @@ export async function getPublicProductsPage({
     skip: cursor ? 1 : 0,
     include: {
       images: { orderBy: { order: "asc" }, take: 5 },
+      brand: { select: { id: true, name: true, logoUrl: true } },
     },
   });
 

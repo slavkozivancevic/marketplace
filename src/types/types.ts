@@ -87,6 +87,7 @@ export type ActionErrorResult = {
 export type ProductWithRelations = Prisma.ProductGetPayload<{
   include: {
     images: true;
+    brand: { select: { id: true; name: true; logoUrl: true } };
     variants: {
       include: {
         optionValues: true;
@@ -104,6 +105,7 @@ export type ProductWithRelations = Prisma.ProductGetPayload<{
 export type ProductListItem = Prisma.ProductGetPayload<{
   include: {
     images: true;
+    brand: { select: { id: true; name: true; logoUrl: true } };
   };
 }>;
 
@@ -144,6 +146,7 @@ export type PublicProduct = Prisma.ProductGetPayload<{
     images: true;
     variants: { include: { optionValues: true; images: true } };
     options: { include: { values: true } };
+    brand: { select: { id: true; name: true; logoUrl: true } };
   };
 }>;
 
