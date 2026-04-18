@@ -74,7 +74,7 @@ export function ActiveFilters({
         <button
           type="button"
           onClick={onClearAll}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors underline"
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors underline cursor-pointer"
         >
           Clear all
         </button>

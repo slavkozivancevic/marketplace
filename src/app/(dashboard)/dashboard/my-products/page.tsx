@@ -74,7 +74,7 @@ export default async function MyProductsRoute({
         search: filters.search || undefined,
         sortBy: filters.sortBy,
         sortOrder: filters.sortOrder,
-        status: (filters.status[0] as ProductStatus) || undefined,
+        status: filters.status.length ? (filters.status as ProductStatus[]) : undefined,
       });
       return {
         items: result.products.map(

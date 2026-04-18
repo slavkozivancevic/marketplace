@@ -21,13 +21,12 @@ function buildFetcher(filters: AdminProductFilters) {
     if (filters.search) params.set("search", filters.search);
     if (filters.sortBy) params.set("sortBy", filters.sortBy);
     if (filters.sortOrder) params.set("sortOrder", filters.sortOrder);
-    if (filters.status.length === 1) params.set("status", filters.status[0]);
+    for (const s of filters.status) params.append("status", s);
     if (filters.minPrice != null)
       params.set("minPrice", String(filters.minPrice));
     if (filters.maxPrice != null)
       params.set("maxPrice", String(filters.maxPrice));
-    if (filters.brandId != null)
-      params.set("brandId", filters.brandId);
+    for (const id of filters.brandId) params.append("brandId", id);
 
     const res = await fetch(`/api/admin/products?${params.toString()}`);
     if (!res.ok) throw new Error("Failed to fetch products");
@@ -47,7 +46,7 @@ export function AdminProductsList({
     status: [],
     minPrice: null,
     maxPrice: null,
-    brandId: null,
+    brandId: [],
   };
   const f = filters ?? defaultFilters;
 

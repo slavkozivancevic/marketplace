@@ -347,7 +347,7 @@ export function productRepository(
     async getAll(params?: {
       take?: number;
       cursor?: string;
-      status?: ProductStatus;
+      status?: ProductStatus[];
       minPrice?: number;
       maxPrice?: number;
       createdBy?: string;
@@ -355,7 +355,7 @@ export function productRepository(
       search?: string;
       sortBy?: SortField;
       sortOrder?: SortOrder;
-      brandId?: string;
+      brandId?: string[];
     }): Promise<{
       products: ProductListItem[];
       nextCursor?: string;
@@ -368,7 +368,7 @@ export function productRepository(
         deletedAt: null,
       };
 
-      if (params?.status) where.status = params.status;
+      if (params?.status?.length) where.status = { in: params.status };
 
       if (params?.minPrice != null || params?.maxPrice != null) {
         where.price = {};
@@ -378,7 +378,7 @@ export function productRepository(
 
       if (params?.createdBy) where.createdById = params.createdBy;
       if (params?.updatedBy) where.updatedById = params.updatedBy;
-      if (params?.brandId) where.brandId = params.brandId;
+      if (params?.brandId?.length) where.brandId = { in: params.brandId };
 
       if (params?.search) {
         where.OR = [
@@ -945,7 +945,7 @@ export type ProductRepo = {
   getAll(params?: {
     take?: number;
     cursor?: string;
-    status?: ProductStatus;
+    status?: ProductStatus[];
     minPrice?: number;
     maxPrice?: number;
     createdBy?: string;
@@ -953,6 +953,7 @@ export type ProductRepo = {
     search?: string;
     sortBy?: "createdAt" | "price" | "title" | "status";
     sortOrder?: "asc" | "desc";
+    brandId?: string[];
   }): Promise<{
     products: ProductListItem[];
     nextCursor?: string;

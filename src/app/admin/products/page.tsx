@@ -53,10 +53,10 @@ export default async function AdminProductsRoute({
         search: filters.search || undefined,
         sortBy: filters.sortBy,
         sortOrder: filters.sortOrder,
-        status: (filters.status[0] as ProductStatus) || undefined,
+        status: filters.status.length ? (filters.status as ProductStatus[]) : undefined,
         minPrice: filters.minPrice ?? undefined,
         maxPrice: filters.maxPrice ?? undefined,
-        brandId: filters.brandId ?? undefined,
+        brandId: filters.brandId.length ? filters.brandId : undefined,
       });
       return {
         items: result.products.map(

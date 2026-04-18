@@ -33,11 +33,9 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get("search") ?? undefined;
   const sortBy = parseSort(searchParams.get("sortBy"));
   const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
-  const statusParam = searchParams.get("status") as ProductStatus | null;
-  const status =
-    statusParam && Object.values(ProductStatus).includes(statusParam)
-      ? statusParam
-      : undefined;
+  const status = searchParams
+    .getAll("status")
+    .filter((s): s is ProductStatus => Object.values(ProductStatus).includes(s as ProductStatus));
 
   try {
     const repo = productRepository(ctx);

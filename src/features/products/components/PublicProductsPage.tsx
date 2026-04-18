@@ -89,7 +89,7 @@ export function PublicProductsPage({
     price: [params.minPrice ?? undefined, params.maxPrice ?? undefined],
     onSale: params.onSale === true ? ["true"] : [],
     isDigital: params.isDigital != null ? [String(params.isDigital)] : [],
-    brandId: params.brandId != null ? [params.brandId] : [],
+    brandId: params.brandId,
   };
 
   const handleFilterChange = (
@@ -111,19 +111,19 @@ export function PublicProductsPage({
       }
     } else if (key === "brandId") {
       const vals = value as string[];
-      setParams({ brandId: vals[0] ?? null });
+      setParams({ brandId: vals });
     }
   };
 
   const handleFilterClear = () => {
-    setParams({ minPrice: null, maxPrice: null, onSale: null, isDigital: null, brandId: null });
+    setParams({ minPrice: null, maxPrice: null, onSale: null, isDigital: null, brandId: [] });
   };
 
   const handleFilterRemove = (key: string) => {
     if (key === "price") setParams({ minPrice: null, maxPrice: null });
     else if (key === "onSale") setParams({ onSale: null });
     else if (key === "isDigital") setParams({ isDigital: null });
-    else if (key === "brandId") setParams({ brandId: null });
+    else if (key === "brandId") setParams({ brandId: [] });
   };
 
   return (

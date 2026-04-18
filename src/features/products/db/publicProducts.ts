@@ -32,7 +32,7 @@ export async function getPublicProductsPage({
   maxPrice?: number;
   onSale?: boolean | null;
   isDigital?: boolean | null;
-  brandId?: string;
+  brandId?: string[];
 }): Promise<{ items: SerializedProductListItem[]; nextCursor?: string }> {
   const where: Prisma.ProductWhereInput = {
     status: "PUBLISHED",
@@ -62,8 +62,8 @@ export async function getPublicProductsPage({
     where.isDigital = isDigital;
   }
 
-  if (brandId) {
-    where.brandId = brandId;
+  if (brandId?.length) {
+    where.brandId = { in: brandId };
   }
 
   const orderBy: Prisma.ProductOrderByWithRelationInput[] = [

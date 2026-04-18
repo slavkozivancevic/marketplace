@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   const onSale = onSaleParam === "true" ? true : onSaleParam === "false" ? false : null;
   const isDigitalParam = searchParams.get("isDigital");
   const isDigital = isDigitalParam === "true" ? true : isDigitalParam === "false" ? false : null;
-  const brandId = searchParams.get("brandId") ?? undefined;
+  const brandId = searchParams.getAll("brandId");
 
   try {
     const result = await getPublicProductsPage({

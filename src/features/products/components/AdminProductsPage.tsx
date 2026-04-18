@@ -76,7 +76,7 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
   const filterValues: FilterValues = {
     status: params.status,
     price: [params.minPrice ?? undefined, params.maxPrice ?? undefined],
-    brandId: params.brandId != null ? [params.brandId] : [],
+    brandId: params.brandId,
   };
 
   const handleFilterChange = (
@@ -90,12 +90,12 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
       setParams({ minPrice: min ?? null, maxPrice: max ?? null });
     } else if (key === "brandId") {
       const vals = value as string[];
-      setParams({ brandId: vals[0] ?? null });
+      setParams({ brandId: vals });
     }
   };
 
   const handleFilterClear = () => {
-    setParams({ status: [], minPrice: null, maxPrice: null, brandId: null });
+    setParams({ status: [], minPrice: null, maxPrice: null, brandId: [] });
   };
 
   const handleFilterRemove = (key: string, value?: string) => {
@@ -104,7 +104,7 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
     } else if (key === "price") {
       setParams({ minPrice: null, maxPrice: null });
     } else if (key === "brandId") {
-      setParams({ brandId: null });
+      setParams({ brandId: [] });
     }
   };
 

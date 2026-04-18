@@ -49,7 +49,7 @@ export default async function ProductsRoute({
         maxPrice: filters.maxPrice ?? undefined,
         onSale: filters.onSale,
         isDigital: filters.isDigital,
-        brandId: filters.brandId ?? undefined,
+        brandId: filters.brandId.length ? filters.brandId : undefined,
       }),
     initialPageParam: undefined as string | undefined,
   });

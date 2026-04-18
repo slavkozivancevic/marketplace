@@ -36,7 +36,7 @@ function buildFetcher(filters: ProductFilters) {
     if (filters.maxPrice != null) params.set("maxPrice", String(filters.maxPrice));
     if (filters.onSale === true) params.set("onSale", "true");
     if (filters.isDigital != null) params.set("isDigital", String(filters.isDigital));
-    if (filters.brandId != null) params.set("brandId", filters.brandId);
+    for (const id of filters.brandId) params.append("brandId", id);
 
     const res = await fetch(`/api/products?${params.toString()}`);
     if (!res.ok) {
