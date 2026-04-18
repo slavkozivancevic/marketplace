@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AddToCart } from "@/features/cart/components/AddToCart";
+import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
 import { cn } from "@/lib/utils";
 import { SerializedPublicProduct } from "@/types/types";
 
@@ -37,22 +38,25 @@ export function ProductPurchaseSection({
     <div className="space-y-6">
       <Card>
         <CardContent className="pt-6 space-y-4">
-          <div className="flex items-baseline gap-3 flex-wrap">
-            {isOnSale ? (
-              <>
-                <span className="text-3xl font-bold text-red-500">
-                  ${displayPrice.toFixed(2)}
-                </span>
-                <span className="text-xl text-muted-foreground line-through">
-                  ${displayCompareAt!.toFixed(2)}
-                </span>
-                <Badge className="bg-red-500 text-white hover:bg-red-600">
-                  -{discountPct(displayPrice, displayCompareAt!)}%
-                </Badge>
-              </>
-            ) : (
-              <span className="text-3xl font-bold">${displayPrice.toFixed(2)}</span>
-            )}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-baseline gap-3 flex-wrap">
+              {isOnSale ? (
+                <>
+                  <span className="text-3xl font-bold text-red-500">
+                    ${displayPrice.toFixed(2)}
+                  </span>
+                  <span className="text-xl text-muted-foreground line-through">
+                    ${displayCompareAt!.toFixed(2)}
+                  </span>
+                  <Badge className="bg-red-500 text-white hover:bg-red-600">
+                    -{discountPct(displayPrice, displayCompareAt!)}%
+                  </Badge>
+                </>
+              ) : (
+                <span className="text-3xl font-bold">${displayPrice.toFixed(2)}</span>
+              )}
+            </div>
+            <WishlistButton productId={product.id} size={20} className="shrink-0" />
           </div>
           {product.brand && (
             <div className="flex items-center gap-2 text-sm">

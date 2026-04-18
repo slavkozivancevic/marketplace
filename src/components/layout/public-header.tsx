@@ -6,6 +6,7 @@ import { HeaderAuth } from "./header-auth";
 import { ThemeSwitcher } from "./theme-switcher";
 import { CartButton } from "@/features/cart/components/CartButton";
 import { CartDrawer } from "@/features/cart/components/CartDrawer";
+import { WishlistHeaderButton } from "@/features/wishlist/components/WishlistHeaderButton";
 import { Store, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -82,6 +83,7 @@ export function PublicHeader({ showAdminLink = false }: PublicHeaderProps) {
             {/* Right side actions */}
             <div className="flex items-center gap-1 sm:gap-2">
               <ThemeSwitcher />
+              <WishlistHeaderButton />
               <CartButton />
               <div className="hidden sm:flex items-center gap-2 ml-1">
                 <HeaderAuth mode="modal" showDashboardLink={false} />

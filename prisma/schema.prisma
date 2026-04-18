@@ -39,6 +39,8 @@ model User {
 
   updatedHistories ProductHistory[] @relation("ProductHistoryUpdatedBy")
 
+  wishlists        Wishlist[]
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -222,6 +224,7 @@ model Product {
   reviews     ProductReview[]
   categories  ProductCategory[]
   tags        ProductTag[]
+  wishlists   Wishlist[]
 
   @@unique([organizationId, slug])
   @@index([organizationId, deletedAt])
@@ -390,6 +393,19 @@ model OrderItem {
   variant ProductVariant? @relation(fields: [variantId], references: [id])
 
   @@index([orderId])
+}
+
+model Wishlist {
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([userId, productId])
+  @@index([userId])
+  @@index([productId])
 }
 
 model ProductReview {

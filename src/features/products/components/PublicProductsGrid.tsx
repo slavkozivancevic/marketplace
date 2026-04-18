@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { SerializedProductListItem } from "@/types/types";
 import { StarRating } from "@/features/reviews/components/StarRating";
+import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
 import { GRID_PAGE_SIZE, MAX_PAGES } from "@/constants/queryConstants";
 import type { ProductFilters } from "@/lib/query/searchParams";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
@@ -93,6 +94,11 @@ function ProductCard({ product }: { product: SerializedProductListItem }) {
               )}
             </div>
           )}
+          <WishlistButton
+            productId={product.id}
+            size={16}
+            className="absolute bottom-2 right-2"
+          />
         </CardHeader>
         <CardContent className="pt-4">
           <CardTitle>{product.title}</CardTitle>
