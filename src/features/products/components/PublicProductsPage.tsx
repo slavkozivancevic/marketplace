@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useQueryStates } from "nuqs";
 import {
   productSearchParams,
@@ -49,7 +49,14 @@ const BASE_FILTER_GROUPS: FilterGroup[] = [
   },
 ];
 
-export function PublicProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
+export function PublicProductsPage({
+  brands = [],
+  footer,
+}: {
+  brands?: BrandOption[];
+  footer?: React.ReactNode;
+}) {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [params, setParams] = useQueryStates(productSearchParams, {
     shallow: false,
     throttleMs: 300,
@@ -121,14 +128,14 @@ export function PublicProductsPage({ brands = [] }: { brands?: BrandOption[] }) 
   };
 
   return (
-    <div className="flex gap-6">
+    <div className="flex gap-6 flex-1 min-h-0">
       <FilterSidebar
         groups={filterGroups}
         values={filterValues}
         onChange={handleFilterChange}
         onClear={handleFilterClear}
       />
-      <div className="flex-1 min-w-0 space-y-4">
+      <div className="flex-1 min-w-0 flex flex-col gap-4 min-h-0">
         <SearchToolbar
           search={params.search}
           onSearchChange={(v) => setParams({ search: v })}
@@ -152,7 +159,10 @@ export function PublicProductsPage({ brands = [] }: { brands?: BrandOption[] }) 
           onRemove={handleFilterRemove}
           onClearAll={handleFilterClear}
         />
-        <PublicProductsGrid filters={filters} />
+        <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto">
+          <PublicProductsGrid filters={filters} scrollContainerRef={scrollContainerRef} />
+          {footer}
+        </div>
       </div>
     </div>
   );

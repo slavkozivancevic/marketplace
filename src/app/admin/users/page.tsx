@@ -18,7 +18,7 @@ export default async function AdminUsersRoute() {
           description="View and update user roles."
         />
       </div>
-      <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
+      <div className="flex-1 flex flex-col min-h-0 px-6">
         {users.length === 0 ? (
           <Alert>
             <AlertTitle>No users found</AlertTitle>

@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useInfiniteVirtualGrid } from "@/components/infinite/useInfiniteVirtualGrid";
@@ -122,7 +123,13 @@ function ProductCard({ product }: { product: SerializedProductListItem }) {
   );
 }
 
-export function PublicProductsGrid({ filters }: { filters: ProductFilters }) {
+export function PublicProductsGrid({
+  filters,
+  scrollContainerRef,
+}: {
+  filters: ProductFilters;
+  scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
+}) {
   const {
     parentRef,
     virtualizer,
@@ -140,6 +147,7 @@ export function PublicProductsGrid({ filters }: { filters: ProductFilters }) {
     gap: 24,
     estimateRowHeight: 340,
     maxPages: MAX_PAGES,
+    scrollContainerRef,
   });
 
   if (query.status === "pending") {
@@ -178,7 +186,7 @@ export function PublicProductsGrid({ filters }: { filters: ProductFilters }) {
   // Small dataset — plain CSS grid, no virtualization overhead or blank space.
   if (!query.hasNextPage) {
     return (
-      <div ref={parentRef}>
+      <div ref={parentRef} className={scrollContainerRef ? undefined : "flex-1 min-h-0 overflow-y-auto"}>
         {!columnCountReady ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -205,8 +213,7 @@ export function PublicProductsGrid({ filters }: { filters: ProductFilters }) {
   return (
     <div
       ref={parentRef}
-      className="overflow-auto"
-      style={{ maxHeight: "calc(100vh - 220px)" }}
+      className={scrollContainerRef ? undefined : "flex-1 min-h-0 overflow-auto"}
     >
       {!columnCountReady ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

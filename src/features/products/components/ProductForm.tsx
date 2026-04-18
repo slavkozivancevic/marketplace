@@ -488,9 +488,9 @@ export function ProductForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <Tabs defaultValue="details">
-          <TabsList className="w-full justify-start flex-wrap h-auto gap-1">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
+        <Tabs defaultValue="details" className="flex-1 min-h-0">
+          <TabsList className="w-full justify-start flex-wrap h-auto gap-1 shrink-0">
             <TabsTrigger value="details">
               <TabLabel label="Details" hasError={detailsHasError} />
             </TabsTrigger>
@@ -509,7 +509,7 @@ export function ProductForm({
           </TabsList>
 
           {/* ── DETAILS TAB ── */}
-          <TabsContent value="details" className="space-y-6 pt-4">
+          <TabsContent value="details" className="space-y-6 pt-4 overflow-y-auto min-h-0 pb-6">
             <FormField
               control={form.control}
               name="title"
@@ -633,7 +633,7 @@ export function ProductForm({
           </TabsContent>
 
           {/* ── PRICING & INVENTORY TAB ── */}
-          <TabsContent value="pricing" className="space-y-6 pt-4">
+          <TabsContent value="pricing" className="space-y-6 pt-4 overflow-y-auto min-h-0 pb-6">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <FormField
                 control={form.control}
@@ -799,7 +799,7 @@ export function ProductForm({
           </TabsContent>
 
           {/* ── SHIPPING TAB ── */}
-          <TabsContent value="shipping" className="space-y-6 pt-4">
+          <TabsContent value="shipping" className="space-y-6 pt-4 overflow-y-auto min-h-0 pb-6">
             <div className="space-y-4">
               <FormField
                 control={form.control}
@@ -965,7 +965,7 @@ export function ProductForm({
           </TabsContent>
 
           {/* ── SEO TAB ── */}
-          <TabsContent value="seo" className="space-y-6 pt-4">
+          <TabsContent value="seo" className="space-y-6 pt-4 overflow-y-auto min-h-0 pb-6">
             <p className="text-sm text-muted-foreground">
               These fields control how the product appears in search engine results.
               Leave blank to use the product title and description automatically.
@@ -1037,7 +1037,7 @@ export function ProductForm({
           </TabsContent>
 
           {/* ── OPTIONS & VARIANTS TAB ── */}
-          <TabsContent value="variants" className="space-y-6 pt-4">
+          <TabsContent value="variants" className="space-y-6 pt-4 overflow-y-auto min-h-0 pb-6">
             {/* Options */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -1448,15 +1448,15 @@ export function ProductForm({
           </TabsContent>
         </Tabs>
 
-        <Separator />
-
-        <Button type="submit" disabled={isPending}>
-          {isPending
-            ? "Saving..."
-            : mode === "create"
-              ? "Create Product"
-              : "Update Product"}
-        </Button>
+        <div className="shrink-0 pt-4 pb-6 border-t">
+          <Button type="submit" disabled={isPending}>
+            {isPending
+              ? "Saving..."
+              : mode === "create"
+                ? "Create Product"
+                : "Update Product"}
+          </Button>
+        </div>
       </form>
     </Form>
   );

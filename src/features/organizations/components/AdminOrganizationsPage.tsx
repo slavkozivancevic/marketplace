@@ -86,15 +86,15 @@ export function AdminOrganizationsPage({
   const activeFilterCount = verifiedFilter.length;
 
   return (
-    <div className="flex gap-6">
+    <div className="flex gap-6 flex-1 min-h-0">
       <FilterSidebar
         groups={FILTER_GROUPS}
         values={filterValues}
         onChange={handleFilterChange}
         onClear={handleFilterClear}
       />
-      <div className="flex-1 min-w-0 space-y-4">
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="flex-1 min-w-0 flex flex-col min-h-0 gap-3">
+        <div className="shrink-0 flex flex-wrap items-center gap-3">
           <SearchInput
             value={search}
             onChange={setSearch}
@@ -118,20 +118,22 @@ export function AdminOrganizationsPage({
           onRemove={handleFilterRemove}
           onClearAll={handleFilterClear}
         />
-        {filtered.length === 0 ? (
-          <Alert>
-            <AlertTitle>No organizations found</AlertTitle>
-            <AlertDescription>
-              Try adjusting your search or filters.
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filtered.map((org) => (
-              <OrganizationCard key={org.id} organization={org} />
-            ))}
-          </div>
-        )}
+        <div className="flex-1 min-h-0 overflow-y-auto pb-6">
+          {filtered.length === 0 ? (
+            <Alert>
+              <AlertTitle>No organizations found</AlertTitle>
+              <AlertDescription>
+                Try adjusting your search or filters.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filtered.map((org) => (
+                <OrganizationCard key={org.id} organization={org} />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -234,9 +234,13 @@ function DesktopFilterSidebar(props: {
   values: FilterValues;
   onChange: (key: string, value: string[] | [number?, number?]) => void;
   onClear: () => void;
+  sticky?: boolean;
 }) {
   return (
-    <aside className="hidden lg:block w-56 shrink-0 pr-6 border-r">
+    <aside className={cn(
+      "hidden lg:block w-56 shrink-0 overflow-y-auto pr-6 border-r",
+      props.sticky && "sticky top-0 self-start max-h-screen"
+    )}>
       <FilterContent {...props} />
     </aside>
   );
@@ -301,6 +305,7 @@ interface FilterSidebarProps {
   values: FilterValues;
   onChange: (key: string, value: string[] | [number?, number?]) => void;
   onClear: () => void;
+  sticky?: boolean;
 }
 
 export function FilterSidebar({
@@ -308,6 +313,7 @@ export function FilterSidebar({
   values,
   onChange,
   onClear,
+  sticky,
 }: FilterSidebarProps) {
   if (groups.length === 0) return null;
 
@@ -317,6 +323,7 @@ export function FilterSidebar({
       values={values}
       onChange={onChange}
       onClear={onClear}
+      sticky={sticky}
     />
   );
 }

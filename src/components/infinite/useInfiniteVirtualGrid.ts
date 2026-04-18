@@ -22,6 +22,11 @@ type Options<TItem> = {
   overscan?: number;
   maxPages?: number;
   enabled?: boolean;
+  /**
+   * When provided, this element is used as the virtualizer's scroll container
+   * instead of parentRef. parentRef still measures column width via ResizeObserver.
+   */
+  scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
 };
 
 /**
@@ -66,6 +71,7 @@ export function useInfiniteVirtualGrid<TItem>({
   overscan = 4,
   maxPages = 5,
   enabled = true,
+  scrollContainerRef,
 }: Options<TItem>) {
   const parentRef = useRef<HTMLDivElement>(null);
   const [columnCount, setColumnCount] = useState(1);
@@ -126,7 +132,7 @@ export function useInfiniteVirtualGrid<TItem>({
 
   const virtualizer = useVirtualizer({
     count: totalRowCount,
-    getScrollElement: () => parentRef.current,
+    getScrollElement: () => scrollContainerRef?.current ?? parentRef.current,
     estimateSize: () => estimateRowHeight,
     overscan,
   });

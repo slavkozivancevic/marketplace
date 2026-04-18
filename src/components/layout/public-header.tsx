@@ -10,12 +10,19 @@ import { Store, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const navLinks = [
+const baseNavLinks = [
   { href: "/products", label: "Products" },
   { href: "/dashboard", label: "Dashboard" },
-] as const;
+];
 
-export function PublicHeader() {
+const adminNavLink = { href: "/admin", label: "Admin" };
+
+interface PublicHeaderProps {
+  showAdminLink?: boolean;
+}
+
+export function PublicHeader({ showAdminLink = false }: PublicHeaderProps) {
+  const navLinks = showAdminLink ? [...baseNavLinks, adminNavLink] : baseNavLinks;
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 

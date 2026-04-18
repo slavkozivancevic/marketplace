@@ -51,6 +51,7 @@ function NavContent({
           const isActive =
             pathname === link.href ||
             (link.href !== "/dashboard" &&
+              link.href !== "/admin" &&
               link.href !== "/admin/products" &&
               pathname.startsWith(link.href));
 

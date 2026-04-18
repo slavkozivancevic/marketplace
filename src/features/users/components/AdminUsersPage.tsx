@@ -84,15 +84,15 @@ export function AdminUsersPage({ users }: { users: SerializedUser[] }) {
   const activeFilterCount = roleFilter.length;
 
   return (
-    <div className="flex gap-6">
+    <div className="flex gap-6 flex-1 min-h-0">
       <FilterSidebar
         groups={FILTER_GROUPS}
         values={filterValues}
         onChange={handleFilterChange}
         onClear={handleFilterClear}
       />
-      <div className="flex-1 min-w-0 space-y-4">
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="flex-1 min-w-0 flex flex-col min-h-0 gap-3">
+        <div className="shrink-0 flex flex-wrap items-center gap-3">
           <SearchInput
             value={search}
             onChange={setSearch}
@@ -116,31 +116,33 @@ export function AdminUsersPage({ users }: { users: SerializedUser[] }) {
           onRemove={handleFilterRemove}
           onClearAll={handleFilterClear}
         />
-        {filtered.length === 0 ? (
-          <Alert>
-            <AlertTitle>No users found</AlertTitle>
-            <AlertDescription>
-              Try adjusting your search or filters.
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <div className="space-y-4">
-            {filtered.map((user) => (
-              <div key={user.id} className="border rounded-lg p-4">
-                <div className="mb-4 flex items-start justify-between gap-4">
-                  <div>
-                    <p className="font-semibold">{user.name || user.email}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {user.email}
-                    </p>
+        <div className="flex-1 min-h-0 overflow-y-auto pb-6">
+          {filtered.length === 0 ? (
+            <Alert>
+              <AlertTitle>No users found</AlertTitle>
+              <AlertDescription>
+                Try adjusting your search or filters.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <div className="space-y-4">
+              {filtered.map((user) => (
+                <div key={user.id} className="border rounded-lg p-4">
+                  <div className="mb-4 flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-semibold">{user.name || user.email}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {user.email}
+                      </p>
+                    </div>
+                    <Badge variant="outline">{user.role}</Badge>
                   </div>
-                  <Badge variant="outline">{user.role}</Badge>
+                  <UserForm userId={user.id} currentRole={user.role} />
                 </div>
-                <UserForm userId={user.id} currentRole={user.role} />
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

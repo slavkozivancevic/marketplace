@@ -1,9 +1,10 @@
 "use client";
 
-import { Package, Users, Building2, LayoutDashboard, Tag } from "lucide-react";
+import { Package, Users, Building2, LayoutDashboard, Tag, Shield } from "lucide-react";
 import { SidebarNav, type SidebarLink } from "./sidebar-nav";
 
 const adminLinks: SidebarLink[] = [
+  { href: "/admin", label: "Overview", icon: Shield },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/brands", label: "Brands", icon: Tag },
   { href: "/admin/organizations", label: "Organizations", icon: Building2 },

@@ -42,6 +42,7 @@ function renderCard(
         title: product.title,
         description: product.description,
         price: product.price,
+        compareAtPrice: product.compareAtPrice != null ? Number(product.compareAtPrice) : null,
         status: product.status,
         imageUrls: product.images?.map((img) => img.url) ?? [],
         brand: product.brand ?? null,
@@ -122,7 +123,7 @@ export function MyProductsGrid({
   // Small dataset — plain CSS grid, no virtualization overhead or blank space.
   if (!query.hasNextPage) {
     return (
-      <div ref={parentRef}>
+      <div ref={parentRef} className="flex-1 min-h-0 overflow-y-auto">
         {!columnCountReady ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -151,8 +152,7 @@ export function MyProductsGrid({
   return (
     <div
       ref={parentRef}
-      className="overflow-auto"
-      style={{ maxHeight: "calc(100vh - 220px)" }}
+      className="flex-1 min-h-0 overflow-auto"
     >
       {!columnCountReady ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

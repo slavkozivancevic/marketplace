@@ -87,7 +87,7 @@ async function ProductContent({ productId }: { productId: string }) {
 
   if (!canWrite) {
     return (
-      <div className="space-y-4">
+      <div className="flex-1 overflow-y-auto min-h-0 pb-6 space-y-4">
         <Alert>
           <AlertTitle>Read-only access</AlertTitle>
           <AlertDescription>
@@ -101,8 +101,8 @@ async function ProductContent({ productId }: { productId: string }) {
   }
 
   return (
-    <>
-      <div className="flex items-center justify-between mb-6">
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex items-center justify-between pb-4 shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Status:</span>
           <span className="text-sm font-medium">{productData.status}</span>
@@ -119,7 +119,7 @@ async function ProductContent({ productId }: { productId: string }) {
         brands={brands}
         redirectTo="/dashboard/my-products"
       />
-    </>
+    </div>
   );
 }
 
@@ -176,7 +176,7 @@ export default async function MyProductPage({
           </Button>
         </PageHeader>
       </div>
-      <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
+      <div className="flex-1 flex flex-col min-h-0 px-6">
         <ProductContent productId={id} />
       </div>
     </div>
