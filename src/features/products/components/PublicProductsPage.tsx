@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { useQueryStates } from "nuqs";
 import {
   productSearchParams,
@@ -56,7 +56,6 @@ export function PublicProductsPage({
   brands?: BrandOption[];
   footer?: React.ReactNode;
 }) {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [params, setParams] = useQueryStates(productSearchParams, {
     shallow: false,
     throttleMs: 300,
@@ -159,10 +158,8 @@ export function PublicProductsPage({
           onRemove={handleFilterRemove}
           onClearAll={handleFilterClear}
         />
-        <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto">
-          <PublicProductsGrid filters={filters} scrollContainerRef={scrollContainerRef} />
-          {footer}
-        </div>
+        <PublicProductsGrid filters={filters} />
+        {/* footer */}
       </div>
     </div>
   );

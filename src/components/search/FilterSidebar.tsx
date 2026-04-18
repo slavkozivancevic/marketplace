@@ -173,37 +173,17 @@ function RangeFilter({
 
 // ---------- Filter content (shared between desktop and mobile) ----------
 
-function FilterContent({
+function FilterGroups({
   groups,
   values,
   onChange,
-  onClear,
 }: {
   groups: FilterGroup[];
   values: FilterValues;
   onChange: (key: string, value: string[] | [number?, number?]) => void;
-  onClear: () => void;
 }) {
-  const activeCount = Object.entries(values).filter(
-    ([, v]) => Array.isArray(v) && v.some((item) => item != null),
-  ).length;
-
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold">Filters</p>
-        {activeCount > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClear}
-            className="h-auto py-1 px-2 text-xs"
-          >
-            Clear all
-          </Button>
-        )}
-      </div>
-      <Separator />
+    <div className="space-y-4 pt-4">
       {groups.map((group) => (
         <div key={group.key}>
           {group.type === "checkbox" && (
@@ -236,12 +216,36 @@ function DesktopFilterSidebar(props: {
   onClear: () => void;
   sticky?: boolean;
 }) {
+  const activeCount = Object.entries(props.values).filter(
+    ([, v]) => Array.isArray(v) && v.some((item) => item != null),
+  ).length;
+
   return (
     <aside className={cn(
-      "hidden lg:block w-56 shrink-0 overflow-y-auto pr-6 border-r",
+      "hidden lg:flex flex-col w-56 shrink-0 border-r",
       props.sticky && "sticky top-0 self-start max-h-screen"
     )}>
-      <FilterContent {...props} />
+      <div className="shrink-0 pr-6 pt-1 pb-2">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold">Filters</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={props.onClear}
+            className={cn("h-auto py-1 px-2 text-xs", activeCount === 0 && "invisible pointer-events-none")}
+          >
+            Clear all
+          </Button>
+        </div>
+        <Separator className="mt-2" />
+      </div>
+      <div className="flex-1 overflow-y-auto pr-6">
+        <FilterGroups
+          groups={props.groups}
+          values={props.values}
+          onChange={props.onChange}
+        />
+      </div>
     </aside>
   );
 }
@@ -274,20 +278,19 @@ function MobileFilterSheet(props: {
         )}
       </Button>
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="left" className="w-80 overflow-y-auto">
-          <SheetHeader>
+        <SheetContent side="left" className="w-80 flex flex-col">
+          <SheetHeader className="shrink-0">
             <SheetTitle>Filters</SheetTitle>
             <SheetDescription>Narrow down your results</SheetDescription>
           </SheetHeader>
-          <div className="px-4 pb-4">
-            <FilterContent
+          <div className="flex-1 overflow-y-auto px-4">
+            <FilterGroups
               groups={props.groups}
               values={props.values}
               onChange={props.onChange}
-              onClear={props.onClear}
             />
           </div>
-          <SheetFooter>
+          <SheetFooter className="shrink-0">
             <Button onClick={() => setOpen(false)} className="w-full">
               Show results
             </Button>
