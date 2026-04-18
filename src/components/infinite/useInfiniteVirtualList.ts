@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import {
   useInfiniteQuery,
+  keepPreviousData,
   type QueryKey,
   type InfiniteData,
 } from "@tanstack/react-query";
@@ -53,6 +54,7 @@ export function useInfiniteVirtualList<TItem>({
     queryFn: ({ pageParam }) => queryFn({ pageParam }),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    placeholderData: keepPreviousData,
     maxPages,
     enabled,
   });
@@ -93,6 +95,7 @@ export function useInfiniteVirtualList<TItem>({
     virtualizer,
     items,
     query,
+    isPlaceholderData: query.isPlaceholderData,
     /** True for the trailing virtual row that represents the load-more sentinel. */
     isSentinelIndex: (index: number) => index >= items.length,
   };

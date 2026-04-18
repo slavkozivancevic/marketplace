@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   useInfiniteQuery,
+  keepPreviousData,
   type QueryKey,
   type InfiniteData,
 } from "@tanstack/react-query";
@@ -121,6 +122,7 @@ export function useInfiniteVirtualGrid<TItem>({
     queryFn: ({ pageParam }) => queryFn({ pageParam }),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+    placeholderData: keepPreviousData,
     maxPages,
     enabled,
   });
@@ -173,6 +175,7 @@ export function useInfiniteVirtualGrid<TItem>({
     virtualizer,
     items,
     query,
+    isPlaceholderData: query.isPlaceholderData,
     columnCount,
     columnCountReady,
     gap,

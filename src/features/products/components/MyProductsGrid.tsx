@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+
 import { useInfiniteVirtualGrid } from "@/components/infinite/useInfiniteVirtualGrid";
 import { MyProductCard } from "./MyProductCard";
 import { SkeletonProductGridCard } from "@/components/ui/skeleton";
@@ -76,6 +78,7 @@ export function MyProductsGrid({
     gap,
     getRowItems,
     isSentinelRow,
+    isPlaceholderData,
   } = useInfiniteVirtualGrid<SerializedProductListItem>({
     queryKey: ["products", "my-products", f],
     queryFn: buildFetcher(f),
@@ -123,7 +126,7 @@ export function MyProductsGrid({
   // Small dataset — plain CSS grid, no virtualization overhead or blank space.
   if (!query.hasNextPage) {
     return (
-      <div ref={parentRef} className="flex-1 min-h-0 overflow-y-auto">
+      <div ref={parentRef} className={cn("flex-1 min-h-0 overflow-y-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}>
         {!columnCountReady ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -152,7 +155,7 @@ export function MyProductsGrid({
   return (
     <div
       ref={parentRef}
-      className="flex-1 min-h-0 overflow-auto"
+      className={cn("flex-1 min-h-0 overflow-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
     >
       {!columnCountReady ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

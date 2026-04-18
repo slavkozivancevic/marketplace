@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -140,6 +142,7 @@ export function PublicProductsGrid({
     gap,
     getRowItems,
     isSentinelRow,
+    isPlaceholderData,
   } = useInfiniteVirtualGrid<SerializedProductListItem>({
     queryKey: ["products", "public", filters],
     queryFn: buildFetcher(filters),
@@ -186,7 +189,7 @@ export function PublicProductsGrid({
   // Small dataset — plain CSS grid, no virtualization overhead or blank space.
   if (!query.hasNextPage) {
     return (
-      <div ref={parentRef} className={scrollContainerRef ? undefined : "flex-1 min-h-0 overflow-y-auto"}>
+      <div ref={parentRef} className={cn(scrollContainerRef ? undefined : "flex-1 min-h-0 overflow-y-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}>
         {!columnCountReady ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -213,7 +216,7 @@ export function PublicProductsGrid({
   return (
     <div
       ref={parentRef}
-      className={scrollContainerRef ? undefined : "flex-1 min-h-0 overflow-auto"}
+      className={cn(scrollContainerRef ? undefined : "flex-1 min-h-0 overflow-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
     >
       {!columnCountReady ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

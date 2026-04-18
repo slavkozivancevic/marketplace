@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+
 import { useInfiniteVirtualList } from "@/components/infinite/useInfiniteVirtualList";
 import { OrderTableRow } from "./OrderTableRow";
 import { SkeletonOrderRow } from "@/components/ui/skeleton";
@@ -56,7 +58,7 @@ export function OrdersList({ filters }: { filters?: OrderFilters }) {
   };
   const f = filters ?? defaultFilters;
 
-  const { parentRef, virtualizer, items, query, isSentinelIndex } =
+  const { parentRef, virtualizer, items, query, isSentinelIndex, isPlaceholderData } =
     useInfiniteVirtualList<UserOrderListItem>({
       queryKey: ["orders", "user", f],
       queryFn: buildFetcher(f),
@@ -110,7 +112,7 @@ export function OrdersList({ filters }: { filters?: OrderFilters }) {
     return (
       <div
         role="table"
-        className="rounded-lg border flex-1 min-h-0 overflow-auto"
+        className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
       >
         <OrderTableHeader />
         {items.map((order) => (
@@ -124,7 +126,7 @@ export function OrdersList({ filters }: { filters?: OrderFilters }) {
   return (
     <div
       role="table"
-      className="rounded-lg border flex-1 min-h-0 overflow-auto"
+      className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
       ref={parentRef}
     >
       <OrderTableHeader />

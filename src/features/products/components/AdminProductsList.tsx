@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+
 import { useInfiniteVirtualList } from "@/components/infinite/useInfiniteVirtualList";
 import { ProductTableHeader, ProductTableRow } from "./ProductTable";
 import { SkeletonProductTableRow } from "@/components/ui/skeleton";
@@ -50,7 +52,7 @@ export function AdminProductsList({
   };
   const f = filters ?? defaultFilters;
 
-  const { parentRef, virtualizer, items, query, isSentinelIndex } =
+  const { parentRef, virtualizer, items, query, isSentinelIndex, isPlaceholderData } =
     useInfiniteVirtualList<SerializedProductListItem>({
       queryKey: ["products", "admin", f],
       queryFn: buildFetcher(f),
@@ -100,7 +102,7 @@ export function AdminProductsList({
     return (
       <div
         role="table"
-        className="rounded-lg border flex-1 min-h-0 overflow-auto"
+        className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
       >
         <ProductTableHeader showActions />
         {items.map((product) => (
@@ -114,7 +116,7 @@ export function AdminProductsList({
   return (
     <div
       role="table"
-      className="rounded-lg border flex-1 min-h-0 overflow-auto"
+      className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
       ref={parentRef}
     >
       <ProductTableHeader showActions />
