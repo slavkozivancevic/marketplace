@@ -1,11 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import { Heart } from "lucide-react";
 import { useClerk, useAuth } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
-import { useWishlistStore } from "../store/wishlistStore";
-import { toggleWishlist } from "../actions/wishlist";
+import { useIsWishlisted, useWishlistToggle } from "../hooks/useWishlist";
 
 interface WishlistButtonProps {
   productId: string;
@@ -20,12 +18,8 @@ export function WishlistButton({
 }: WishlistButtonProps) {
   const { isSignedIn } = useAuth();
   const { openSignIn } = useClerk();
-  const isWishlisted = useWishlistStore((s) => s.has(productId));
-  const toggle = useWishlistStore((s) => s.toggle);
-  const [isPending, startTransition] = useTransition();
-  const [optimistic, setOptimistic] = useState<boolean | null>(null);
-
-  const active = optimistic ?? isWishlisted;
+  const isWishlisted = useIsWishlisted(productId);
+  const { mutate, isPending } = useWishlistToggle();
 
   function handleClick(e: React.MouseEvent) {
     e.preventDefault();
@@ -36,32 +30,19 @@ export function WishlistButton({
       return;
     }
 
-    const next = !active;
-    setOptimistic(next);
-    toggle(productId);
-
-    startTransition(async () => {
-      const result = await toggleWishlist(productId);
-      if ("error" in result) {
-        // Revert on error
-        setOptimistic(!next);
-        toggle(productId);
-      } else {
-        setOptimistic(null);
-      }
-    });
+    mutate(productId);
   }
 
   return (
     <button
       onClick={handleClick}
       disabled={isPending}
-      aria-label={active ? "Remove from wishlist" : "Add to wishlist"}
+      aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
       className={cn(
         "flex items-center justify-center rounded-full w-8 h-8 transition-all duration-200 cursor-pointer",
         "bg-background/85 backdrop-blur-sm border border-border/60 shadow-sm",
         "hover:scale-110 hover:border-rose-400/60",
-        active && "border-rose-400/60",
+        isWishlisted && "border-rose-400/60",
         className,
       )}
     >
@@ -69,7 +50,7 @@ export function WishlistButton({
         style={{ width: size, height: size }}
         className={cn(
           "transition-all duration-200",
-          active
+          isWishlisted
             ? "fill-rose-500 stroke-rose-500"
             : "fill-transparent stroke-muted-foreground",
           "hover:stroke-rose-400",

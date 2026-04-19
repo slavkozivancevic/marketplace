@@ -2,7 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/core/db/prisma";
-import { toggleWishlistItem } from "../db/wishlist";
+import { getUserWishlistProductIds, toggleWishlistItem } from "../db/wishlist";
 import { revalidateWishlistCache } from "../db/cache";
 import { UnauthenticatedError } from "@/features/common/errors/domainErrors";
 
@@ -17,6 +17,15 @@ async function resolveUserId(): Promise<string> {
 
   if (!user) throw new UnauthenticatedError();
   return user.id;
+}
+
+export async function getWishlistIds(): Promise<string[]> {
+  try {
+    const userId = await resolveUserId();
+    return await getUserWishlistProductIds(userId);
+  } catch {
+    return [];
+  }
 }
 
 export async function toggleWishlist(

@@ -2,16 +2,11 @@
 
 import Link from "next/link";
 import { Heart } from "lucide-react";
-import { useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
-import { useWishlistStore } from "../store/wishlistStore";
+import { useWishlistCount } from "../hooks/useWishlist";
 
 export function WishlistHeaderButton() {
-  const count = useSyncExternalStore(
-    useWishlistStore.subscribe,
-    () => useWishlistStore.getState().count(),
-    () => 0,
-  );
+  const count = useWishlistCount();
 
   return (
     <div className="relative">
