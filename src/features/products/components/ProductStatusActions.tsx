@@ -8,6 +8,7 @@ import {
   publishProduct,
   unpublishProduct,
   archiveProduct,
+  unarchiveProduct,
   deleteProduct,
 } from "../actions/products";
 
@@ -25,6 +26,7 @@ export function ProductStatusActions({
   const [isPublishing, startPublish] = useTransition();
   const [isUnpublishing, startUnpublish] = useTransition();
   const [isArchiving, startArchive] = useTransition();
+  const [isUnarchiving, startUnarchive] = useTransition();
   const [isDeleting, startDelete] = useTransition();
 
   const handlePublish = () => {
@@ -48,6 +50,15 @@ export function ProductStatusActions({
   const handleArchive = () => {
     startArchive(async () => {
       const result = await archiveProduct(productId, redirectTo);
+      if (result && "error" in result) {
+        toast.error(result.message);
+      }
+    });
+  };
+
+  const handleUnarchive = () => {
+    startUnarchive(async () => {
+      const result = await unarchiveProduct(productId, redirectTo);
       if (result && "error" in result) {
         toast.error(result.message);
       }
@@ -84,9 +95,14 @@ export function ProductStatusActions({
       )}
 
       {status === "ARCHIVED" && (
-        <span className="text-sm text-muted-foreground">
-          Archived — no further status changes allowed
-        </span>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleUnarchive}
+          disabled={isUnarchiving}
+        >
+          {isUnarchiving ? "Restoring..." : "Restore to Draft"}
+        </Button>
       )}
 
       <ActionButton

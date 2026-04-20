@@ -20,7 +20,7 @@ export default function ProductsErrorPage({
   }, [error]);
 
   return (
-    <div className="container">
+    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto px-6">
       <PageHeader
         title="Products"
         description="An unexpected error occurred while loading this page."

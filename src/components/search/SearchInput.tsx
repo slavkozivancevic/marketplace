@@ -74,7 +74,7 @@ export function SearchInput({
           <button
             type="button"
             onClick={handleClear}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
           >
             <X className="size-4" />
             <span className="sr-only">Clear search</span>

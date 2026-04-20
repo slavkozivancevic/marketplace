@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Pencil, Trash2 } from "lucide-react";
+import { Copy, Pencil, Trash2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/components/ui/sonner";
-import { deleteProduct } from "@/features/products/actions/products";
+import { deleteProduct, duplicateProduct } from "@/features/products/actions/products";
 import { SerializedProductListItem } from "@/types/types";
 
 function getStatusVariant(status: string) {
@@ -35,7 +35,7 @@ function getStatusVariant(status: string) {
 }
 
 const COLS_BASE = "64px minmax(100px,1fr) 120px minmax(150px,2fr) 80px 100px";
-const COLS_ACTIONS = COLS_BASE + " 80px";
+const COLS_ACTIONS = COLS_BASE + " 116px";
 
 /**
  * Product table header (rendered outside the virtualizer scroll container).
@@ -59,7 +59,7 @@ export function ProductTableHeader({
       <div role="columnheader" className="truncate">Description</div>
       <div role="columnheader" className="truncate">Price</div>
       <div role="columnheader" className="truncate">Status</div>
-      {showActions && <div role="columnheader" />}
+      {showActions && <div role="columnheader" className="truncate">Actions</div>}
     </div>
   );
 }
@@ -79,6 +79,7 @@ export function ProductTableRow({
   const router = useRouter();
   const queryClient = useQueryClient();
   const [isDeleting, startDelete] = useTransition();
+  const [isDuplicating, startDuplicate] = useTransition();
 
   const handleDelete = () => {
     startDelete(async () => {
@@ -88,6 +89,24 @@ export function ProductTableRow({
       } else {
         queryClient.invalidateQueries({ queryKey: ["products"] });
       }
+    });
+  };
+
+  const handleDuplicate = () => {
+    startDuplicate(async () => {
+      const result = await duplicateProduct(product.id);
+      if (!("id" in result)) {
+        toast.error(result.message);
+        return;
+      }
+      const copyId = result.id;
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      toast.success("Product duplicated", {
+        action: {
+          label: "Edit copy",
+          onClick: () => router.push(`${basePath}/${copyId}/edit`),
+        },
+      });
     });
   };
 
@@ -149,12 +168,22 @@ export function ProductTableRow({
       </div>
       {showActions && (
         <div role="cell" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-end gap-1">
+          <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon" asChild>
               <Link href={`${basePath}/${product.id}/edit`}>
                 <Pencil className="h-4 w-4" />
                 <span className="sr-only">Edit</span>
               </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              disabled={isDuplicating}
+              onClick={handleDuplicate}
+              title="Duplicate product"
+            >
+              <Copy className="h-4 w-4" />
+              <span className="sr-only">Duplicate</span>
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>

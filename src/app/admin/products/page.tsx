@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cacheTag } from "next/cache";
+import { LayoutList } from "lucide-react";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createSearchParamsCache } from "nuqs/server";
 
@@ -80,6 +81,12 @@ export default async function AdminProductsRoute({
           title="Products"
           description="Browse and manage your product catalog."
         >
+          <Button asChild variant="outline">
+            <Link href="/admin/products/bulk">
+              <LayoutList className="h-4 w-4 mr-1.5" />
+              Bulk Operations
+            </Link>
+          </Button>
           <Button asChild>
             <Link href="/admin/products/new">Add Product</Link>
           </Button>

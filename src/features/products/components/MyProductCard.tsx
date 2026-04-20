@@ -1,15 +1,17 @@
 "use client";
 
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
+import { Copy, Pencil, Trash2 } from "lucide-react";
 import { HoverImageCycler } from "@/components/product/HoverImageCycler";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ActionButton";
 import { toast } from "@/components/ui/sonner";
-import { deleteProduct } from "@/features/products/actions/products";
+import { deleteProduct, duplicateProduct } from "@/features/products/actions/products";
 
 interface MyProductCardProps {
   canWrite: boolean;
@@ -26,8 +28,10 @@ interface MyProductCardProps {
 }
 
 export function MyProductCard({ canWrite, product }: MyProductCardProps) {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [isDeleting, startDelete] = useTransition();
+  const [isDuplicating, startDuplicate] = useTransition();
 
   const isOnSale =
     product.compareAtPrice != null && product.compareAtPrice > product.price;
@@ -40,6 +44,24 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
       } else {
         queryClient.invalidateQueries({ queryKey: ["products"] });
       }
+    });
+  };
+
+  const handleDuplicate = () => {
+    startDuplicate(async () => {
+      const result = await duplicateProduct(product.id);
+      if (!("id" in result)) {
+        toast.error(result.message);
+        return;
+      }
+      const copyId = result.id;
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      toast.success("Product duplicated", {
+        action: {
+          label: "Edit copy",
+          onClick: () => router.push(`/dashboard/my-products/${copyId}`),
+        },
+      });
     });
   };
 
@@ -109,28 +131,42 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
             {product.status}
           </Badge>
         </div>
-        <div className="flex flex-col gap-2">
-          <Button asChild variant="outline" size="sm" className="w-full">
+        <div className="flex gap-1.5">
+          <Button asChild variant="outline" size="sm" className="flex-1 gap-1.5">
             <Link href={`/dashboard/my-products/${product.id}`}>
+              <Pencil className="h-3.5 w-3.5" />
               {canWrite ? "Edit" : "View"}
             </Link>
           </Button>
           {canWrite && (
-            <ActionButton
-              title="Delete Product"
-              description={`Are you sure you want to delete "${product.title}"?`}
-              confirmText="Delete"
-              onConfirm={handleDelete}
-            >
+            <>
               <Button
-                variant="destructive"
+                variant="outline"
                 size="sm"
-                disabled={isDeleting}
-                className="w-full"
+                disabled={isDuplicating}
+                onClick={handleDuplicate}
+                className="flex-1 gap-1.5"
               >
-                {isDeleting ? "Deleting..." : "Delete"}
+                <Copy className="h-3.5 w-3.5" />
+                {isDuplicating ? "Duplicating..." : "Duplicate"}
               </Button>
-            </ActionButton>
+              <ActionButton
+                title="Delete Product"
+                description={`Are you sure you want to delete "${product.title}"?`}
+                confirmText="Delete"
+                onConfirm={handleDelete}
+              >
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={isDeleting}
+                  className="flex-1 gap-1.5"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  {isDeleting ? "Deleting..." : "Delete"}
+                </Button>
+              </ActionButton>
+            </>
           )}
         </div>
       </div>

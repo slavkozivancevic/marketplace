@@ -1,5 +1,7 @@
+import { randomUUID } from "crypto";
 import { tenantPrisma } from "@/core/db/tenantPrisma";
 import { revalidateProductCache, revalidateProductHistoryCache } from "./cache";
+import type { BulkFilter, BulkUpdateFields } from "../types/bulk";
 import {
   ImageInput,
   ProductListItem,
@@ -21,6 +23,7 @@ import {
 } from "@/features/common/errors/domainErrors";
 import { emitProductEvent } from "@/features/webhooks/productEvents";
 import { deleteS3Object } from "@/services/s3Delete";
+import { copyProductImage } from "@/services/s3Copy";
 import { env } from "@/env/server";
 
 async function syncProductImages(
@@ -303,6 +306,42 @@ async function syncOptions(
       writtenForVariant.add(variant.id);
     }
   }
+}
+
+/**
+ * Builds the Prisma `where` clause for filter-based bulk operations.
+ * Always scoped to the org and non-deleted products.
+ */
+function buildBulkFilterWhere(
+  organizationId: string,
+  filter: BulkFilter,
+): Prisma.ProductWhereInput {
+  const where: Prisma.ProductWhereInput = {
+    organizationId,
+    deletedAt: null,
+  };
+
+  if (filter.noBrand) {
+    where.brandId = null;
+  } else if (filter.brandId?.length) {
+    where.brandId = { in: filter.brandId };
+  }
+
+  if (filter.status?.length) {
+    where.status = { in: filter.status as ProductStatus[] };
+  }
+
+  if (filter.minPrice != null || filter.maxPrice != null) {
+    where.price = {};
+    if (filter.minPrice != null) where.price.gte = filter.minPrice;
+    if (filter.maxPrice != null) where.price.lte = filter.maxPrice;
+  }
+
+  if (filter.titleContains) {
+    where.title = { contains: filter.titleContains, mode: "insensitive" };
+  }
+
+  return where;
 }
 
 export function productRepository(
@@ -872,6 +911,277 @@ export function productRepository(
       return updatedProducts;
     },
 
+    async duplicate(id: string): Promise<ProductWithRelations> {
+      // 1. Fetch the source product with all relations needed for duplication.
+      const source = await db.prisma.product.findFirst({
+        where: { id, organizationId: ctx.organizationId, deletedAt: null },
+        include: {
+          images: { orderBy: { order: "asc" } },
+          variants: {
+            orderBy: { order: "asc" },
+            include: {
+              optionValues: {
+                include: { option: { select: { name: true } } },
+              },
+              images: {
+                orderBy: { order: "asc" },
+                include: { image: { select: { key: true } } },
+              },
+            },
+          },
+          options: {
+            orderBy: { order: "asc" },
+            include: { values: { orderBy: { order: "asc" } } },
+          },
+        },
+      });
+
+      if (!source) {
+        throw new NotFoundError(`Product ${id} not found`);
+      }
+
+      // 2. Copy S3 images server-side (pure S3 CopyObject — no re-upload).
+      //    Build oldKey → newKey mapping so variant image references can be updated.
+      const keyMap = new Map<string, string>();
+      const copiedKeys: string[] = [];
+
+      try {
+        await Promise.all(
+          source.images.map(async (img) => {
+            // Replace the final UUID segment with a fresh one.
+            const newKey = img.key.replace(/[^/]+$/, randomUUID());
+            await copyProductImage(img.key, newKey);
+            keyMap.set(img.key, newKey);
+            copiedKeys.push(newKey);
+          }),
+        );
+      } catch (err) {
+        // Roll back any S3 copies that succeeded before the failure.
+        await Promise.all(copiedKeys.map((k) => deleteS3Object(k).catch(() => {})));
+        throw err;
+      }
+
+      // 3. Convert DB relations into the create() input format.
+      const suffix = Date.now().toString(36);
+
+      const images: ImageInput[] = source.images.map((img) => ({
+        key: keyMap.get(img.key)!,
+      }));
+
+      const options = source.options.map((opt) => ({
+        name: opt.name,
+        values: opt.values.map((v) => v.value),
+      }));
+
+      const variants: ProductVariantInput[] = source.variants.map((v) => ({
+        sku: `${v.sku}-copy-${suffix}`,
+        price: Number(v.price),
+        compareAtPrice: v.compareAtPrice != null ? Number(v.compareAtPrice) : undefined,
+        costPrice: v.costPrice != null ? Number(v.costPrice) : undefined,
+        stock: v.stock,
+        barcode: v.barcode ?? undefined,
+        weight: v.weight ?? undefined,
+        weightUnit: v.weightUnit ?? undefined,
+        imageKeys: v.images
+          .map((vi) => keyMap.get(vi.image.key))
+          .filter((k): k is string => k !== undefined),
+        options: v.optionValues.map((ov) => ({
+          name: ov.option.name,
+          value: ov.value,
+        })),
+      }));
+
+      // 4. Create the duplicate.  On DB failure, clean up the copied S3 objects.
+      try {
+        return await this.create({
+          title: `Copy of ${source.title}`,
+          description: source.description,
+          shortDescription: source.shortDescription ?? undefined,
+          price: Number(source.price),
+          compareAtPrice: source.compareAtPrice != null ? Number(source.compareAtPrice) : undefined,
+          costPrice: source.costPrice != null ? Number(source.costPrice) : undefined,
+          stock: source.stock ?? undefined,
+          barcode: source.barcode ?? undefined,
+          taxable: source.taxable,
+          taxCode: source.taxCode ?? undefined,
+          requiresShipping: source.requiresShipping,
+          isDigital: source.isDigital,
+          weight: source.weight ?? undefined,
+          weightUnit: source.weightUnit ?? undefined,
+          length: source.length ?? undefined,
+          width: source.width ?? undefined,
+          height: source.height ?? undefined,
+          dimensionUnit: source.dimensionUnit ?? undefined,
+          metaTitle: source.metaTitle ?? undefined,
+          metaDescription: source.metaDescription ?? undefined,
+          brandId: source.brandId ?? undefined,
+          images: images.length > 0 ? images : undefined,
+          variants: variants.length > 0 ? variants : undefined,
+          options: options.length > 0 ? options : undefined,
+        });
+      } catch (err) {
+        await Promise.all(copiedKeys.map((k) => deleteS3Object(k).catch(() => {})));
+        throw err;
+      }
+    },
+
+    // -----------------------------------------------------------------------
+    // Filter-based bulk operations
+    // -----------------------------------------------------------------------
+
+    async previewByFilter(
+      filter: BulkFilter,
+    ): Promise<{
+      count: number;
+      samples: {
+        id: string;
+        title: string;
+        price: number;
+        status: ProductStatus;
+        brand: { name: string } | null;
+      }[];
+    }> {
+      const where = buildBulkFilterWhere(ctx.organizationId, filter);
+
+      const [count, samples] = await Promise.all([
+        db.prisma.product.count({ where }),
+        db.prisma.product.findMany({
+          where,
+          take: 5,
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            title: true,
+            price: true,
+            status: true,
+            brand: { select: { name: true } },
+          },
+        }),
+      ]);
+
+      return {
+        count,
+        samples: samples.map((p) => ({
+          ...p,
+          price: Number(p.price),
+        })),
+      };
+    },
+
+    async bulkDeleteByFilter(filter: BulkFilter): Promise<{ count: number }> {
+      const where = buildBulkFilterWhere(ctx.organizationId, filter);
+
+      const products = await db.prisma.product.findMany({
+        where,
+        select: {
+          id: true,
+          images: { select: { key: true } },
+        },
+      });
+
+      if (products.length === 0) return { count: 0 };
+
+      const ids = products.map((p) => p.id);
+      const imageKeys = products.flatMap((p) => p.images.map((img) => img.key));
+
+      await db.prisma.$transaction(async (tx) => {
+        await tx.product.updateMany({
+          where: { id: { in: ids }, organizationId: ctx.organizationId, deletedAt: null },
+          data: { deletedAt: new Date(), updatedById: ctx.userId },
+        });
+        if (ids.length > 0) {
+          await tx.productImage.deleteMany({ where: { productId: { in: ids } } });
+        }
+      });
+
+      await emitProductEvent(db.prisma, "product.deleted");
+
+      if (imageKeys.length > 0) {
+        await Promise.all(imageKeys.map((key) => deleteS3Object(key).catch(() => {})));
+      }
+
+      for (const id of ids) {
+        revalidateProductCache(ctx.organizationId, id);
+      }
+
+      return { count: ids.length };
+    },
+
+    async bulkUpdateByFilter(
+      filter: BulkFilter,
+      updates: BulkUpdateFields,
+    ): Promise<{ count: number }> {
+      const where = buildBulkFilterWhere(ctx.organizationId, filter);
+
+      const products = await db.prisma.product.findMany({
+        where,
+        select: {
+          id: true,
+          version: true,
+          title: true,
+          description: true,
+          price: true,
+          status: true,
+        },
+      });
+
+      if (products.length === 0) return { count: 0 };
+
+      const { status, brandId, price, compareAtPrice, costPrice, taxable, requiresShipping } =
+        updates;
+
+      // UncheckedUpdateManyInput allows FK scalars (brandId, updatedById) directly.
+      const scalarUpdates: Prisma.ProductUncheckedUpdateManyInput = {
+        updatedById: ctx.userId,
+        version: { increment: 1 },
+      };
+
+      if (status !== undefined) scalarUpdates.status = status as ProductStatus;
+      if (brandId !== undefined) scalarUpdates.brandId = brandId;
+      if (price !== undefined) scalarUpdates.price = price;
+      if (compareAtPrice !== undefined) scalarUpdates.compareAtPrice = compareAtPrice;
+      if (costPrice !== undefined) scalarUpdates.costPrice = costPrice;
+      if (taxable !== undefined) scalarUpdates.taxable = taxable;
+      if (requiresShipping !== undefined) scalarUpdates.requiresShipping = requiresShipping;
+
+      await db.prisma.$transaction(async (tx) => {
+        await tx.product.updateMany({
+          where: {
+            id: { in: products.map((p) => p.id) },
+            organizationId: ctx.organizationId,
+            deletedAt: null,
+          },
+          data: scalarUpdates,
+        });
+
+        // Write a history entry per product when status or price changes.
+        if (status !== undefined || price !== undefined) {
+          for (const p of products) {
+            await tx.productHistory.create({
+              data: {
+                productId: p.id,
+                version: p.version + 1,
+                title: p.title,
+                description: p.description,
+                price: price !== undefined ? price : p.price,
+                status: (status !== undefined ? status : p.status) as ProductStatus,
+                updatedById: ctx.userId,
+              },
+            });
+          }
+          await emitProductEvent(tx, "product.status.changed");
+        } else {
+          await emitProductEvent(tx, "product.updated");
+        }
+      });
+
+      for (const p of products) {
+        revalidateProductCache(ctx.organizationId, p.id);
+      }
+
+      return { count: products.length };
+    },
+
     async bulkDelete(productIds: string[]): Promise<void> {
       if (!productIds.length) return;
 
@@ -1028,6 +1338,7 @@ export type ProductRepo = {
   ): Promise<ProductWithRelations>;
 
   delete(id: string): Promise<void>;
+  duplicate(id: string): Promise<ProductWithRelations>;
   rollbackToVersion(
     productId: string,
     targetVersion: number,
@@ -1037,4 +1348,19 @@ export type ProductRepo = {
     status: ProductStatus,
   ): Promise<Product[]>;
   bulkDelete(productIds: string[]): Promise<void>;
+  previewByFilter(filter: BulkFilter): Promise<{
+    count: number;
+    samples: {
+      id: string;
+      title: string;
+      price: number;
+      status: ProductStatus;
+      brand: { name: string } | null;
+    }[];
+  }>;
+  bulkDeleteByFilter(filter: BulkFilter): Promise<{ count: number }>;
+  bulkUpdateByFilter(
+    filter: BulkFilter,
+    updates: BulkUpdateFields,
+  ): Promise<{ count: number }>;
 };

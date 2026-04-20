@@ -37,14 +37,10 @@ function assertCanPublish(product: {
 }
 
 function assertStatusTransition(current: ProductStatus, next: ProductStatus) {
-  if (current === ProductStatus.ARCHIVED) {
-    throw new ForbiddenError("Archived products cannot change status");
-  }
-
   const allowed: Record<ProductStatus, ProductStatus[]> = {
     DRAFT: [ProductStatus.PUBLISHED],
     PUBLISHED: [ProductStatus.DRAFT, ProductStatus.ARCHIVED],
-    ARCHIVED: [],
+    ARCHIVED: [ProductStatus.DRAFT],
   };
 
   if (!allowed[current].includes(next)) {
@@ -103,5 +99,22 @@ export async function archiveProduct(ctx: RequestContext, productId: string) {
 
   return repo.update(productId, product.version, {
     status: ProductStatus.ARCHIVED,
+  });
+}
+
+export async function unarchiveProduct(ctx: RequestContext, productId: string) {
+  requirePermission(ctx, "product:update");
+
+  const repo = productRepository(ctx);
+  const product = await repo.getById(productId);
+
+  if (!product) {
+    throw new NotFoundError("Product not found");
+  }
+
+  assertStatusTransition(product.status, ProductStatus.DRAFT);
+
+  return repo.update(productId, product.version, {
+    status: ProductStatus.DRAFT,
   });
 }
