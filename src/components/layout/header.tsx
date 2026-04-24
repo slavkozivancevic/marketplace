@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { HeaderAuth } from "./header-auth";
 import { ThemeSwitcher } from "./theme-switcher";
+import { ChatDrawerTrigger } from "@/features/chat/components/ChatDrawer";
 import { Store, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -54,6 +55,7 @@ export function Header() {
           {/* Right side actions - same structure as PublicHeader */}
           <div className="flex items-center gap-1 sm:gap-2">
             <ThemeSwitcher />
+            <ChatDrawerTrigger />
             <div className="hidden sm:flex items-center gap-2 ml-1">
               <HeaderAuth mode="redirect" showDashboardLink={false} />
             </div>

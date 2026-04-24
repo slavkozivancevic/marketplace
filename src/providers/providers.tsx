@@ -7,6 +7,7 @@ import { Suspense } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryProvider } from "./QueryProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ChatDrawerRoot } from "@/features/chat/components/ChatDrawer";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -22,6 +23,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             <QueryProvider>
               <TooltipProvider>{children}</TooltipProvider>
               <Toaster />
+              <ChatDrawerRoot />
             </QueryProvider>
           </ThemeProvider>
         </NuqsAdapter>

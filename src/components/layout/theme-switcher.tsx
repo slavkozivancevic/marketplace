@@ -51,7 +51,7 @@ export function ThemeSwitcher() {
 
   if (!mounted) {
     return (
-      <Button variant="ghost" size="icon" className="h-9 w-9">
+      <Button variant="outline" size="icon">
         <Sun className="h-4 w-4" />
       </Button>
     );
@@ -64,15 +64,15 @@ export function ThemeSwitcher() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon"
-          className="h-9 w-9 relative overflow-hidden group"
+          className="relative overflow-hidden group"
         >
           <Icon className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
           <span className="sr-only">Toggle theme</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent align="end" className="w-48" onCloseAutoFocus={(e) => e.preventDefault()}>
         <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
           Appearance
         </DropdownMenuLabel>

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AddToCart } from "@/features/cart/components/AddToCart";
 import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
+import { MessageSellerButton } from "@/features/chat/components/MessageSellerButton";
 import { cn } from "@/lib/utils";
 import { SerializedPublicProduct } from "@/types/types";
 
@@ -80,6 +81,7 @@ export function ProductPurchaseSection({
             product={product}
             onActiveVariantChange={onActiveVariantChange}
           />
+          <MessageSellerButton productId={product.id} className="w-full" />
         </CardContent>
       </Card>
 
