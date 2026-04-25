@@ -6,6 +6,15 @@ import { env } from "@/env/client";
 import { WsIncomingEvent, ChatMessage, Conversation } from "../types";
 import { useChatStore } from "../store/chatStore";
 
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1])) as { exp: number };
+    return Date.now() >= payload.exp * 1000;
+  } catch {
+    return false;
+  }
+}
+
 export function useChatSocket(token: string | undefined, currentUserId: string) {
   const queryClient = useQueryClient();
   const wsRef = useRef<WebSocket | null>(null);
@@ -17,6 +26,8 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
 
     function connect() {
       if (closed) return;
+      // Don't retry with an expired token — wait for useChatToken to provide a fresh one
+      if (!token || isTokenExpired(token)) return;
 
       const wsUrl = `${env.NEXT_PUBLIC_CHAT_WS_URL}?token=${token}`;
       const ws = new WebSocket(wsUrl);
