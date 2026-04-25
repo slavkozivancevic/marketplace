@@ -1,4 +1,5 @@
 "use client";
+import axios from "axios";
 
 import { cn } from "@/lib/utils";
 
@@ -30,9 +31,8 @@ function buildFetcher(filters: AdminProductFilters) {
       params.set("maxPrice", String(filters.maxPrice));
     for (const id of filters.brandId) params.append("brandId", id);
 
-    const res = await fetch(`/api/admin/products?${params.toString()}`);
-    if (!res.ok) throw new Error("Failed to fetch products");
-    return res.json();
+    const { data } = await axios.get(`/api/admin/products?${params.toString()}`);
+    return data;
   };
 }
 

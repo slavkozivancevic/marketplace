@@ -1,4 +1,6 @@
 "use client";
+import axios from "axios";
+
 
 import { useEffect, useRef, useState, useTransition, KeyboardEvent } from "react";
 import { useForm, useFieldArray, useWatch, Resolver } from "react-hook-form";
@@ -307,16 +309,11 @@ export function ProductForm({
     const variantIds = product.variants.map((v) => v.id);
     let cancelled = false;
 
-    fetch(`/api/admin/products/${productId}/stock`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then(
-        (
-          data: {
-            stock: number | null;
-            variants: { id: string; stock: number }[];
-          } | null,
-        ) => {
-          if (cancelled || !data) return;
+    axios.get<{ stock: number | null; variants: { id: string; stock: number }[] }>(
+        `/api/admin/products/${productId}/stock`
+      )
+      .then(({ data }) => {
+        if (cancelled) return;
           form.setValue("stock", data.stock, { shouldDirty: false });
           const freshMap = new Map(data.variants.map((v) => [v.id, v.stock]));
           variantIds.forEach((variantId, index) => {

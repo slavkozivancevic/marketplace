@@ -4,6 +4,7 @@ import { useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
+import axios from "axios";
 import { useChatStore } from "../store/chatStore";
 
 interface Props {
@@ -28,19 +29,11 @@ export function MessageSellerButton({ productId, className }: Props) {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/chat/start-with-seller", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json() as { error: string };
-        console.error("[MessageSellerButton]", err.error);
-        return;
-      }
-
-      const { conversationId } = await res.json() as { conversationId: string };
+      const { data } = await axios.post<{ conversationId: string }>(
+        "/api/chat/start-with-seller",
+        { productId }
+      );
+      const { conversationId } = data;
       openConversation(conversationId);
     } catch (err) {
       console.error("[MessageSellerButton]", err);

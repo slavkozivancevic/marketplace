@@ -1,4 +1,5 @@
 "use client";
+import axios from "axios";
 
 import { useState, useTransition } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -62,9 +63,8 @@ async function fetchPage({
   params.set("sortBy", "createdAt");
   params.set("sortOrder", "desc");
 
-  const res = await fetch(`/api/admin/products?${params.toString()}`);
-  if (!res.ok) throw new Error("Failed to fetch products");
-  return res.json();
+  const { data } = await axios.get(`/api/admin/products?${params.toString()}`);
+  return data;
 }
 
 const GRID_COLS = "40px 56px minmax(120px,1fr) 80px 100px";

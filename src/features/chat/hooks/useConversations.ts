@@ -1,12 +1,12 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import { Conversation } from "../types";
 
 async function fetchConversations(): Promise<{ conversations: Conversation[] }> {
-  const res = await fetch("/api/chat/conversations");
-  if (!res.ok) throw new Error("Failed to fetch conversations");
-  return res.json() as Promise<{ conversations: Conversation[] }>;
+  const { data } = await axios.get<{ conversations: Conversation[] }>("/api/chat/conversations");
+  return data;
 }
 
 export function useConversations() {

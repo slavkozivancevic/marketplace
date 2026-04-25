@@ -49,7 +49,12 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({
-      items: result.products.map((p) => ({ ...p, price: Number(p.price) })),
+      items: result.products.map((p) => ({
+        ...p,
+        price: Number(p.price),
+        compareAtPrice: p.compareAtPrice != null ? Number(p.compareAtPrice) : null,
+        costPrice: p.costPrice != null ? Number(p.costPrice) : null,
+      })),
       nextCursor: result.nextCursor,
     });
   } catch (error) {

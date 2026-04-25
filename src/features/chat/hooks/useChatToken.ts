@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 
 interface ChatTokenData {
   token: string;
@@ -8,9 +9,8 @@ interface ChatTokenData {
 }
 
 async function fetchChatToken(): Promise<ChatTokenData> {
-  const res = await fetch("/api/chat/token", { method: "POST" });
-  if (!res.ok) throw new Error("Failed to fetch chat token");
-  return res.json() as Promise<ChatTokenData>;
+  const { data } = await axios.post<ChatTokenData>("/api/chat/token");
+  return data;
 }
 
 export function useChatToken() {

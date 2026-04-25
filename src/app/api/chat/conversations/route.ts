@@ -2,18 +2,14 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { env } from "@/env/server";
+import axios from "axios";
 
 async function getChatToken(userId: string): Promise<string> {
-  const res = await fetch(`${env.CHAT_HTTP_API_URL}/auth/token`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": env.CHAT_INTERNAL_API_KEY,
-    },
-    body: JSON.stringify({ userId }),
-  });
-  if (!res.ok) throw new Error("Failed to issue chat token");
-  const data = await res.json() as { token: string };
+  const { data } = await axios.post<{ token: string }>(
+    `${env.CHAT_HTTP_API_URL}/auth/token`,
+    { userId },
+    { headers: { "x-api-key": env.CHAT_INTERNAL_API_KEY } }
+  );
   return data.token;
 }
 
@@ -29,13 +25,18 @@ export async function GET(request: NextRequest) {
   if (searchParams.get("cursor")) params.set("cursor", searchParams.get("cursor")!);
   if (searchParams.get("limit")) params.set("limit", searchParams.get("limit")!);
 
-  const upstream = await fetch(
-    `${env.CHAT_HTTP_API_URL}/conversations?${params}`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-
-  const data = await upstream.json();
-  return NextResponse.json(data, { status: upstream.status });
+  try {
+    const { data } = await axios.get(
+      `${env.CHAT_HTTP_API_URL}/conversations?${params}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return NextResponse.json(data);
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      return NextResponse.json(error.response.data, { status: error.response.status });
+    }
+    return NextResponse.json({ error: "Failed to fetch conversations" }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -44,17 +45,19 @@ export async function POST(request: NextRequest) {
 
   const ctx = await resolveRequestContext();
   const token = await getChatToken(ctx.userId);
-  const body = await request.json();
+  const body = await request.json() as unknown;
 
-  const upstream = await fetch(`${env.CHAT_HTTP_API_URL}/conversations`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(body),
-  });
-
-  const data = await upstream.json();
-  return NextResponse.json(data, { status: upstream.status });
+  try {
+    const { data } = await axios.post(
+      `${env.CHAT_HTTP_API_URL}/conversations`,
+      body,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return NextResponse.json(data);
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      return NextResponse.json(error.response.data, { status: error.response.status });
+    }
+    return NextResponse.json({ error: "Failed to create conversation" }, { status: 500 });
+  }
 }

@@ -11,6 +11,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useChatStore } from "../store/chatStore";
 import { useChatToken } from "../hooks/useChatToken";
 import { useChatSocket } from "../hooks/useChatSocket";
@@ -98,13 +99,12 @@ function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
 
   // Collect every participant ID so we can resolve names
   const allParticipantIds = [...new Set(conversations.flatMap((c) => c.participants))];
-  const { data: profiles = {} } = useUserProfiles(allParticipantIds);
+  const { data: profiles = {}, isLoading: profilesLoading } = useUserProfiles(allParticipantIds);
 
   const selectedConv = conversations.find((c) => c.conversationId === selectedConvId);
   const otherParticipantId =
     selectedConv?.participants.find((p) => p !== currentUserId) ?? "";
-  const otherParticipantName =
-    profiles[otherParticipantId]?.name ?? otherParticipantId.slice(0, 8) + "…";
+  const otherParticipantName = profiles[otherParticipantId]?.name ?? "";
 
   // When opened to a specific conversation, ensure inbox is fresh
   useEffect(() => {
@@ -129,7 +129,11 @@ function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
           </Button>
         )}
         <SheetTitle className="text-sm font-semibold truncate">
-          {inThread ? otherParticipantName : "Messages"}
+          {inThread
+            ? profilesLoading
+              ? <Skeleton className="h-4 w-28" />
+              : otherParticipantName || "Conversation"
+            : "Messages"}
         </SheetTitle>
         <Button
           variant="ghost"
@@ -158,6 +162,7 @@ function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
               selectedId={selectedConvId}
               currentUserId={currentUserId}
               profiles={profiles}
+              profilesLoading={profilesLoading}
               convUnread={convUnread}
               onSelect={setSelectedConvId}
               isLoading={convsLoading}

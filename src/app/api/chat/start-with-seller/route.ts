@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { prisma } from "@/core/db/prisma";
 import { env } from "@/env/server";
+import axios from "axios";
 
 /**
  * POST /api/chat/start-with-seller
@@ -60,38 +61,26 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 3. Issue a chat token for the buyer
-  const tokenRes = await fetch(`${env.CHAT_HTTP_API_URL}/auth/token`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": env.CHAT_INTERNAL_API_KEY,
-    },
-    body: JSON.stringify({ userId: buyerId }),
-  });
-  if (!tokenRes.ok) {
-    return NextResponse.json({ error: "Failed to issue chat token" }, { status: 500 });
+  try {
+    // 3. Issue a chat token for the buyer
+    const { data: tokenData } = await axios.post<{ token: string }>(
+      `${env.CHAT_HTTP_API_URL}/auth/token`,
+      { userId: buyerId },
+      { headers: { "x-api-key": env.CHAT_INTERNAL_API_KEY } }
+    );
+
+    // 4. Create or return existing conversation
+    const { data: conversation } = await axios.post<{ conversationId: string; existed: boolean }>(
+      `${env.CHAT_HTTP_API_URL}/conversations`,
+      { participants: [buyerId, sellerUserId] },
+      { headers: { Authorization: `Bearer ${tokenData.token}` } }
+    );
+
+    return NextResponse.json({
+      conversationId: conversation.conversationId,
+      productTitle: product.title,
+    });
+  } catch {
+    return NextResponse.json({ error: "Failed to start conversation" }, { status: 500 });
   }
-  const { token } = await tokenRes.json() as { token: string };
-
-  // 4. Create or return existing conversation
-  const convRes = await fetch(`${env.CHAT_HTTP_API_URL}/conversations`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ participants: [buyerId, sellerUserId] }),
-  });
-
-  if (!convRes.ok) {
-    return NextResponse.json({ error: "Failed to create conversation" }, { status: 500 });
-  }
-
-  const conv = await convRes.json() as { conversationId: string; existed: boolean };
-
-  return NextResponse.json({
-    conversationId: conv.conversationId,
-    productTitle: product.title,
-  });
 }

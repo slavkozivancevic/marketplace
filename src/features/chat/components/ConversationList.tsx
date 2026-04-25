@@ -12,6 +12,7 @@ interface Props {
   selectedId: string | null;
   currentUserId: string;
   profiles: Record<string, UserProfile>;
+  profilesLoading: boolean;
   convUnread: Record<string, number>;
   onSelect: (id: string) => void;
   isLoading: boolean;
@@ -34,6 +35,7 @@ export function ConversationList({
   selectedId,
   currentUserId,
   profiles,
+  profilesLoading,
   convUnread,
   onSelect,
   isLoading,
@@ -69,8 +71,9 @@ export function ConversationList({
         const otherId =
           conv.participants.find((p) => p !== currentUserId) ?? conv.participants[0];
         const profile = profiles[otherId];
-        const displayName = profile?.name ?? otherId.slice(0, 8) + "…";
-        const initials = getInitials(profile?.name, otherId);
+        const profileLoading = profilesLoading;
+        const displayName = profile?.name ?? "";
+        const initials = getInitials(profile?.name, "");
         const isSelected = conv.conversationId === selectedId;
         const isMine = conv.lastMessageSenderId === currentUserId;
         const unread = convUnread[conv.conversationId] ?? 0;
@@ -85,7 +88,9 @@ export function ConversationList({
             )}
           >
             {/* Avatar */}
-            {profile?.imageUrl ? (
+            {profileLoading ? (
+              <Skeleton className="size-9 rounded-full shrink-0" />
+            ) : profile?.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={profile.imageUrl}
@@ -100,7 +105,11 @@ export function ConversationList({
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium truncate">{displayName}</span>
+                {profileLoading ? (
+                  <Skeleton className="h-3.5 w-24" />
+                ) : (
+                  <span className="text-sm font-medium truncate">{displayName}</span>
+                )}
                 <div className="flex items-center gap-1.5 shrink-0">
                   {conv.lastMessageAt && (
                     <span className="text-[11px] text-muted-foreground">

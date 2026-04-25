@@ -1,4 +1,5 @@
 "use client";
+import axios from "axios";
 
 import { cn } from "@/lib/utils";
 
@@ -41,12 +42,8 @@ function buildFetcher(filters: ProductFilters) {
     if (filters.isDigital != null) params.set("isDigital", String(filters.isDigital));
     for (const id of filters.brandId) params.append("brandId", id);
 
-    const res = await fetch(`/api/products?${params.toString()}`);
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      throw new Error(`Failed to fetch products (${res.status}): ${body}`);
-    }
-    return res.json();
+    const { data } = await axios.get(`/api/products?${params.toString()}`);
+    return data;
   };
 }
 

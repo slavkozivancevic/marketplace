@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { env } from "@/env/server";
+import axios from "axios";
 
 /**
  * POST /api/chat/token
@@ -15,23 +16,16 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
 
-  // Resolve the internal DB userId from the Clerk session
   const ctx = await resolveRequestContext();
 
-  const response = await fetch(`${env.CHAT_HTTP_API_URL}/auth/token`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": env.CHAT_INTERNAL_API_KEY,
-    },
-    body: JSON.stringify({ userId: ctx.userId }),
-  });
-
-  if (!response.ok) {
+  try {
+    const { data } = await axios.post<{ token: string }>(
+      `${env.CHAT_HTTP_API_URL}/auth/token`,
+      { userId: ctx.userId },
+      { headers: { "x-api-key": env.CHAT_INTERNAL_API_KEY } }
+    );
+    return NextResponse.json({ token: data.token, userId: ctx.userId });
+  } catch {
     return NextResponse.json({ error: "Failed to issue token" }, { status: 500 });
   }
-
-  const data = await response.json() as { token: string };
-  // Return userId alongside the token so the client knows which messages are "mine"
-  return NextResponse.json({ token: data.token, userId: ctx.userId });
 }

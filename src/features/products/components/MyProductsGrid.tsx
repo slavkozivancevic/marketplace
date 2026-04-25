@@ -1,4 +1,5 @@
 "use client";
+import axios from "axios";
 
 import { cn } from "@/lib/utils";
 
@@ -25,9 +26,8 @@ function buildFetcher(filters: MyProductFilters) {
     if (filters.sortOrder) params.set("sortOrder", filters.sortOrder);
     for (const s of filters.status) params.append("status", s);
 
-    const res = await fetch(`/api/dashboard/my-products?${params.toString()}`);
-    if (!res.ok) throw new Error("Failed to fetch products");
-    return res.json();
+    const { data } = await axios.get(`/api/dashboard/my-products?${params.toString()}`);
+    return data;
   };
 }
 
