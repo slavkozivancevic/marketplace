@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, ImageIcon, FileText, Video, Paperclip, Clock, Check, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Conversation } from "../types";
@@ -14,6 +14,7 @@ interface Props {
   profiles: Record<string, UserProfile>;
   profilesLoading: boolean;
   convUnread: Record<string, number>;
+  readStatus: Record<string, string[]>;
   onSelect: (id: string) => void;
   isLoading: boolean;
 }
@@ -37,6 +38,7 @@ export function ConversationList({
   profiles,
   profilesLoading,
   convUnread,
+  readStatus,
   onSelect,
   isLoading,
 }: Props) {
@@ -77,6 +79,16 @@ export function ConversationList({
         const isSelected = conv.conversationId === selectedId;
         const isMine = conv.lastMessageSenderId === currentUserId;
         const unread = convUnread[conv.conversationId] ?? 0;
+        const attachType = conv.lastAttachmentType;
+        const isLastMsgPending = conv.lastMessagePending === true;
+        // Read status lives in the Zustand store so it survives React Query refetches
+        const lastMsgReadBy = readStatus[conv.conversationId] ?? conv.lastMessageReadBy ?? [];
+        const isLastMsgRead = lastMsgReadBy.some((id) => id !== currentUserId);
+        const AttachIcon =
+          attachType === "image" ? ImageIcon :
+          attachType === "pdf" ? FileText :
+          attachType === "video" ? Video :
+          attachType === "file" ? Paperclip : null;
 
         return (
           <button
@@ -106,7 +118,7 @@ export function ConversationList({
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
                 {profileLoading ? (
-                  <Skeleton className="h-3.5 w-24" />
+                  <Skeleton className="h-5 w-24" />
                 ) : (
                   <span className="text-sm font-medium truncate">{displayName}</span>
                 )}
@@ -126,9 +138,18 @@ export function ConversationList({
                 </div>
               </div>
               {conv.lastMessagePreview && (
-                <p className="text-xs text-muted-foreground truncate mt-0.5">
-                  {isMine ? "You: " : ""}
-                  {conv.lastMessagePreview}
+                <p className="text-xs text-muted-foreground truncate mt-0.5 flex items-center gap-1">
+                  {isMine && (
+                    isLastMsgPending ? (
+                      <Clock className="size-3 shrink-0" />
+                    ) : isLastMsgRead ? (
+                      <CheckCheck className="size-3 shrink-0 text-sky-500" />
+                    ) : (
+                      <Check className="size-3 shrink-0" />
+                    )
+                  )}
+                  {AttachIcon && <AttachIcon className="size-3 shrink-0" />}
+                  <span className="truncate">{conv.lastMessagePreview}</span>
                 </p>
               )}
             </div>

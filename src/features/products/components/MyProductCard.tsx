@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
-import { Copy, Pencil, Trash2 } from "lucide-react";
+import { Copy, ImageOff, Pencil, Trash2 } from "lucide-react";
 import { HoverImageCycler } from "@/components/product/HoverImageCycler";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -68,12 +68,17 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
   return (
     <div className="border border-border/50 rounded-lg overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5">
       <div className="relative">
-        {product.imageUrls.length > 0 && (
+        {product.imageUrls.length > 0 ? (
           <HoverImageCycler
             images={product.imageUrls}
             alt={product.title}
             className="w-full h-48"
           />
+        ) : (
+          <div className="w-full h-48 flex flex-col items-center justify-center gap-2 bg-muted/50">
+            <ImageOff className="h-8 w-8 text-muted-foreground/40" />
+            <span className="text-xs text-muted-foreground/40">No image</span>
+          </div>
         )}
         {isOnSale && (
           <div className="absolute top-3 left-0 flex flex-col items-start gap-1 pointer-events-none">

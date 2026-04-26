@@ -2,6 +2,7 @@
 import axios from "axios";
 
 import { cn } from "@/lib/utils";
+import { ImageOff } from "lucide-react";
 
 import React from "react";
 import Link from "next/link";
@@ -55,12 +56,17 @@ function ProductCard({ product }: { product: SerializedProductListItem }) {
     <Link href={`/products/${product.id}`} className="block group">
       <Card className="h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 border-border/50">
         <CardHeader className="p-0 relative">
-          {product.images.length > 0 && (
+          {product.images.length > 0 ? (
             <HoverImageCycler
               images={product.images.map((img) => img.url)}
               alt={product.title}
               className="w-full h-48 rounded-t"
             />
+          ) : (
+            <div className="w-full h-48 rounded-t flex flex-col items-center justify-center gap-2 bg-muted/50">
+              <ImageOff className="h-8 w-8 text-muted-foreground/40" />
+              <span className="text-xs text-muted-foreground/40">No image</span>
+            </div>
           )}
           {isOnSale && (
             <div className="absolute top-3 left-0 flex flex-col items-start gap-1 pointer-events-none">

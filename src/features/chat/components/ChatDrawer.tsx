@@ -83,12 +83,12 @@ function ChatDrawerRootInner() {
 
 interface InnerProps {
   currentUserId: string;
-  sendMessage: (conversationId: string, text: string) => void;
+  sendMessage: (conversationId: string, text: string, attachments?: { key: string; type: string; width?: number; height?: number; filename?: string; size?: number }[]) => void;
   markRead: (conversationId: string, messageIds: string[]) => void;
 }
 
 function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
-  const { selectedConvId, close, setSelectedConvId, convUnread } = useChatStore();
+  const { selectedConvId, close, setSelectedConvId, convUnread, readStatus } = useChatStore();
   const queryClient = useQueryClient();
 
   const { data: convsData, isLoading: convsLoading } = useConversations();
@@ -152,7 +152,7 @@ function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
             currentUserId={currentUserId}
             isLoading={msgsLoading}
             profiles={profiles}
-            onSend={(text) => sendMessage(selectedConvId!, text)}
+            onSend={(text, attachments) => sendMessage(selectedConvId!, text, attachments)}
             onMarkRead={(ids) => markRead(selectedConvId!, ids)}
           />
         ) : (
@@ -164,6 +164,7 @@ function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
               profiles={profiles}
               profilesLoading={profilesLoading}
               convUnread={convUnread}
+              readStatus={readStatus}
               onSelect={setSelectedConvId}
               isLoading={convsLoading}
             />

@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  transpilePackages: ["pdfjs-dist"],
   cacheComponents: true,
   allowedDevOrigins: ["localhost", "*.ngrok-free.dev", "*.ngrok-free.app"],
   async headers() {

@@ -3,7 +3,7 @@ export interface ChatMessage {
   conversationId: string;
   senderId: string;
   text: string;
-  attachments: { key: string; type: string }[];
+  attachments: { key: string; type: string; width?: number; height?: number; filename?: string; size?: number }[];
   readBy: string[];
   createdAt: string;
   // SK in DynamoDB — needed for markRead
@@ -16,6 +16,9 @@ export interface Conversation {
   lastMessageAt?: string;
   lastMessagePreview?: string;
   lastMessageSenderId?: string;
+  lastAttachmentType?: string; // "image" | "pdf" | "video" | "file" | ""
+  lastMessageReadBy?: string[]; // who has read the last message (client-tracked)
+  lastMessagePending?: boolean; // optimistic temp message still in-flight
   createdAt: string;
 }
 

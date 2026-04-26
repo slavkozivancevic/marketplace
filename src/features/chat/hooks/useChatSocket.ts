@@ -15,6 +15,19 @@ function isTokenExpired(token: string): boolean {
   }
 }
 
+/** Derive lastAttachmentType and a human-readable preview from an attachments array. */
+function attachmentMeta(attachments: { type: string; filename?: string }[]): {
+  lastAttachmentType: string;
+  attachmentPreview: string;
+} {
+  if (!attachments.length) return { lastAttachmentType: "", attachmentPreview: "" };
+  const { type, filename } = attachments[0];
+  if (type.startsWith("image/")) return { lastAttachmentType: "image", attachmentPreview: "Photo" };
+  if (type === "application/pdf") return { lastAttachmentType: "pdf", attachmentPreview: filename ? `PDF · ${filename}` : "PDF" };
+  if (type.startsWith("video/")) return { lastAttachmentType: "video", attachmentPreview: filename ? `Video · ${filename}` : "Video" };
+  return { lastAttachmentType: "file", attachmentPreview: filename ?? "File" };
+}
+
 export function useChatSocket(token: string | undefined, currentUserId: string) {
   const queryClient = useQueryClient();
   const wsRef = useRef<WebSocket | null>(null);
@@ -50,16 +63,25 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
           // Ensure readBy is always an array — older Lambda versions may omit it
           const safeMsg: ChatMessage = { ...msg, readBy: msg.readBy ?? [] };
 
-          // Inject into messages cache
+          // Inject into messages cache only if the conversation is already cached.
+          // If it isn't, leave the cache empty so useMessages fetches the full
+          // history when the user opens the conversation.
           queryClient.setQueryData<{ messages: ChatMessage[]; cursor?: string }>(
             ["chat-messages", msg.conversationId],
-            (old) => ({
-              messages: [safeMsg, ...(old?.messages ?? [])],
-              cursor: old?.cursor,
-            })
+            (old) => {
+              if (!old) return old;
+              return {
+                messages: [safeMsg, ...old.messages],
+                cursor: old.cursor,
+              };
+            }
           );
 
           // Update conversations cache — add the conversation if it's new
+          const { lastAttachmentType: wsAttachType, attachmentPreview: wsAttachPreview } =
+            attachmentMeta(msg.attachments ?? []);
+          const wsPreview = msg.text || wsAttachPreview;
+
           queryClient.setQueryData<{ conversations: Conversation[] }>(
             ["chat-conversations"],
             (old) => {
@@ -77,8 +99,9 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
                   conversationId: msg.conversationId,
                   participants: [msg.senderId, currentUserId].sort(),
                   lastMessageAt: msg.createdAt,
-                  lastMessagePreview: msg.text,
+                  lastMessagePreview: wsPreview,
                   lastMessageSenderId: msg.senderId,
+                  lastAttachmentType: wsAttachType,
                   createdAt: msg.createdAt,
                 };
                 return { conversations: [newConv, ...old.conversations] };
@@ -89,14 +112,22 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
                     ? {
                         ...c,
                         lastMessageAt: msg.createdAt,
-                        lastMessagePreview: msg.text,
+                        lastMessagePreview: wsPreview,
                         lastMessageSenderId: msg.senderId,
+                        lastAttachmentType: wsAttachType,
+                        lastMessagePending: false,
+                        lastMessageReadBy: msg.senderId === currentUserId
+                          ? (c.lastMessageReadBy ?? [currentUserId])
+                          : msg.readBy ?? [],
                       }
                     : c
                 ),
               };
             }
           );
+
+          // Track read status in the store so it survives React Query refetches
+          useChatStore.getState().setReadStatus(msg.conversationId, msg.readBy ?? []);
 
           // Increment unread badge if the user isn't actively viewing this conversation
           if (msg.senderId !== currentUserId) {
@@ -120,6 +151,26 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
                   )
                     ? { ...m, readBy: [...new Set([...m.readBy, data.readerId])] }
                     : m
+                ),
+              };
+            }
+          );
+          // Update read status in the Zustand store so it survives React Query refetches
+          const prev = useChatStore.getState().readStatus[data.conversationId] ?? [];
+          useChatStore.getState().setReadStatus(
+            data.conversationId,
+            [...new Set([...prev, data.readerId])]
+          );
+          // Clear pending flag in the conversations cache
+          queryClient.setQueryData<{ conversations: Conversation[] }>(
+            ["chat-conversations"],
+            (old) => {
+              if (!old) return old;
+              return {
+                conversations: old.conversations.map((c) =>
+                  c.conversationId === data.conversationId
+                    ? { ...c, lastMessagePending: false }
+                    : c
                 ),
               };
             }
@@ -150,7 +201,11 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
     };
   }, [token, currentUserId, queryClient]);
 
-  const sendMessage = (conversationId: string, text: string) => {
+  const sendMessage = (
+    conversationId: string,
+    text: string,
+    attachments: { key: string; type: string; width?: number; height?: number; filename?: string; size?: number }[] = []
+  ) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
     // Optimistic update — show the message immediately on sender's side
@@ -159,7 +214,7 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
       conversationId,
       senderId: currentUserId,
       text,
-      attachments: [],
+      attachments,
       readBy: [currentUserId],
       createdAt: new Date().toISOString(),
     };
@@ -172,6 +227,10 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
       })
     );
 
+    const { lastAttachmentType: sendAttachType, attachmentPreview: sendAttachPreview } =
+      attachmentMeta(attachments);
+    const sendPreview = text || sendAttachPreview;
+
     queryClient.setQueryData<{ conversations: Conversation[] }>(
       ["chat-conversations"],
       (old) => {
@@ -182,8 +241,11 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
               ? {
                   ...c,
                   lastMessageAt: tempMsg.createdAt,
-                  lastMessagePreview: text,
+                  lastMessagePreview: sendPreview,
                   lastMessageSenderId: currentUserId,
+                  lastAttachmentType: sendAttachType,
+                  lastMessagePending: true,
+                  lastMessageReadBy: [currentUserId],
                 }
               : c
           ),
@@ -191,16 +253,31 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
       }
     );
 
+    // Track read status in the store — sender has read their own message
+    useChatStore.getState().setReadStatus(conversationId, [currentUserId]);
+
     wsRef.current.send(
-      JSON.stringify({ action: "sendMessage", conversationId, text })
+      JSON.stringify({ action: "sendMessage", conversationId, text, attachments })
     );
 
     // Replace the temp message with the real persisted record so that
     // incoming MESSAGE_READ events can match the correct DynamoDB SK.
+    // Also clear the pending flag on the conversation so the clock disappears.
     setTimeout(() => {
-      void queryClient.invalidateQueries({
-        queryKey: ["chat-messages", conversationId],
-      });
+      void queryClient.invalidateQueries({ queryKey: ["chat-messages", conversationId] });
+      queryClient.setQueryData<{ conversations: Conversation[] }>(
+        ["chat-conversations"],
+        (old) => {
+          if (!old) return old;
+          return {
+            conversations: old.conversations.map((c) =>
+              c.conversationId === conversationId
+                ? { ...c, lastMessagePending: false }
+                : c
+            ),
+          };
+        }
+      );
     }, 800);
   };
 

@@ -204,6 +204,23 @@
   }
 }
 
+/* ===== SKELETON SHIMMER ===== */
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-muted) 0%,
+    oklch(from var(--color-muted) calc(l + 0.05) c h) 50%,
+    var(--color-muted) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
 /* ===== SUBTLE GLOBAL BACKGROUND IMAGE ===== */
 .page-background {
   position: fixed;
@@ -436,6 +453,38 @@
     radial-gradient(1px 1px at 55% 95%, oklch(0.9 0.02 80 / 35%) 50%, transparent),
     radial-gradient(1px 1px at 10% 70%, oklch(0.85 0.12 60 / 40%) 50%, transparent);
   animation: glow-pulse 12s ease-in-out infinite reverse;
+}
+
+/* ===== CHAT MESSAGE AREA BACKGROUND ===== */
+/* Subtle tonal mesh + dot grid pattern — matte, modern look. */
+.chat-message-bg {
+  background-color: oklch(0.905 0 0);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Ccircle cx='1' cy='1' r='0.85' fill='rgba(0%2C0%2C0%2C0.07)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 90% 65% at 5%  8%,   oklch(0.920 0.008 220 / 55%) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 85% at 93% 92%,  oklch(0.915 0.006 70  / 45%) 0%, transparent 60%),
+    radial-gradient(ellipse 55% 55% at 50% 20%,  oklch(0.920 0.005 265 / 30%) 0%, transparent 52%),
+    radial-gradient(ellipse 45% 55% at 72% 58%,  oklch(0.912 0.004 340 / 20%) 0%, transparent 48%);
+}
+
+.dark .chat-message-bg {
+  background-color: oklch(0.112 0 0);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Ccircle cx='1' cy='1' r='0.85' fill='rgba(255%2C255%2C255%2C0.05)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 90% 65% at 5%  8%,   oklch(0.165 0.010 260 / 55%) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 85% at 93% 92%,  oklch(0.155 0.008 55  / 45%) 0%, transparent 60%),
+    radial-gradient(ellipse 55% 55% at 50% 20%,  oklch(0.160 0.009 292 / 35%) 0%, transparent 52%),
+    radial-gradient(ellipse 45% 55% at 72% 58%,  oklch(0.150 0.006 220 / 25%) 0%, transparent 48%);
+}
+
+.cosmos .chat-message-bg {
+  background-color: oklch(0.128 0.038 276);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Ccircle cx='1' cy='1' r='0.85' fill='rgba(160%2C130%2C255%2C0.09)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 80% 60% at 8%  12%,  oklch(0.20 0.055 290 / 45%) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 75% at 92% 88%,  oklch(0.22 0.040 58  / 25%) 0%, transparent 50%),
+    radial-gradient(ellipse 55% 50% at 52% 42%,  oklch(0.19 0.050 278 / 30%) 0%, transparent 50%),
+    radial-gradient(ellipse 45% 55% at 78% 18%,  oklch(0.21 0.035 262 / 20%) 0%, transparent 45%);
 }
 
 /* ===== SCROLLBAR STYLING ===== */
