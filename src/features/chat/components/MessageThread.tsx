@@ -12,6 +12,8 @@ import {
   Check,
   CheckCheck,
   ChevronDown,
+  Play,
+  Video,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
@@ -48,6 +50,7 @@ const ALLOWED_TYPES = [
   "application/pdf",
   "video/mp4",
   "video/quicktime",
+  "video/webm",
 ];
 const MAX_SIZE = 20 * 1024 * 1024;
 const MAX_FILES = 5;
@@ -379,12 +382,137 @@ function PdfPreviewCard({ attachment }: { attachment: Attachment }) {
   );
 }
 
+// ── Video helpers ─────────────────────────────────────────────────────────────
+
+function formatDuration(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function VideoLightbox({ url, onClose }: { url: string; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-200 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
+        className="absolute top-4 right-4 text-white bg-black/40 hover:bg-black/70 rounded-full p-2 transition-colors cursor-pointer"
+      >
+        <X className="size-5" />
+      </button>
+      <video
+        src={url}
+        controls
+        autoPlay
+        className="max-w-[90vw] max-h-[90vh] rounded-lg shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
+}
+
+const VIDEO_H = Math.round(IMG_MAX * (9 / 16)); // 108px — 16:9
+
+function VideoCard({ attachment }: { attachment: Attachment }) {
+  const { data: url } = useAttachmentReadUrl(attachment.key);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [duration, setDuration] = useState<number | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const filename = attachment.filename ?? "video";
+  const sizeStr = attachment.size ? formatFileSize(attachment.size) : null;
+
+  return (
+    <>
+      {lightboxOpen && url && (
+        <VideoLightbox url={url} onClose={() => setLightboxOpen(false)} />
+      )}
+      <div
+        role="button"
+        tabIndex={0}
+        className="mt-1.5 rounded-xl overflow-hidden border border-black/10 cursor-pointer hover:opacity-90 transition-opacity"
+        style={{ width: IMG_MAX }}
+        onClick={() => url && setLightboxOpen(true)}
+        onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && url) setLightboxOpen(true); }}
+      >
+        {/* Thumbnail */}
+        <div className="bg-muted overflow-hidden relative" style={{ height: VIDEO_H }}>
+          {!url ? (
+            <div className="absolute inset-0 skeleton-shimmer" />
+          ) : (
+            <>
+              <video
+                ref={videoRef}
+                src={url}
+                preload="metadata"
+                muted
+                playsInline
+                className="w-full h-full object-cover"
+                onLoadedMetadata={() => {
+                  const v = videoRef.current;
+                  if (!v) return;
+                  setDuration(v.duration);
+                  // seek to first frame so the thumbnail is visible
+                  v.currentTime = 0.01;
+                }}
+              />
+              {/* Play button */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="size-10 rounded-full bg-black/50 flex items-center justify-center backdrop-blur-sm">
+                  <Play className="size-5 text-white fill-white ml-0.5" />
+                </div>
+              </div>
+              {/* Duration badge */}
+              {duration !== null && (
+                <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded backdrop-blur-sm">
+                  <Video className="size-2.5" />
+                  <span>{formatDuration(duration)}</span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Bottom bar */}
+        <div className="bg-background/80 border-t border-border px-2.5 py-2 flex items-start gap-2">
+          <Video className="size-4 shrink-0 mt-0.5 text-blue-500" />
+          <div className="min-w-0 flex-1">
+            <p
+              className="text-[11px] font-medium leading-tight text-foreground break-all"
+              style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+            >
+              {filename}
+            </p>
+            {sizeStr && (
+              <p className="text-[10px] text-muted-foreground mt-0.5">{sizeStr}</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Generic attachment display ────────────────────────────────────────────────
 
 function AttachmentDisplay({ attachment }: { attachment: Attachment }) {
-  // Route PDFs to dedicated preview card before calling any hooks
+  // Route PDFs and videos to dedicated preview cards before calling any hooks
   if (attachment.type === "application/pdf")
     return <PdfPreviewCard attachment={attachment} />;
+
+  if (attachment.type.startsWith("video/"))
+    return <VideoCard attachment={attachment} />;
 
   return <InlineAttachmentDisplay attachment={attachment} />;
 }
@@ -486,30 +614,46 @@ function InlineAttachmentDisplay({ attachment }: { attachment: Attachment }) {
 
 function FileChip({ file, onRemove }: { file: File; onRemove: () => void }) {
   const isImage = file.type.startsWith("image/");
+  const isVideo = file.type.startsWith("video/");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const videoThumbRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (!isImage) return;
+    if (!isImage && !isVideo) return;
     const url = URL.createObjectURL(file);
     let active = true;
-    queueMicrotask(() => {
-      if (active) setPreviewUrl(url);
-    });
+    queueMicrotask(() => { if (active) setPreviewUrl(url); });
     return () => {
       active = false;
       URL.revokeObjectURL(url);
     };
-  }, [file, isImage]);
+  }, [file, isImage, isVideo]);
 
   return (
     <div className="relative shrink-0 group">
-      {previewUrl ? (
+      {previewUrl && isImage ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={previewUrl}
           alt={file.name}
           className="size-14 rounded-lg object-cover border border-border"
         />
+      ) : previewUrl && isVideo ? (
+        <div className="size-14 rounded-lg overflow-hidden border border-border relative bg-black">
+          <video
+            ref={videoThumbRef}
+            src={previewUrl}
+            muted
+            playsInline
+            className="size-14 object-cover"
+            onLoadedMetadata={() => {
+              if (videoThumbRef.current) videoThumbRef.current.currentTime = 0.01;
+            }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+            <Play className="size-4 text-white fill-white drop-shadow" />
+          </div>
+        </div>
       ) : (
         <div className="size-14 rounded-lg border border-border bg-muted flex flex-col justify-center gap-0.5 px-1.5 py-1.5">
           <div className="flex items-center gap-1">
@@ -520,12 +664,7 @@ function FileChip({ file, onRemove }: { file: File; onRemove: () => void }) {
           </div>
           <span
             className="text-[8px] text-muted-foreground leading-tight break-all"
-            style={{
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
+            style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
           >
             {file.name}
           </span>
@@ -917,14 +1056,20 @@ export function MessageThread({
       </div>
 
       {/* Input area */}
-      <div className="shrink-0 border-t">
-        {pendingFiles.length > 0 && (
-          <div className="flex gap-2 px-3 pt-3 flex-wrap">
-            {pendingFiles.map((file, i) => (
-              <FileChip key={i} file={file} onRemove={() => removeFile(i)} />
-            ))}
-          </div>
-        )}
+      <div className="shrink-0 border-t relative">
+        {/* File preview panel — absolutely positioned so it doesn't affect layout */}
+        <div
+          className={cn(
+            "absolute bottom-full inset-x-2 bg-background border border-border rounded-t-xl shadow-md px-3 pt-3 pb-2 flex gap-2 flex-wrap transition-all duration-200 ease-out",
+            pendingFiles.length > 0
+              ? "opacity-100 translate-y-0 pointer-events-auto"
+              : "opacity-0 translate-y-1 pointer-events-none",
+          )}
+        >
+          {pendingFiles.map((file, i) => (
+            <FileChip key={i} file={file} onRemove={() => removeFile(i)} />
+          ))}
+        </div>
 
         {uploadError && (
           <p className="px-3 pt-2 text-xs text-destructive">{uploadError}</p>
