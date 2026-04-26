@@ -18,6 +18,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { cn } from "@/lib/utils";
+import { playSendSound } from "../utils/chatSounds";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -852,6 +853,7 @@ export function MessageThread({
       const attachments =
         pendingFiles.length > 0 ? await uploadFiles(pendingFiles) : [];
       onSend(trimmed, attachments);
+      playSendSound();
       setText("");
       setPendingFiles([]);
     } catch {

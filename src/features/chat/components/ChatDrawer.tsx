@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useChatStore } from "../store/chatStore";
 import { useChatToken } from "../hooks/useChatToken";
 import { useChatSocket } from "../hooks/useChatSocket";
+import { unlockAudioContext } from "../utils/chatSounds";
 import { useConversations } from "../hooks/useConversations";
 import { useMessages } from "../hooks/useMessages";
 import { useUserProfiles } from "../hooks/useUserProfiles";
@@ -62,6 +63,25 @@ function ChatDrawerRootInner() {
   // Socket lives here so it stays connected regardless of drawer open/close state
   const { sendMessage, markRead } = useChatSocket(tokenData?.token, currentUserId);
   const { isOpen, close } = useChatStore();
+
+  // Unlock AudioContext on first user interaction so WebSocket-triggered sounds
+  // can play even when the drawer is closed (no gesture at that moment).
+  useEffect(() => {
+    const unlock = () => {
+      unlockAudioContext();
+      document.removeEventListener("click", unlock);
+      document.removeEventListener("keydown", unlock);
+      document.removeEventListener("touchstart", unlock);
+    };
+    document.addEventListener("click", unlock);
+    document.addEventListener("keydown", unlock);
+    document.addEventListener("touchstart", unlock);
+    return () => {
+      document.removeEventListener("click", unlock);
+      document.removeEventListener("keydown", unlock);
+      document.removeEventListener("touchstart", unlock);
+    };
+  }, []);
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => { if (!open) close(); }}>

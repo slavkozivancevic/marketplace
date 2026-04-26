@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { env } from "@/env/client";
 import { WsIncomingEvent, ChatMessage, Conversation } from "../types";
 import { useChatStore } from "../store/chatStore";
+import { playReceiveSound } from "../utils/chatSounds";
 
 function isTokenExpired(token: string): boolean {
   try {
@@ -129,12 +130,13 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
           // Track read status in the store so it survives React Query refetches
           useChatStore.getState().setReadStatus(msg.conversationId, msg.readBy ?? []);
 
-          // Increment unread badge if the user isn't actively viewing this conversation
+          // Increment unread badge and play sound if the message is from someone else
           if (msg.senderId !== currentUserId) {
             const { isOpen, selectedConvId } = useChatStore.getState();
             if (!(isOpen && selectedConvId === msg.conversationId)) {
               useChatStore.getState().incrementUnread(msg.conversationId);
             }
+            playReceiveSound();
           }
         }
 
