@@ -168,6 +168,7 @@ function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
       <div className="flex-1 min-h-0 overflow-hidden">
         {inThread ? (
           <MessageThread
+            conversationId={selectedConvId}
             messages={messages}
             currentUserId={currentUserId}
             isLoading={msgsLoading}

@@ -90,6 +90,15 @@ export function ConversationList({
           attachType === "video" ? Video :
           attachType === "file" ? Paperclip : null;
 
+        // Show reaction preview if it's more recent than the last message
+        const showReaction =
+          !!conv.lastReactionPreview &&
+          !!conv.lastReactionAt &&
+          (!conv.lastMessageAt || conv.lastReactionAt > conv.lastMessageAt);
+        const reactionActorName = conv.lastReactionUserId === currentUserId
+          ? "You"
+          : (profiles[conv.lastReactionUserId ?? ""]?.name?.split(" ")[0] ?? "");
+
         return (
           <button
             key={conv.conversationId}
@@ -137,7 +146,13 @@ export function ConversationList({
                   )}
                 </div>
               </div>
-              {conv.lastMessagePreview && (
+              {showReaction ? (
+                <p className="text-xs text-muted-foreground truncate mt-0.5">
+                  <span className="truncate">
+                    {reactionActorName ? `${reactionActorName} ` : ""}{conv.lastReactionPreview}
+                  </span>
+                </p>
+              ) : conv.lastMessagePreview ? (
                 <p className="text-xs text-muted-foreground truncate mt-0.5 flex items-center gap-1">
                   {isMine && (
                     isLastMsgPending ? (
@@ -151,7 +166,7 @@ export function ConversationList({
                   {AttachIcon && <AttachIcon className="size-3 shrink-0" />}
                   <span className="truncate">{conv.lastMessagePreview}</span>
                 </p>
-              )}
+              ) : null}
             </div>
           </button>
         );

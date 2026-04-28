@@ -14,11 +14,13 @@ import {
   ChevronDown,
   Play,
   Video,
+  Smile,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { cn } from "@/lib/utils";
 import { playSendSound } from "../utils/chatSounds";
+import { useReactions } from "../hooks/useReactions";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,7 +36,10 @@ type Attachment = {
   size?: number;
 };
 
+const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "😡"];
+
 interface Props {
+  conversationId: string | null;
   messages: ChatMessage[];
   currentUserId: string;
   isLoading: boolean;
@@ -735,6 +740,7 @@ async function uploadFiles(files: File[]): Promise<Attachment[]> {
 }
 
 export function MessageThread({
+  conversationId,
   messages,
   currentUserId,
   isLoading,
@@ -754,6 +760,19 @@ export function MessageThread({
   const [floatingDate, setFloatingDate] = useState<string | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [pickerOpenFor, setPickerOpenFor] = useState<string | null>(null);
+  const { reactions, toggle: toggleReaction } = useReactions(conversationId);
+
+  // Close reaction picker on outside click
+  useEffect(() => {
+    if (!pickerOpenFor) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Element;
+      if (!target.closest("[data-reaction-picker]")) setPickerOpenFor(null);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [pickerOpenFor]);
 
   // Jump to the actual bottom of the scroll container.
   // Images use a fixed-size container (w-48 h-48) for both loading and loaded
@@ -768,6 +787,11 @@ export function MessageThread({
     pinnedToBottom.current = true;
     jumpToBottom();
   }, [messages.length, jumpToBottom]);
+
+  // When reactions change (badge appears/disappears), maintain scroll position if pinned.
+  useEffect(() => {
+    if (pinnedToBottom.current) jumpToBottom();
+  }, [reactions, jumpToBottom]);
 
   useEffect(() => {
     const unread = messages
@@ -956,6 +980,10 @@ export function MessageThread({
               format(new Date(prevMsg.createdAt), "yyyy-MM-dd") !==
                 format(msgDate, "yyyy-MM-dd");
 
+            const msgReactions = reactions[msg.messageId] ?? {};
+            const hasAnyReaction = Object.keys(msgReactions).length > 0;
+            const isTemp = msg.messageId.startsWith("temp-");
+
             return (
               <div
                 key={msg.messageId}
@@ -972,7 +1000,7 @@ export function MessageThread({
                 )}
                 <div
                   className={cn(
-                    "flex gap-2 items-end",
+                    "flex gap-2 items-end group/msg",
                     isMine && "flex-row-reverse",
                   )}
                 >
@@ -999,31 +1027,114 @@ export function MessageThread({
                       isMine && "items-end",
                     )}
                   >
-                    {!msg.attachments?.length && isEmojiOnly(msg.text ?? "") ? (
-                      <p className="text-4xl leading-none py-0.5 select-text">
-                        {msg.text}
-                      </p>
-                    ) : (
-                      <div
-                        className={cn(
-                          "px-3 py-2 rounded-2xl text-sm leading-snug",
-                          isMine
-                            ? "bg-primary text-primary-foreground rounded-br-sm"
-                            : "bg-muted text-foreground rounded-bl-sm",
+                    {/* Message bubble + reaction trigger */}
+                    <div className={cn("flex items-end gap-1.5", isMine && "flex-row-reverse")}>
+                      <div className="flex flex-col">
+                        {!msg.attachments?.length && isEmojiOnly(msg.text ?? "") ? (
+                          <p className="text-4xl leading-none py-0.5 select-text">
+                            {msg.text}
+                          </p>
+                        ) : (
+                          <div
+                            className={cn(
+                              "px-3 py-2 rounded-2xl text-sm leading-snug",
+                              isMine
+                                ? "bg-primary text-primary-foreground rounded-br-sm"
+                                : "bg-muted text-foreground rounded-bl-sm",
+                            )}
+                          >
+                            {msg.text && <p>{msg.text}</p>}
+                            {msg.attachments?.map((att) => (
+                              <AttachmentDisplay key={att.key} attachment={att} />
+                            ))}
+                          </div>
                         )}
-                      >
-                        {msg.text && <p>{msg.text}</p>}
-                        {msg.attachments?.map((att) => (
-                          <AttachmentDisplay key={att.key} attachment={att} />
-                        ))}
+
+                        {/* Reaction badges */}
+                        {hasAnyReaction && (
+                          <div className={cn("flex flex-wrap gap-1 mt-1", isMine && "justify-end")}>
+                            {Object.entries(msgReactions).map(([emoji, userIds]) => {
+                              const iReacted = userIds.includes(currentUserId);
+                              return (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  onClick={() => !isTemp && toggleReaction(msg.messageId, emoji, msg.text ?? "", currentUserId)}
+                                  className={cn(
+                                    "flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border transition-colors cursor-pointer",
+                                    iReacted
+                                      ? "bg-primary/10 border-primary/30 text-primary"
+                                      : "bg-background border-border text-foreground hover:bg-muted",
+                                  )}
+                                >
+                                  <span>{emoji}</span>
+                                  <span className="font-medium">{userIds.length}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
-                    )}
+
+                      {/* Reaction trigger button — visible on hover */}
+                      {!isTemp && (
+                        <div className="relative mb-0.5" data-reaction-picker>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPickerOpenFor((prev) =>
+                                prev === msg.messageId ? null : msg.messageId
+                              )
+                            }
+                            className={cn(
+                              "size-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border transition-all cursor-pointer",
+                              pickerOpenFor === msg.messageId
+                                ? "opacity-100"
+                                : "opacity-0 group-hover/msg:opacity-100",
+                            )}
+                          >
+                            <Smile className="size-3.5" />
+                          </button>
+
+                          {/* Emoji picker popover */}
+                          {pickerOpenFor === msg.messageId && (
+                            <div
+                              className={cn(
+                                "absolute bottom-full mb-1 z-20 flex gap-1 bg-background border border-border rounded-full px-2 py-1.5 shadow-lg",
+                                isMine ? "right-0" : "left-0",
+                              )}
+                            >
+                              {REACTION_EMOJIS.map((emoji) => {
+                                const iReacted = (msgReactions[emoji] ?? []).includes(currentUserId);
+                                return (
+                                  <button
+                                    key={emoji}
+                                    type="button"
+                                    onClick={() => {
+                                      toggleReaction(msg.messageId, emoji, msg.text ?? "", currentUserId);
+                                      setPickerOpenFor(null);
+                                    }}
+                                    className={cn(
+                                      "text-base w-7 h-7 flex items-center justify-center rounded-full transition-all cursor-pointer hover:scale-125",
+                                      iReacted && "bg-primary/10",
+                                    )}
+                                  >
+                                    {emoji}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
                     <div className="flex items-center gap-1">
                       <span className="text-[10px] text-muted-foreground">
                         {format(new Date(msg.createdAt), "HH:mm")}
                       </span>
                       {isMine &&
-                        (msg.messageId.startsWith("temp-") ? (
+                        (isTemp ? (
                           <Clock className="size-3 text-muted-foreground" />
                         ) : readBy.some((id) => id !== currentUserId) ? (
                           <CheckCheck className="size-3 text-sky-500" />

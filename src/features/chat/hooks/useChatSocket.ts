@@ -7,6 +7,8 @@ import { WsIncomingEvent, ChatMessage, Conversation } from "../types";
 import { useChatStore } from "../store/chatStore";
 import { playReceiveSound } from "../utils/chatSounds";
 
+type ReactionsResponse = { reactions: Record<string, Record<string, string[]>> };
+
 function isTokenExpired(token: string): boolean {
   try {
     const payload = JSON.parse(atob(token.split(".")[1])) as { exp: number };
@@ -177,6 +179,59 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
               };
             }
           );
+        }
+
+        if (data.type === "REACTION_UPDATE") {
+          // Update reactions cache for the conversation
+          queryClient.setQueryData<ReactionsResponse>(
+            ["chat-reactions", data.conversationId],
+            (old) => ({
+              reactions: {
+                ...(old?.reactions ?? {}),
+                [data.messageId]: data.reactions,
+              },
+            })
+          );
+
+          // Update conversation list preview
+          const hasReactions = Object.keys(data.reactions).length > 0;
+          queryClient.setQueryData<{ conversations: Conversation[] }>(
+            ["chat-conversations"],
+            (old) => {
+              if (!old) return old;
+              if (!hasReactions) {
+                // All reactions removed — revert to last message preview
+                return {
+                  conversations: old.conversations.map((c) =>
+                    c.conversationId === data.conversationId
+                      ? { ...c, lastReactionPreview: undefined, lastReactionAt: undefined, lastReactionUserId: undefined }
+                      : c
+                  ),
+                };
+              }
+              const previewText = data.messageText
+                ? `"${data.messageText.slice(0, 30)}${data.messageText.length > 30 ? "…" : ""}"`
+                : "";
+              const reactionPreview = `reacted ${data.emoji}${previewText ? ` to ${previewText}` : ""}`;
+              return {
+                conversations: old.conversations.map((c) =>
+                  c.conversationId === data.conversationId
+                    ? {
+                        ...c,
+                        lastReactionPreview: reactionPreview,
+                        lastReactionAt: new Date().toISOString(),
+                        lastReactionUserId: data.reactorId,
+                      }
+                    : c
+                ),
+              };
+            }
+          );
+
+          // Play sound only if the reactor is someone else
+          if (data.reactorId !== currentUserId) {
+            playReceiveSound();
+          }
         }
       };
 

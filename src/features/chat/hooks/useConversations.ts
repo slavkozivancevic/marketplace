@@ -34,10 +34,22 @@ export function useConversations() {
         const oldMap = new Map(old.conversations.map((c) => [c.conversationId, c]));
         data.conversations = data.conversations.map((conv) => {
           const prev = oldMap.get(conv.conversationId);
-          if (!prev || prev.lastMessageAt !== conv.lastMessageAt) return conv;
+          if (!prev) return conv;
           return {
             ...conv,
-            lastMessagePending: prev.lastMessagePending ?? conv.lastMessagePending,
+            lastMessagePending: prev.lastMessageAt === conv.lastMessageAt
+              ? (prev.lastMessagePending ?? conv.lastMessagePending)
+              : conv.lastMessagePending,
+            // Prefer the fresher reaction info — cache wins if more recent than what API returned
+            lastReactionPreview: prev.lastReactionAt && conv.lastReactionAt && prev.lastReactionAt > conv.lastReactionAt
+              ? prev.lastReactionPreview
+              : conv.lastReactionPreview,
+            lastReactionUserId: prev.lastReactionAt && conv.lastReactionAt && prev.lastReactionAt > conv.lastReactionAt
+              ? prev.lastReactionUserId
+              : conv.lastReactionUserId,
+            lastReactionAt: prev.lastReactionAt && conv.lastReactionAt && prev.lastReactionAt > conv.lastReactionAt
+              ? prev.lastReactionAt
+              : conv.lastReactionAt,
           };
         });
       }
