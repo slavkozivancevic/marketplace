@@ -17,6 +17,7 @@ interface Props {
   readStatus: Record<string, string[]>;
   onSelect: (id: string) => void;
   isLoading: boolean;
+  isSearching?: boolean;
 }
 
 function getInitials(name: string | null | undefined, fallback: string): string {
@@ -41,6 +42,7 @@ export function ConversationList({
   readStatus,
   onSelect,
   isLoading,
+  isSearching = false,
 }: Props) {
   if (isLoading) {
     return (
@@ -62,7 +64,7 @@ export function ConversationList({
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
         <MessageCircle className="size-8 opacity-40" />
-        <p className="text-sm">No conversations yet</p>
+        <p className="text-sm">{isSearching ? "No conversations found" : "No conversations yet"}</p>
       </div>
     );
   }

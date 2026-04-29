@@ -17,6 +17,8 @@ export const env = createEnv({
     STRIPE_WEBHOOK_SECRET: z.string().min(1),
     CHAT_HTTP_API_URL: z.string().min(1),
     CHAT_INTERNAL_API_KEY: z.string().min(1),
+    CONVERSATION_SEARCH_API_URL: z.string().min(1),
+    CONVERSATION_SEARCH_API_KEY: z.string().min(1),
   },
   experimental__runtimeEnv: process.env,
 });

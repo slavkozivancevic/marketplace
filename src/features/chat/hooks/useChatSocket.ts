@@ -233,6 +233,29 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
             playReceiveSound();
           }
         }
+
+        if (data.type === "CONVERSATION_DELETED") {
+          // Remove from conversation list cache
+          queryClient.setQueryData<{ conversations: Conversation[] }>(
+            ["chat-conversations"],
+            (old) => {
+              if (!old) return old;
+              return {
+                conversations: old.conversations.filter(
+                  (c) => c.conversationId !== data.conversationId
+                ),
+              };
+            }
+          );
+          // Invalidate message and search caches for this conversation
+          void queryClient.removeQueries({ queryKey: ["chat-messages", data.conversationId] });
+          void queryClient.removeQueries({ queryKey: ["conversation-search"] });
+          // If the deleted conversation is open, close it
+          const { selectedConvId, setSelectedConvId } = useChatStore.getState();
+          if (selectedConvId === data.conversationId) {
+            setSelectedConvId(null);
+          }
+        }
       };
 
       ws.onerror = (event) => {

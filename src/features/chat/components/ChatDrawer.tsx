@@ -1,9 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
-import { MessageCircle, ArrowLeft } from "lucide-react";
+import { useEffect, useState } from "react";
+import { MessageCircle, ArrowLeft, Trash2, Loader2 } from "lucide-react";
+import { SearchInput } from "@/components/search/SearchInput";
 import { useUser } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -18,6 +31,7 @@ import { useChatSocket } from "../hooks/useChatSocket";
 import { unlockAudioContext } from "../utils/chatSounds";
 import { useConversations } from "../hooks/useConversations";
 import { useMessages } from "../hooks/useMessages";
+import { useConversationSearch } from "../hooks/useConversationSearch";
 import { useUserProfiles } from "../hooks/useUserProfiles";
 import { ConversationList } from "./ConversationList";
 import { MessageThread } from "./MessageThread";
@@ -135,6 +149,42 @@ function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
 
   const inThread = !!selectedConvId;
 
+  const [search, setSearch] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteConversation = async () => {
+    if (!selectedConvId) return;
+    setDeleting(true);
+    try {
+      await axios.delete(`/api/chat/conversations/${selectedConvId}`);
+      queryClient.setQueryData<{ conversations: typeof conversations }>(
+        ["chat-conversations"],
+        (old) => old
+          ? { conversations: old.conversations.filter((c) => c.conversationId !== selectedConvId) }
+          : old
+      );
+      void queryClient.removeQueries({ queryKey: ["chat-messages", selectedConvId] });
+      void queryClient.removeQueries({ queryKey: ["conversation-search"] });
+      setDeleteDialogOpen(false);
+      setSelectedConvId(null);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (inThread) setSearch("");
+  }, [inThread]);
+
+  const { data: searchData } = useConversationSearch(search);
+
+  const filteredConversations = search.trim()
+    ? conversations.filter((conv) =>
+        (searchData?.results ?? []).some((r) => r.conversationId === conv.conversationId)
+      )
+    : conversations;
+
   return (
     <>
       <SheetHeader className="shrink-0 border-b px-4 py-3 flex-row items-center gap-2">
@@ -155,14 +205,41 @@ function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
               : otherParticipantName || "Conversation"
             : "Messages"}
         </SheetTitle>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={close}
-          className="ml-auto shrink-0"
-        >
-          ✕
-        </Button>
+        <div className="ml-auto flex items-center gap-0.5 shrink-0">
+          {inThread && (
+            <AlertDialog
+              open={deleteDialogOpen}
+              onOpenChange={(open) => { if (!deleting) setDeleteDialogOpen(open); }}
+            >
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon-sm">
+                  <Trash2 className="size-4 text-muted-foreground" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete conversation?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete the conversation and all messages for all participants. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={(e) => { e.preventDefault(); void handleDeleteConversation(); }}
+                    disabled={deleting}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deleting ? <><Loader2 className="size-4 animate-spin" /> Deleting...</> : "Delete"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          <Button variant="ghost" size="icon-sm" onClick={close}>
+            ✕
+          </Button>
+        </div>
       </SheetHeader>
 
       <div className="flex-1 min-h-0 overflow-hidden">
@@ -177,18 +254,29 @@ function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
             onMarkRead={(ids) => markRead(selectedConvId!, ids)}
           />
         ) : (
-          <div className="overflow-y-auto h-full">
-            <ConversationList
-              conversations={conversations}
-              selectedId={selectedConvId}
-              currentUserId={currentUserId}
-              profiles={profiles}
-              profilesLoading={profilesLoading}
-              convUnread={convUnread}
-              readStatus={readStatus}
-              onSelect={setSelectedConvId}
-              isLoading={convsLoading}
-            />
+          <div className="flex flex-col h-full">
+            <div className="shrink-0 border-b px-3 py-2">
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Search conversations..."
+                className="pt-0 max-w-none"
+              />
+            </div>
+            <div className="overflow-y-auto flex-1">
+              <ConversationList
+                conversations={filteredConversations}
+                selectedId={selectedConvId}
+                currentUserId={currentUserId}
+                profiles={profiles}
+                profilesLoading={profilesLoading}
+                convUnread={convUnread}
+                readStatus={readStatus}
+                onSelect={setSelectedConvId}
+                isLoading={convsLoading}
+                isSearching={!!search.trim()}
+              />
+            </div>
           </div>
         )}
       </div>
