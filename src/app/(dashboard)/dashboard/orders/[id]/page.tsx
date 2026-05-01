@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { MapPin } from "lucide-react";
 import { prisma } from "@/core/db/prisma";
 import { getOrderById } from "@/features/orders/db/orders";
 import { PageHeader } from "@/components/PageHeader";
@@ -52,13 +53,13 @@ export default async function OrderDetailPage({
             </Badge>
           </CardHeader>
           <CardContent className="space-y-1 text-sm">
-            <div className="flex justify-between text-muted-foreground">
-              <span>Order ID</span>
-              <span className="font-mono">{order.id}</span>
+            <div className="flex justify-between gap-4 text-muted-foreground">
+              <span className="shrink-0">Order ID</span>
+              <span className="font-mono truncate">{order.id}</span>
             </div>
-            <div className="flex justify-between text-muted-foreground">
-              <span>Stripe Session</span>
-              <span className="font-mono text-xs">{order.stripeSessionId}</span>
+            <div className="flex justify-between gap-4 text-muted-foreground">
+              <span className="shrink-0">Stripe Session</span>
+              <span className="font-mono text-xs truncate">{order.stripeSessionId}</span>
             </div>
           </CardContent>
         </Card>
@@ -121,6 +122,29 @@ export default async function OrderDetailPage({
             </div>
           </CardContent>
         </Card>
+        {order.shippingLine1 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <MapPin className="h-4 w-4" />
+                Shipping Address
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground space-y-0.5">
+              {order.shippingName && (
+                <p className="text-foreground font-medium">{order.shippingName}</p>
+              )}
+              <p>{order.shippingLine1}</p>
+              {order.shippingLine2 && <p>{order.shippingLine2}</p>}
+              <p>
+                {[order.shippingCity, order.shippingState, order.shippingPostalCode]
+                  .filter(Boolean)
+                  .join(", ")}
+              </p>
+              {order.shippingCountry && <p>{order.shippingCountry}</p>}
+            </CardContent>
+          </Card>
+        )}
         </div>
       </div>
     </div>

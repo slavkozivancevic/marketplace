@@ -372,6 +372,16 @@ model Order {
   total           Decimal     @db.Decimal(10, 2)
   items           OrderItem[]
   reviews         ProductReview[]
+
+  // Shipping address collected via Stripe Checkout
+  shippingName       String?
+  shippingLine1      String?
+  shippingLine2      String?
+  shippingCity       String?
+  shippingState      String?
+  shippingPostalCode String?
+  shippingCountry    String?
+
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 

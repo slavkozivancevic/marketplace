@@ -46,12 +46,22 @@ export async function createCheckoutSession(
       quantity: number;
     }[] = [];
 
+    let needsShipping = false;
+
     for (const item of items) {
       const product = await prisma.product.findFirst({
         where: { id: item.productId, status: "PUBLISHED", deletedAt: null },
         include: {
           images: { orderBy: { order: "asc" }, take: 1 },
-          variants: true,
+          variants: {
+            include: {
+              images: {
+                orderBy: { order: "asc" },
+                take: 1,
+                include: { image: true },
+              },
+            },
+          },
         },
       });
 
@@ -82,7 +92,14 @@ export async function createCheckoutSession(
         unitPrice = Number(product.price);
       }
 
-      const imageUrl = product.images[0]?.url;
+      if (!product.isDigital && product.requiresShipping) {
+        needsShipping = true;
+      }
+
+      const variantImageUrl = item.variantId
+        ? product.variants.find((v) => v.id === item.variantId)?.images[0]?.image.url
+        : undefined;
+      const imageUrl = variantImageUrl ?? product.images[0]?.url;
 
       lineItems.push({
         price_data: {
@@ -101,6 +118,11 @@ export async function createCheckoutSession(
       mode: "payment",
       line_items: lineItems,
       customer_email: user.email,
+      ...(needsShipping && {
+        shipping_address_collection: {
+          allowed_countries: ["US", "CA", "GB", "DE", "FR", "AU", "NL", "SE", "NO", "DK", "FI", "IT", "ES", "PT", "BE", "AT", "CH", "PL", "RS", "HR", "BA", "ME", "SI", "MK", "AL"],
+        },
+      }),
       metadata: {
         userId: user.id,
         items: JSON.stringify(

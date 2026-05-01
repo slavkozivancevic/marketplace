@@ -5,20 +5,10 @@ import {
   Zap,
   Globe,
   ArrowRight,
-  Store,
-  TrendingUp,
-  Users,
-  CreditCard,
 } from "lucide-react";
 import { HeroBackground } from "@/components/layout/hero-background";
 import { Footer } from "@/components/layout/footer";
-
-const stats = [
-  { label: "Active Sellers", value: "2,500+", icon: Store },
-  { label: "Products Listed", value: "50,000+", icon: TrendingUp },
-  { label: "Happy Customers", value: "100K+", icon: Users },
-  { label: "Transactions", value: "$10M+", icon: CreditCard },
-];
+import { StatsSection } from "@/components/layout/stats-section";
 
 const features = [
   {
@@ -97,25 +87,7 @@ export default function HomePage() {
           </div>
 
           {/* Stats */}
-          <div className="animate-fade-in delay-700 mt-20 grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-8 opacity-0">
-            {stats.map((stat) => {
-              const Icon = stat.icon;
-              return (
-                <div
-                  key={stat.label}
-                  className="group flex flex-col items-center gap-1 rounded-xl p-4 transition-colors hover:bg-muted/50"
-                >
-                  <Icon className="h-5 w-5 text-muted-foreground mb-1 transition-colors group-hover:text-foreground" />
-                  <span className="text-2xl font-bold tracking-tight sm:text-3xl">
-                    {stat.value}
-                  </span>
-                  <span className="text-xs font-medium text-muted-foreground sm:text-sm">
-                    {stat.label}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          <StatsSection />
         </div>
 
         {/* Bottom fade */}

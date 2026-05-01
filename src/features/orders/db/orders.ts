@@ -112,6 +112,23 @@ export async function getUserOrdersPage({
   return { items, nextCursor };
 }
 
+export async function getOrderByStripeSessionId(stripeSessionId: string) {
+  const order = await prisma.order.findUnique({
+    where: { stripeSessionId },
+    select: {
+      id: true,
+      shippingName: true,
+      shippingLine1: true,
+      shippingLine2: true,
+      shippingCity: true,
+      shippingState: true,
+      shippingPostalCode: true,
+      shippingCountry: true,
+    },
+  });
+  return order;
+}
+
 export async function getOrderById(id: string, userId: string) {
   "use cache";
   cacheTag(CacheTags.orders.byId(id));
@@ -162,16 +179,28 @@ export type FulfillOrderItem = {
   quantity: number;
 };
 
+export type ShippingAddress = {
+  name: string | null;
+  line1: string | null;
+  line2: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  country: string | null;
+};
+
 export async function fulfillOrder({
   userId,
   stripeSessionId,
   totalCents,
   items,
+  shipping,
 }: {
   userId: string;
   stripeSessionId: string;
   totalCents: number;
   items: FulfillOrderItem[];
+  shipping?: ShippingAddress;
 }) {
   const existing = await prisma.order.findUnique({
     where: { stripeSessionId },
@@ -191,6 +220,13 @@ export async function fulfillOrder({
         stripeSessionId,
         status: "COMPLETED",
         total: totalCents / 100,
+        shippingName: shipping?.name,
+        shippingLine1: shipping?.line1,
+        shippingLine2: shipping?.line2,
+        shippingCity: shipping?.city,
+        shippingState: shipping?.state,
+        shippingPostalCode: shipping?.postalCode,
+        shippingCountry: shipping?.country,
         items: {
           create: await Promise.all(
             items.map(async (item) => {

@@ -85,7 +85,8 @@ export function ProductPurchaseSection({
         </CardContent>
       </Card>
 
-      {product.options.length > 0 && (
+      {/* Options card removed — redundant with AddToCart variant selector */}
+      {/* {product.options.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Options</CardTitle>
@@ -107,7 +108,7 @@ export function ProductPurchaseSection({
             ))}
           </CardContent>
         </Card>
-      )}
+      )} */}
 
       {product.variants.length > 0 && (
         <Card>

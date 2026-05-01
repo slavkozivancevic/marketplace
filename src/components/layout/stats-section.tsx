@@ -1,0 +1,115 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { Store, TrendingUp, Users, CreditCard } from "lucide-react";
+
+const stats = [
+  { label: "Active Sellers", numericValue: 2500, prefix: "", suffix: "+", icon: Store },
+  { label: "Products Listed", numericValue: 50000, prefix: "", suffix: "+", icon: TrendingUp },
+  { label: "Happy Customers", numericValue: 100, prefix: "", suffix: "K+", icon: Users },
+  { label: "Transactions", numericValue: 10, prefix: "$", suffix: "M+", icon: CreditCard },
+];
+
+function formatNumber(n: number): string {
+  return n >= 1000 ? n.toLocaleString("en-US") : String(n);
+}
+
+function StatCounter({
+  numericValue,
+  prefix,
+  suffix,
+  animate,
+}: {
+  numericValue: number;
+  prefix: string;
+  suffix: string;
+  animate: boolean;
+}) {
+  const spanRef = useRef<HTMLSpanElement>(null);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!animate) return;
+
+    const duration = 1600;
+    const startTime = performance.now();
+
+    function tick(now: number) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // easeOutQuart
+      const eased = 1 - Math.pow(1 - progress, 4);
+      const current = Math.round(eased * numericValue);
+
+      if (spanRef.current) {
+        spanRef.current.textContent = `${prefix}${formatNumber(current)}${suffix}`;
+      }
+
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [animate, numericValue, prefix, suffix]);
+
+  return (
+    <span ref={spanRef} className="text-2xl font-bold tracking-tight sm:text-3xl">
+      {prefix}0{suffix}
+    </span>
+  );
+}
+
+export function StatsSection() {
+  const [hasAnimated, setHasAnimated] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !hasAnimated) {
+          setHasAnimated(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.3 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasAnimated]);
+
+  return (
+    <div
+      ref={ref}
+      className="animate-fade-in delay-700 mt-20 grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-8 opacity-0"
+    >
+      {stats.map((stat) => {
+        const Icon = stat.icon;
+        return (
+          <div
+            key={stat.label}
+            className="group flex flex-col items-center gap-1 rounded-xl p-4 transition-colors hover:bg-muted/50"
+          >
+            <Icon className="h-5 w-5 text-muted-foreground mb-1 transition-colors group-hover:text-foreground" />
+            <StatCounter
+              numericValue={stat.numericValue}
+              prefix={stat.prefix}
+              suffix={stat.suffix}
+              animate={hasAnimated}
+            />
+            <span className="text-xs font-medium text-muted-foreground sm:text-sm">
+              {stat.label}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

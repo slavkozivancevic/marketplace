@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { stripe } from "@/services/stripe";
 import { env } from "@/env/server";
 import { fulfillOrder, refundOrder } from "@/features/orders/db/orders";
+import { sendEmail, buildOrderConfirmationEmailHtml } from "@/services/ses";
 import type Stripe from "stripe";
 
 export async function POST(req: Request) {
@@ -47,14 +48,55 @@ export async function POST(req: Request) {
           quantity: number;
         }[];
 
-        await fulfillOrder({
+        const shippingDetails = session.collected_information?.shipping_details;
+        const shipping = shippingDetails
+          ? {
+              name: shippingDetails.name ?? null,
+              line1: shippingDetails.address?.line1 ?? null,
+              line2: shippingDetails.address?.line2 ?? null,
+              city: shippingDetails.address?.city ?? null,
+              state: shippingDetails.address?.state ?? null,
+              postalCode: shippingDetails.address?.postal_code ?? null,
+              country: shippingDetails.address?.country ?? null,
+            }
+          : undefined;
+
+        const order = await fulfillOrder({
           userId,
           stripeSessionId: session.id,
           totalCents: session.amount_total ?? 0,
           items,
+          shipping,
         });
 
         console.log("Order fulfilled for session:", session.id);
+
+        // Send order confirmation email — fire-and-forget so email failures
+        // don't cause Stripe to retry the webhook
+        if (session.customer_email && order) {
+          const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
+            expand: ["line_items"],
+          });
+
+          const emailItems = (fullSession.line_items?.data ?? []).map((li) => ({
+            name: li.description ?? "Item",
+            quantity: li.quantity ?? 1,
+            price: (li.amount_total ?? 0) / 100 / (li.quantity ?? 1),
+          }));
+
+          sendEmail({
+            to: session.customer_email,
+            subject: "Your order is confirmed",
+            html: buildOrderConfirmationEmailHtml({
+              orderId: order.id,
+              orderUrl: `${env.APP_URL}/dashboard/orders/${order.id}`,
+              items: emailItems,
+              total: (session.amount_total ?? 0) / 100,
+              shipping,
+            }),
+          }).catch((err) => console.error("[ses] order confirmation email failed", err));
+        }
+
         break;
       }
 

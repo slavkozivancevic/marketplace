@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/PageHeader";
 import { Footer } from "@/components/layout/footer";
 
 export default function CheckoutCancelPage() {
@@ -11,10 +10,10 @@ export default function CheckoutCancelPage() {
         <div className="flex justify-center">
           <XCircle className="h-16 w-16 text-destructive" />
         </div>
-        <PageHeader
-          title="Payment Cancelled"
-          description="Your payment was cancelled. Your cart is still saved."
-        />
+        <h1 className="text-2xl font-bold">Payment Cancelled</h1>
+        <p className="text-muted-foreground text-sm">
+          Your payment was cancelled. Your cart is still saved.
+        </p>
         <div className="flex flex-col gap-3">
           <Button asChild>
             <Link href="/products">Back to Products</Link>

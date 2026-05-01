@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useDropzone } from "react-dropzone";
 import axios, { AxiosProgressEvent } from "axios";
@@ -144,13 +144,14 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
     setImages(initialImages);
   }, [initialImages]);
 
-  /**
-   * Jedino mesto gde obaveštavamo parent.
-   * Nema side-effect unutar setImages updater funkcija.
-   */
+  // Keep a stable ref so the effect below doesn't re-fire when the parent
+  // re-renders and passes a new function reference for onUploadComplete.
+  const onUploadCompleteRef = useRef(onUploadComplete);
+  onUploadCompleteRef.current = onUploadComplete;
+
   useEffect(() => {
-    onUploadComplete(images);
-  }, [images, onUploadComplete]);
+    onUploadCompleteRef.current(images);
+  }, [images]);
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {

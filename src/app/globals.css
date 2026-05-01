@@ -511,6 +511,20 @@
   background: var(--foreground);
 }
 
+/* ===== NUMBER INPUT SPINNERS ===== */
+/* Tell the browser to render spinners in light-mode style (dark arrows) by default. */
+input[type="number"] {
+  color-scheme: light;
+}
+
+/* In dark / cosmos themes the input background is dark, so we switch to
+   dark color-scheme — the browser will render light-colored arrows that
+   are visible and blend naturally with the theme. */
+.dark input[type="number"],
+.cosmos input[type="number"] {
+  color-scheme: dark;
+}
+
 /* ===== HOVER GLOW EFFECT ===== */
 .hover-glow {
   transition: box-shadow 0.3s ease, transform 0.3s ease;
