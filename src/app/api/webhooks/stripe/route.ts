@@ -3,6 +3,10 @@ import { stripe } from "@/services/stripe";
 import { env } from "@/env/server";
 import { fulfillOrder, refundOrder } from "@/features/orders/db/orders";
 import { sendEmail, buildOrderConfirmationEmailHtml } from "@/services/ses";
+import {
+  isWebhookProcessed,
+  markWebhookProcessed,
+} from "@/features/webhooks/webhookEvents";
 import type Stripe from "stripe";
 
 export async function POST(req: Request) {
@@ -28,6 +32,11 @@ export async function POST(req: Request) {
   }
 
   console.log("Processing Stripe webhook:", event.type, event.id);
+
+  if (await isWebhookProcessed(event.id)) {
+    console.log("Stripe webhook already processed:", event.id);
+    return new Response("OK", { status: 200 });
+  }
 
   try {
     switch (event.type) {
@@ -61,15 +70,48 @@ export async function POST(req: Request) {
             }
           : undefined;
 
-        const order = await fulfillOrder({
-          userId,
-          stripeSessionId: session.id,
-          totalCents: session.amount_total ?? 0,
-          items,
-          shipping,
-        });
+        let order;
+        try {
+          order = await fulfillOrder({
+            userId,
+            stripeSessionId: session.id,
+            totalCents: session.amount_total ?? 0,
+            items,
+            shipping,
+          });
+          console.log("Order fulfilled for session:", session.id);
+        } catch (fulfillError) {
+          const isStockError =
+            fulfillError instanceof Error &&
+            fulfillError.message.startsWith("Insufficient stock");
 
-        console.log("Order fulfilled for session:", session.id);
+          if (isStockError) {
+            const paymentIntentId =
+              typeof session.payment_intent === "string"
+                ? session.payment_intent
+                : session.payment_intent?.id;
+
+            if (paymentIntentId) {
+              try {
+                await stripe.refunds.create({ payment_intent: paymentIntentId });
+                console.log(
+                  "Auto-refunded session due to insufficient stock:",
+                  session.id,
+                );
+              } catch (refundError) {
+                console.error(
+                  "Failed to auto-refund session:",
+                  session.id,
+                  refundError,
+                );
+              }
+            }
+            // Mark as processed so Stripe does not retry — refund is already issued
+            break;
+          }
+
+          throw fulfillError;
+        }
 
         // Send order confirmation email — fire-and-forget so email failures
         // don't cause Stripe to retry the webhook
@@ -133,8 +175,10 @@ export async function POST(req: Request) {
           break;
         }
 
-        await refundOrder(sessionId);
-        console.log("Order refunded for session:", sessionId);
+        const refunded = await refundOrder(sessionId);
+        if (refunded) {
+          console.log("Order refunded for session:", sessionId);
+        }
         break;
       }
 
@@ -142,6 +186,7 @@ export async function POST(req: Request) {
         console.log("Unhandled Stripe event type:", event.type);
     }
 
+    await markWebhookProcessed(event.id, event.type);
     return new Response("OK", { status: 200 });
   } catch (error) {
     console.error("Stripe webhook processing error:", error);

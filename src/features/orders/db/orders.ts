@@ -213,7 +213,67 @@ export async function fulfillOrder({
     return existing;
   }
 
+  // Batch-fetch all prices upfront — avoids N+1 queries inside the transaction
+  const variantIds = items.filter((i) => i.variantId).map((i) => i.variantId!);
+  const productOnlyIds = items.filter((i) => !i.variantId).map((i) => i.productId);
+
+  const [variants, products] = await Promise.all([
+    variantIds.length
+      ? prisma.productVariant.findMany({
+          where: { id: { in: variantIds } },
+          select: { id: true, price: true },
+        })
+      : [],
+    productOnlyIds.length
+      ? prisma.product.findMany({
+          where: { id: { in: productOnlyIds } },
+          select: { id: true, price: true, stock: true },
+        })
+      : [],
+  ]);
+
+  const variantMap = new Map(variants.map((v) => [v.id, v]));
+  const productMap = new Map(products.map((p) => [p.id, p]));
+
+  const itemsWithPrice = items.map((item) => {
+    if (item.variantId) {
+      const variant = variantMap.get(item.variantId);
+      if (!variant) throw new Error(`Variant ${item.variantId} not found`);
+      return { ...item, price: Number(variant.price) };
+    }
+    const product = productMap.get(item.productId);
+    if (!product) throw new Error(`Product ${item.productId} not found`);
+    return { ...item, price: Number(product.price) };
+  });
+
   const order = await prisma.$transaction(async (tx) => {
+    // Atomic stock decrement — raw SQL WHERE stock >= quantity prevents overselling.
+    // If affected rows = 0, another concurrent transaction already took the last unit.
+    for (const item of itemsWithPrice) {
+      if (item.variantId) {
+        const affected = await tx.$executeRaw`
+          UPDATE "ProductVariant"
+          SET stock = stock - ${item.quantity}
+          WHERE id = ${item.variantId} AND stock >= ${item.quantity}
+        `;
+        if (affected === 0) {
+          throw new Error(`Insufficient stock for variant ${item.variantId}`);
+        }
+      } else {
+        const prod = productMap.get(item.productId)!;
+        if (prod.stock !== null) {
+          const affected = await tx.$executeRaw`
+            UPDATE "Product"
+            SET stock = stock - ${item.quantity}
+            WHERE id = ${item.productId} AND stock >= ${item.quantity}
+          `;
+          if (affected === 0) {
+            throw new Error(`Insufficient stock for product ${item.productId}`);
+          }
+        }
+      }
+    }
+
     const order = await tx.order.create({
       data: {
         userId,
@@ -228,42 +288,12 @@ export async function fulfillOrder({
         shippingPostalCode: shipping?.postalCode,
         shippingCountry: shipping?.country,
         items: {
-          create: await Promise.all(
-            items.map(async (item) => {
-              let price: number;
-
-              if (item.variantId) {
-                const variant = await tx.productVariant.findUniqueOrThrow({
-                  where: { id: item.variantId },
-                });
-                price = Number(variant.price);
-
-                await tx.productVariant.update({
-                  where: { id: item.variantId },
-                  data: { stock: { decrement: item.quantity } },
-                });
-              } else {
-                const product = await tx.product.findUniqueOrThrow({
-                  where: { id: item.productId },
-                });
-                price = Number(product.price);
-
-                if (product.stock !== null) {
-                  await tx.product.update({
-                    where: { id: item.productId },
-                    data: { stock: { decrement: item.quantity } },
-                  });
-                }
-              }
-
-              return {
-                productId: item.productId,
-                variantId: item.variantId,
-                quantity: item.quantity,
-                price,
-              };
-            }),
-          ),
+          create: itemsWithPrice.map((item) => ({
+            productId: item.productId,
+            variantId: item.variantId,
+            quantity: item.quantity,
+            price: item.price,
+          })),
         },
       },
     });
@@ -272,12 +302,12 @@ export async function fulfillOrder({
     return order;
   });
 
-  const productIds = [...new Set(items.map((i) => i.productId))];
-  const products = await prisma.product.findMany({
-    where: { id: { in: productIds } },
+  const uniqueProductIds = [...new Set(items.map((i) => i.productId))];
+  const allProducts = await prisma.product.findMany({
+    where: { id: { in: uniqueProductIds } },
     select: { id: true, organizationId: true },
   });
-  products.forEach((p) => revalidateProductCache(p.organizationId, p.id));
+  allProducts.forEach((p) => revalidateProductCache(p.organizationId, p.id));
 
   return order;
 }

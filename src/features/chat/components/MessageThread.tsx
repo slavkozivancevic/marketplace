@@ -154,7 +154,7 @@ function useAttachmentReadUrl(key: string) {
       );
       return data.url;
     },
-    staleTime: 1000 * 60 * 50,
+    staleTime: 1000 * 60 * 50, // 50 min — presigned URL expires at 60 min (buffer of 10 min)
     retry: 1,
   });
 }

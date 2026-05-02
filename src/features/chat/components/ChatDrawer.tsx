@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MessageCircle, ArrowLeft, Trash2, Loader2 } from "lucide-react";
 import { SearchInput } from "@/components/search/SearchInput";
 import { useUser } from "@clerk/nextjs";
@@ -76,7 +76,25 @@ function ChatDrawerRootInner() {
   const currentUserId = tokenData?.userId ?? "";
   // Socket lives here so it stays connected regardless of drawer open/close state
   const { sendMessage, markRead } = useChatSocket(tokenData?.token, currentUserId);
-  const { isOpen, close } = useChatStore();
+  const { isOpen, close, bootstrapUnread } = useChatStore();
+
+  // Fetch conversations here (always mounted) so we can bootstrap unread
+  // badges before the drawer is ever opened. React Query deduplicates this
+  // with the same call inside ChatDrawerInner.
+  const { data: convsData } = useConversations();
+  const bootstrapConvs = useMemo(
+    () => convsData?.conversations ?? [],
+    [convsData?.conversations]
+  );
+
+  useEffect(() => {
+    if (!currentUserId || !bootstrapConvs.length) return;
+    for (const conv of bootstrapConvs) {
+      if (conv.lastMessageSenderId && conv.lastMessageSenderId !== currentUserId && conv.lastMessageAt) {
+        bootstrapUnread(conv.conversationId, conv.lastMessageAt);
+      }
+    }
+  }, [bootstrapConvs, currentUserId, bootstrapUnread]);
 
   // Unlock AudioContext on first user interaction so WebSocket-triggered sounds
   // can play even when the drawer is closed (no gesture at that moment).
@@ -128,7 +146,7 @@ function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
   const { data: convsData, isLoading: convsLoading } = useConversations();
   const { data: msgsData, isLoading: msgsLoading } = useMessages(selectedConvId);
 
-  const conversations = convsData?.conversations ?? [];
+  const conversations = useMemo(() => convsData?.conversations ?? [], [convsData?.conversations]);
   const messages = msgsData?.messages ?? [];
 
   // Collect every participant ID so we can resolve names

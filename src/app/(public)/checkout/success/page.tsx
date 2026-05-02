@@ -1,6 +1,6 @@
 import { connection } from "next/server";
 import Link from "next/link";
-import { CheckCircle, MapPin, Package } from "lucide-react";
+import { AlertCircle, CheckCircle, Clock, MapPin, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -8,6 +8,7 @@ import { ClearCartOnSuccess } from "@/features/cart/components/ClearCartOnSucces
 import { Footer } from "@/components/layout/footer";
 import { stripe } from "@/services/stripe";
 import { getOrderByStripeSessionId } from "@/features/orders/db/orders";
+import type Stripe from "stripe";
 
 interface CheckoutSuccessPageProps {
   searchParams: Promise<{ session_id?: string }>;
@@ -20,11 +21,11 @@ export default async function CheckoutSuccessPage({
 
   const { session_id } = await searchParams;
 
-  // Fetch line items from Stripe and shipping from DB in parallel
+  // Fetch line items from Stripe (with payment_intent for refund check) and order from DB in parallel
   const [session, order] = await Promise.all([
     session_id
       ? stripe.checkout.sessions
-          .retrieve(session_id, { expand: ["line_items"] })
+          .retrieve(session_id, { expand: ["line_items", "payment_intent.latest_charge"] })
           .catch(() => null)
       : Promise.resolve(null),
     session_id
@@ -34,8 +35,71 @@ export default async function CheckoutSuccessPage({
 
   const lineItems = session?.line_items?.data ?? [];
   const total = (session?.amount_total ?? 0) / 100;
-
   const hasShipping = !!order?.shippingLine1;
+
+  const paymentIntent = session?.payment_intent as Stripe.PaymentIntent | null | undefined;
+  const latestCharge = paymentIntent?.latest_charge as Stripe.Charge | null | undefined;
+  const isRefunded = (latestCharge?.amount_refunded ?? 0) > 0;
+  // Order exists → fulfilled. No order + refunded → stock failure. No order + not refunded → webhook still processing.
+  const status: "success" | "refunded" | "processing" =
+    order ? "success" : isRefunded ? "refunded" : "processing";
+
+  if (status === "refunded") {
+    return (
+      <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
+        <div className="flex-1 px-6 py-12 max-w-xl mx-auto w-full space-y-8">
+          <div className="text-center space-y-3">
+            <div className="flex justify-center">
+              <AlertCircle className="h-16 w-16 text-destructive" />
+            </div>
+            <h1 className="text-2xl font-bold">Order Could Not Be Fulfilled</h1>
+            <p className="text-muted-foreground text-sm">
+              One or more items in your order went out of stock before your
+              payment could be processed. Your payment has been fully refunded
+              and should appear within a few business days.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3">
+            <Button asChild>
+              <Link href="/products">Continue Shopping</Link>
+            </Button>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (status === "processing") {
+    return (
+      <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
+        <div className="flex-1 px-6 py-12 max-w-xl mx-auto w-full space-y-8">
+          <div className="text-center space-y-3">
+            <div className="flex justify-center">
+              <Clock className="h-16 w-16 text-muted-foreground animate-pulse" />
+            </div>
+            <h1 className="text-2xl font-bold">Processing Your Order</h1>
+            <p className="text-muted-foreground text-sm">
+              Your payment was received. Your order is being confirmed — this
+              usually takes just a moment. Please refresh the page if it
+              doesn&apos;t update shortly.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3">
+            <Button asChild variant="outline">
+              <Link href={`/checkout/success?session_id=${session_id}`}>
+                Refresh
+              </Link>
+            </Button>
+            <Button asChild variant="ghost">
+              <Link href="/products">Continue Shopping</Link>
+            </Button>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
