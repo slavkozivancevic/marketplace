@@ -9,6 +9,10 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { ProductDetailLayout } from "@/features/products/components/ProductDetailLayout";
 import { ProductReviewsSection } from "@/features/reviews/components/ProductReviewsSection";
+import {
+  RelatedProductsCarousel,
+  type RelatedProduct,
+} from "@/features/products/components/RelatedProductsCarousel";
 import { Footer } from "@/components/layout/footer";
 
 interface PublicProductPageProps {
@@ -20,7 +24,10 @@ export default async function PublicProductPage({
 }: PublicProductPageProps) {
   const { id } = await params;
 
-  const product = await fetchPublicProduct(id);
+  const [product, relatedProducts] = await Promise.all([
+    fetchPublicProduct(id),
+    fetchRelatedProducts(id),
+  ]);
 
   if (!product) notFound();
 
@@ -45,6 +52,9 @@ export default async function PublicProductPage({
             />
           </div>
         </div>
+
+        <RelatedProductsCarousel products={relatedProducts} />
+
         <Footer />
       </div>
     </div>
@@ -93,4 +103,62 @@ async function fetchPublicProduct(
       costPrice: v.costPrice != null ? Number(v.costPrice) : null,
     })),
   };
+}
+
+async function fetchRelatedProducts(productId: string): Promise<RelatedProduct[]> {
+  "use cache";
+  cacheTag(CacheTags.products.publicAll());
+  cacheTag(CacheTags.products.publicById(productId));
+
+  // Resolve current product's signals for relatedness
+  const current = await prisma.product.findUnique({
+    where: { id: productId },
+    select: {
+      brandId: true,
+      organizationId: true,
+      categories: { select: { categoryId: true } },
+    },
+  });
+
+  if (!current) return [];
+
+  const categoryIds = current.categories.map((c) => c.categoryId);
+
+  const products = await prisma.product.findMany({
+    where: {
+      id: { not: productId },
+      status: "PUBLISHED",
+      deletedAt: null,
+      OR: [
+        ...(categoryIds.length > 0
+          ? [{ categories: { some: { categoryId: { in: categoryIds } } } }]
+          : []),
+        ...(current.brandId ? [{ brandId: current.brandId }] : []),
+        { organizationId: current.organizationId },
+      ],
+    },
+    orderBy: [
+      { featuredAt: { sort: "desc", nulls: "last" } },
+      { createdAt: "desc" },
+    ],
+    take: 12,
+    select: {
+      id: true,
+      title: true,
+      price: true,
+      compareAtPrice: true,
+      images: {
+        orderBy: { order: "asc" },
+        take: 1,
+        select: { url: true },
+      },
+      brand: { select: { name: true, logoUrl: true } },
+    },
+  });
+
+  return products.map((p) => ({
+    ...p,
+    price: Number(p.price),
+    compareAtPrice: p.compareAtPrice != null ? Number(p.compareAtPrice) : null,
+  }));
 }
