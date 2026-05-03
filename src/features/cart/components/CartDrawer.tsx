@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import Image from "next/image";
 import { Minus, Plus, Trash2, ShoppingCart, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -15,6 +15,16 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/sonner";
 import { useCartStore } from "../store/cartStore";
 import { createCheckoutSession } from "../actions/checkout";
+
+function CartItemImage({ src, alt }: { src: string; alt: string }) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <>
+      {!loaded && <div className="absolute inset-0 z-10 skeleton-shimmer" />}
+      <Image src={src} alt={alt} fill className="object-cover" onLoad={() => setLoaded(true)} />
+    </>
+  );
+}
 
 export function CartDrawer() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, totalPrice } =
@@ -62,12 +72,7 @@ export function CartDrawer() {
                   <div className="flex gap-3 py-1">
                     <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded border">
                       {item.productImage ? (
-                        <Image
-                          src={item.productImage}
-                          alt={item.productTitle}
-                          fill
-                          className="object-cover"
-                        />
+                        <CartItemImage src={item.productImage} alt={item.productTitle} />
                       ) : (
                         <div className="h-full w-full bg-muted" />
                       )}

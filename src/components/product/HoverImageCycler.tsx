@@ -21,6 +21,7 @@ export function HoverImageCycler({
 }: HoverImageCyclerProps) {
   const [index, setIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -59,6 +60,9 @@ export function HoverImageCycler({
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
     >
+      {!loaded && (
+        <div className="absolute inset-0 z-10 skeleton-shimmer" />
+      )}
       {images.map((url, i) => (
         <Image
           key={url}
@@ -71,6 +75,7 @@ export function HoverImageCycler({
             i === index ? "opacity-100" : "opacity-0",
           )}
           priority={i === 0}
+          onLoad={i === 0 ? () => setLoaded(true) : undefined}
         />
       ))}
       <div

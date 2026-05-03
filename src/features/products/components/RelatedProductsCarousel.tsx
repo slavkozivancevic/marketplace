@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ImageOff } from "lucide-react";
@@ -23,6 +23,7 @@ export type RelatedProduct = {
 };
 
 function RelatedProductCard({ product }: { product: RelatedProduct }) {
+  const [imgLoaded, setImgLoaded] = useState(false);
   const isOnSale =
     product.compareAtPrice != null && product.compareAtPrice > product.price;
   const discountPct = isOnSale
@@ -39,13 +40,17 @@ function RelatedProductCard({ product }: { product: RelatedProduct }) {
         {/* Image */}
         <div className="relative aspect-4/3 overflow-hidden bg-muted/30">
           {imageUrl ? (
-            <Image
-              src={imageUrl}
-              alt={product.title}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-            />
+            <>
+              {!imgLoaded && <div className="absolute inset-0 z-10 skeleton-shimmer" />}
+              <Image
+                src={imageUrl}
+                alt={product.title}
+                fill
+                sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
+                onLoad={() => setImgLoaded(true)}
+              />
+            </>
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2">
               <ImageOff className="h-8 w-8 text-muted-foreground/30" />

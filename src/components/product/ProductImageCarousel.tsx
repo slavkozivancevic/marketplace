@@ -38,6 +38,7 @@ export function ProductImageCarousel({
   const [current, setCurrent] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set());
   const [zoomState, setZoomState] = useState<{
     index: number;
     x: number;
@@ -114,12 +115,16 @@ export function ProductImageCarousel({
                   onMouseMove={(e) => handleZoomMove(e, index)}
                   onMouseLeave={handleZoomLeave}
                 >
+                  {!loadedImages.has(index) && (
+                    <div className="absolute inset-0 z-10 skeleton-shimmer" />
+                  )}
                   <Image
                     src={img.url}
                     alt={`${title} - image ${index + 1}`}
                     fill
                     className="object-cover"
                     priority={index === 0}
+                    onLoad={() => setLoadedImages((prev) => new Set(prev).add(index))}
                   />
                   {zoomState?.index === index &&
                     (() => {

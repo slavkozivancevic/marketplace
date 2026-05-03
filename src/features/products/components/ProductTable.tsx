@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Copy, ImageOff, Pencil, Trash2 } from "lucide-react";
@@ -80,6 +80,7 @@ export function ProductTableRow({
   const queryClient = useQueryClient();
   const [isDeleting, startDelete] = useTransition();
   const [isDuplicating, startDuplicate] = useTransition();
+  const [thumbLoaded, setThumbLoaded] = useState(false);
 
   const handleDelete = () => {
     startDelete(async () => {
@@ -124,12 +125,14 @@ export function ProductTableRow({
       <div role="cell">
         {thumbnailUrl ? (
           <div className="relative h-12 w-12 overflow-hidden rounded border bg-muted">
+            {!thumbLoaded && <div className="absolute inset-0 z-10 skeleton-shimmer" />}
             <Image
               src={thumbnailUrl}
               alt={product.title}
               fill
               sizes="48px"
               className="object-cover"
+              onLoad={() => setThumbLoaded(true)}
             />
           </div>
         ) : (
