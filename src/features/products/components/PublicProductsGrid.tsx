@@ -162,12 +162,16 @@ export function PublicProductsGrid({
     scrollContainerRef,
   });
 
+  const skeletonCount = columnCountReady ? Math.max(6, columnCount * 2) : 12;
+
   if (query.status === "pending") {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <SkeletonProductGridCard key={i} />
-        ))}
+      <div ref={parentRef} className={scrollContainerRef ? undefined : "@container flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable]"}>
+        <div className="grid grid-cols-1 @[584px]:grid-cols-2 @[888px]:grid-cols-3 @[1192px]:grid-cols-4 @[1496px]:grid-cols-5 @[1800px]:grid-cols-6 gap-6">
+          {Array.from({ length: skeletonCount }).map((_, i) => (
+            <SkeletonProductGridCard key={i} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -198,24 +202,19 @@ export function PublicProductsGrid({
   // Small dataset — plain CSS grid, no virtualization overhead or blank space.
   if (!query.hasNextPage) {
     return (
-      <div ref={parentRef} className={cn(scrollContainerRef ? undefined : "flex-1 min-h-0 overflow-y-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}>
+      <div ref={parentRef} className={cn(scrollContainerRef ? undefined : "@container flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}>
         {!columnCountReady ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 6 }).map((_, i) => (
+          <div className="grid grid-cols-1 @[584px]:grid-cols-2 @[888px]:grid-cols-3 @[1192px]:grid-cols-4 @[1496px]:grid-cols-5 @[1800px]:grid-cols-6 gap-6">
+            {Array.from({ length: skeletonCount }).map((_, i) => (
               <SkeletonProductGridCard key={i} />
             ))}
           </div>
         ) : (
-        <div
-          className="grid gap-6"
-          style={{
-            gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
-          }}
-        >
-          {items.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+          <div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}>
+            {items.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
         )}
       </div>
     );
@@ -225,27 +224,51 @@ export function PublicProductsGrid({
   return (
     <div
       ref={parentRef}
-      className={cn(scrollContainerRef ? undefined : "flex-1 min-h-0 overflow-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
+      className={cn(scrollContainerRef ? undefined : "@container flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
     >
       {!columnCountReady ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className="grid grid-cols-1 @[584px]:grid-cols-2 @[888px]:grid-cols-3 @[1192px]:grid-cols-4 @[1496px]:grid-cols-5 @[1800px]:grid-cols-6 gap-6">
+          {Array.from({ length: skeletonCount }).map((_, i) => (
             <SkeletonProductGridCard key={i} />
           ))}
         </div>
       ) : (
-      <div
-        style={{
-          height: virtualizer.getTotalSize(),
-          position: "relative",
-          width: "100%",
-        }}
-      >
-        {virtualizer.getVirtualItems().map((vRow) => {
-          if (isSentinelRow(vRow.index)) {
+        <div
+          style={{
+            height: virtualizer.getTotalSize(),
+            position: "relative",
+            width: "100%",
+          }}
+        >
+          {virtualizer.getVirtualItems().map((vRow) => {
+            if (isSentinelRow(vRow.index)) {
+              return (
+                <div
+                  key="sentinel"
+                  ref={virtualizer.measureElement}
+                  data-index={vRow.index}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${vRow.start}px)`,
+                    display: "grid",
+                    gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+                    gap: `${gap}px`,
+                  }}
+                >
+                  {Array.from({ length: columnCount }).map((_, i) => (
+                    <SkeletonProductGridCard key={i} />
+                  ))}
+                </div>
+              );
+            }
+
+            const rowItems = getRowItems(vRow.index);
             return (
               <div
-                key="sentinel"
+                key={vRow.key}
                 ref={virtualizer.measureElement}
                 data-index={vRow.index}
                 style={{
@@ -259,38 +282,15 @@ export function PublicProductsGrid({
                   gap: `${gap}px`,
                 }}
               >
-                {Array.from({ length: columnCount }).map((_, i) => (
-                  <SkeletonProductGridCard key={i} />
+                {rowItems.map((product) => (
+                  <ProductCard key={product.id} product={product} />
                 ))}
               </div>
             );
-          }
-
-          const rowItems = getRowItems(vRow.index);
-          return (
-            <div
-              key={vRow.key}
-              ref={virtualizer.measureElement}
-              data-index={vRow.index}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                transform: `translateY(${vRow.start}px)`,
-                display: "grid",
-                gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
-                gap: `${gap}px`,
-              }}
-            >
-              {rowItems.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          );
-        })}
-      </div>
+          })}
+        </div>
       )}
     </div>
   );
 }
+

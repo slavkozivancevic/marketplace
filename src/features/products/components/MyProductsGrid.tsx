@@ -88,12 +88,16 @@ export function MyProductsGrid({
     maxPages: MAX_PAGES,
   });
 
+  const skeletonCount = columnCountReady ? Math.max(6, columnCount * 2) : 12;
+
   if (query.status === "pending") {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <SkeletonProductGridCard key={i} />
-        ))}
+      <div ref={parentRef} className="@container flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable]">
+        <div className="grid grid-cols-1 @[584px]:grid-cols-2 @[888px]:grid-cols-3 @[1192px]:grid-cols-4 @[1496px]:grid-cols-5 @[1800px]:grid-cols-6 gap-6">
+          {Array.from({ length: skeletonCount }).map((_, i) => (
+            <SkeletonProductGridCard key={i} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -126,20 +130,15 @@ export function MyProductsGrid({
   // Small dataset — plain CSS grid, no virtualization overhead or blank space.
   if (!query.hasNextPage) {
     return (
-      <div ref={parentRef} className={cn("flex-1 min-h-0 overflow-y-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}>
+      <div ref={parentRef} className={cn("@container flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}>
         {!columnCountReady ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 6 }).map((_, i) => (
+          <div className="grid grid-cols-1 @[584px]:grid-cols-2 @[888px]:grid-cols-3 @[1192px]:grid-cols-4 @[1496px]:grid-cols-5 @[1800px]:grid-cols-6 gap-6">
+            {Array.from({ length: skeletonCount }).map((_, i) => (
               <SkeletonProductGridCard key={i} />
             ))}
           </div>
         ) : (
-          <div
-            className="grid gap-6"
-            style={{
-              gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
-            }}
-          >
+          <div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}>
             {items.map((product) => renderCard(product, canWrite))}
             {query.isFetchingNextPage &&
               Array.from({ length: columnCount }).map((_, i) => (
@@ -155,11 +154,11 @@ export function MyProductsGrid({
   return (
     <div
       ref={parentRef}
-      className={cn("flex-1 min-h-0 overflow-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
+      className={cn("@container flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
     >
       {!columnCountReady ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className="grid grid-cols-1 @[584px]:grid-cols-2 @[888px]:grid-cols-3 @[1192px]:grid-cols-4 @[1496px]:grid-cols-5 @[1800px]:grid-cols-6 gap-6">
+          {Array.from({ length: skeletonCount }).map((_, i) => (
             <SkeletonProductGridCard key={i} />
           ))}
         </div>
