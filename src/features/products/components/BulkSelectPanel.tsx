@@ -4,7 +4,7 @@ import axios from "axios";
 import { useState, useTransition } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import Image from "next/image";
-import { Loader2, Trash2, ChevronDown } from "lucide-react";
+import { ImageOff, Loader2, Trash2, ChevronDown } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
@@ -288,7 +288,10 @@ export function BulkSelectPanel() {
                           <Image src={thumb} alt={product.title} fill sizes="48px" className="object-cover" />
                         </div>
                       ) : (
-                        <div className="h-12 w-12 rounded border bg-muted shrink-0" />
+                        <div className="h-12 w-12 rounded border bg-muted shrink-0 flex flex-col items-center justify-center gap-0.5">
+                          <ImageOff className="h-4 w-4 text-muted-foreground/40" />
+                          <span className="text-[8px] text-muted-foreground/40">No image</span>
+                        </div>
                       )}
                     </div>
                     <div role="cell" className="min-w-0">

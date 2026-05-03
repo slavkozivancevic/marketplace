@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Copy, Pencil, Trash2 } from "lucide-react";
+import { Copy, ImageOff, Pencil, Trash2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -133,7 +133,10 @@ export function ProductTableRow({
             />
           </div>
         ) : (
-          <div className="h-12 w-12 rounded border bg-muted" />
+          <div className="h-12 w-12 rounded border bg-muted flex flex-col items-center justify-center gap-0.5">
+            <ImageOff className="h-4 w-4 text-muted-foreground/40" />
+            <span className="text-[8px] text-muted-foreground/40">No image</span>
+          </div>
         )}
       </div>
       <div role="cell" className="truncate">{product.title}</div>
