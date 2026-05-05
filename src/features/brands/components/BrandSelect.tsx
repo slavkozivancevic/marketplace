@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   Select,
   SelectContent,
@@ -21,6 +22,7 @@ interface BrandSelectProps {
 }
 
 export function BrandSelect({ brands, value, onChange, disabled }: BrandSelectProps) {
+  const t = useTranslations("brands");
   return (
     <Select
       value={value ?? "none"}
@@ -28,10 +30,10 @@ export function BrandSelect({ brands, value, onChange, disabled }: BrandSelectPr
       disabled={disabled}
     >
       <SelectTrigger className="cursor-pointer">
-        <SelectValue placeholder="No brand" />
+        <SelectValue placeholder={t("noBrand")} />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="none" className="cursor-pointer">No brand</SelectItem>
+        <SelectItem value="none" className="cursor-pointer">{t("noBrand")}</SelectItem>
         {brands.map((brand) => (
           <SelectItem key={brand.id} value={brand.id} className="cursor-pointer">
             {brand.name}

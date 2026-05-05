@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import type { FilterGroup, FilterValues } from "./FilterSidebar";
 
@@ -17,6 +18,7 @@ export function ActiveFilters({
   onRemove,
   onClearAll,
 }: ActiveFiltersProps) {
+  const t = useTranslations("search");
   const chips: { key: string; value: string; label: string }[] = [];
 
   for (const group of groups) {
@@ -44,7 +46,7 @@ export function ActiveFilters({
         } else if (min != null) {
           label += `${prefix}${min}+`;
         } else {
-          label += `up to ${prefix}${max}`;
+          label += `${t("to")} ${prefix}${max}`;
         }
         chips.push({ key: group.key, value: "__range__", label });
       }
@@ -76,7 +78,7 @@ export function ActiveFilters({
           onClick={onClearAll}
           className="text-xs text-muted-foreground hover:text-foreground transition-colors underline cursor-pointer"
         >
-          Clear all
+          {t("clearAll")}
         </button>
       )}
     </div>

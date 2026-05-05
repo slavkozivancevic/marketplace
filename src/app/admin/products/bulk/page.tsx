@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cacheTag } from "next/cache";
 import { ArrowLeft } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
@@ -11,6 +12,7 @@ import { getAllBrands } from "@/features/brands/db/brands";
 import { CacheTags } from "@/lib/cache/tags";
 
 export default async function BulkProductsPage() {
+  const t = await getTranslations();
   const ctx = await resolveRequestContext();
   requirePermission(ctx, "product:read");
 
@@ -20,13 +22,13 @@ export default async function BulkProductsPage() {
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6">
         <PageHeader
-          title="Bulk Operations"
-          description="Filter products by any combination of conditions, then apply a single action — or manually select and manage, or import from CSV."
+          title={t("admin.bulkTitle")}
+          description={t("admin.bulkDesc")}
         >
           <Button asChild variant="outline" size="sm">
             <Link href="/admin/products">
               <ArrowLeft className="h-4 w-4 mr-1.5" />
-              Back to Products
+              {t("admin.backToProducts")}
             </Link>
           </Button>
         </PageHeader>

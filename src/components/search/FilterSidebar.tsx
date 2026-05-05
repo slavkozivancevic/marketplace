@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -94,6 +95,7 @@ function RangeFilter({
   values: [number?, number?];
   onChange: (values: [number?, number?]) => void;
 }) {
+  const t = useTranslations("search");
   const [minStr, setMinStr] = useState(values[0]?.toString() ?? "");
   const [maxStr, setMaxStr] = useState(values[1]?.toString() ?? "");
 
@@ -135,7 +137,7 @@ function RangeFilter({
           )}
           <Input
             type="number"
-            placeholder="Min"
+            placeholder={t("min")}
             value={minStr}
             onChange={(e) => setMinStr(e.target.value)}
             onBlur={handleMinBlur}
@@ -146,7 +148,7 @@ function RangeFilter({
             className={cn("text-sm", group.prefix && "pl-6")}
           />
         </div>
-        <span className="text-xs text-muted-foreground">to</span>
+        <span className="text-xs text-muted-foreground">{t("to")}</span>
         <div className="relative flex-1">
           {group.prefix && (
             <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
@@ -155,7 +157,7 @@ function RangeFilter({
           )}
           <Input
             type="number"
-            placeholder="Max"
+            placeholder={t("max")}
             value={maxStr}
             onChange={(e) => setMaxStr(e.target.value)}
             onBlur={handleMaxBlur}
@@ -216,6 +218,7 @@ function DesktopFilterSidebar(props: {
   onClear: () => void;
   sticky?: boolean;
 }) {
+  const t = useTranslations("search");
   const activeCount = Object.entries(props.values).filter(
     ([, v]) => Array.isArray(v) && v.some((item) => item != null),
   ).length;
@@ -227,14 +230,14 @@ function DesktopFilterSidebar(props: {
     )}>
       <div className="shrink-0 pr-6 pt-1 pb-2">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold">Filters</p>
+          <p className="text-sm font-semibold">{t("filters")}</p>
           <Button
             variant="ghost"
             size="sm"
             onClick={props.onClear}
             className={cn("h-auto py-1 px-2 text-xs", activeCount === 0 && "invisible pointer-events-none")}
           >
-            Clear all
+            {t("clearAll")}
           </Button>
         </div>
         <Separator className="mt-2" />
@@ -259,6 +262,7 @@ function MobileFilterSheet(props: {
   onClear: () => void;
   activeCount: number;
 }) {
+  const t = useTranslations("search");
   const [open, setOpen] = useState(false);
 
   return (
@@ -270,7 +274,7 @@ function MobileFilterSheet(props: {
         className="gap-1.5"
       >
         <Filter className="size-3.5" />
-        Filters
+        {t("filters")}
         {props.activeCount > 0 && (
           <Badge variant="secondary" className="ml-0.5 px-1.5 py-0">
             {props.activeCount}
@@ -280,8 +284,8 @@ function MobileFilterSheet(props: {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="left" className="w-80 flex flex-col">
           <SheetHeader className="shrink-0">
-            <SheetTitle>Filters</SheetTitle>
-            <SheetDescription>Narrow down your results</SheetDescription>
+            <SheetTitle>{t("filters")}</SheetTitle>
+            <SheetDescription>{t("narrowDown")}</SheetDescription>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-4">
             <FilterGroups
@@ -292,7 +296,7 @@ function MobileFilterSheet(props: {
           </div>
           <SheetFooter className="shrink-0">
             <Button onClick={() => setOpen(false)} className="w-full">
-              Show results
+              {t("showResults")}
             </Button>
           </SheetFooter>
         </SheetContent>

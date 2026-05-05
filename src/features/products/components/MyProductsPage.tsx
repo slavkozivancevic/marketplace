@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
 import {
   myProductSearchParams,
@@ -14,27 +15,28 @@ import {
 import { ActiveFilters } from "@/components/search/ActiveFilters";
 import { MyProductsGrid } from "./MyProductsGrid";
 
-const SORT_OPTIONS = [
-  { value: "createdAt", label: "Date Added" },
-  { value: "price", label: "Price" },
-  { value: "title", label: "Name" },
-  { value: "status", label: "Status" },
-];
-
-const FILTER_GROUPS: FilterGroup[] = [
-  {
-    type: "checkbox",
-    key: "status",
-    label: "Status",
-    options: [
-      { value: "DRAFT", label: "Draft" },
-      { value: "PUBLISHED", label: "Published" },
-      { value: "ARCHIVED", label: "Archived" },
-    ],
-  },
-];
-
 export function MyProductsPage({ canWrite }: { canWrite: boolean }) {
+  const t = useTranslations();
+
+  const SORT_OPTIONS = [
+    { value: "createdAt", label: t("myProducts.dateAdded") },
+    { value: "price", label: t("myProducts.price") },
+    { value: "title", label: t("myProducts.name") },
+    { value: "status", label: t("products.status") },
+  ];
+
+  const FILTER_GROUPS: FilterGroup[] = [
+    {
+      type: "checkbox",
+      key: "status",
+      label: t("products.status"),
+      options: [
+        { value: "DRAFT", label: t("myProducts.draft") },
+        { value: "PUBLISHED", label: t("myProducts.published") },
+        { value: "ARCHIVED", label: t("myProducts.archived") },
+      ],
+    },
+  ];
   const [params, setParams] = useQueryStates(myProductSearchParams, {
     shallow: false,
     throttleMs: 300,
@@ -82,7 +84,7 @@ export function MyProductsPage({ canWrite }: { canWrite: boolean }) {
         <SearchToolbar
           search={params.search}
           onSearchChange={(v) => setParams({ search: v })}
-          searchPlaceholder="Search your products..."
+          searchPlaceholder={t("myProducts.searchPlaceholder")}
           sortBy={params.sortBy}
           sortOrder={params.sortOrder}
           onSortByChange={(v) =>

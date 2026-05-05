@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,11 +19,12 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
   product,
   showActions = true,
 }) => {
+  const t = useTranslations("products");
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Basic Information</CardTitle>
+          <CardTitle>{t("basicInfo")}</CardTitle>
           {showActions && (
             <ProductStatusActions
               productId={product.id}
@@ -32,11 +34,11 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
         </CardHeader>
         <CardContent className="space-y-2">
           <div>
-            <strong>Title:</strong> {product.title}
+            <strong>{t("titleLabel")}</strong> {product.title}
           </div>
           {product.brand && (
             <div className="flex items-center gap-2">
-              <strong>Brand:</strong>
+              <strong>{t("brandLabel")}</strong>
               {product.brand.logoUrl && (
                 <div className="relative h-5 w-5 overflow-hidden rounded-sm border bg-muted shrink-0">
                   <Image
@@ -52,25 +54,25 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
             </div>
           )}
           <div>
-            <strong>Description:</strong> {product.description || "—"}
+            <strong>{t("descLabel")}</strong> {product.description || "—"}
           </div>
           <div>
-            <strong>Status:</strong>{" "}
+            <strong>{t("statusLabel")}</strong>{" "}
             <Badge variant={getStatusBadgeVariant(product.status)}>
               {product.status}
             </Badge>
           </div>
           <div>
-            <strong>Price:</strong> ${product.price.toFixed(2)}
+            <strong>{t("priceLabel")}</strong> ${product.price.toFixed(2)}
           </div>
           {product.variants?.length === 0 && (
             <div>
-              <strong>Stock:</strong>{" "}
-              {product.stock !== null ? product.stock : "Unlimited"}
+              <strong>{t("stockLabel")}</strong>{" "}
+              {product.stock !== null ? product.stock : t("unlimited")}
             </div>
           )}
           <div>
-            <strong>Version:</strong> {product.version}
+            <strong>{t("version")}</strong> {product.version}
           </div>
         </CardContent>
       </Card>
@@ -79,7 +81,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
 
       <Card>
         <CardHeader>
-          <CardTitle>Images</CardTitle>
+          <CardTitle>{t("images")}</CardTitle>
         </CardHeader>
         <CardContent>
           <ProductImageCarousel
@@ -95,7 +97,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
         <>
           <Card>
             <CardHeader>
-              <CardTitle>Options</CardTitle>
+              <CardTitle>{t("options")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {product.options.map((option) => (
@@ -122,7 +124,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
 
       <Card>
         <CardHeader>
-          <CardTitle>Variants ({product.variants?.length ?? 0})</CardTitle>
+          <CardTitle>{t("variants", { count: product.variants?.length ?? 0 })}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {product.variants?.length ? (
@@ -130,13 +132,13 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
               <div key={variant.id} className="border p-3 rounded space-y-1">
                 <div className="flex items-center gap-4 text-sm">
                   <span>
-                    <strong>SKU:</strong> {variant.sku}
+                    <strong>{t("sku")}</strong> {variant.sku}
                   </span>
                   <span>
-                    <strong>Price:</strong> ${variant.price.toFixed(2)}
+                    <strong>{t("priceLabel")}</strong> ${variant.price.toFixed(2)}
                   </span>
                   <span>
-                    <strong>Stock:</strong> {variant.stock}
+                    <strong>{t("stockLabel")}</strong> {variant.stock}
                   </span>
                 </div>
                 {variant.optionValues?.length > 0 && (
@@ -152,7 +154,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
             ))
           ) : (
             <p className="text-sm text-muted-foreground">
-              No variants available
+              {t("noVariants")}
             </p>
           )}
         </CardContent>

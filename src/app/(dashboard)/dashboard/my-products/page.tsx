@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createSearchParamsCache } from "nuqs/server";
 import { prisma } from "@/core/db/prisma";
@@ -21,6 +22,7 @@ export default async function MyProductsRoute({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const t = await getTranslations();
   const { userId } = await auth();
 
   const user = await prisma.user.findUnique({
@@ -95,12 +97,12 @@ export default async function MyProductsRoute({
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6">
         <PageHeader
-          title="My Products"
-          description="Manage your product listings."
+          title={t("myProducts.title")}
+          description={t("myProducts.manage")}
         >
           {canWrite && (
             <Button asChild>
-              <Link href="/dashboard/my-products/new">Create Product</Link>
+              <Link href="/dashboard/my-products/new">{t("myProducts.create")}</Link>
             </Button>
           )}
         </PageHeader>

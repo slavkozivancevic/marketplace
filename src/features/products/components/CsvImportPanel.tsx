@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { Download, Upload, AlertCircle, CheckCircle2, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,28 +33,9 @@ const CSV_COLUMNS = [
   "metaDescription",
 ] as const;
 
-const EXAMPLE_ROW = [
-  "My Product",
-  "Full product description",
-  "Short description",
-  "29.99",
-  "39.99",
-  "",
-  "100",
-  "BARCODE123",
-  "true",
-  "true",
-  "false",
-  "",
-  "",
-  "",
-  "",
-  "",
-];
-
-function downloadTemplate() {
+function downloadTemplate(exampleRow: string[]) {
   const header = CSV_COLUMNS.join(",");
-  const example = EXAMPLE_ROW.map((v) => (v.includes(",") ? `"${v}"` : v)).join(",");
+  const example = exampleRow.map((v) => (v.includes(",") ? `"${v}"` : v)).join(",");
   const csv = `${header}\n${example}\n`;
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
@@ -207,7 +189,27 @@ type ImportResult = {
 };
 
 export function CsvImportPanel() {
+  const t = useTranslations("csvImport");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const exampleRow = [
+    t("exampleTitle"),
+    t("exampleDesc"),
+    t("exampleShortDesc"),
+    "29.99",
+    "39.99",
+    "",
+    "100",
+    "BARCODE123",
+    "true",
+    "true",
+    "false",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ];
   const [rawCsv, setRawCsv] = useState("");
   const [parsed, setParsed] = useState<
     { rowIndex: number; result: ParsedRow }[]
@@ -290,25 +292,24 @@ export function CsvImportPanel() {
     <div className="flex flex-col gap-6 max-w-4xl">
       {/* Step 1: Template */}
       <div className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold">1. Download template</h3>
+        <h3 className="text-sm font-semibold">{t("step1Title")}</h3>
         <p className="text-sm text-muted-foreground">
-          Fill in the CSV template with your product data. Images cannot be imported via
-          CSV — add them after import.
+          {t("step1Desc")}
         </p>
         <Button
           variant="outline"
           size="sm"
-          onClick={downloadTemplate}
+          onClick={() => downloadTemplate(exampleRow)}
           className="w-fit gap-2"
         >
           <Download className="h-4 w-4" />
-          Download CSV template
+          {t("downloadTemplate")}
         </Button>
       </div>
 
       {/* Step 2: Upload */}
       <div className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold">2. Upload or paste CSV</h3>
+        <h3 className="text-sm font-semibold">{t("step2Title")}</h3>
 
         {/* Drop zone */}
         <div
@@ -323,8 +324,7 @@ export function CsvImportPanel() {
         >
           <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
-            Drop a <strong>.csv</strong> file here, or{" "}
-            <span className="text-primary underline-offset-4 hover:underline">click to browse</span>
+            {t("dropHintPlain")}
           </p>
           <input
             ref={fileRef}
@@ -336,9 +336,9 @@ export function CsvImportPanel() {
         </div>
 
         {/* Or paste */}
-        <p className="text-xs text-muted-foreground text-center">or paste CSV directly</p>
+        <p className="text-xs text-muted-foreground text-center">{t("pasteDirect")}</p>
         <Textarea
-          placeholder={`title,description,price\nMy Product,Full description,29.99`}
+          placeholder={t("textareaPlaceholder")}
           className="font-mono text-xs min-h-32 resize-y"
           value={rawCsv}
           onChange={(e) => processCsvText(e.target.value)}
@@ -350,14 +350,14 @@ export function CsvImportPanel() {
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold">
-              3. Review &amp; import{" "}
+              {t("step3Title")}{" "}
               <span className="font-normal text-muted-foreground">
-                ({validRows.length} valid, {invalidRows.length} invalid)
+                {t("step3Summary", { valid: validRows.length, invalid: invalidRows.length })}
               </span>
             </h3>
             <Button variant="ghost" size="sm" onClick={reset} className="gap-1.5">
               <X className="h-3.5 w-3.5" />
-              Clear
+              {t("clear")}
             </Button>
           </div>
 
@@ -365,14 +365,14 @@ export function CsvImportPanel() {
           {invalidRows.length > 0 && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Validation errors — {invalidRows.length} row{invalidRows.length !== 1 ? "s" : ""} will be skipped</AlertTitle>
+              <AlertTitle>{t("validationErrors", { count: invalidRows.length })}</AlertTitle>
               <AlertDescription>
                 <ul className="mt-1 space-y-0.5 text-xs">
                   {invalidRows.map(({ rowIndex, result }) =>
                     !result.ok
                       ? result.errors.map((err, i) => (
                           <li key={`${rowIndex}-${i}`}>
-                            Row {rowIndex}: {err}
+                            {t("rowError", { row: rowIndex, error: err })}
                           </li>
                         ))
                       : null,
@@ -387,10 +387,10 @@ export function CsvImportPanel() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b bg-muted/50">
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">#</th>
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Title</th>
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Price</th>
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">Status</th>
+                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t("colHash")}</th>
+                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t("colTitle")}</th>
+                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t("colPrice")}</th>
+                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t("colStatus")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -405,7 +405,7 @@ export function CsvImportPanel() {
                     <td className="px-3 py-2 text-muted-foreground">{rowIndex}</td>
                     <td className="px-3 py-2 max-w-50 truncate">
                       {result.ok ? result.data.title : (
-                        <span className="text-destructive italic">invalid</span>
+                        <span className="text-destructive italic">{t("invalid")}</span>
                       )}
                     </td>
                     <td className="px-3 py-2">
@@ -413,9 +413,9 @@ export function CsvImportPanel() {
                     </td>
                     <td className="px-3 py-2">
                       {result.ok ? (
-                        <Badge variant="secondary" className="text-xs">DRAFT</Badge>
+                        <Badge variant="secondary" className="text-xs">{t("statusDraft")}</Badge>
                       ) : (
-                        <Badge variant="destructive" className="text-xs">Error</Badge>
+                        <Badge variant="destructive" className="text-xs">{t("statusError")}</Badge>
                       )}
                     </td>
                   </tr>
@@ -432,12 +432,12 @@ export function CsvImportPanel() {
             {isImporting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Importing...
+                {t("importing")}
               </>
             ) : (
               <>
                 <Upload className="h-4 w-4" />
-                Import {validRows.length} product{validRows.length !== 1 ? "s" : ""}
+                {t("importBtn", { count: validRows.length })}
               </>
             )}
           </Button>
@@ -454,14 +454,14 @@ export function CsvImportPanel() {
           )}
           <AlertTitle>
             {importResult.errors.length === 0
-              ? `Successfully imported ${importResult.created} product${importResult.created !== 1 ? "s" : ""}`
-              : `Imported ${importResult.created} of ${importResult.totalRows} products`}
+              ? t("successTitle", { count: importResult.created })
+              : t("partialTitle", { created: importResult.created, total: importResult.totalRows })}
           </AlertTitle>
           {importResult.errors.length > 0 && (
             <AlertDescription>
               <ul className="mt-1 space-y-0.5 text-xs">
                 {importResult.errors.map(({ row, message }) => (
-                  <li key={row}>Row {row}: {message}</li>
+                  <li key={row}>{t("rowError", { row, error: message })}</li>
                 ))}
               </ul>
             </AlertDescription>

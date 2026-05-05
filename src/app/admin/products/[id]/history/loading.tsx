@@ -1,12 +1,14 @@
+import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/PageHeader";
 import { SkeletonHistoryTable } from "@/components/ui/skeleton";
 
-export default function ProductHistoryLoadingPage() {
+export default async function ProductHistoryLoadingPage() {
+  const t = await getTranslations();
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto px-6">
       <PageHeader
-        title="Product History"
-        description="Loading product history..."
+        title={t("admin.historyTitle")}
+        description={t("admin.loadingHistory")}
       />
       <div className="mt-4">
         <SkeletonHistoryTable rows={5} />

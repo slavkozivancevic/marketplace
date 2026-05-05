@@ -46,7 +46,7 @@ function renderCard(
         price: product.price,
         compareAtPrice: product.compareAtPrice != null ? Number(product.compareAtPrice) : null,
         status: product.status,
-        imageUrls: product.images?.map((img) => img.url) ?? [],
+        imageUrls: product.images?.map((img: { url: string }) => img.url) ?? [],
         brand: product.brand ?? null,
       }}
     />

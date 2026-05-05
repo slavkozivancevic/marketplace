@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +26,8 @@ export function ProductPurchaseSection({
   activeVariantId,
   onActiveVariantChange,
 }: ProductPurchaseSectionProps) {
+  const t = useTranslations("products");
+  const tCart = useTranslations("cart");
   const activeVariant = activeVariantId
     ? product.variants.find((v) => v.id === activeVariantId)
     : null;
@@ -61,7 +64,7 @@ export function ProductPurchaseSection({
           </div>
           {product.brand && (
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground font-medium">Brand:</span>
+              <span className="text-muted-foreground font-medium">{t("brandLabel")}</span>
               {product.brand.logoUrl && (
                 <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded-sm border bg-muted">
                   <Image
@@ -113,7 +116,7 @@ export function ProductPurchaseSection({
       {product.variants.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Variants</CardTitle>
+            <CardTitle>{t("variantsTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {product.variants.map((variant) => {
@@ -167,8 +170,8 @@ export function ProductPurchaseSection({
                     )}
                     <span>
                       {variant.stock > 0
-                        ? `${variant.stock} in stock`
-                        : "Out of stock"}
+                        ? tCart("inStock", { count: variant.stock })
+                        : tCart("outOfStock")}
                     </span>
                   </div>
                 </div>
@@ -180,9 +183,9 @@ export function ProductPurchaseSection({
 
       {product.variants.length === 0 && (
         <Alert>
-          <AlertTitle>No variants available</AlertTitle>
+          <AlertTitle>{t("noVariants")}</AlertTitle>
           <AlertDescription>
-            This product has no variants configured.
+            {t("noVariantsDesc")}
           </AlertDescription>
         </Alert>
       )}

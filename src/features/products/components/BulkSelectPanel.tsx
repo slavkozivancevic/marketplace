@@ -2,6 +2,7 @@
 import axios from "axios";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { ImageOff, Loader2, Trash2, ChevronDown } from "lucide-react";
@@ -35,13 +36,7 @@ import { SerializedProductListItem } from "@/types/types";
 import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
 
-const STATUS_OPTIONS = [
-  { value: "DRAFT", label: "Draft" },
-  { value: "PUBLISHED", label: "Published" },
-  { value: "ARCHIVED", label: "Archived" },
-] as const;
-
-type ProductStatus = (typeof STATUS_OPTIONS)[number]["value"];
+type ProductStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 
 function getStatusVariant(status: string) {
   if (status === "PUBLISHED") return "default" as const;
@@ -70,7 +65,15 @@ async function fetchPage({
 const GRID_COLS = "40px 56px minmax(120px,1fr) 80px 100px";
 
 export function BulkSelectPanel() {
+  const t = useTranslations("bulkProducts");
+  const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
+
+  const STATUS_OPTIONS: { value: ProductStatus; label: string }[] = [
+    { value: "DRAFT", label: t("draft") },
+    { value: "PUBLISHED", label: t("published") },
+    { value: "ARCHIVED", label: t("archived") },
+  ];
   // search updates after SearchInput's built-in debounce fires
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -155,7 +158,7 @@ export function BulkSelectPanel() {
         <SearchInput
           value={search}
           onChange={setSearch}
-          placeholder="Search products..."
+          placeholder={t("searchPlaceholder")}
         />
       </div>
 
@@ -166,14 +169,14 @@ export function BulkSelectPanel() {
         {selectedCount > 0 && (
           <div className="shrink-0 flex items-center gap-3 border-b bg-background/95 backdrop-blur-sm px-4 py-2.5">
             <span className="text-sm font-medium text-muted-foreground">
-              {selectedCount} selected
+              {t("selected", { count: selectedCount })}
             </span>
             <div className="h-4 w-px bg-border" />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" disabled={isBusy} className="gap-1.5">
-                  Change Status
+                  {t("changeStatus")}
                   <ChevronDown className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>
@@ -193,26 +196,25 @@ export function BulkSelectPanel() {
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm" disabled={isBusy} className="gap-1.5">
                   <Trash2 className="h-3.5 w-3.5" />
-                  Delete
+                  {t("delete")}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>
-                    Delete {selectedCount} product{selectedCount !== 1 ? "s" : ""}?
+                    {t("deleteConfirm", { count: selectedCount })}
                   </AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently delete the selected products and their images
-                    from S3. This action cannot be undone.
+                    {t("deleteDesc")}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={handleDelete}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    Delete {selectedCount} product{selectedCount !== 1 ? "s" : ""}
+                    {t("deleteAction", { count: selectedCount })}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -224,7 +226,7 @@ export function BulkSelectPanel() {
               onClick={() => setSelectedIds(new Set())}
               className="ml-auto"
             >
-              Clear selection
+              {t("clearSelection")}
             </Button>
           </div>
         )}
@@ -242,10 +244,10 @@ export function BulkSelectPanel() {
               aria-label="Select all on this page"
             />
           </div>
-          <div role="columnheader">Image</div>
-          <div role="columnheader">Title</div>
-          <div role="columnheader">Price</div>
-          <div role="columnheader">Status</div>
+          <div role="columnheader">{t("colImage")}</div>
+          <div role="columnheader">{t("colTitle")}</div>
+          <div role="columnheader">{t("colPrice")}</div>
+          <div role="columnheader">{t("colStatus")}</div>
         </div>
 
         {/* Rows — only this part scrolls */}
@@ -253,12 +255,12 @@ export function BulkSelectPanel() {
           {query.status === "pending" ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading products...
+              {t("loading")}
             </div>
           ) : query.status === "error" ? (
-            <p className="text-destructive text-sm p-4">Failed to load products.</p>
+            <p className="text-destructive text-sm p-4">{t("error")}</p>
           ) : allItems.length === 0 ? (
-            <p className="text-muted-foreground text-sm p-4">No products found.</p>
+            <p className="text-muted-foreground text-sm p-4">{t("noProducts")}</p>
           ) : (
             <>
               {allItems.map((product) => {
@@ -290,7 +292,7 @@ export function BulkSelectPanel() {
                       ) : (
                         <div className="h-12 w-12 rounded border bg-muted shrink-0 flex flex-col items-center justify-center gap-0.5">
                           <ImageOff className="h-4 w-4 text-muted-foreground/40" />
-                          <span className="text-[8px] text-muted-foreground/40">No image</span>
+                          <span className="text-[8px] text-muted-foreground/40">{t("noImage")}</span>
                         </div>
                       )}
                     </div>
@@ -319,10 +321,10 @@ export function BulkSelectPanel() {
                     {query.isFetchingNextPage ? (
                       <>
                         <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                        Loading...
+                        {t("loadingMore")}
                       </>
                     ) : (
-                      "Load more"
+                      t("loadMore")
                     )}
                   </Button>
                 </div>
@@ -334,8 +336,8 @@ export function BulkSelectPanel() {
 
       {allItems.length > 0 && (
         <p className="shrink-0 text-xs text-muted-foreground text-right">
-          Showing {allItems.length} product{allItems.length !== 1 ? "s" : ""}
-          {query.hasNextPage ? " (scroll to load more)" : ""}
+          {t("showing", { count: allItems.length })}
+          {query.hasNextPage ? ` ${t("scrollMore")}` : ""}
         </p>
       )}
     </div>

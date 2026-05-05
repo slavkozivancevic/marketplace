@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import Image from "next/image";
 import { Pencil, Trash2 } from "lucide-react";
@@ -26,17 +27,18 @@ import type { BrandListItem } from "../db/brands";
 const COLS = "48px minmax(120px,1fr) 140px minmax(120px,2fr) 80px 80px";
 
 function BrandTableHeader() {
+  const t = useTranslations();
   return (
     <div
       role="row"
       className="grid items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground bg-background rounded-t-lg sticky top-0 z-10 min-w-fit"
       style={{ gridTemplateColumns: COLS }}
     >
-      <div role="columnheader">Logo</div>
-      <div role="columnheader">Name</div>
-      <div role="columnheader">Slug</div>
-      <div role="columnheader">Description</div>
-      <div role="columnheader" className="text-right">Products</div>
+      <div role="columnheader">{t("brands.logo")}</div>
+      <div role="columnheader">{t("brands.name")}</div>
+      <div role="columnheader">{t("brands.slug")}</div>
+      <div role="columnheader">{t("brands.description")}</div>
+      <div role="columnheader" className="text-right">{t("brands.products")}</div>
       <div role="columnheader" />
     </div>
   );
@@ -51,6 +53,7 @@ function BrandTableRow({
   onDelete: (id: string) => void;
   isDeleting: boolean;
 }) {
+  const t = useTranslations();
   return (
     <div
       role="row"
@@ -95,18 +98,18 @@ function BrandTableRow({
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete &quot;{brand.name}&quot;?</AlertDialogTitle>
+                <AlertDialogTitle>{t("brands.deleteConfirm", { name: brand.name })}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Products linked to this brand will have their brand cleared. This cannot be undone.
+                  {t("brands.deleteDesc")}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => onDelete(brand.id)}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
-                  Delete
+                  {t("common.delete")}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -118,6 +121,7 @@ function BrandTableRow({
 }
 
 export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
+  const t = useTranslations();
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -140,7 +144,7 @@ export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
       if (result && "error" in result) {
         toast.error(result.message);
       } else {
-        toast.success("Brand deleted");
+        toast.success(t("brands.brandDeleted"));
       }
       setDeletingId(null);
     });
@@ -149,17 +153,17 @@ export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
   return (
     <div className="flex flex-col gap-4 flex-1 min-h-0">
       <div className="flex flex-wrap items-center gap-3 shrink-0">
-        <SearchInput value={search} onChange={setSearch} placeholder="Search brands..." />
+        <SearchInput value={search} onChange={setSearch} placeholder={t("brands.searchPlaceholder")} />
         <span className="text-xs text-muted-foreground ml-auto tabular-nums">
-          {filtered.length.toLocaleString()} brand{filtered.length !== 1 ? "s" : ""}
+          {filtered.length.toLocaleString()} {filtered.length !== 1 ? t("brands.brands") : t("brands.brand")}
         </span>
       </div>
 
       {filtered.length === 0 ? (
         <Alert>
-          <AlertTitle>{search ? "No brands found" : "No brands yet"}</AlertTitle>
+          <AlertTitle>{search ? t("brands.noBrandsFound") : t("brands.noBrands")}</AlertTitle>
           <AlertDescription>
-            {search ? "Try adjusting your search." : "Create your first brand to get started."}
+            {search ? t("brands.adjustSearch") : t("brands.createFirst")}
           </AlertDescription>
         </Alert>
       ) : (

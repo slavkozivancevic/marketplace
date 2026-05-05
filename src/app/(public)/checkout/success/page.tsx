@@ -1,5 +1,6 @@
 import { connection } from "next/server";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { AlertCircle, CheckCircle, Clock, MapPin, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,7 @@ export default async function CheckoutSuccessPage({
   searchParams,
 }: CheckoutSuccessPageProps) {
   await connection();
+  const t = await getTranslations();
 
   const { session_id } = await searchParams;
 
@@ -52,16 +54,14 @@ export default async function CheckoutSuccessPage({
             <div className="flex justify-center">
               <AlertCircle className="h-16 w-16 text-destructive" />
             </div>
-            <h1 className="text-2xl font-bold">Order Could Not Be Fulfilled</h1>
+            <h1 className="text-2xl font-bold">{t("checkout.orderFailed")}</h1>
             <p className="text-muted-foreground text-sm">
-              One or more items in your order went out of stock before your
-              payment could be processed. Your payment has been fully refunded
-              and should appear within a few business days.
+              {t("checkout.orderFailedDesc")}
             </p>
           </div>
           <div className="flex flex-col gap-3">
             <Button asChild>
-              <Link href="/products">Continue Shopping</Link>
+              <Link href="/products">{t("checkout.continueShopping")}</Link>
             </Button>
           </div>
         </div>
@@ -78,21 +78,19 @@ export default async function CheckoutSuccessPage({
             <div className="flex justify-center">
               <Clock className="h-16 w-16 text-muted-foreground animate-pulse" />
             </div>
-            <h1 className="text-2xl font-bold">Processing Your Order</h1>
+            <h1 className="text-2xl font-bold">{t("checkout.processing")}</h1>
             <p className="text-muted-foreground text-sm">
-              Your payment was received. Your order is being confirmed — this
-              usually takes just a moment. Please refresh the page if it
-              doesn&apos;t update shortly.
+              {t("checkout.processingDesc")}
             </p>
           </div>
           <div className="flex flex-col gap-3">
             <Button asChild variant="outline">
               <Link href={`/checkout/success?session_id=${session_id}`}>
-                Refresh
+                {t("checkout.refresh")}
               </Link>
             </Button>
             <Button asChild variant="ghost">
-              <Link href="/products">Continue Shopping</Link>
+              <Link href="/products">{t("checkout.continueShopping")}</Link>
             </Button>
           </div>
         </div>
@@ -109,9 +107,9 @@ export default async function CheckoutSuccessPage({
           <div className="flex justify-center">
             <CheckCircle className="h-16 w-16 text-green-500" />
           </div>
-          <h1 className="text-2xl font-bold">Payment Successful</h1>
+          <h1 className="text-2xl font-bold">{t("checkout.paymentSuccessful")}</h1>
           <p className="text-muted-foreground text-sm">
-            Thank you for your order! A confirmation email has been sent to you.
+            {t("checkout.thankYou")}
           </p>
         </div>
 
@@ -120,7 +118,7 @@ export default async function CheckoutSuccessPage({
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Package className="h-4 w-4" />
-                Order Summary
+                {t("checkout.orderSummary")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-0">
@@ -143,7 +141,7 @@ export default async function CheckoutSuccessPage({
 
               <Separator className="my-4" />
               <div className="flex justify-between font-semibold text-sm">
-                <span>Total</span>
+                <span>{t("checkout.total")}</span>
                 <span>${total.toFixed(2)}</span>
               </div>
             </CardContent>
@@ -155,7 +153,7 @@ export default async function CheckoutSuccessPage({
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <MapPin className="h-4 w-4" />
-                Shipping Address
+                {t("checkout.shippingAddress")}
               </CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground space-y-0.5">
@@ -176,10 +174,10 @@ export default async function CheckoutSuccessPage({
 
         <div className="flex flex-col gap-3">
           <Button asChild>
-            <Link href="/dashboard/orders">View My Orders</Link>
+            <Link href="/dashboard/orders">{t("checkout.viewMyOrders")}</Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/products">Continue Shopping</Link>
+            <Link href="/products">{t("checkout.continueShopping")}</Link>
           </Button>
         </div>
       </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
 import {
   orderSearchParams,
@@ -14,26 +15,27 @@ import {
 import { ActiveFilters } from "@/components/search/ActiveFilters";
 import { OrdersList } from "./OrdersList";
 
-const SORT_OPTIONS = [
-  { value: "createdAt", label: "Date" },
-  { value: "total", label: "Total" },
-];
-
-const FILTER_GROUPS: FilterGroup[] = [
-  {
-    type: "checkbox",
-    key: "status",
-    label: "Status",
-    options: [
-      { value: "PENDING", label: "Pending" },
-      { value: "COMPLETED", label: "Completed" },
-      { value: "CANCELLED", label: "Cancelled" },
-      { value: "REFUNDED", label: "Refunded" },
-    ],
-  },
-];
-
 export function OrdersPage() {
+  const t = useTranslations();
+
+  const SORT_OPTIONS = [
+    { value: "createdAt", label: t("orders.date") },
+    { value: "total", label: t("orders.total") },
+  ];
+
+  const FILTER_GROUPS: FilterGroup[] = [
+    {
+      type: "checkbox",
+      key: "status",
+      label: t("orders.status"),
+      options: [
+        { value: "PENDING", label: t("orders.pending") },
+        { value: "COMPLETED", label: t("orders.completed") },
+        { value: "CANCELLED", label: t("orders.cancelled") },
+        { value: "REFUNDED", label: t("orders.refunded") },
+      ],
+    },
+  ];
   const [params, setParams] = useQueryStates(orderSearchParams, {
     shallow: false,
     throttleMs: 300,
@@ -81,7 +83,7 @@ export function OrdersPage() {
         <SearchToolbar
           search={params.search}
           onSearchChange={(v) => setParams({ search: v })}
-          searchPlaceholder="Search orders by product name..."
+          searchPlaceholder={t("orders.searchPlaceholder")}
           sortBy={params.sortBy}
           sortOrder={params.sortOrder}
           onSortByChange={(v) =>

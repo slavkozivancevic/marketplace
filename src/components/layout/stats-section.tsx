@@ -1,14 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Store, TrendingUp, Users, CreditCard } from "lucide-react";
-
-const stats = [
-  { label: "Active Sellers", numericValue: 2500, prefix: "", suffix: "+", icon: Store },
-  { label: "Products Listed", numericValue: 50000, prefix: "", suffix: "+", icon: TrendingUp },
-  { label: "Happy Customers", numericValue: 100, prefix: "", suffix: "K+", icon: Users },
-  { label: "Transactions", numericValue: 10, prefix: "$", suffix: "M+", icon: CreditCard },
-];
 
 function formatNumber(n: number): string {
   return n >= 1000 ? n.toLocaleString("en-US") : String(n);
@@ -64,8 +58,16 @@ function StatCounter({
 }
 
 export function StatsSection() {
+  const t = useTranslations("stats");
   const [hasAnimated, setHasAnimated] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  const stats = [
+    { label: t("activeSellers"), numericValue: 2500, prefix: "", suffix: "+", icon: Store },
+    { label: t("productsListed"), numericValue: 50000, prefix: "", suffix: "+", icon: TrendingUp },
+    { label: t("happyCustomers"), numericValue: 100, prefix: "", suffix: "K+", icon: Users },
+    { label: t("transactions"), numericValue: 10, prefix: "$", suffix: "M+", icon: CreditCard },
+  ];
 
   useEffect(() => {
     const el = ref.current;

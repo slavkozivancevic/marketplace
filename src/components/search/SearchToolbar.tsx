@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { SearchInput } from "./SearchInput";
 import { SortSelect, type SortOption } from "./SortSelect";
 import { MobileFilterSheet, type FilterGroup, type FilterValues } from "./FilterSidebar";

@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { useCartStore } from "../store/cartStore";
 
 export function CartButton() {
+  const isOpen = useCartStore((s) => s.isOpen);
   const openCart = useCartStore((s) => s.openCart);
+  const closeCart = useCartStore((s) => s.closeCart);
 
   const count = useSyncExternalStore(
     useCartStore.subscribe,
@@ -16,7 +18,7 @@ export function CartButton() {
 
   return (
     <div className="relative">
-      <Button variant="outline" size="icon" onClick={openCart}>
+      <Button variant="outline" size="icon" data-cart-trigger onClick={isOpen ? closeCart : openCart}>
         <ShoppingCart className="h-4 w-4" />
       </Button>
       {count > 0 && (

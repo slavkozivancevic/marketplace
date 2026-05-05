@@ -1,6 +1,7 @@
 import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { productRepository } from "@/features/products/db/products";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
@@ -20,6 +21,7 @@ interface ProductHistoryPageProps {
 export default async function AdminProductHistoryPage({
   params,
 }: ProductHistoryPageProps) {
+  const t = await getTranslations();
   const { id } = await params;
 
   const ctx = await resolveRequestContext();
@@ -34,17 +36,17 @@ export default async function AdminProductHistoryPage({
       <div className="flex-1 flex flex-col min-h-0">
         <div className="shrink-0 px-6">
           <PageHeader
-            title="Product History"
-            description={`Version history for product ${id}.`}
+            title={t("admin.productHistory")}
+            description={t("admin.productHistoryDesc", { id })}
           >
             <Button asChild variant="outline">
-              <Link href={`/admin/products/${id}`}>Back to Product</Link>
+              <Link href={`/admin/products/${id}`}>{t("admin.backToProduct")}</Link>
             </Button>
           </PageHeader>
         </div>
         <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
           <Alert variant="destructive">
-            <AlertTitle>Error loading product history</AlertTitle>
+            <AlertTitle>{t("admin.errorLoadingHistory")}</AlertTitle>
             <AlertDescription>{result.message}</AlertDescription>
           </Alert>
         </div>
@@ -58,20 +60,20 @@ export default async function AdminProductHistoryPage({
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6">
         <PageHeader
-          title="Product History"
-          description={`Version history for product ${id}.`}
+          title={t("admin.productHistory")}
+          description={t("admin.productHistoryDesc", { id })}
         >
           <Button asChild variant="outline">
-            <Link href={`/admin/products/${id}`}>Back to Product</Link>
+            <Link href={`/admin/products/${id}`}>{t("admin.backToProduct")}</Link>
           </Button>
         </PageHeader>
       </div>
       <div className="flex-1 flex flex-col min-h-0 px-6 pb-6">
         {history.length === 0 ? (
           <Alert>
-            <AlertTitle>No history found</AlertTitle>
+            <AlertTitle>{t("admin.noHistory")}</AlertTitle>
             <AlertDescription>
-              There is currently no version history for this product.
+              {t("admin.noHistoryDesc")}
             </AlertDescription>
           </Alert>
         ) : (

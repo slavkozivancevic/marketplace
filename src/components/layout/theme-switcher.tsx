@@ -61,7 +61,7 @@ export function ThemeSwitcher() {
   const Icon = currentTheme.icon;
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"

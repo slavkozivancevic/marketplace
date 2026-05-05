@@ -9,29 +9,29 @@ import {
 import { HeroBackground } from "@/components/layout/hero-background";
 import { Footer } from "@/components/layout/footer";
 import { StatsSection } from "@/components/layout/stats-section";
+import { getTranslations } from "next-intl/server";
 
-const features = [
-  {
-    icon: ShieldCheck,
-    title: "Enterprise Security",
-    description:
-      "Bank-grade encryption and compliance. Your data and transactions are always protected.",
-  },
-  {
-    icon: Zap,
-    title: "Lightning Performance",
-    description:
-      "Built on cutting-edge infrastructure for instant page loads and seamless shopping.",
-  },
-  {
-    icon: Globe,
-    title: "Global Scale",
-    description:
-      "Reach customers worldwide with multi-currency support and global CDN delivery.",
-  },
-];
+export default async function HomePage() {
+  const t = await getTranslations();
 
-export default function HomePage() {
+  const features = [
+    {
+      icon: ShieldCheck,
+      title: t("home.security"),
+      description: t("home.securityDesc"),
+    },
+    {
+      icon: Zap,
+      title: t("home.performance"),
+      description: t("home.performanceDesc"),
+    },
+    {
+      icon: Globe,
+      title: t("home.scale"),
+      description: t("home.scaleDesc"),
+    },
+  ];
+
   return (
     <div className="star-field flex-1 overflow-y-auto min-h-0">
       {/* Hero Section */}
@@ -49,19 +49,18 @@ export default function HomePage() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
             </span>
-            Now live — Start selling today
+            {t("home.badge")}
           </div>
 
           {/* Main heading */}
           <h1 className="animate-slide-up text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
-            The Marketplace
+            {t("home.headline")}
             <br />
-            <span className="text-gradient-gold">Built for Scale</span>
+            <span className="text-gradient-gold">{t("home.headlineGradient")}</span>
           </h1>
 
           <p className="animate-slide-up delay-200 mx-auto mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl opacity-0">
-            A modern, enterprise-grade commerce platform where sellers thrive
-            and buyers discover extraordinary products.
+            {t("home.subheadline")}
           </p>
 
           {/* CTA Buttons */}
@@ -71,7 +70,7 @@ export default function HomePage() {
                 size="lg"
                 className="h-12 px-8 text-base font-semibold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 hover:-translate-y-0.5 group"
               >
-                Explore Products
+                {t("home.exploreProducts")}
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Button>
             </Link>
@@ -81,7 +80,7 @@ export default function HomePage() {
                 size="lg"
                 className="h-12 px-8 text-base font-semibold backdrop-blur-sm hover:-translate-y-0.5 transition-all duration-300"
               >
-                Start Selling
+                {t("home.startSelling")}
               </Button>
             </Link>
           </div>
@@ -99,12 +98,11 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Why Choose{" "}
-              <span className="text-gradient-cosmos">Our Platform</span>
+              {t("home.whyChoose")}
+              <span className="text-gradient-cosmos">{t("home.whyChooseGradient")}</span>
             </h2>
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-              Built from the ground up for serious commerce, with the tools
-              and infrastructure you need to succeed.
+              {t("home.whyChooseDesc")}
             </p>
           </div>
 
@@ -142,11 +140,10 @@ export default function HomePage() {
 
             <div className="relative z-10">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                Ready to Get Started?
+                {t("home.readyToStart")}
               </h2>
               <p className="mt-4 text-lg text-muted-foreground max-w-xl mx-auto">
-                Join thousands of sellers and buyers on the most powerful
-                marketplace platform available.
+                {t("home.joinThousands")}
               </p>
               <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link href="/sign-up">
@@ -154,7 +151,7 @@ export default function HomePage() {
                     size="lg"
                     className="h-12 px-8 text-base font-semibold shadow-lg shadow-primary/20 group"
                   >
-                    Create Free Account
+                    {t("home.createAccount")}
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </Button>
                 </Link>
@@ -164,7 +161,7 @@ export default function HomePage() {
                     size="lg"
                     className="h-12 px-8 text-base font-semibold"
                   >
-                    Browse Products
+                    {t("home.browseProducts")}
                   </Button>
                 </Link>
               </div>

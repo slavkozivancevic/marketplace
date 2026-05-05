@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "@/components/ui/sonner";
@@ -29,6 +30,7 @@ export function OrganizationSettingsForm({
   currentName,
   canEdit,
 }: OrganizationSettingsFormProps) {
+  const t = useTranslations("organization");
   const [isPending, startTransition] = useTransition();
 
   const form = useForm<UpdateOrganizationNameInput>({
@@ -45,7 +47,7 @@ export function OrganizationSettingsForm({
       if (result && "error" in result) {
         toast.error(result.message);
       } else {
-        toast.success("Organization name updated");
+        toast.success(t("nameUpdated"));
       }
     });
   };
@@ -58,10 +60,10 @@ export function OrganizationSettingsForm({
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Organization Name</FormLabel>
+              <FormLabel>{t("orgName")}</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="Organization name"
+                  placeholder={t("orgNamePlaceholder")}
                   disabled={!canEdit}
                   {...field}
                 />
@@ -73,7 +75,7 @@ export function OrganizationSettingsForm({
 
         {canEdit && (
           <Button type="submit" disabled={isPending}>
-            {isPending ? "Saving..." : "Save Changes"}
+            {isPending ? t("saving") : t("saveChanges")}
           </Button>
         )}
       </form>

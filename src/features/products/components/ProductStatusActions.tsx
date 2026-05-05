@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ActionButton";
@@ -23,6 +24,8 @@ export function ProductStatusActions({
   status,
   redirectTo,
 }: ProductStatusActionsProps) {
+  const t = useTranslations("products");
+  const tCommon = useTranslations("common");
   const [isPublishing, startPublish] = useTransition();
   const [isUnpublishing, startUnpublish] = useTransition();
   const [isArchiving, startArchive] = useTransition();
@@ -69,7 +72,7 @@ export function ProductStatusActions({
     <div className="flex items-center gap-2">
       {status === "DRAFT" && (
         <Button size="sm" onClick={handlePublish} disabled={isPublishing}>
-          {isPublishing ? "Publishing..." : "Publish"}
+          {isPublishing ? t("publishing") : t("publish")}
         </Button>
       )}
 
@@ -81,7 +84,7 @@ export function ProductStatusActions({
             onClick={handleUnpublish}
             disabled={isUnpublishing}
           >
-            {isUnpublishing ? "Unpublishing..." : "Unpublish"}
+            {isUnpublishing ? t("unpublishing") : t("unpublish")}
           </Button>
           <Button
             size="sm"
@@ -89,7 +92,7 @@ export function ProductStatusActions({
             onClick={handleArchive}
             disabled={isArchiving}
           >
-            {isArchiving ? "Archiving..." : "Archive"}
+            {isArchiving ? t("archiving") : t("archive")}
           </Button>
         </>
       )}
@@ -101,14 +104,14 @@ export function ProductStatusActions({
           onClick={handleUnarchive}
           disabled={isUnarchiving}
         >
-          {isUnarchiving ? "Restoring..." : "Restore to Draft"}
+          {isUnarchiving ? t("restoring") : t("restoreToDraft")}
         </Button>
       )}
 
       <ActionButton
-        title="Delete Product"
-        description="Are you sure you want to delete this product? This action cannot be undone."
-        confirmText="Delete"
+        title={t("deleteProduct")}
+        description={t("deleteProductDesc")}
+        confirmText={tCommon("delete")}
         onConfirm={() => {
           startDelete(async () => {
             const result = await deleteProduct(productId, redirectTo);
@@ -119,7 +122,7 @@ export function ProductStatusActions({
         }}
       >
         <Button variant="destructive" size="sm" disabled={isDeleting}>
-          {isDeleting ? "Deleting..." : "Delete"}
+          {isDeleting ? t("deleting") : t("deleteProduct")}
         </Button>
       </ActionButton>
     </div>

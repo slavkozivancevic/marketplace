@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "@/components/ui/sonner";
@@ -26,6 +27,7 @@ import { sendInviteAction } from "../actions/invites";
 import { INVITABLE_ROLES } from "@/types/types";
 
 export function InviteForm() {
+  const t = useTranslations("invite");
   const [isPending, startTransition] = useTransition();
 
   const form = useForm<SendInviteInput>({
@@ -43,7 +45,7 @@ export function InviteForm() {
       if (result && "error" in result) {
         toast.error(result.message);
       } else {
-        toast.success("Invite sent successfully");
+        toast.success(t("success"));
         form.reset();
       }
     });
@@ -57,9 +59,9 @@ export function InviteForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email Address</FormLabel>
+              <FormLabel>{t("email")}</FormLabel>
               <FormControl>
-                <Input placeholder="colleague@example.com" {...field} />
+                <Input placeholder={t("emailPlaceholder")} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -71,11 +73,11 @@ export function InviteForm() {
           name="role"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Role</FormLabel>
+              <FormLabel>{t("role")}</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a role" />
+                    <SelectValue placeholder={t("selectRole")} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -92,7 +94,7 @@ export function InviteForm() {
         />
 
         <Button type="submit" disabled={isPending}>
-          {isPending ? "Sending..." : "Send Invite"}
+          {isPending ? t("sending") : t("send")}
         </Button>
       </form>
     </Form>

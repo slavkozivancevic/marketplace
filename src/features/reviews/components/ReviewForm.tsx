@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +15,7 @@ interface ReviewFormProps {
 }
 
 export function ReviewForm({ productId, orderId }: ReviewFormProps) {
+  const t = useTranslations("reviews");
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +23,7 @@ export function ReviewForm({ productId, orderId }: ReviewFormProps) {
 
   const handleSubmit = () => {
     if (rating === 0) {
-      setError("Please select a rating");
+      setError(t("ratingRequired"));
       return;
     }
 
@@ -43,11 +45,11 @@ export function ReviewForm({ productId, orderId }: ReviewFormProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Write a Review</CardTitle>
+        <CardTitle className="text-lg">{t("write")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <p className="text-sm font-medium mb-2">Your rating</p>
+          <p className="text-sm font-medium mb-2">{t("rating")}</p>
           <StarRating
             rating={rating}
             size={24}
@@ -58,7 +60,7 @@ export function ReviewForm({ productId, orderId }: ReviewFormProps) {
 
         <div>
           <Textarea
-            placeholder="Share your experience (optional)"
+            placeholder={t("experience")}
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             rows={3}
@@ -69,7 +71,7 @@ export function ReviewForm({ productId, orderId }: ReviewFormProps) {
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <Button onClick={handleSubmit} disabled={isPending || rating === 0}>
-          {isPending ? "Submitting..." : "Submit Review"}
+          {isPending ? t("submitting") : t("submit")}
         </Button>
       </CardContent>
     </Card>

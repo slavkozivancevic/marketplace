@@ -1,5 +1,6 @@
 "use client";
 import axios from "axios";
+import { useTranslations } from "next-intl";
 
 import { cn } from "@/lib/utils";
 
@@ -33,23 +34,25 @@ function buildFetcher(filters: OrderFilters) {
   };
 }
 
-function OrderTableHeader() {
-  return (
-    <div
-      role="row"
-      className="grid grid-cols-[100px_100px_80px_minmax(200px,2fr)_80px_100px] items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit"
-    >
-      <div role="columnheader">Order</div>
-      <div role="columnheader">Date</div>
-      <div role="columnheader">Time</div>
-      <div role="columnheader">Items</div>
-      <div role="columnheader">Total</div>
-      <div role="columnheader">Status</div>
-    </div>
-  );
-}
-
 export function OrdersList({ filters }: { filters?: OrderFilters }) {
+  const t = useTranslations();
+
+  function OrderTableHeader() {
+    return (
+      <div
+        role="row"
+        className="grid grid-cols-[100px_100px_80px_minmax(200px,2fr)_80px_100px] items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit"
+      >
+        <div role="columnheader">{t("orders.orderId")}</div>
+        <div role="columnheader">{t("orders.date")}</div>
+        <div role="columnheader">{t("orders.time")}</div>
+        <div role="columnheader">{t("orders.items")}</div>
+        <div role="columnheader">{t("orders.total")}</div>
+        <div role="columnheader">{t("orders.status")}</div>
+      </div>
+    );
+  }
+
   const defaultFilters: OrderFilters = {
     search: "",
     sortBy: "createdAt",
@@ -80,7 +83,7 @@ export function OrdersList({ filters }: { filters?: OrderFilters }) {
   if (query.status === "error") {
     return (
       <Alert variant="destructive">
-        <AlertTitle>Error loading orders</AlertTitle>
+        <AlertTitle>{t("orders.error")}</AlertTitle>
         <AlertDescription>{query.error.message}</AlertDescription>
       </Alert>
     );
@@ -90,15 +93,15 @@ export function OrdersList({ filters }: { filters?: OrderFilters }) {
     const hasFilters = f.search || f.status.length > 0;
     return (
       <Alert>
-        <AlertTitle>{hasFilters ? "No orders found" : "No orders yet"}</AlertTitle>
+        <AlertTitle>{hasFilters ? t("orders.noOrders") : t("orders.noOrdersYet")}</AlertTitle>
         <AlertDescription>
           {hasFilters ? (
-            "Try adjusting your search or filters."
+            t("orders.tryAdjusting")
           ) : (
             <>
-              You haven&apos;t placed any orders yet.{" "}
+              {t("orders.noneYetDesc")}{" "}
               <Link href="/products" className="underline">
-                Browse products
+                {t("orders.browse")}
               </Link>
             </>
           )}

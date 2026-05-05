@@ -4,6 +4,10 @@ import "./globals.css";
 import { Providers } from "@/providers/providers";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
+import { connection } from "next/server";
+import { Suspense } from "react";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -14,6 +18,17 @@ export const metadata: Metadata = {
   title: "Marketplace",
   description: "Modern SaaS Marketplace",
 };
+
+async function LocaleShell({ children }: { children: React.ReactNode }) {
+  await connection();
+  const locale = await getLocale();
+  const messages = await getMessages();
+  return (
+    <NextIntlClientProvider locale={locale} messages={messages}>
+      <Providers>{children}</Providers>
+    </NextIntlClientProvider>
+  );
+}
 
 export default function RootLayout({
   children,
@@ -38,7 +53,9 @@ export default function RootLayout({
             unoptimized
           />
         </div>
-        <Providers>{children}</Providers>
+        <Suspense>
+          <LocaleShell>{children}</LocaleShell>
+        </Suspense>
       </body>
     </html>
   );

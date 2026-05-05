@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import Image from "next/image";
 import { Copy, ImageOff, Pencil, Trash2 } from "lucide-react";
@@ -45,6 +46,7 @@ export function ProductTableHeader({
 }: {
   showActions?: boolean;
 }) {
+  const t = useTranslations("products");
   const cols = showActions ? COLS_ACTIONS : COLS_BASE;
 
   return (
@@ -53,13 +55,13 @@ export function ProductTableHeader({
       className="grid items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit"
       style={{ gridTemplateColumns: cols }}
     >
-      <div role="columnheader" className="truncate">Image</div>
-      <div role="columnheader" className="truncate">Title</div>
-      <div role="columnheader" className="truncate">Brand</div>
-      <div role="columnheader" className="truncate">Description</div>
-      <div role="columnheader" className="truncate">Price</div>
-      <div role="columnheader" className="truncate">Status</div>
-      {showActions && <div role="columnheader" className="truncate">Actions</div>}
+      <div role="columnheader" className="truncate">{t("image")}</div>
+      <div role="columnheader" className="truncate">{t("titleHeader")}</div>
+      <div role="columnheader" className="truncate">{t("brand")}</div>
+      <div role="columnheader" className="truncate">{t("descriptionHeader")}</div>
+      <div role="columnheader" className="truncate">{t("price")}</div>
+      <div role="columnheader" className="truncate">{t("status")}</div>
+      {showActions && <div role="columnheader" className="truncate">{t("actions")}</div>}
     </div>
   );
 }
@@ -76,6 +78,8 @@ export function ProductTableRow({
   showActions?: boolean;
   basePath?: string;
 }) {
+  const t = useTranslations("products");
+  const tCommon = useTranslations("common");
   const router = useRouter();
   const queryClient = useQueryClient();
   const [isDeleting, startDelete] = useTransition();
@@ -102,9 +106,9 @@ export function ProductTableRow({
       }
       const copyId = result.id;
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast.success("Product duplicated", {
+      toast.success(t("duplicated"), {
         action: {
-          label: "Edit copy",
+          label: t("editCopy"),
           onClick: () => router.push(`${basePath}/${copyId}/edit`),
         },
       });
@@ -138,7 +142,7 @@ export function ProductTableRow({
         ) : (
           <div className="h-12 w-12 rounded border bg-muted flex flex-col items-center justify-center gap-0.5">
             <ImageOff className="h-4 w-4 text-muted-foreground/40" />
-            <span className="text-[8px] text-muted-foreground/40">No image</span>
+            <span className="text-[8px] text-muted-foreground/40">{t("noImage")}</span>
           </div>
         )}
       </div>
@@ -169,7 +173,7 @@ export function ProductTableRow({
       <div role="cell">${product.price.toFixed(2)}</div>
       <div role="cell">
         <Badge variant={getStatusVariant(product.status)}>
-          {product.status}
+          {product.status === "PUBLISHED" ? t("published") : product.status === "DRAFT" ? t("draft") : t("archived")}
         </Badge>
       </div>
       {showActions && (
@@ -178,7 +182,7 @@ export function ProductTableRow({
             <Button variant="ghost" size="icon" asChild>
               <Link href={`${basePath}/${product.id}/edit`}>
                 <Pencil className="h-4 w-4" />
-                <span className="sr-only">Edit</span>
+                <span className="sr-only">{tCommon("edit")}</span>
               </Link>
             </Button>
             <Button
@@ -186,32 +190,32 @@ export function ProductTableRow({
               size="icon"
               disabled={isDuplicating}
               onClick={handleDuplicate}
-              title="Duplicate product"
+              title={t("duplicate")}
             >
               <Copy className="h-4 w-4" />
-              <span className="sr-only">Duplicate</span>
+              <span className="sr-only">{t("duplicate")}</span>
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="ghost" size="icon" disabled={isDeleting}>
                   <Trash2 className="h-4 w-4 text-destructive" />
-                  <span className="sr-only">Delete</span>
+                  <span className="sr-only">{tCommon("delete")}</span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Delete &quot;{product.title}&quot;?</AlertDialogTitle>
+                  <AlertDialogTitle>{t("deleteConfirm", { title: product.title })}</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This action cannot be undone.
+                    {t("cannotUndo")}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={handleDelete}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    Delete
+                    {tCommon("delete")}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>

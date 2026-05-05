@@ -1,6 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
+import { useTranslations } from "next-intl";
 import { MessageCircle, ImageIcon, FileText, Video, Paperclip, Clock, Check, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -44,6 +45,7 @@ export function ConversationList({
   isLoading,
   isSearching = false,
 }: Props) {
+  const t = useTranslations("chat");
   if (isLoading) {
     return (
       <div className="flex flex-col gap-1 p-2">
@@ -64,7 +66,7 @@ export function ConversationList({
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
         <MessageCircle className="size-8 opacity-40" />
-        <p className="text-sm">{isSearching ? "No conversations found" : "No conversations yet"}</p>
+        <p className="text-sm">{isSearching ? t("noConversationsFound") : t("noConversationsYet")}</p>
       </div>
     );
   }

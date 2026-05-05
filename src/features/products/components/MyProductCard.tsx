@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
@@ -28,6 +29,8 @@ interface MyProductCardProps {
 }
 
 export function MyProductCard({ canWrite, product }: MyProductCardProps) {
+  const t = useTranslations("products");
+  const tCommon = useTranslations("common");
   const router = useRouter();
   const queryClient = useQueryClient();
   const [isDeleting, startDelete] = useTransition();
@@ -56,9 +59,9 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
       }
       const copyId = result.id;
       queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast.success("Product duplicated", {
+      toast.success(t("duplicated"), {
         action: {
-          label: "Edit copy",
+          label: t("editCopy"),
           onClick: () => router.push(`/dashboard/my-products/${copyId}`),
         },
       });
@@ -77,7 +80,7 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
         ) : (
           <div className="w-full h-48 flex flex-col items-center justify-center gap-2 bg-muted/50">
             <ImageOff className="h-8 w-8 text-muted-foreground/40" />
-            <span className="text-xs text-muted-foreground/40">No image</span>
+            <span className="text-xs text-muted-foreground/40">{t("noImage")}</span>
           </div>
         )}
         {isOnSale && (
@@ -133,14 +136,14 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
                   : "destructive"
             }
           >
-            {product.status}
+            {product.status === "PUBLISHED" ? t("published") : product.status === "DRAFT" ? t("draft") : t("archived")}
           </Badge>
         </div>
         <div className="flex gap-1.5">
           <Button asChild variant="outline" size="sm" className="flex-1 gap-1.5">
             <Link href={`/dashboard/my-products/${product.id}`}>
               <Pencil className="h-3.5 w-3.5" />
-              {canWrite ? "Edit" : "View"}
+              {canWrite ? t("edit") : t("view")}
             </Link>
           </Button>
           {canWrite && (
@@ -153,12 +156,12 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
                 className="flex-1 gap-1.5"
               >
                 <Copy className="h-3.5 w-3.5" />
-                {isDuplicating ? "Duplicating..." : "Duplicate"}
+                {isDuplicating ? t("duplicating") : t("duplicate")}
               </Button>
               <ActionButton
-                title="Delete Product"
-                description={`Are you sure you want to delete "${product.title}"?`}
-                confirmText="Delete"
+                title={t("deleteProduct")}
+                description={t("deleteConfirm", { title: product.title })}
+                confirmText={tCommon("delete")}
                 onConfirm={handleDelete}
               >
                 <Button
@@ -168,7 +171,7 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
                   className="flex-1 gap-1.5"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                  {isDeleting ? "Deleting..." : "Delete"}
+                  {isDeleting ? t("deleting") : tCommon("delete")}
                 </Button>
               </ActionButton>
             </>

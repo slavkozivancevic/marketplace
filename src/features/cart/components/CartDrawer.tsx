@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import Image from "next/image";
-import { Minus, Plus, Trash2, ShoppingCart, Loader2 } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingCart, Loader2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetHeader,
   SheetTitle,
@@ -27,8 +29,10 @@ function CartItemImage({ src, alt }: { src: string; alt: string }) {
 }
 
 export function CartDrawer() {
+  const t = useTranslations("cart");
   const { items, isOpen, closeCart, removeItem, updateQuantity, totalPrice } =
     useCartStore();
+  const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -52,16 +56,28 @@ export function CartDrawer() {
   };
 
   return (
-    <Sheet open={isOpen} onOpenChange={(open) => !open && closeCart()}>
-      <SheetContent className="flex flex-col w-full sm:max-w-md p-6">
-        <SheetHeader className="pb-2">
-          <SheetTitle>Cart ({items.length})</SheetTitle>
+    <Sheet open={isOpen} onOpenChange={(open) => !open && closeCart()} modal={false}>
+      <SheetContent
+        className="flex flex-col w-full sm:max-w-md p-0 gap-0"
+        showCloseButton={false}
+        onInteractOutside={(e) => {
+          if ((e.target as HTMLElement).closest("[data-cart-trigger]")) e.preventDefault();
+        }}
+      >
+        <SheetHeader className="shrink-0 border-b px-4 py-3 flex-row items-center gap-2">
+          <SheetTitle className="text-sm font-semibold">{t("title", { count: totalItems })}</SheetTitle>
+          <SheetClose asChild className="ml-auto">
+            <Button variant="ghost" size="icon-sm">
+              <X className="size-4" />
+            </Button>
+          </SheetClose>
         </SheetHeader>
+        <div className="flex flex-col flex-1 overflow-hidden p-6 gap-0">
 
         {items.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-muted-foreground">
             <ShoppingCart className="h-12 w-12 opacity-30" />
-            <p className="text-sm">Your cart is empty</p>
+            <p className="text-sm">{t("empty")}</p>
           </div>
         ) : (
           <>
@@ -146,7 +162,7 @@ export function CartDrawer() {
 
             <div className="space-y-4 pt-4 border-t mt-4 select-none">
               <div className="flex items-center justify-between font-semibold">
-                <span>Total</span>
+                <span>{t("total")}</span>
                 <span>${totalPrice().toFixed(2)}</span>
               </div>
               <Button
@@ -158,15 +174,16 @@ export function CartDrawer() {
                 {isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Redirecting...
+                    {t("redirecting")}
                   </>
                 ) : (
-                  "Checkout"
+                  t("checkout")
                 )}
               </Button>
             </div>
           </>
         )}
+        </div>
       </SheetContent>
     </Sheet>
   );

@@ -1,8 +1,8 @@
 "use client";
 import axios from "axios";
 
-
 import { useEffect, useRef, useState, useTransition, KeyboardEvent } from "react";
+import { useTranslations } from "next-intl";
 import { useForm, useFieldArray, useWatch, Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "@/components/ui/sonner";
@@ -156,6 +156,7 @@ export function ProductForm({
   onSuccess,
   redirectTo,
 }: ProductFormProps) {
+  const t = useTranslations("productForm");
   const [isPending, startTransition] = useTransition();
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(
     mode === "update" && !!product?.slug,
@@ -336,7 +337,7 @@ export function ProductForm({
     const input = optionValueInputs[optionIndex]?.trim();
     if (!input) return;
     const current = form.getValues(`options.${optionIndex}.values`) ?? [];
-    if (current.includes(input)) { toast.error("Value already exists"); return; }
+    if (current.includes(input)) { toast.error(t("valueExists")); return; }
     form.setValue(`options.${optionIndex}.values`, [...current, input], { shouldValidate: true });
     setOptionValueInputs((prev) => { const next = [...prev]; next[optionIndex] = ""; return next; });
   };
@@ -361,7 +362,7 @@ export function ProductForm({
     const options = form.getValues("options");
     const combinations = cartesianProduct(options);
     if (combinations.length === 0) {
-      toast.error("Add at least one option with values to generate variants");
+      toast.error(t("addOptionFirst"));
       return;
     }
     const previousVariants = form.getValues("variants") ?? [];
@@ -399,7 +400,7 @@ export function ProductForm({
       }),
     );
     setSyncedOptionsSnapshot(snapshotOptions(options));
-    toast.success(`Generated ${combinations.length} variant(s)`);
+    toast.success(t("generated", { count: combinations.length }));
   };
 
   const handleImageUpload = (images: PresignedUploadedImage[]) => {
@@ -468,7 +469,7 @@ export function ProductForm({
       if (result && "error" in result) {
         toast.error(result.message);
       } else {
-        toast.success(mode === "create" ? "Product created" : "Product updated");
+        toast.success(mode === "create" ? t("created") : t("updated"));
         onSuccess?.();
       }
     });
@@ -489,19 +490,19 @@ export function ProductForm({
         <Tabs defaultValue="details" className="flex-1 min-h-0">
           <TabsList className="w-full justify-start flex-wrap h-auto gap-1 shrink-0">
             <TabsTrigger value="details">
-              <TabLabel label="Details" hasError={detailsHasError} />
+              <TabLabel label={t("tabDetails")} hasError={detailsHasError} />
             </TabsTrigger>
             <TabsTrigger value="pricing">
-              <TabLabel label="Pricing & Inventory" hasError={pricingHasError} />
+              <TabLabel label={t("tabPricing")} hasError={pricingHasError} />
             </TabsTrigger>
             <TabsTrigger value="shipping">
-              <TabLabel label="Shipping" hasError={shippingHasError} />
+              <TabLabel label={t("tabShipping")} hasError={shippingHasError} />
             </TabsTrigger>
             <TabsTrigger value="seo">
-              <TabLabel label="SEO" hasError={seoHasError} />
+              <TabLabel label={t("tabSeo")} hasError={seoHasError} />
             </TabsTrigger>
             <TabsTrigger value="variants">
-              <TabLabel label="Options & Variants" hasError={variantsHasError} />
+              <TabLabel label={t("tabOptions")} hasError={variantsHasError} />
             </TabsTrigger>
           </TabsList>
 
@@ -512,9 +513,9 @@ export function ProductForm({
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Title</FormLabel>
+                  <FormLabel>{t("titleField")}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Product title" {...field} />
+                    <Input placeholder={t("titlePlaceholder")} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -526,11 +527,11 @@ export function ProductForm({
               name="slug"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Slug</FormLabel>
+                  <FormLabel>{t("slug")}</FormLabel>
                   <div className="flex gap-2">
                     <FormControl>
                       <Input
-                        placeholder="product-url-slug"
+                        placeholder={t("slugPlaceholder")}
                         {...field}
                         onChange={(e) => {
                           field.onChange(e);
@@ -553,7 +554,7 @@ export function ProductForm({
                     )}
                   </div>
                   <FormDescription>
-                    Used in the product URL. Auto-generated from title.
+                    {t("slugDesc")}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -566,11 +567,11 @@ export function ProductForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
-                    Short Description
-                    <span className="ml-1.5 font-normal text-muted-foreground">— optional</span>
+                    {t("shortDesc")}
+                    <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
                   </FormLabel>
                   <FormControl>
-                    <Input placeholder="One-line summary for cards and search results" {...field} />
+                    <Input placeholder={t("shortDescPlaceholder")} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -582,10 +583,10 @@ export function ProductForm({
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description</FormLabel>
+                  <FormLabel>{t("description")}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Full product description"
+                      placeholder={t("descPlaceholder")}
                       className="min-h-30"
                       {...field}
                     />
@@ -602,8 +603,8 @@ export function ProductForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
-                      Brand
-                      <span className="ml-1.5 font-normal text-muted-foreground">— optional</span>
+                      {t("brand")}
+                      <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
                     </FormLabel>
                     <FormControl>
                       <BrandSelect
@@ -621,7 +622,7 @@ export function ProductForm({
             <Separator />
 
             <div className="space-y-2">
-              <FormLabel className="text-base font-semibold">Images</FormLabel>
+              <FormLabel className="text-base font-semibold">{t("images")}</FormLabel>
               <ProductImageUpload
                 onUploadComplete={handleImageUpload}
                 initialImages={uploadedImages}
@@ -637,7 +638,7 @@ export function ProductForm({
                 name="price"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Price</FormLabel>
+                    <FormLabel>{t("price")}</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -658,8 +659,8 @@ export function ProductForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
-                      Compare at Price
-                      <span className="ml-1.5 font-normal text-muted-foreground">— optional</span>
+                      {t("compareAtPrice")}
+                      <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -672,7 +673,7 @@ export function ProductForm({
                         }
                       />
                     </FormControl>
-                    <FormDescription>Original price shown as strikethrough.</FormDescription>
+                    <FormDescription>{t("compareAtDesc")}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -684,8 +685,8 @@ export function ProductForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
-                      Cost Price
-                      <span className="ml-1.5 font-normal text-muted-foreground">— optional</span>
+                      {t("costPrice")}
+                      <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -698,7 +699,7 @@ export function ProductForm({
                         }
                       />
                     </FormControl>
-                    <FormDescription>Your cost. Used for margin reports.</FormDescription>
+                    <FormDescription>{t("costDesc")}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -714,13 +715,13 @@ export function ProductForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
-                      Stock
-                      <span className="ml-1.5 font-normal text-muted-foreground">— leave blank for unlimited</span>
+                      {t("stock")}
+                      <span className="ml-1.5 font-normal text-muted-foreground">— {t("unlimitedHint")}</span>
                     </FormLabel>
                     <FormControl>
                       <Input
                         type="number"
-                        placeholder="Unlimited"
+                        placeholder={t("unlimited")}
                         value={field.value ?? ""}
                         onChange={(e) =>
                           field.onChange(e.target.value === "" ? null : parseInt(e.target.value, 10))
@@ -739,11 +740,11 @@ export function ProductForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
-                    Barcode (ISBN, UPC, GTIN)
-                    <span className="ml-1.5 font-normal text-muted-foreground">— optional</span>
+                    {t("barcode")}
+                    <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
                   </FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. 978-3-16-148410-0" {...field} />
+                    <Input placeholder={t("barcodePlaceholder")} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -753,7 +754,7 @@ export function ProductForm({
             <Separator />
 
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold">Tax</h3>
+              <h3 className="text-sm font-semibold">{t("tax")}</h3>
 
               <FormField
                 control={form.control}
@@ -761,9 +762,9 @@ export function ProductForm({
                 render={({ field }) => (
                   <FormItem className="flex items-center justify-between rounded-lg border p-4">
                     <div>
-                      <FormLabel className="text-base">Charge taxes</FormLabel>
+                      <FormLabel className="text-base">{t("chargeTaxes")}</FormLabel>
                       <FormDescription>
-                        Enable to apply taxes at checkout.
+                        {t("chargeTaxesDesc")}
                       </FormDescription>
                     </div>
                     <FormControl>
@@ -779,14 +780,14 @@ export function ProductForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
-                      Tax Code
-                      <span className="ml-1.5 font-normal text-muted-foreground">— optional</span>
+                      {t("taxCode")}
+                      <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
                     </FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. P0000000" {...field} />
+                      <Input placeholder={t("taxCodePlaceholder")} {...field} />
                     </FormControl>
                     <FormDescription>
-                      Tax category code for your tax provider.
+                      {t("taxCodeDesc")}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -804,9 +805,9 @@ export function ProductForm({
                 render={({ field }) => (
                   <FormItem className="flex items-center justify-between rounded-lg border p-4">
                     <div>
-                      <FormLabel className="text-base">Digital product</FormLabel>
+                      <FormLabel className="text-base">{t("digitalProduct")}</FormLabel>
                       <FormDescription>
-                        No physical shipping required (e.g. software, ebooks).
+                        {t("digitalDesc")}
                       </FormDescription>
                     </div>
                     <FormControl>
@@ -829,9 +830,9 @@ export function ProductForm({
                   render={({ field }) => (
                     <FormItem className="flex items-center justify-between rounded-lg border p-4">
                       <div>
-                        <FormLabel className="text-base">Requires shipping</FormLabel>
+                        <FormLabel className="text-base">{t("requiresShipping")}</FormLabel>
                         <FormDescription>
-                          Uncheck for virtual goods that still have a physical component.
+                          {t("requiresShippingDesc")}
                         </FormDescription>
                       </div>
                       <FormControl>
@@ -848,14 +849,14 @@ export function ProductForm({
                 <Separator />
 
                 <div className="space-y-4">
-                  <h3 className="text-sm font-semibold">Weight</h3>
+                  <h3 className="text-sm font-semibold">{t("weight")}</h3>
                   <div className="flex gap-3">
                     <FormField
                       control={form.control}
                       name="weight"
                       render={({ field }) => (
                         <FormItem className="flex-1">
-                          <FormLabel>Weight</FormLabel>
+                          <FormLabel>{t("weight")}</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
@@ -876,7 +877,7 @@ export function ProductForm({
                       name="weightUnit"
                       render={({ field }) => (
                         <FormItem className="w-24">
-                          <FormLabel>Unit</FormLabel>
+                          <FormLabel>{t("unit")}</FormLabel>
                           <Select
                             value={field.value ?? ""}
                             onValueChange={(val) => field.onChange(val || null)}
@@ -902,7 +903,7 @@ export function ProductForm({
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="text-sm font-semibold">Dimensions</h3>
+                  <h3 className="text-sm font-semibold">{t("dimensions")}</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {(["length", "width", "height"] as const).map((dim) => (
                       <FormField
@@ -911,7 +912,7 @@ export function ProductForm({
                         name={dim}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="capitalize">{dim}</FormLabel>
+                            <FormLabel>{t(dim)}</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
@@ -933,7 +934,7 @@ export function ProductForm({
                       name="dimensionUnit"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Unit</FormLabel>
+                          <FormLabel>{t("unit")}</FormLabel>
                           <Select
                             value={field.value ?? ""}
                             onValueChange={(val) => field.onChange(val || null)}
@@ -964,8 +965,7 @@ export function ProductForm({
           {/* ── SEO TAB ── */}
           <TabsContent value="seo" className="space-y-6 pt-4 overflow-y-auto min-h-0 pb-6">
             <p className="text-sm text-muted-foreground">
-              These fields control how the product appears in search engine results.
-              Leave blank to use the product title and description automatically.
+              {t("seoHint")}
             </p>
 
             <FormField
@@ -974,18 +974,18 @@ export function ProductForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
-                    Meta Title
-                    <span className="ml-1.5 font-normal text-muted-foreground">— optional</span>
+                    {t("metaTitle")}
+                    <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
                   </FormLabel>
                   <FormControl>
                     <Input
-                      placeholder={form.watch("title") || "Page title for search engines"}
+                      placeholder={form.watch("title") || t("metaTitlePlaceholder")}
                       maxLength={70}
                       {...field}
                     />
                   </FormControl>
                   <FormDescription>
-                    {field.value?.length ?? 0}/70 characters recommended
+                    {t("charsRecommended", { count: field.value?.length ?? 0, max: 70 })}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -998,18 +998,18 @@ export function ProductForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
-                    Meta Description
-                    <span className="ml-1.5 font-normal text-muted-foreground">— optional</span>
+                    {t("metaDescription")}
+                    <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
                   </FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Brief description for search engine results"
+                      placeholder={t("metaDescPlaceholder")}
                       maxLength={160}
                       {...field}
                     />
                   </FormControl>
                   <FormDescription>
-                    {field.value?.length ?? 0}/160 characters recommended
+                    {t("charsRecommended", { count: field.value?.length ?? 0, max: 160 })}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -1019,7 +1019,7 @@ export function ProductForm({
             {/* Preview */}
             {(form.watch("metaTitle") || form.watch("title")) && (
               <div className="rounded-lg border p-4 space-y-1 bg-muted/30">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Search preview</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("searchPreview")}</p>
                 <p className="text-base text-blue-600 font-medium truncate">
                   {form.watch("metaTitle") || form.watch("title")}
                 </p>
@@ -1027,7 +1027,7 @@ export function ProductForm({
                   example.com/products/{form.watch("slug") || "product-slug"}
                 </p>
                 <p className="text-sm text-muted-foreground line-clamp-2">
-                  {form.watch("metaDescription") || form.watch("shortDescription") || form.watch("description") || "No description provided."}
+                  {form.watch("metaDescription") || form.watch("shortDescription") || form.watch("description") || t("noDescription")}
                 </p>
               </div>
             )}
@@ -1039,9 +1039,9 @@ export function ProductForm({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-base font-semibold">Options</h3>
+                  <h3 className="text-base font-semibold">{t("options")}</h3>
                   <p className="text-sm text-muted-foreground">
-                    Add options like Color or Size, then generate variants below.
+                    {t("optionsDesc")}
                   </p>
                 </div>
                 <Button
@@ -1054,13 +1054,13 @@ export function ProductForm({
                   }}
                 >
                   <Plus className="w-4 h-4 mr-1" />
-                  Add Option
+                  {t("addOption")}
                 </Button>
               </div>
 
               {optionFields.length === 0 && (
                 <p className="text-sm text-muted-foreground py-6 text-center border rounded-md">
-                  No options added. Click &quot;Add Option&quot; to add product options like Color or Size.
+                  {t("noOptions")}
                 </p>
               )}
 
@@ -1075,7 +1075,7 @@ export function ProductForm({
                         render={({ field }) => (
                           <FormItem className="flex-1">
                             <FormControl>
-                              <Input placeholder="Option name (e.g. Color)" {...field} />
+                              <Input placeholder={t("optionNamePlaceholder")} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -1096,7 +1096,7 @@ export function ProductForm({
 
                     <div className="space-y-2">
                       <FormLabel className="text-xs text-muted-foreground">
-                        Values — press Enter or comma to add
+                        {t("valuesHint")}
                       </FormLabel>
                       {values.length > 0 && (
                         <div className="flex flex-wrap gap-1">
@@ -1115,7 +1115,7 @@ export function ProductForm({
                       )}
                       <div className="flex gap-2">
                         <Input
-                          placeholder="Add value..."
+                          placeholder={t("addValuePlaceholder")}
                           value={optionValueInputs[optionIndex] ?? ""}
                           onChange={(e) =>
                             setOptionValueInputs((prev) => {
@@ -1132,7 +1132,7 @@ export function ProductForm({
                           size="sm"
                           onClick={() => handleAddOptionValue(optionIndex)}
                         >
-                          Add
+                          {t("addValue")}
                         </Button>
                       </div>
                       {form.formState.errors.options?.[optionIndex]?.values && (
@@ -1152,8 +1152,8 @@ export function ProductForm({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-base font-semibold">Variants</h3>
-                  <p className="text-sm text-muted-foreground">Each variant has its own SKU, price and stock.</p>
+                  <h3 className="text-base font-semibold">{t("variants")}</h3>
+                  <p className="text-sm text-muted-foreground">{t("variantsDesc")}</p>
                 </div>
                 <div className="flex gap-2">
                   {optionFields.length > 0 && (
@@ -1164,8 +1164,8 @@ export function ProductForm({
                       onClick={handleGenerateVariants}
                     >
                       <RefreshCw className="w-4 h-4 mr-1" />
-                      Generate from Options
-                      {optionsChanged && " (required)"}
+                      {t("generateVariants")}
+                      {optionsChanged && ` ${t("required")}`}
                     </Button>
                   )}
                   <Button
@@ -1188,7 +1188,7 @@ export function ProductForm({
                     }
                   >
                     <Plus className="w-4 h-4 mr-1" />
-                    Add Manually
+                    {t("addManually")}
                   </Button>
                 </div>
               </div>
@@ -1196,16 +1196,16 @@ export function ProductForm({
               {mode === "update" && optionsChanged && (
                 <Alert className="border-orange-200 bg-orange-50">
                   <RefreshCw className="h-4 w-4 text-orange-600" />
-                  <AlertTitle className="text-orange-800">Options changed</AlertTitle>
+                  <AlertTitle className="text-orange-800">{t("optionsChanged")}</AlertTitle>
                   <AlertDescription className="text-orange-700">
-                    Regenerate variants to sync all combinations with current options.
+                    {t("regenerateHint")}
                   </AlertDescription>
                 </Alert>
               )}
 
               {variantFields.length === 0 && (
                 <p className="text-sm text-muted-foreground py-6 text-center border rounded-md">
-                  No variants yet. Add options above and click &quot;Generate from Options&quot;, or add variants manually.
+                  {t("noVariants")}
                 </p>
               )}
 
@@ -1224,7 +1224,7 @@ export function ProductForm({
                             </Badge>
                           ))
                         ) : (
-                          <span className="text-sm text-muted-foreground">Manual variant</span>
+                          <span className="text-sm text-muted-foreground">{t("manualVariant")}</span>
                         )}
                       </div>
                       <Button
@@ -1244,9 +1244,9 @@ export function ProductForm({
                         name={`variants.${variantIndex}.sku`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs">SKU</FormLabel>
+                            <FormLabel className="text-xs">{t("sku")}</FormLabel>
                             <FormControl>
-                              <Input placeholder="e.g. RED-SM" {...field} />
+                              <Input placeholder={t("skuPlaceholder")} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -1257,7 +1257,7 @@ export function ProductForm({
                         name={`variants.${variantIndex}.price`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs">Price</FormLabel>
+                            <FormLabel className="text-xs">{t("price")}</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
@@ -1276,7 +1276,7 @@ export function ProductForm({
                         name={`variants.${variantIndex}.stock`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs">Stock</FormLabel>
+                            <FormLabel className="text-xs">{t("stock")}</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
@@ -1298,7 +1298,7 @@ export function ProductForm({
                         name={`variants.${variantIndex}.compareAtPrice`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs">Compare at</FormLabel>
+                            <FormLabel className="text-xs">{t("compareAt")}</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
@@ -1319,7 +1319,7 @@ export function ProductForm({
                         name={`variants.${variantIndex}.costPrice`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs">Cost</FormLabel>
+                            <FormLabel className="text-xs">{t("cost")}</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
@@ -1340,7 +1340,7 @@ export function ProductForm({
                         name={`variants.${variantIndex}.barcode`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs">Barcode</FormLabel>
+                            <FormLabel className="text-xs">{t("barcodeShort")}</FormLabel>
                             <FormControl>
                               <Input placeholder="—" {...field} />
                             </FormControl>
@@ -1354,7 +1354,7 @@ export function ProductForm({
                           name={`variants.${variantIndex}.weight`}
                           render={({ field }) => (
                             <FormItem className="flex-1 min-w-0">
-                              <FormLabel className="text-xs">Weight</FormLabel>
+                              <FormLabel className="text-xs">{t("weight")}</FormLabel>
                               <FormControl>
                                 <Input
                                   type="number"
@@ -1375,7 +1375,7 @@ export function ProductForm({
                           name={`variants.${variantIndex}.weightUnit`}
                           render={({ field }) => (
                             <FormItem className="w-16 shrink-0">
-                              <FormLabel className="text-xs">Unit</FormLabel>
+                              <FormLabel className="text-xs">{t("unit")}</FormLabel>
                               <Select
                                 value={field.value ?? ""}
                                 onValueChange={(val) => field.onChange(val || null)}
@@ -1403,12 +1403,12 @@ export function ProductForm({
                     {/* Variant images */}
                     <div className="space-y-2">
                       <FormLabel className="text-xs text-muted-foreground">
-                        Variant images — optional. When selected on the product page, the carousel will jump to the first of these images.
+                        {t("variantImages")}
                       </FormLabel>
                       {uploadedImages.length === 0 ? (
                         <div className="flex items-center gap-2 rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
                           <ImageOff className="w-3.5 h-3.5" />
-                          Upload product images first to link them to this variant.
+                          {t("uploadFirst")}
                         </div>
                       ) : (
                         <div className="flex flex-wrap gap-2">
@@ -1448,10 +1448,10 @@ export function ProductForm({
         <div className="shrink-0 pt-4 pb-6 border-t">
           <Button type="submit" disabled={isPending}>
             {isPending
-              ? "Saving..."
+              ? t("saving")
               : mode === "create"
-                ? "Create Product"
-                : "Update Product"}
+                ? t("create")
+                : t("update")}
           </Button>
         </div>
       </form>

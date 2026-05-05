@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import Image from "next/image";
 import { MapPin } from "lucide-react";
 import { prisma } from "@/core/db/prisma";
@@ -18,6 +19,7 @@ interface OrderDetailPageProps {
 export default async function OrderDetailPage({
   params,
 }: OrderDetailPageProps) {
+  const t = await getTranslations();
   const { id } = await params;
   const { userId: clerkUserId } = await auth();
   if (!clerkUserId) notFound();
@@ -35,11 +37,11 @@ export default async function OrderDetailPage({
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6">
         <PageHeader
-          title={`Order Details`}
-          description={`Placed on ${new Date(order.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}`}
+          title={t("orders.details")}
+          description={t("orders.placedOn", { date: new Date(order.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) })}
         >
           <Button asChild variant="outline">
-            <Link href="/dashboard/orders">Back to Orders</Link>
+            <Link href="/dashboard/orders">{t("orders.backToOrders")}</Link>
           </Button>
         </PageHeader>
       </div>
@@ -47,18 +49,18 @@ export default async function OrderDetailPage({
         <div className="max-w-2xl space-y-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Order Summary</CardTitle>
+            <CardTitle>{t("orders.summary")}</CardTitle>
             <Badge variant={getStatusVariant(order.status)}>
               {order.status}
             </Badge>
           </CardHeader>
           <CardContent className="space-y-1 text-sm">
             <div className="flex justify-between gap-4 text-muted-foreground">
-              <span className="shrink-0">Order ID</span>
+              <span className="shrink-0">{t("orders.orderId")}</span>
               <span className="font-mono truncate">{order.id}</span>
             </div>
             <div className="flex justify-between gap-4 text-muted-foreground">
-              <span className="shrink-0">Stripe Session</span>
+              <span className="shrink-0">{t("orders.stripeSession")}</span>
               <span className="font-mono text-xs truncate">{order.stripeSessionId}</span>
             </div>
           </CardContent>
@@ -66,7 +68,7 @@ export default async function OrderDetailPage({
 
         <Card>
           <CardHeader>
-            <CardTitle>Items</CardTitle>
+            <CardTitle>{t("orders.items")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-0">
             {order.items.map((item, index) => {
@@ -117,7 +119,7 @@ export default async function OrderDetailPage({
 
             <Separator className="my-4" />
             <div className="flex justify-between font-semibold">
-              <span>Total</span>
+              <span>{t("orders.total")}</span>
               <span>${order.total.toFixed(2)}</span>
             </div>
           </CardContent>
@@ -127,7 +129,7 @@ export default async function OrderDetailPage({
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <MapPin className="h-4 w-4" />
-                Shipping Address
+                {t("orders.shippingAddress")}
               </CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground space-y-0.5">

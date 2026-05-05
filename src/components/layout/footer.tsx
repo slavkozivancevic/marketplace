@@ -1,27 +1,30 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Store } from "lucide-react";
 
-const footerLinks = {
-  Platform: [
-    { label: "Products", href: "/products" },
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Pricing", href: "#" },
-  ],
-  Company: [
-    { label: "About", href: "#" },
-    { label: "Blog", href: "#" },
-    { label: "Careers", href: "#" },
-  ],
-  Legal: [
-    { label: "Privacy", href: "#" },
-    { label: "Terms", href: "#" },
-    { label: "Cookies", href: "#" },
-  ],
-};
-
 export function Footer() {
+  const t = useTranslations("footer");
+
+  const footerLinks = {
+    [t("platform")]: [
+      { label: t("products"), href: "/products" },
+      { label: t("dashboard"), href: "/dashboard" },
+      { label: t("pricing"), href: "#" },
+    ],
+    [t("company")]: [
+      { label: t("about"), href: "#" },
+      { label: t("blog"), href: "#" },
+      { label: t("careers"), href: "#" },
+    ],
+    [t("legal")]: [
+      { label: t("privacy"), href: "#" },
+      { label: t("terms"), href: "#" },
+      { label: t("cookies"), href: "#" },
+    ],
+  };
+
   return (
     <footer className="border-t border-border/50 bg-card/30 backdrop-blur-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -37,8 +40,7 @@ export function Footer() {
               </span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-              The enterprise-grade commerce platform built for modern sellers
-              and buyers.
+              {t("tagline")}
             </p>
           </div>
 
@@ -65,10 +67,10 @@ export function Footer() {
         {/* Bottom */}
         <div className="border-t border-border/50 py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} Marketplace. All rights reserved.
+            {t("copyright", { year: new Date().getFullYear() })}
           </p>
           <p className="text-xs text-muted-foreground">
-            Crafted with precision for enterprise commerce.
+            {t("crafted")}
           </p>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/core/db/prisma";
@@ -15,6 +16,7 @@ import { StarRating } from "@/features/reviews/components/StarRating";
 import { Footer } from "@/components/layout/footer";
 
 export default async function WishlistPage() {
+  const t = await getTranslations();
   const { userId: clerkUserId } = await auth();
   if (!clerkUserId) redirect("/sign-in");
 
@@ -31,15 +33,15 @@ export default async function WishlistPage() {
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6">
         <PageHeader
-          title="Wishlist"
+          title={t("wishlist.title")}
           description={
             products.length > 0
-              ? `${products.length} saved ${products.length === 1 ? "item" : "items"}`
-              : "Items you save will appear here"
+              ? t("wishlist.savedCount", { count: products.length, items: products.length === 1 ? t("wishlist.item") : t("wishlist.items") })
+              : t("wishlist.savedPlaceholder")
           }
         >
           <Button asChild variant="outline">
-            <Link href="/products">Continue Shopping</Link>
+            <Link href="/products">{t("wishlist.continueShopping")}</Link>
           </Button>
         </PageHeader>
       </div>
@@ -51,12 +53,12 @@ export default async function WishlistPage() {
               <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted">
                 <Heart className="h-10 w-10 text-muted-foreground" />
               </div>
-              <h2 className="text-xl font-semibold">Your wishlist is empty</h2>
+              <h2 className="text-xl font-semibold">{t("wishlist.empty")}</h2>
               <p className="text-muted-foreground max-w-sm">
-                Browse products and click the heart icon to save items you love.
+                {t("wishlist.emptyDesc")}
               </p>
               <Button asChild>
-                <Link href="/products">Browse Products</Link>
+                <Link href="/products">{t("wishlist.browseProducts")}</Link>
               </Button>
             </div>
           ) : (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,7 @@ interface AddToCartProps {
 type SelectedValues = Record<string, string>;
 
 export function AddToCart({ product, onActiveVariantChange }: AddToCartProps) {
+  const t = useTranslations("cart");
   const { addItem, openCart, items } = useCartStore();
   const hasOptions = product.options.length > 0;
 
@@ -286,7 +288,7 @@ export function AddToCart({ product, onActiveVariantChange }: AddToCartProps) {
       {manualVariants.length > 0 && (
         <div>
           {hasOptions && (
-            <p className="text-sm font-medium mb-2.5">Other Variants</p>
+            <p className="text-sm font-medium mb-2.5">{t("otherVariants")}</p>
           )}
           <div className="flex flex-wrap gap-2">
             {manualVariants.map((variant) => {
@@ -343,10 +345,10 @@ export function AddToCart({ product, onActiveVariantChange }: AddToCartProps) {
           )}
         >
           {activeVariant.stock > 5
-            ? `${activeVariant.stock} in stock`
+            ? t("inStock", { count: activeVariant.stock })
             : activeVariant.stock > 0
-              ? `Only ${activeVariant.stock} left in stock!`
-              : "Out of stock"}
+              ? t("onlyLeft", { count: activeVariant.stock })
+              : t("outOfStock")}
         </p>
       )}
 
@@ -363,10 +365,10 @@ export function AddToCart({ product, onActiveVariantChange }: AddToCartProps) {
           )}
         >
           {product.stock > 5
-            ? `${product.stock} in stock`
+            ? t("inStock", { count: product.stock })
             : product.stock > 0
-              ? `Only ${product.stock} left in stock!`
-              : "Out of stock"}
+              ? t("onlyLeft", { count: product.stock })
+              : t("outOfStock")}
         </p>
       )}
 
@@ -378,10 +380,10 @@ export function AddToCart({ product, onActiveVariantChange }: AddToCartProps) {
       >
         <ShoppingCart className="mr-2 h-4 w-4" />
         {!allOptionsSelected
-          ? "Select all options"
+          ? t("selectAllOptions")
           : isOutOfStock
-            ? "Out of Stock"
-            : `Add to Cart — $${price.toFixed(2)}`}
+            ? t("outOfStockBtn")
+            : t("addToCart", { price: price.toFixed(2) })}
         {isOnSale && !isOutOfStock && allOptionsSelected && (
           <span className="ml-2 bg-white/20 text-white text-xs font-bold px-1.5 py-0.5 rounded-4xl">
             -{salePct}%

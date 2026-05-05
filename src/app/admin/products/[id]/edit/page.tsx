@@ -1,6 +1,7 @@
 import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
@@ -22,6 +23,7 @@ interface EditProductPageProps {
 }
 
 async function EditProductForm({ productId }: { productId: string }) {
+  const t = await getTranslations();
   const ctx = await resolveRequestContext();
   requirePermission(ctx, "product:read");
 
@@ -33,7 +35,7 @@ async function EditProductForm({ productId }: { productId: string }) {
   if (isActionErrorResult(result)) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>Error loading product</AlertTitle>
+        <AlertTitle>{t("admin.errorLoading")}</AlertTitle>
         <AlertDescription>{result.message}</AlertDescription>
       </Alert>
     );
@@ -55,17 +57,18 @@ async function fetchBrands() {
 export default async function EditProductPage({
   params,
 }: EditProductPageProps) {
+  const t = await getTranslations();
   const { id } = await params;
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6">
         <PageHeader
-          title="Edit Product"
-          description="Update the product details."
+          title={t("admin.editProduct")}
+          description={t("admin.editProductDesc")}
         >
           <Button asChild variant="outline">
-            <Link href={`/admin/products/${id}`}>Back to Product</Link>
+            <Link href={`/admin/products/${id}`}>{t("admin.backToProduct")}</Link>
           </Button>
         </PageHeader>
       </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { ArrowUpDown } from "lucide-react";
 import {
   Select,
@@ -29,6 +30,7 @@ export function SortSelect({
   onSortOrderChange,
   options,
 }: SortSelectProps) {
+  const t = useTranslations("search");
   // Combine sortBy and sortOrder into a single value for simpler UX
   const combinedValue = `${sortBy}:${sortOrder}`;
 
@@ -43,32 +45,32 @@ export function SortSelect({
     const field = opt.value.toLowerCase();
     if (field === "price") {
       return order === "asc"
-        ? `${opt.label}: Low to High`
-        : `${opt.label}: High to Low`;
+        ? `${opt.label}: ${t("lowToHigh")}`
+        : `${opt.label}: ${t("highToLow")}`;
     }
     if (field === "title" || field === "name") {
-      return order === "asc" ? `${opt.label}: A to Z` : `${opt.label}: Z to A`;
+      return order === "asc" ? `${opt.label}: ${t("aToZ")}` : `${opt.label}: ${t("zToA")}`;
     }
     if (field === "avgrating") {
       return order === "asc"
-        ? `${opt.label}: Low to High`
-        : `${opt.label}: High to Low`;
+        ? `${opt.label}: ${t("lowToHigh")}`
+        : `${opt.label}: ${t("highToLow")}`;
     }
     if (field === "total") {
       return order === "asc"
-        ? `${opt.label}: Low to High`
-        : `${opt.label}: High to Low`;
+        ? `${opt.label}: ${t("lowToHigh")}`
+        : `${opt.label}: ${t("highToLow")}`;
     }
     return order === "asc"
-      ? `${opt.label}: Oldest first`
-      : `${opt.label}: Newest first`;
+      ? `${opt.label}: ${t("oldestFirst")}`
+      : `${opt.label}: ${t("newestFirst")}`;
   };
 
   return (
     <Select value={combinedValue} onValueChange={handleChange}>
       <SelectTrigger className="gap-1.5">
         <ArrowUpDown className="size-3.5 text-muted-foreground" />
-        <SelectValue placeholder="Sort by..." />
+        <SelectValue placeholder={t("sortBy")} />
       </SelectTrigger>
       <SelectContent>
         {options.map((opt) => (

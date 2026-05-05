@@ -8,23 +8,9 @@ import {
   Shield,
   LayoutDashboard,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { OrganizationSwitcher } from "@/features/organizations/components/OrganizationSwitcher";
 import { SidebarNav, type SidebarLink } from "./sidebar-nav";
-
-const baseLinks: SidebarLink[] = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/products", label: "Browse Products", icon: ShoppingBag },
-  { href: "/dashboard/orders", label: "My Orders", icon: ClipboardList },
-  { href: "/dashboard/organization", label: "Organization", icon: Building2 },
-];
-
-const sellerLinks: SidebarLink[] = [
-  { href: "/dashboard/my-products", label: "My Products", icon: Package },
-];
-
-const adminLinks: SidebarLink[] = [
-  { href: "/admin", label: "Admin Panel", icon: Shield },
-];
 
 interface DashboardSidebarProps {
   userRole: string;
@@ -37,20 +23,36 @@ export function DashboardSidebar({
   organizations,
   currentOrgId,
 }: DashboardSidebarProps) {
-  const links = [...baseLinks, ...(userRole === "SELLER" ? sellerLinks : [])];
+  const t = useTranslations("sidebar");
 
+  const baseLinks: SidebarLink[] = [
+    { href: "/dashboard", label: t("overview"), icon: LayoutDashboard },
+    { href: "/products", label: t("browseProducts"), icon: ShoppingBag },
+    { href: "/dashboard/orders", label: t("myOrders"), icon: ClipboardList },
+    { href: "/dashboard/organization", label: t("organization"), icon: Building2 },
+  ];
+
+  const sellerLinks: SidebarLink[] = [
+    { href: "/dashboard/my-products", label: t("myProducts"), icon: Package },
+  ];
+
+  const adminLinks: SidebarLink[] = [
+    { href: "/admin", label: t("adminPanel"), icon: Shield },
+  ];
+
+  const links = [...baseLinks, ...(userRole === "SELLER" ? sellerLinks : [])];
   const extras = userRole === "ADMIN" ? adminLinks : undefined;
 
   return (
     <SidebarNav
-      title="Navigation"
+      title={t("navigation")}
       links={links}
       extraLinks={extras}
-      extraLinksTitle="Admin"
+      extraLinksTitle={t("admin")}
     >
       {organizations.length > 1 && (
         <div className="px-3 mb-2">
-          <p className="text-xs text-muted-foreground mb-1.5">Organization</p>
+          <p className="text-xs text-muted-foreground mb-1.5">{t("organization")}</p>
           <OrganizationSwitcher
             organizations={organizations}
             currentOrgId={currentOrgId}

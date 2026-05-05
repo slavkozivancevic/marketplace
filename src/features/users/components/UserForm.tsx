@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "@/components/ui/sonner";
@@ -34,6 +35,7 @@ interface UserFormProps {
 }
 
 export function UserForm({ userId, currentRole, onSuccess }: UserFormProps) {
+  const t = useTranslations("users");
   const [isPending, startTransition] = useTransition();
 
   const form = useForm<UpdateUserRoleInput>({
@@ -50,7 +52,7 @@ export function UserForm({ userId, currentRole, onSuccess }: UserFormProps) {
       if (result && "error" in result) {
         toast.error(result.message);
       } else {
-        toast.success("User role updated");
+        toast.success(t("roleUpdated"));
         onSuccess?.();
       }
     });
@@ -64,11 +66,11 @@ export function UserForm({ userId, currentRole, onSuccess }: UserFormProps) {
           name="role"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Role</FormLabel>
+              <FormLabel>{t("role")}</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a role" />
+                    <SelectValue placeholder={t("selectRole")} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -85,7 +87,7 @@ export function UserForm({ userId, currentRole, onSuccess }: UserFormProps) {
         />
 
         <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving..." : "Update Role"}
+          {isPending ? t("saving") : t("updateRole")}
         </Button>
       </form>
     </Form>

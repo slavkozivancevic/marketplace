@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -44,9 +45,10 @@ interface ReviewListProps {
 }
 
 export function ReviewList({ reviews, currentUserId }: ReviewListProps) {
+  const t = useTranslations("reviews");
   if (reviews.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">No reviews yet.</p>
+      <p className="text-sm text-muted-foreground">{t("noReviews")}</p>
     );
   }
 
@@ -70,6 +72,8 @@ function ReviewItem({
   review: SerializedProductReview;
   isOwner: boolean;
 }) {
+  const t = useTranslations("reviews");
+  const tCommon = useTranslations("common");
   const [isEditing, setIsEditing] = useState(false);
   const [editRating, setEditRating] = useState(review.rating);
   const [editComment, setEditComment] = useState(review.comment ?? "");
@@ -103,7 +107,7 @@ function ReviewItem({
 
   const handleSave = () => {
     if (editRating === 0) {
-      setError("Please select a rating");
+      setError(t("ratingRequired"));
       return;
     }
 
@@ -128,7 +132,7 @@ function ReviewItem({
       <Card>
         <CardContent className="pt-4 space-y-3">
           <div>
-            <p className="text-sm font-medium mb-1">Rating</p>
+            <p className="text-sm font-medium mb-1">{t("ratingLabel")}</p>
             <StarRating
               rating={editRating}
               size={20}
@@ -139,14 +143,14 @@ function ReviewItem({
           <Textarea
             value={editComment}
             onChange={(e) => setEditComment(e.target.value)}
-            placeholder="Update your review (optional)"
+            placeholder={t("editPlaceholder")}
             rows={3}
             maxLength={2000}
           />
           {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="flex gap-2">
             <Button size="sm" onClick={handleSave} disabled={isPending}>
-              {isPending ? "Saving..." : "Save"}
+              {isPending ? t("saving") : t("save")}
             </Button>
             <Button
               size="sm"
@@ -154,7 +158,7 @@ function ReviewItem({
               onClick={handleCancel}
               disabled={isPending}
             >
-              Cancel
+              {tCommon("cancel")}
             </Button>
           </div>
         </CardContent>
@@ -178,7 +182,7 @@ function ReviewItem({
                     {isEdited
                       ? formatRelativeTime(new Date(review.updatedAt))
                       : formatRelativeTime(new Date(review.createdAt))}
-                    {isEdited && " (edited)"}
+                    {isEdited && ` ${t("edited")}`}
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>

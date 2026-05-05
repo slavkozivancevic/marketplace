@@ -1,6 +1,7 @@
 import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { productRepository } from "@/features/products/db/products";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
@@ -18,6 +19,7 @@ interface ProductPageProps {
 }
 
 export default async function AdminProductPage({ params }: ProductPageProps) {
+  const t = await getTranslations();
   const { id } = await params;
 
   const ctx = await resolveRequestContext();
@@ -30,17 +32,17 @@ export default async function AdminProductPage({ params }: ProductPageProps) {
       <div className="flex-1 flex flex-col min-h-0">
         <div className="shrink-0 px-6">
           <PageHeader
-            title="Product Details"
-            description="View detailed information about this product."
+            title={t("admin.productDetails")}
+            description={t("admin.productDetailsDesc")}
           >
             <Button asChild variant="outline">
-              <Link href="/admin/products">Back to Products</Link>
+              <Link href="/admin/products">{t("admin.backToProducts")}</Link>
             </Button>
           </PageHeader>
         </div>
         <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
           <Alert variant="destructive">
-            <AlertTitle>Error loading product</AlertTitle>
+            <AlertTitle>{t("admin.errorLoading")}</AlertTitle>
             <AlertDescription>{result.message}</AlertDescription>
           </Alert>
         </div>
@@ -57,16 +59,16 @@ export default async function AdminProductPage({ params }: ProductPageProps) {
       <div className="shrink-0 px-6">
         <PageHeader
           title={product.title}
-          description="View detailed information about this product."
+          description={t("admin.productDetailsDesc")}
         >
           <Button asChild variant="outline">
-            <Link href="/admin/products">Back to Products</Link>
+            <Link href="/admin/products">{t("admin.backToProducts")}</Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href={`/admin/products/${id}/history`}>History</Link>
+            <Link href={`/admin/products/${id}/history`}>{t("admin.history")}</Link>
           </Button>
           <Button asChild>
-            <Link href={`/admin/products/${id}/edit`}>Edit</Link>
+            <Link href={`/admin/products/${id}/edit`}>{t("common.edit")}</Link>
           </Button>
         </PageHeader>
       </div>

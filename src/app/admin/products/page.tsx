@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cacheTag } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { LayoutList } from "lucide-react";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createSearchParamsCache } from "nuqs/server";
@@ -25,6 +26,7 @@ export default async function AdminProductsRoute({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const t = await getTranslations();
   const ctx = await resolveRequestContext();
   requirePermission(ctx, "product:read");
 
@@ -78,17 +80,17 @@ export default async function AdminProductsRoute({
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6">
         <PageHeader
-          title="Products"
-          description="Browse and manage your product catalog."
+          title={t("admin.products")}
+          description={t("admin.productsBrowse")}
         >
           <Button asChild variant="outline">
             <Link href="/admin/products/bulk">
               <LayoutList className="h-4 w-4 mr-1.5" />
-              Bulk Operations
+              {t("admin.bulkOps")}
             </Link>
           </Button>
           <Button asChild>
-            <Link href="/admin/products/new">Add Product</Link>
+            <Link href="/admin/products/new">{t("admin.addProduct")}</Link>
           </Button>
         </PageHeader>
       </div>

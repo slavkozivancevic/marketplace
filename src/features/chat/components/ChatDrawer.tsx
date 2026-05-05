@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { MessageCircle, ArrowLeft, Trash2, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { MessageCircle, ArrowLeft, Trash2, Loader2, X } from "lucide-react";
 import { SearchInput } from "@/components/search/SearchInput";
 import { useUser } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
@@ -42,13 +43,15 @@ import { MessageThread } from "./MessageThread";
  */
 export function ChatDrawerTrigger() {
   const { isSignedIn } = useUser();
+  const isOpen = useChatStore((s) => s.isOpen);
   const openInbox = useChatStore((s) => s.openInbox);
+  const closeInbox = useChatStore((s) => s.close);
   const unreadCount = useChatStore((s) => s.unreadCount);
 
   if (!isSignedIn) return null;
 
   return (
-    <Button variant="outline" size="icon" onClick={openInbox} className="relative">
+    <Button variant="outline" size="icon" data-chat-trigger onClick={isOpen ? closeInbox : openInbox} className="relative">
       <MessageCircle className="size-4" />
       {unreadCount > 0 && (
         <span className="absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white pointer-events-none leading-none">
@@ -116,12 +119,15 @@ function ChatDrawerRootInner() {
   }, []);
 
   return (
-    <Sheet open={isOpen} onOpenChange={(open) => { if (!open) close(); }}>
+    <Sheet open={isOpen} onOpenChange={(open) => { if (!open) close(); }} modal={false}>
       <SheetContent
         side="right"
         className="w-full sm:max-w-md flex flex-col p-0 gap-0"
         showCloseButton={false}
         aria-describedby={undefined}
+        onInteractOutside={(e) => {
+          if ((e.target as HTMLElement).closest("[data-chat-trigger]")) e.preventDefault();
+        }}
       >
         <ChatDrawerInner
           currentUserId={currentUserId}
@@ -140,6 +146,8 @@ interface InnerProps {
 }
 
 function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
+  const t = useTranslations("chat");
+  const tCommon = useTranslations("common");
   const { selectedConvId, close, setSelectedConvId, convUnread, readStatus } = useChatStore();
   const queryClient = useQueryClient();
 
@@ -220,8 +228,8 @@ function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
           {inThread
             ? profilesLoading
               ? <Skeleton className="h-4 w-28" />
-              : otherParticipantName || "Conversation"
-            : "Messages"}
+              : otherParticipantName || t("conversation")
+            : t("messages")}
         </SheetTitle>
         <div className="ml-auto flex items-center gap-0.5 shrink-0">
           {inThread && (
@@ -236,26 +244,26 @@ function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Delete conversation?</AlertDialogTitle>
+                  <AlertDialogTitle>{t("deleteConversation")}</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently delete the conversation and all messages for all participants. This cannot be undone.
+                    {t("deleteConversationDesc")}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel disabled={deleting}>{tCommon("cancel")}</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={(e) => { e.preventDefault(); void handleDeleteConversation(); }}
                     disabled={deleting}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    {deleting ? <><Loader2 className="size-4 animate-spin" /> Deleting...</> : "Delete"}
+                    {deleting ? <><Loader2 className="size-4 animate-spin" /> {t("deleting")}</> : t("delete")}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
           )}
           <Button variant="ghost" size="icon-sm" onClick={close}>
-            ✕
+            <X className="size-4" />
           </Button>
         </div>
       </SheetHeader>
@@ -277,7 +285,7 @@ function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
               <SearchInput
                 value={search}
                 onChange={setSearch}
-                placeholder="Search conversations..."
+                placeholder={t("searchPlaceholder")}
                 className="pt-0 max-w-none"
               />
             </div>

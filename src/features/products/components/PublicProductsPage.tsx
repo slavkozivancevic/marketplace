@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
 import {
   productSearchParams,
@@ -16,39 +17,6 @@ import { ActiveFilters } from "@/components/search/ActiveFilters";
 import { PublicProductsGrid } from "./PublicProductsGrid";
 import type { BrandOption } from "@/features/brands/components/BrandSelect";
 
-const SORT_OPTIONS = [
-  { value: "createdAt", label: "Date Added" },
-  { value: "price", label: "Price" },
-  { value: "title", label: "Name" },
-  { value: "avgRating", label: "Rating" },
-];
-
-const BASE_FILTER_GROUPS: FilterGroup[] = [
-  {
-    type: "range",
-    key: "price",
-    label: "Price",
-    prefix: "$",
-    min: 0,
-    step: 1,
-  },
-  {
-    type: "checkbox",
-    key: "onSale",
-    label: "Deals",
-    options: [{ value: "true", label: "On Sale" }],
-  },
-  {
-    type: "checkbox",
-    key: "isDigital",
-    label: "Product Type",
-    options: [
-      { value: "false", label: "Physical" },
-      { value: "true", label: "Digital" },
-    ],
-  },
-];
-
 export function PublicProductsPage({
   brands = [],
   footer,
@@ -56,6 +24,40 @@ export function PublicProductsPage({
   brands?: BrandOption[];
   footer?: React.ReactNode;
 }) {
+  const t = useTranslations();
+
+  const SORT_OPTIONS = [
+    { value: "createdAt", label: t("products.dateAdded") },
+    { value: "price", label: t("products.price") },
+    { value: "title", label: t("products.name") },
+    { value: "avgRating", label: t("products.rating") },
+  ];
+
+  const BASE_FILTER_GROUPS: FilterGroup[] = [
+    {
+      type: "range",
+      key: "price",
+      label: t("products.price"),
+      prefix: "$",
+      min: 0,
+      step: 1,
+    },
+    {
+      type: "checkbox",
+      key: "onSale",
+      label: t("products.deals"),
+      options: [{ value: "true", label: t("products.onSale") }],
+    },
+    {
+      type: "checkbox",
+      key: "isDigital",
+      label: t("products.productType"),
+      options: [
+        { value: "false", label: t("products.physical") },
+        { value: "true", label: t("products.digital") },
+      ],
+    },
+  ];
   const [params, setParams] = useQueryStates(productSearchParams, {
     shallow: false,
     throttleMs: 300,
@@ -68,7 +70,7 @@ export function PublicProductsPage({
       {
         type: "checkbox" as const,
         key: "brandId",
-        label: "Brand",
+        label: t("products.brand"),
         options: brands.map((b) => ({ value: b.id, label: b.name })),
       },
     ];
@@ -138,7 +140,7 @@ export function PublicProductsPage({
         <SearchToolbar
           search={params.search}
           onSearchChange={(v) => setParams({ search: v })}
-          searchPlaceholder="Search products..."
+          searchPlaceholder={t("products.searchPlaceholder")}
           isPending={false}
           sortBy={params.sortBy}
           sortOrder={params.sortOrder}

@@ -1,22 +1,25 @@
 "use client";
 
 import { Package, Users, Building2, LayoutDashboard, Tag, Shield } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { SidebarNav, type SidebarLink } from "./sidebar-nav";
 
-const adminLinks: SidebarLink[] = [
-  { href: "/admin", label: "Overview", icon: Shield },
-  { href: "/admin/products", label: "Products", icon: Package },
-  { href: "/admin/brands", label: "Brands", icon: Tag },
-  { href: "/admin/organizations", label: "Organizations", icon: Building2 },
-  { href: "/admin/users", label: "Users", icon: Users },
-];
-
-const quickLinks: SidebarLink[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-];
-
 export function AdminSidebar() {
+  const t = useTranslations("sidebar");
+
+  const adminLinks: SidebarLink[] = [
+    { href: "/admin", label: t("overview"), icon: Shield },
+    { href: "/admin/products", label: t("products"), icon: Package },
+    { href: "/admin/brands", label: t("brands"), icon: Tag },
+    { href: "/admin/organizations", label: t("organizations"), icon: Building2 },
+    { href: "/admin/users", label: t("users"), icon: Users },
+  ];
+
+  const quickLinks: SidebarLink[] = [
+    { href: "/dashboard", label: t("dashboard"), icon: LayoutDashboard },
+  ];
+
   return (
-    <SidebarNav title="Admin Panel" links={adminLinks} extraLinks={quickLinks} />
+    <SidebarNav title={t("adminPanel")} links={adminLinks} extraLinks={quickLinks} extraLinksTitle={t("quickLinks")} />
   );
 }

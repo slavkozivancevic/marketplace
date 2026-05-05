@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "@/components/ui/sonner";
@@ -34,6 +35,7 @@ type EditMode = {
 type BrandFormProps = CreateMode | EditMode;
 
 export function BrandForm(props: BrandFormProps) {
+  const t = useTranslations("brands");
   const [isPending, startTransition] = useTransition();
 
   const form = useForm<CreateBrandInput>({
@@ -77,10 +79,10 @@ export function BrandForm(props: BrandFormProps) {
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Brand Name</FormLabel>
+              <FormLabel>{t("brandName")}</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="e.g. Nike"
+                  placeholder={t("brandNamePlaceholder")}
                   {...field}
                 />
               </FormControl>
@@ -94,11 +96,11 @@ export function BrandForm(props: BrandFormProps) {
           name="slug"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Slug</FormLabel>
+              <FormLabel>{t("slug")}</FormLabel>
               <FormControl>
-                <Input placeholder="e.g. nike" {...field} />
+                <Input placeholder={t("slugPlaceholder")} {...field} />
               </FormControl>
-              <FormDescription>URL-friendly identifier. Auto-generated from name.</FormDescription>
+              <FormDescription>{t("slugDesc")}</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -109,11 +111,11 @@ export function BrandForm(props: BrandFormProps) {
           name="logoUrl"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Logo URL</FormLabel>
+              <FormLabel>{t("logoUrl")}</FormLabel>
               <FormControl>
-                <Input placeholder="https://example.com/logo.png" {...field} />
+                <Input placeholder={t("logoPlaceholder")} {...field} />
               </FormControl>
-              <FormDescription>Optional link to the brand logo image.</FormDescription>
+              <FormDescription>{t("logoDesc")}</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -124,10 +126,10 @@ export function BrandForm(props: BrandFormProps) {
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description</FormLabel>
+              <FormLabel>{t("description")}</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Short description of the brand..."
+                  placeholder={t("descPlaceholder")}
                   rows={3}
                   {...field}
                 />
@@ -139,8 +141,8 @@ export function BrandForm(props: BrandFormProps) {
 
         <Button type="submit" disabled={isPending}>
           {isPending
-            ? props.mode === "edit" ? "Saving..." : "Creating..."
-            : props.mode === "edit" ? "Save Changes" : "Create Brand"}
+            ? props.mode === "edit" ? t("saving") : t("creating")
+            : props.mode === "edit" ? t("saveChanges") : t("create")}
         </Button>
       </form>
     </Form>

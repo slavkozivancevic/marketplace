@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { SearchInput } from "@/components/search/SearchInput";
 import { FilterSidebar, type FilterGroup, type FilterValues } from "@/components/search/FilterSidebar";
 import { ActiveFilters } from "@/components/search/ActiveFilters";
@@ -24,23 +25,25 @@ interface SerializedOrganization {
   }[];
 }
 
-const FILTER_GROUPS: FilterGroup[] = [
-  {
-    type: "checkbox",
-    key: "verified",
-    label: "Verification",
-    options: [
-      { value: "true", label: "Verified" },
-      { value: "false", label: "Unverified" },
-    ],
-  },
-];
-
 export function AdminOrganizationsPage({
   organizations,
 }: {
   organizations: SerializedOrganization[];
 }) {
+  const t = useTranslations();
+
+  const FILTER_GROUPS: FilterGroup[] = [
+    {
+      type: "checkbox",
+      key: "verified",
+      label: t("admin.verification"),
+      options: [
+        { value: "true", label: t("organization.verified") },
+        { value: "false", label: t("organization.unverified") },
+      ],
+    },
+  ];
+
   const [search, setSearch] = useState("");
   const [verifiedFilter, setVerifiedFilter] = useState<string[]>([]);
 
@@ -98,7 +101,7 @@ export function AdminOrganizationsPage({
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder="Search organizations or members..."
+            placeholder={t("admin.searchOrgs")}
           />
           <MobileFilterSheet
             groups={FILTER_GROUPS}
@@ -108,8 +111,7 @@ export function AdminOrganizationsPage({
             activeCount={activeFilterCount}
           />
           <span className="text-xs text-muted-foreground ml-auto tabular-nums">
-            {filtered.length.toLocaleString()} organization
-            {filtered.length !== 1 ? "s" : ""}
+            {filtered.length.toLocaleString()} {filtered.length !== 1 ? t("admin.orgsLabel") : t("admin.orgLabel")}
           </span>
         </div>
         <ActiveFilters
@@ -121,10 +123,8 @@ export function AdminOrganizationsPage({
         <div className="flex-1 min-h-0 overflow-y-auto pb-6">
           {filtered.length === 0 ? (
             <Alert>
-              <AlertTitle>No organizations found</AlertTitle>
-              <AlertDescription>
-                Try adjusting your search or filters.
-              </AlertDescription>
+              <AlertTitle>{t("admin.noOrgs")}</AlertTitle>
+              <AlertDescription>{t("admin.noOrgsDesc")}</AlertDescription>
             </Alert>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

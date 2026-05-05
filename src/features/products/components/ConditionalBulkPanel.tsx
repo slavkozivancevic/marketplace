@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useId } from "react";
+import { useTranslations } from "next-intl";
 import { Plus, Trash2, Search, AlertCircle, CheckCircle2, Loader2, ChevronDown } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -64,29 +65,8 @@ type Condition =
   | { type: "maxPrice"; value: number }
   | { type: "titleContains"; value: string };
 
-const CONDITION_LABELS: Record<ConditionType, string> = {
-  brand: "Brand is one of",
-  noBrand: "Has no brand",
-  status: "Status is one of",
-  minPrice: "Price ≥",
-  maxPrice: "Price ≤",
-  titleContains: "Title contains",
-};
-
 // The action to apply to matching products.
 type ActionType = "delete" | "setStatus" | "setBrand" | "removeBrand" | "setPrice" | "setCompareAtPrice" | "setCostPrice" | "setTaxable" | "setRequiresShipping";
-
-const ACTION_LABELS: Record<ActionType, string> = {
-  delete: "Delete all matching products",
-  setStatus: "Change status to…",
-  setBrand: "Change brand to…",
-  removeBrand: "Remove brand from all matching",
-  setPrice: "Set price to…",
-  setCompareAtPrice: "Set compare-at price to…",
-  setCostPrice: "Set cost price to…",
-  setTaxable: "Set taxable…",
-  setRequiresShipping: "Set requires shipping…",
-};
 
 // ---------------------------------------------------------------------------
 // Helper: build BulkFilter from conditions array
@@ -120,7 +100,23 @@ function ConditionRow({
   onUpdate: (c: Condition) => void;
   onRemove: () => void;
 }) {
+  const t = useTranslations("bulkProducts");
   const id = useId();
+
+  const STATUS_LABELS: Record<string, string> = {
+    DRAFT: t("draft"),
+    PUBLISHED: t("published"),
+    ARCHIVED: t("archived"),
+  };
+
+  const CONDITION_LABELS: Record<ConditionType, string> = {
+    brand: t("condBrand"),
+    noBrand: t("condNoBrand"),
+    status: t("condStatus"),
+    minPrice: t("condMinPrice"),
+    maxPrice: t("condMaxPrice"),
+    titleContains: t("condTitleContains"),
+  };
 
   const toggleBrand = (brandId: string) => {
     if (condition.type !== "brand") return;
@@ -150,7 +146,7 @@ function ConditionRow({
         {condition.type === "brand" && (
           <div className="flex flex-wrap gap-1.5">
             {brands.length === 0 ? (
-              <span className="text-xs text-muted-foreground">No brands found</span>
+              <span className="text-xs text-muted-foreground">{t("noBrandsFound")}</span>
             ) : (
               brands.map((b) => {
                 const selected = condition.brandIds.includes(b.id);
@@ -174,7 +170,7 @@ function ConditionRow({
         )}
 
         {condition.type === "noBrand" && (
-          <span className="text-sm text-muted-foreground">Products with no brand assigned</span>
+          <span className="text-sm text-muted-foreground">{t("noBrandAssigned")}</span>
         )}
 
         {condition.type === "status" && (
@@ -192,7 +188,7 @@ function ConditionRow({
                       : "border-border bg-background hover:bg-muted"
                   }`}
                 >
-                  {s}
+                  {STATUS_LABELS[s]}
                 </button>
               );
             })}
@@ -252,10 +248,30 @@ function ActionEditor({
   onChangeValue: (v: string | number | boolean | null) => void;
   brands: BrandOption[];
 }) {
+  const t = useTranslations("bulkProducts");
+
+  const STATUS_LABELS: Record<string, string> = {
+    DRAFT: t("draft"),
+    PUBLISHED: t("published"),
+    ARCHIVED: t("archived"),
+  };
+
+  const ACTION_LABELS: Record<ActionType, string> = {
+    delete: t("actDelete"),
+    setStatus: t("actSetStatus"),
+    setBrand: t("actSetBrand"),
+    removeBrand: t("actRemoveBrand"),
+    setPrice: t("actSetPrice"),
+    setCompareAtPrice: t("actSetCompareAtPrice"),
+    setCostPrice: t("actSetCostPrice"),
+    setTaxable: t("actSetTaxable"),
+    setRequiresShipping: t("actSetRequiresShipping"),
+  };
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
-        <Label className="text-xs text-muted-foreground">Action</Label>
+        <Label className="text-xs text-muted-foreground">{t("actionLabel")}</Label>
         <Select value={action.type} onValueChange={(v) => onChangeType(v as ActionType)}>
           <SelectTrigger className="w-fit min-w-60">
             <SelectValue />
@@ -273,17 +289,17 @@ function ActionEditor({
       {/* Action-specific value input */}
       {action.type === "setStatus" && (
         <div className="flex flex-col gap-1.5">
-          <Label className="text-xs text-muted-foreground">New status</Label>
+          <Label className="text-xs text-muted-foreground">{t("newStatus")}</Label>
           <Select
             value={(action.value as string) ?? ""}
             onValueChange={(v) => onChangeValue(v)}
           >
             <SelectTrigger className="w-44">
-              <SelectValue placeholder="Pick status…" />
+              <SelectValue placeholder={t("pickStatus")} />
             </SelectTrigger>
             <SelectContent>
               {STATUS_OPTIONS.map((s) => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
+                <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -292,13 +308,13 @@ function ActionEditor({
 
       {action.type === "setBrand" && (
         <div className="flex flex-col gap-1.5">
-          <Label className="text-xs text-muted-foreground">New brand</Label>
+          <Label className="text-xs text-muted-foreground">{t("newBrand")}</Label>
           <Select
             value={(action.value as string) ?? ""}
             onValueChange={(v) => onChangeValue(v)}
           >
             <SelectTrigger className="w-56">
-              <SelectValue placeholder="Pick brand…" />
+              <SelectValue placeholder={t("pickBrand")} />
             </SelectTrigger>
             <SelectContent>
               {brands.map((b) => (
@@ -315,10 +331,10 @@ function ActionEditor({
         <div className="flex flex-col gap-1.5">
           <Label className="text-xs text-muted-foreground">
             {action.type === "setPrice"
-              ? "New price"
+              ? t("newPrice")
               : action.type === "setCompareAtPrice"
-              ? "New compare-at price (leave 0 to clear)"
-              : "New cost price (leave 0 to clear)"}
+              ? t("newCompareAt")
+              : t("newCost")}
           </Label>
           <div className="relative w-36">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
@@ -336,7 +352,7 @@ function ActionEditor({
 
       {(action.type === "setTaxable" || action.type === "setRequiresShipping") && (
         <div className="flex flex-col gap-1.5">
-          <Label className="text-xs text-muted-foreground">Value</Label>
+          <Label className="text-xs text-muted-foreground">{t("valueLabel")}</Label>
           <Select
             value={action.value === true ? "true" : "false"}
             onValueChange={(v) => onChangeValue(v === "true")}
@@ -345,8 +361,8 @@ function ActionEditor({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="true">Yes</SelectItem>
-              <SelectItem value="false">No</SelectItem>
+              <SelectItem value="true">{t("yes")}</SelectItem>
+              <SelectItem value="false">{t("no")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -360,22 +376,23 @@ function ActionEditor({
 // ---------------------------------------------------------------------------
 
 function PreviewCard({ preview }: { preview: PreviewResult }) {
+  const t = useTranslations("bulkProducts");
   return (
     <div className="rounded-lg border bg-muted/20 p-4 flex flex-col gap-3">
       <p className="text-sm font-semibold">
         {preview.count === 0
-          ? "No products match the current conditions."
-          : `${preview.count} product${preview.count !== 1 ? "s" : ""} will be affected`}
+          ? t("noMatch")
+          : t("willAffect", { count: preview.count })}
       </p>
       {preview.samples.length > 0 && (
         <div className="rounded border overflow-hidden">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b bg-background">
-                <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">Title</th>
-                <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">Price</th>
-                <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">Status</th>
-                <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">Brand</th>
+                <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">{t("colTitle")}</th>
+                <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">{t("colPrice")}</th>
+                <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">{t("colStatus")}</th>
+                <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">{t("colBrand")}</th>
               </tr>
             </thead>
             <tbody>
@@ -397,7 +414,7 @@ function PreviewCard({ preview }: { preview: PreviewResult }) {
           </table>
           {preview.count > preview.samples.length && (
             <p className="px-3 py-1.5 text-xs text-muted-foreground border-t">
-              …and {preview.count - preview.samples.length} more
+              {t("andMore", { count: preview.count - preview.samples.length })}
             </p>
           )}
         </div>
@@ -409,15 +426,6 @@ function PreviewCard({ preview }: { preview: PreviewResult }) {
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
-
-const ADDABLE_CONDITIONS: { type: ConditionType; label: string }[] = [
-  { type: "brand", label: "Brand is one of" },
-  { type: "noBrand", label: "Has no brand" },
-  { type: "status", label: "Status is one of" },
-  { type: "minPrice", label: "Price ≥" },
-  { type: "maxPrice", label: "Price ≤" },
-  { type: "titleContains", label: "Title contains" },
-];
 
 function makeDefaultCondition(type: ConditionType): Condition {
   switch (type) {
@@ -431,7 +439,18 @@ function makeDefaultCondition(type: ConditionType): Condition {
 }
 
 export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
+  const t = useTranslations("bulkProducts");
+  const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
+
+  const ADDABLE_CONDITIONS: { type: ConditionType; label: string }[] = [
+    { type: "brand", label: t("condBrand") },
+    { type: "noBrand", label: t("condNoBrand") },
+    { type: "status", label: t("condStatus") },
+    { type: "minPrice", label: t("condMinPrice") },
+    { type: "maxPrice", label: t("condMaxPrice") },
+    { type: "titleContains", label: t("condTitleContains") },
+  ];
 
   const [conditions, setConditions] = useState<Condition[]>([]);
   const [action, setAction] = useState<{
@@ -541,16 +560,14 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
 
   const confirmDescription = () => {
     const count = effectivePreviewCount;
-    if (action.type === "delete") {
-      return `This will permanently delete ${count} product${count !== 1 ? "s" : ""} and all their images from S3. This cannot be undone.`;
-    }
-    return `This will update ${count} product${count !== 1 ? "s" : ""}. The operation can be undone by applying another bulk update.`;
+    if (action.type === "delete") return t("confirmDeleteDesc", { count });
+    return t("confirmUpdateDesc", { count });
   };
 
   const confirmLabel = () => {
     const count = effectivePreviewCount;
-    if (action.type === "delete") return `Delete ${count} product${count !== 1 ? "s" : ""}`;
-    return `Update ${count} product${count !== 1 ? "s" : ""}`;
+    if (action.type === "delete") return t("deleteBulk", { count });
+    return t("updateBulk", { count });
   };
 
   return (
@@ -559,14 +576,14 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">
-            1. Define conditions{" "}
-            <span className="font-normal text-muted-foreground">(all must match — AND logic)</span>
+            {t("defineConditions")}{" "}
+            <span className="font-normal text-muted-foreground">{t("andLogic")}</span>
           </h3>
         </div>
 
         {conditions.length === 0 && (
           <p className="text-sm text-muted-foreground">
-            No conditions added — all products in the catalogue will be targeted.
+            {t("noConditions")}
           </p>
         )}
 
@@ -589,7 +606,7 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
             onClick={() => setShowAddMenu((v) => !v)}
           >
             <Plus className="h-3.5 w-3.5" />
-            Add condition
+            {t("addCondition")}
             <ChevronDown className="h-3.5 w-3.5" />
           </Button>
           {showAddMenu && (
@@ -606,7 +623,7 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
                   >
                     {label}
                     {alreadyAdded && (
-                      <span className="ml-auto text-xs text-muted-foreground">added</span>
+                      <span className="ml-auto text-xs text-muted-foreground">{t("added")}</span>
                     )}
                   </button>
                 );
@@ -620,7 +637,7 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
 
       {/* ── Action ─────────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold">2. Choose action</h3>
+        <h3 className="text-sm font-semibold">{t("chooseAction")}</h3>
         <ActionEditor
           action={action}
           onChangeType={(t) => setAction({ type: t, value: t === "setTaxable" || t === "setRequiresShipping" ? true : undefined })}
@@ -633,7 +650,7 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
 
       {/* ── Preview ────────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold">3. Preview &amp; execute</h3>
+        <h3 className="text-sm font-semibold">{t("previewExecute")}</h3>
 
         <Button
           variant="outline"
@@ -647,7 +664,7 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
           ) : (
             <Search className="h-3.5 w-3.5" />
           )}
-          {isPreviewing ? "Previewing…" : "Preview matching products"}
+          {isPreviewing ? t("previewing") : t("previewBtn")}
         </Button>
 
         {preview && <PreviewCard preview={preview} />}
@@ -655,7 +672,7 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
         {lastResult && (
           <Alert>
             <CheckCircle2 className="h-4 w-4" />
-            <AlertTitle>Done</AlertTitle>
+            <AlertTitle>{t("done")}</AlertTitle>
             <AlertDescription>{lastResult.message}</AlertDescription>
           </Alert>
         )}
@@ -675,23 +692,23 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
                   <Trash2 className="h-4 w-4" />
                 ) : null}
                 {isExecuting
-                  ? "Executing…"
+                  ? t("executing")
                   : effectivePreviewCount === 0
-                  ? "No products to update"
+                  ? t("noProductsToUpdate")
                   : !isActionValid()
-                  ? "Select an action value"
+                  ? t("selectActionValue")
                   : confirmLabel()}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  {action.type === "delete" ? "Confirm bulk delete" : "Confirm bulk update"}
+                  {action.type === "delete" ? t("confirmBulkDelete") : t("confirmBulkUpdate")}
                 </AlertDialogTitle>
                 <AlertDialogDescription>{confirmDescription()}</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleExecute}
                   className={
@@ -709,16 +726,16 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
 
         {preview === null && !isPreviewing && (
           <p className="text-xs text-muted-foreground">
-            Run a preview first to see how many products will be affected before executing.
+            {t("previewFirst")}
           </p>
         )}
 
         {preview !== null && effectivePreviewCount === 0 && (
           <Alert>
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>No matches</AlertTitle>
+            <AlertTitle>{t("noMatches")}</AlertTitle>
             <AlertDescription>
-              No products match the current conditions. Adjust the filters and preview again.
+              {t("noMatchesDesc")}
             </AlertDescription>
           </Alert>
         )}

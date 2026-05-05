@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createSearchParamsCache } from "nuqs/server";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/core/db/prisma";
 import { getUserOrdersPage } from "@/features/orders/db/orders";
 import { getQueryClient } from "@/lib/query/getQueryClient";
@@ -17,6 +18,7 @@ export default async function OrdersRoute({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const t = await getTranslations();
   const { userId: clerkUserId } = await auth();
   if (!clerkUserId) notFound();
 
@@ -54,7 +56,7 @@ export default async function OrdersRoute({
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6">
-        <PageHeader title="My Orders" description="Your purchase history." />
+        <PageHeader title={t("orders.title")} description={t("orders.history")} />
       </div>
       <div className="flex-1 flex flex-col min-h-0 px-6 pb-6">
         <HydrationBoundary state={dehydrate(queryClient)}>

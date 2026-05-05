@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
 import {
   adminProductSearchParams,
@@ -16,35 +17,36 @@ import { ActiveFilters } from "@/components/search/ActiveFilters";
 import { AdminProductsList } from "./AdminProductsList";
 import type { BrandOption } from "@/features/brands/components/BrandSelect";
 
-const SORT_OPTIONS = [
-  { value: "createdAt", label: "Date Added" },
-  { value: "price", label: "Price" },
-  { value: "title", label: "Name" },
-  { value: "status", label: "Status" },
-];
-
-const BASE_FILTER_GROUPS: FilterGroup[] = [
-  {
-    type: "checkbox",
-    key: "status",
-    label: "Status",
-    options: [
-      { value: "DRAFT", label: "Draft" },
-      { value: "PUBLISHED", label: "Published" },
-      { value: "ARCHIVED", label: "Archived" },
-    ],
-  },
-  {
-    type: "range",
-    key: "price",
-    label: "Price",
-    prefix: "$",
-    min: 0,
-    step: 1,
-  },
-];
-
 export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
+  const t = useTranslations();
+
+  const SORT_OPTIONS = [
+    { value: "createdAt", label: t("products.dateAdded") },
+    { value: "price", label: t("products.price") },
+    { value: "title", label: t("products.name") },
+    { value: "status", label: t("products.status") },
+  ];
+
+  const BASE_FILTER_GROUPS: FilterGroup[] = [
+    {
+      type: "checkbox",
+      key: "status",
+      label: t("products.status"),
+      options: [
+        { value: "DRAFT", label: t("products.draft") },
+        { value: "PUBLISHED", label: t("products.published") },
+        { value: "ARCHIVED", label: t("products.archived") },
+      ],
+    },
+    {
+      type: "range",
+      key: "price",
+      label: t("products.price"),
+      prefix: "$",
+      min: 0,
+      step: 1,
+    },
+  ];
   const [params, setParams] = useQueryStates(adminProductSearchParams, {
     shallow: false,
     throttleMs: 300,
@@ -57,7 +59,7 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
       {
         type: "checkbox" as const,
         key: "brandId",
-        label: "Brand",
+        label: t("products.brand"),
         options: brands.map((b) => ({ value: b.id, label: b.name })),
       },
     ];
@@ -120,7 +122,7 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
         <SearchToolbar
           search={params.search}
           onSearchChange={(v) => setParams({ search: v })}
-          searchPlaceholder="Search products..."
+          searchPlaceholder={t("products.searchPlaceholder")}
           sortBy={params.sortBy}
           sortOrder={params.sortOrder}
           onSortByChange={(v) =>

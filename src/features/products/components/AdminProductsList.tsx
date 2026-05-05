@@ -1,5 +1,6 @@
 "use client";
 import axios from "axios";
+import { useTranslations } from "next-intl";
 
 import { cn } from "@/lib/utils";
 
@@ -41,6 +42,7 @@ export function AdminProductsList({
 }: {
   filters?: AdminProductFilters;
 }) {
+  const t = useTranslations("products");
   const defaultFilters: AdminProductFilters = {
     search: "",
     sortBy: "createdAt",
@@ -74,7 +76,7 @@ export function AdminProductsList({
   if (query.status === "error") {
     return (
       <Alert variant="destructive">
-        <AlertTitle>Error loading products</AlertTitle>
+        <AlertTitle>{t("errorLoading")}</AlertTitle>
         <AlertDescription>{query.error.message}</AlertDescription>
       </Alert>
     );
@@ -86,12 +88,12 @@ export function AdminProductsList({
     return (
       <Alert>
         <AlertTitle>
-          {hasFilters ? "No products found" : "No products yet"}
+          {hasFilters ? t("noProductsFound") : t("noProductsYet")}
         </AlertTitle>
         <AlertDescription>
           {hasFilters
-            ? "Try adjusting your search or filters."
-            : "There are currently no products to display."}
+            ? t("tryAdjusting")
+            : t("checkBackLater")}
         </AlertDescription>
       </Alert>
     );

@@ -15,46 +15,11 @@ import {
   Shield,
   ArrowRight,
 } from "lucide-react";
-
-interface QuickCard {
-  href: string;
-  title: string;
-  description: string;
-  icon: typeof ShoppingBag;
-}
-
-const baseCards: QuickCard[] = [
-  {
-    href: "/products",
-    title: "Browse Products",
-    description: "Discover products from our marketplace.",
-    icon: ShoppingBag,
-  },
-  {
-    href: "/dashboard/orders",
-    title: "My Orders",
-    description: "View your purchase history.",
-    icon: ClipboardList,
-  },
-  {
-    href: "/dashboard/organization",
-    title: "Organization",
-    description: "Manage your organization settings and members.",
-    icon: Building2,
-  },
-];
-
-const sellerCards: QuickCard[] = [
-  {
-    href: "/dashboard/my-products",
-    title: "My Products",
-    description: "Manage your products.",
-    icon: Package,
-  },
-];
+import { getTranslations } from "next-intl/server";
 
 export default async function DashboardPage() {
   const { userId } = await auth();
+  const t = await getTranslations();
 
   const user = await prisma.user.findUnique({
     where: { clerkUserId: userId! },
@@ -62,19 +27,49 @@ export default async function DashboardPage() {
   });
 
   const userRole = user?.role ?? "USER";
+  const isAdmin = userRole === "ADMIN";
+
+  const baseCards = [
+    {
+      href: "/products",
+      title: t("dashboard.browse"),
+      description: t("dashboard.browseDesc"),
+      icon: ShoppingBag,
+    },
+    {
+      href: "/dashboard/orders",
+      title: t("dashboard.orders"),
+      description: t("dashboard.ordersDesc"),
+      icon: ClipboardList,
+    },
+    {
+      href: "/dashboard/organization",
+      title: t("dashboard.org"),
+      description: t("dashboard.orgDesc"),
+      icon: Building2,
+    },
+  ];
+
+  const sellerCards = [
+    {
+      href: "/dashboard/my-products",
+      title: t("dashboard.myProducts"),
+      description: t("dashboard.myProductsDesc"),
+      icon: Package,
+    },
+  ];
 
   const cards = [...baseCards, ...(userRole === "SELLER" ? sellerCards : [])];
-  const isAdmin = userRole === "ADMIN";
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6 sticky-header-bg">
         <div className="pt-6 pb-4">
           <h1 className="text-2xl font-bold">
-            Welcome, {user?.name || "User"}!
+            {t("dashboard.welcome", { name: user?.name || "User" })}
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Here&apos;s an overview of your marketplace activity.
+            {t("dashboard.overview")}
           </p>
         </div>
       </div>
@@ -106,7 +101,7 @@ export default async function DashboardPage() {
         {isAdmin && (
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
-              Quick Links
+              {t("dashboard.quickLinks")}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Link href="/admin" className="group">
@@ -117,8 +112,8 @@ export default async function DashboardPage() {
                         <Shield className="h-5 w-5" />
                       </div>
                       <div className="flex-1">
-                        <CardTitle>Admin Panel</CardTitle>
-                        <CardDescription>Manage products, users, and organizations.</CardDescription>
+                        <CardTitle>{t("dashboard.adminPanel")}</CardTitle>
+                        <CardDescription>{t("dashboard.adminDesc")}</CardDescription>
                       </div>
                       <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 -translate-x-2 transition-all group-hover:opacity-100 group-hover:translate-x-0" />
                     </div>

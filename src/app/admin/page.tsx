@@ -15,73 +15,67 @@ import {
   LayoutDashboard,
   ArrowRight,
 } from "lucide-react";
-
-interface QuickCard {
-  href: string;
-  title: string;
-  description: string;
-  icon: typeof Package;
-}
-
-const adminCards: QuickCard[] = [
-  {
-    href: "/admin/products",
-    title: "Products",
-    description: "Manage all marketplace products.",
-    icon: Package,
-  },
-  {
-    href: "/admin/brands",
-    title: "Brands",
-    description: "Manage product brands and categories.",
-    icon: Tag,
-  },
-  {
-    href: "/admin/organizations",
-    title: "Organizations",
-    description: "View and manage organizations.",
-    icon: Building2,
-  },
-  {
-    href: "/admin/users",
-    title: "Users",
-    description: "Manage user accounts and roles.",
-    icon: Users,
-  },
-];
-
-const quickCards: QuickCard[] = [
-  {
-    href: "/dashboard",
-    title: "My Dashboard",
-    description: "Go to your personal dashboard.",
-    icon: LayoutDashboard,
-  },
-];
+import { getTranslations } from "next-intl/server";
 
 export default async function AdminPage() {
   const { userId } = await auth();
+  const t = await getTranslations();
 
   const user = await prisma.user.findUnique({
     where: { clerkUserId: userId! },
     select: { name: true },
   });
 
+  const adminCards = [
+    {
+      href: "/admin/products",
+      title: t("admin.products"),
+      description: t("admin.productsDesc"),
+      icon: Package,
+    },
+    {
+      href: "/admin/brands",
+      title: t("admin.brands"),
+      description: t("admin.brandsDesc"),
+      icon: Tag,
+    },
+    {
+      href: "/admin/organizations",
+      title: t("admin.orgs"),
+      description: t("admin.orgsDesc"),
+      icon: Building2,
+    },
+    {
+      href: "/admin/users",
+      title: t("admin.users"),
+      description: t("admin.usersDesc"),
+      icon: Users,
+    },
+  ];
+
+  const quickCards = [
+    {
+      href: "/dashboard",
+      title: t("admin.myDashboard"),
+      description: t("admin.dashboardDesc"),
+      icon: LayoutDashboard,
+    },
+  ];
+
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6 sticky-header-bg">
         <div className="pt-6 pb-4">
-          <h1 className="text-2xl font-bold">Admin Panel</h1>
+          <h1 className="text-2xl font-bold">{t("admin.title")}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Welcome back, {user?.name || "Admin"}. Manage your marketplace from
-            here.
+            {t("admin.welcome", { name: user?.name || "Admin" })}
           </p>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 px-6 py-6 space-y-8">
         <div>
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
-            Management
+            {t("admin.management")}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {adminCards.map((card) => {
@@ -110,7 +104,7 @@ export default async function AdminPage() {
 
         <div>
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
-            Quick Links
+            {t("admin.quickLinks")}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {quickCards.map((card) => {

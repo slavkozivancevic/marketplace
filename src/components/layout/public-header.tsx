@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { HeaderAuth } from "./header-auth";
-import { ThemeSwitcher } from "./theme-switcher";
+import { PreferencesPopover } from "./preferences-popover";
 import { CartButton } from "@/features/cart/components/CartButton";
 import { CartDrawer } from "@/features/cart/components/CartDrawer";
 import { WishlistHeaderButton } from "@/features/wishlist/components/WishlistHeaderButton";
@@ -12,21 +13,22 @@ import { Store, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const baseNavLinks = [
-  { href: "/products", label: "Products" },
-  { href: "/dashboard", label: "Dashboard" },
-];
-
-const adminNavLink = { href: "/admin", label: "Admin" };
-
 interface PublicHeaderProps {
   showAdminLink?: boolean;
 }
 
 export function PublicHeader({ showAdminLink = false }: PublicHeaderProps) {
-  const navLinks = showAdminLink ? [...baseNavLinks, adminNavLink] : baseNavLinks;
+  const t = useTranslations();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const baseNavLinks = [
+    { href: "/products", label: t("nav.products") },
+    { href: "/dashboard", label: t("nav.dashboard") },
+  ];
+  const navLinks = showAdminLink
+    ? [...baseNavLinks, { href: "/admin", label: t("nav.admin") }]
+    : baseNavLinks;
 
   useEffect(() => {
     const main = document.querySelector("main");
@@ -59,10 +61,10 @@ export function PublicHeader({ showAdminLink = false }: PublicHeaderProps) {
               </div>
               <div className="flex flex-col">
                 <span className="text-lg font-bold tracking-tight leading-tight">
-                  Marketplace
+                  {t("header.brand")}
                 </span>
                 <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight">
-                  Enterprise Platform
+                  {t("header.tagline")}
                 </span>
               </div>
             </Link>
@@ -83,7 +85,7 @@ export function PublicHeader({ showAdminLink = false }: PublicHeaderProps) {
 
             {/* Right side actions */}
             <div className="flex items-center gap-1 sm:gap-2">
-              <ThemeSwitcher />
+              <PreferencesPopover />
               <ChatDrawerTrigger />
               <WishlistHeaderButton />
               <CartButton />

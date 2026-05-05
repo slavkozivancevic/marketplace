@@ -1,5 +1,6 @@
 "use client";
 import axios from "axios";
+import { useTranslations } from "next-intl";
 
 import { cn } from "@/lib/utils";
 import { ImageOff } from "lucide-react";
@@ -58,7 +59,7 @@ function ProductCard({ product }: { product: SerializedProductListItem }) {
         <CardHeader className="p-0 relative">
           {product.images.length > 0 ? (
             <HoverImageCycler
-              images={product.images.map((img) => img.url)}
+              images={product.images.map((img: { url: string }) => img.url)}
               alt={product.title}
               className="w-full h-48 rounded-t"
             />
@@ -141,6 +142,7 @@ export function PublicProductsGrid({
   filters: ProductFilters;
   scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
 }) {
+  const t = useTranslations("products");
   const {
     parentRef,
     virtualizer,
@@ -179,7 +181,7 @@ export function PublicProductsGrid({
   if (query.status === "error") {
     return (
       <Alert variant="destructive">
-        <AlertTitle>Error loading products</AlertTitle>
+        <AlertTitle>{t("errorLoading")}</AlertTitle>
         <AlertDescription>{query.error.message}</AlertDescription>
       </Alert>
     );
@@ -189,11 +191,9 @@ export function PublicProductsGrid({
     const hasFilters = filters.search || filters.minPrice != null || filters.maxPrice != null;
     return (
       <Alert>
-        <AlertTitle>{hasFilters ? "No products found" : "No products available"}</AlertTitle>
+        <AlertTitle>{hasFilters ? t("noProductsFound") : t("noProductsAvailable")}</AlertTitle>
         <AlertDescription>
-          {hasFilters
-            ? "Try adjusting your search or filters."
-            : "Check back later for new products."}
+          {hasFilters ? t("tryAdjusting") : t("checkBackLater")}
         </AlertDescription>
       </Alert>
     );

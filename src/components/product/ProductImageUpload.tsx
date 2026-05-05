@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { useDropzone } from "react-dropzone";
 import axios, { AxiosProgressEvent } from "axios";
@@ -123,6 +124,7 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
   onUploadComplete,
   initialImages = [],
 }) => {
+  const t = useTranslations("imageUpload");
   const [images, setImages] = useState<PresignedUploadedImage[]>(initialImages);
   const [previewImage, setPreviewImage] =
     useState<PresignedUploadedImage | null>(null);
@@ -156,18 +158,18 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
       if (images.length + acceptedFiles.length > MAX_FILES) {
-        toast.error(`You can only upload up to ${MAX_FILES} images.`);
+        toast.error(t("tooManyFiles", { max: MAX_FILES }));
         return;
       }
 
       for (const file of acceptedFiles) {
         if (!ALLOWED_TYPES.has(file.type)) {
-          toast.error(`File type not allowed: ${file.name}`);
+          toast.error(t("typeNotAllowed", { name: file.name }));
           continue;
         }
 
         if (file.size > MAX_FILE_SIZE) {
-          toast.error(`File too large: ${file.name}`);
+          toast.error(t("tooLarge", { name: file.name }));
           continue;
         }
 
@@ -244,7 +246,7 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
             prev.map((img) => (img.key === tempKey ? uploadedImage : img)),
           );
 
-          toast.success(`Uploaded: ${file.name}`);
+          toast.success(t("uploaded", { name: file.name }));
         } catch (err) {
           console.error(err);
 
@@ -252,7 +254,7 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
 
           setImages((prev) => prev.filter((img) => img.key !== tempKey));
 
-          toast.error(`Failed to upload: ${file.name}`);
+          toast.error(t("uploadFailed", { name: file.name }));
         }
       }
     },
@@ -307,7 +309,7 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
   return (
     <Card className="p-4">
       <CardHeader>
-        <CardTitle>Upload Product Images</CardTitle>
+        <CardTitle>{t("title")}</CardTitle>
       </CardHeader>
 
       <CardContent>
@@ -329,11 +331,11 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
           />
 
           {isDragActive ? (
-            <p>Drop files here...</p>
+            <p>{t("dropActive")}</p>
           ) : images.length >= MAX_FILES ? (
-            <p>Maximum {MAX_FILES} images reached</p>
+            <p>{t("maxReached", { count: MAX_FILES })}</p>
           ) : (
-            <p>Drag & drop images here, or click to select</p>
+            <p>{t("dropHint")}</p>
           )}
 
           {/* Mini preview thumbnails unutar dropzone */}
@@ -403,7 +405,7 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
         >
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Image Preview</DialogTitle>
+              <DialogTitle>{t("imagePreview")}</DialogTitle>
             </DialogHeader>
 
             <Image
@@ -418,7 +420,7 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
 
             <DialogFooter>
               <Button type="button" onClick={() => setPreviewImage(null)}>
-                Close
+                {t("close")}
               </Button>
             </DialogFooter>
           </DialogContent>

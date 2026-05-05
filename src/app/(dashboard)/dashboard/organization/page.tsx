@@ -1,5 +1,6 @@
 import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { getOrganizationById } from "@/features/organizations/db/organizations";
@@ -15,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { MembershipRole } from "@/generated/prisma/client";
 
 export default async function OrganizationPage() {
+  const t = await getTranslations();
   const ctx = await resolveRequestContext();
 
   const [organization, invites] = await Promise.all([
@@ -32,24 +34,23 @@ export default async function OrganizationPage() {
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6">
         <PageHeader
-          title="Organization Settings"
-          description="Manage your organization details and members."
+          title={t("organization.title")}
+          description={t("organization.manage")}
         />
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
         <div className="space-y-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>General</CardTitle>
+            <CardTitle>{t("organization.general")}</CardTitle>
             <Badge variant={organization.verified ? "default" : "secondary"}>
-              {organization.verified ? "Verified" : "Unverified"}
+              {organization.verified ? t("organization.verified") : t("organization.unverified")}
             </Badge>
           </CardHeader>
           <CardContent>
             {!organization.verified && (
               <p className="text-sm text-muted-foreground mb-4">
-                Your organization is pending verification. Some features may be
-                restricted until an admin verifies your organization.
+                {t("organization.pendingVerification")}
               </p>
             )}
             <OrganizationSettingsForm
@@ -61,7 +62,7 @@ export default async function OrganizationPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Members ({organization.members.length})</CardTitle>
+            <CardTitle>{t("organization.members", { count: organization.members.length })}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -79,8 +80,12 @@ export default async function OrganizationPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline">{member.user.role}</Badge>
-                    <Badge variant="secondary">{member.role}</Badge>
+                    <Badge variant="outline">
+                      {member.user.role === "USER" ? t("users.user") : member.user.role === "SELLER" ? t("users.seller") : t("users.admin")}
+                    </Badge>
+                    <Badge variant="secondary">
+                      {member.role === "OWNER" ? t("organization.roleOwner") : member.role === "ADMIN" ? t("organization.roleAdmin") : t("organization.roleMember")}
+                    </Badge>
                   </div>
                 </div>
               ))}
@@ -92,7 +97,7 @@ export default async function OrganizationPage() {
         {canEdit && (
           <Card>
             <CardHeader>
-              <CardTitle>Invite Member</CardTitle>
+              <CardTitle>{t("organization.inviteMember")}</CardTitle>
             </CardHeader>
             <CardContent>
               <InviteForm />
@@ -102,7 +107,7 @@ export default async function OrganizationPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Pending Invites</CardTitle>
+            <CardTitle>{t("organization.pendingInvites")}</CardTitle>
           </CardHeader>
           <CardContent>
             <InviteList invites={invites} canManage={canEdit} />

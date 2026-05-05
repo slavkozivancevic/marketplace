@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { SearchInput } from "@/components/search/SearchInput";
 import {
   FilterSidebar,
@@ -28,20 +29,22 @@ interface SerializedUser {
   }[];
 }
 
-const FILTER_GROUPS: FilterGroup[] = [
-  {
-    type: "checkbox",
-    key: "role",
-    label: "Role",
-    options: [
-      { value: "USER", label: "User" },
-      { value: "SELLER", label: "Seller" },
-      { value: "ADMIN", label: "Admin" },
-    ],
-  },
-];
-
 export function AdminUsersPage({ users }: { users: SerializedUser[] }) {
+  const t = useTranslations();
+
+  const FILTER_GROUPS: FilterGroup[] = [
+    {
+      type: "checkbox",
+      key: "role",
+      label: t("users.role"),
+      options: [
+        { value: "USER", label: t("users.user") },
+        { value: "SELLER", label: t("users.seller") },
+        { value: "ADMIN", label: t("users.admin") },
+      ],
+    },
+  ];
+
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string[]>([]);
 
@@ -96,7 +99,7 @@ export function AdminUsersPage({ users }: { users: SerializedUser[] }) {
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder="Search users by name or email..."
+            placeholder={t("users.searchPlaceholder")}
           />
           <MobileFilterSheet
             groups={FILTER_GROUPS}
@@ -106,8 +109,7 @@ export function AdminUsersPage({ users }: { users: SerializedUser[] }) {
             activeCount={activeFilterCount}
           />
           <span className="text-xs text-muted-foreground ml-auto tabular-nums">
-            {filtered.length.toLocaleString()} user
-            {filtered.length !== 1 ? "s" : ""}
+            {filtered.length.toLocaleString()} {filtered.length !== 1 ? t("users.usersLabel") : t("users.userLabel")}
           </span>
         </div>
         <ActiveFilters
@@ -119,10 +121,8 @@ export function AdminUsersPage({ users }: { users: SerializedUser[] }) {
         <div className="flex-1 min-h-0 overflow-y-auto pb-6">
           {filtered.length === 0 ? (
             <Alert>
-              <AlertTitle>No users found</AlertTitle>
-              <AlertDescription>
-                Try adjusting your search or filters.
-              </AlertDescription>
+              <AlertTitle>{t("admin.noUsers")}</AlertTitle>
+              <AlertDescription>{t("users.adjustSearch")}</AlertDescription>
             </Alert>
           ) : (
             <div className="space-y-4">
@@ -135,7 +135,9 @@ export function AdminUsersPage({ users }: { users: SerializedUser[] }) {
                         {user.email}
                       </p>
                     </div>
-                    <Badge variant="outline">{user.role}</Badge>
+                    <Badge variant="outline">
+                      {user.role === "USER" ? t("users.user") : user.role === "SELLER" ? t("users.seller") : t("users.admin")}
+                    </Badge>
                   </div>
                   <UserForm userId={user.id} currentRole={user.role} />
                 </div>

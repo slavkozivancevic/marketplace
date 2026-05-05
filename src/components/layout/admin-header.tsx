@@ -2,20 +2,22 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { HeaderAuth } from "./header-auth";
 import { ThemeSwitcher } from "./theme-switcher";
+import { LanguageSwitcher } from "./language-switcher";
 import { Store, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function AdminHeader() {
+  const t = useTranslations("header");
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     const main = document.querySelector("main");
     if (!main) return;
-    // main may scroll itself or contain a scrollable child (admin layout)
     const el = main.querySelector(".overflow-y-auto") ?? main;
     const handleScroll = () => setScrolled(el.scrollTop > 20);
     el.addEventListener("scroll", handleScroll, { passive: true });
@@ -33,28 +35,26 @@ export function AdminHeader() {
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-4">
-          {/* Logo - same as PublicHeader */}
           <Link href="/" className="group flex items-center gap-2.5 shrink-0">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/25 group-hover:scale-105">
               <Store className="h-4.5 w-4.5" />
             </div>
             <div className="flex flex-col">
               <span className="text-lg font-bold tracking-tight leading-tight">
-                Marketplace
+                {t("brand")}
               </span>
               <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight">
-                Admin Panel
+                {t("adminTagline")}
               </span>
             </div>
           </Link>
 
-          {/* Right side actions */}
           <div className="flex items-center gap-1 sm:gap-2">
+            <LanguageSwitcher />
             <ThemeSwitcher />
             <div className="hidden sm:flex items-center gap-2 ml-1">
               <HeaderAuth mode="redirect" showDashboardLink={false} />
             </div>
-            {/* Mobile menu button */}
             <Button
               variant="ghost"
               size="icon"
@@ -71,7 +71,6 @@ export function AdminHeader() {
         </div>
       </div>
 
-      {/* Mobile menu */}
       <div
         className={cn(
           "sm:hidden overflow-hidden transition-all duration-300 border-t border-border/50",

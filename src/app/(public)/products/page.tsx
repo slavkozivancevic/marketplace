@@ -1,4 +1,5 @@
 import { cacheTag } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createSearchParamsCache } from "nuqs/server";
 import { getQueryClient } from "@/lib/query/getQueryClient";
@@ -19,6 +20,7 @@ export default async function ProductsRoute({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const t = await getTranslations();
   const params = searchParamsCache.parse(await searchParams);
 
   const filters = {
@@ -58,8 +60,8 @@ export default async function ProductsRoute({
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6">
         <PageHeader
-          title="Products"
-          description="Browse our available products."
+          title={t("products.title")}
+          description={t("products.browse")}
         />
       </div>
       <div className="flex-1 flex flex-col min-h-0 px-6 pb-6">

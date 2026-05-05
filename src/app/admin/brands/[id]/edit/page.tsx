@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cacheTag } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { CacheTags } from "@/lib/cache/tags";
@@ -12,6 +13,7 @@ export default async function EditBrandPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const t = await getTranslations();
   const { id } = await params;
   const brand = await fetchBrand(id);
 
@@ -21,11 +23,11 @@ export default async function EditBrandPage({
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6">
         <PageHeader
-          title={`Edit: ${brand.name}`}
-          description="Update brand details."
+          title={t("admin.editBrand", { name: brand.name })}
+          description={t("admin.editBrandDesc")}
         >
           <Button asChild variant="outline">
-            <Link href="/admin/brands">Back to Brands</Link>
+            <Link href="/admin/brands">{t("admin.backToBrands")}</Link>
           </Button>
         </PageHeader>
       </div>
