@@ -59,6 +59,9 @@ export const myProductSearchParams = {
   sortBy: parseAsStringEnum(["createdAt", "price", "title", "status"] as const).withDefault("createdAt"),
   sortOrder: parseAsStringEnum(["asc", "desc"] as const).withDefault("desc"),
   status: parseAsArrayOf(parseAsString).withDefault([]),
+  minPrice: parseAsFloat,
+  maxPrice: parseAsFloat,
+  brandId: parseAsArrayOf(parseAsString).withDefault([]),
 };
 
 export type MyProductFilters = {
@@ -66,6 +69,9 @@ export type MyProductFilters = {
   sortBy: "createdAt" | "price" | "title" | "status";
   sortOrder: "asc" | "desc";
   status: string[];
+  minPrice: number | null;
+  maxPrice: number | null;
+  brandId: string[];
 };
 
 // ---------- Orders ----------

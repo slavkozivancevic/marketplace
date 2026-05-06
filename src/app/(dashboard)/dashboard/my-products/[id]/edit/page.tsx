@@ -11,25 +11,24 @@ import {
   isActionErrorResult,
 } from "@/features/common/errors/domainErrors";
 import { CacheTags } from "@/lib/cache/tags";
-import { ProductDetails } from "@/features/products/components/ProductDetails";
+import { getAllBrands } from "@/features/brands/db/brands";
+import { ProductForm } from "@/features/products/components/ProductForm";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SerializedProductWithRelations } from "@/types/types";
 
-interface MyProductPageProps {
+interface MyProductEditPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function MyProductPage({ params }: MyProductPageProps) {
+async function ProductEditContent({ productId }: { productId: string }) {
   const t = await getTranslations();
-  const { id } = await params;
-
   const { userId: clerkUserId } = await auth();
   if (!clerkUserId) notFound();
 
   const product = await prisma.product.findFirst({
-    where: { id, deletedAt: null },
+    where: { id: productId, deletedAt: null },
     select: { organizationId: true },
   });
 
@@ -56,86 +55,79 @@ export default async function MyProductPage({ params }: MyProductPageProps) {
 
   if (user.activeOrgId !== product.organizationId) {
     return (
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="shrink-0 px-6">
-          <PageHeader
-            title={t("myProducts.viewProduct")}
-            description={t("myProducts.viewProductDesc")}
-          >
-            <Button asChild variant="outline">
-              <Link href="/dashboard/my-products">{t("myProducts.backTo")}</Link>
-            </Button>
-          </PageHeader>
-        </div>
-        <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
-          <Alert variant="destructive">
-            <AlertTitle>{t("myProducts.wrongOrg")}</AlertTitle>
-            <AlertDescription>{t("myProducts.wrongOrgDesc")}</AlertDescription>
-          </Alert>
-        </div>
-      </div>
+      <Alert variant="destructive">
+        <AlertTitle>{t("myProducts.wrongOrg")}</AlertTitle>
+        <AlertDescription>
+          {t("myProducts.wrongOrgDesc")}
+        </AlertDescription>
+      </Alert>
     );
   }
 
   const canWrite = membership.role === "OWNER" || membership.role === "ADMIN";
 
-  const result = await fetchProduct(product.organizationId, user.id, id);
+  if (!canWrite) notFound();
+
+  const [result, brands] = await Promise.all([
+    fetchProductForEdit(product.organizationId, user.id, productId),
+    fetchBrands(),
+  ]);
 
   if (isActionErrorResult(result)) {
     return (
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="shrink-0 px-6">
-          <PageHeader
-            title={t("myProducts.viewProduct")}
-            description={t("myProducts.viewProductDesc")}
-          >
-            <Button asChild variant="outline">
-              <Link href="/dashboard/my-products">{t("myProducts.backTo")}</Link>
-            </Button>
-          </PageHeader>
-        </div>
-        <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
-          <Alert variant="destructive">
-            <AlertTitle>{t("myProducts.errorLoading")}</AlertTitle>
-            <AlertDescription>{result.message}</AlertDescription>
-          </Alert>
-        </div>
-      </div>
+      <Alert variant="destructive">
+        <AlertTitle>{t("myProducts.errorLoading")}</AlertTitle>
+        <AlertDescription>{result.message}</AlertDescription>
+      </Alert>
     );
   }
 
   const productData = result as SerializedProductWithRelations | null;
+
   if (!productData) notFound();
+
+  return (
+    <ProductForm
+      mode="update"
+      product={productData}
+      brands={brands}
+      redirectTo={`/dashboard/my-products/${productData.id}`}
+    />
+  );
+}
+
+async function fetchBrands() {
+  "use cache";
+  cacheTag(CacheTags.brands.all());
+  return getAllBrands();
+}
+
+export default async function MyProductEditPage({
+  params,
+}: MyProductEditPageProps) {
+  const t = await getTranslations();
+  const { id } = await params;
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6">
         <PageHeader
-          title={productData.title}
-          description={t("myProducts.viewProductDesc")}
+          title={t("myProducts.edit")}
+          description={t("myProducts.editDesc")}
         >
           <Button asChild variant="outline">
-            <Link href="/dashboard/my-products">{t("myProducts.backTo")}</Link>
+            <Link href={`/dashboard/my-products/${id}`}>{t("myProducts.backToProduct")}</Link>
           </Button>
-          {canWrite && (
-            <Button asChild>
-              <Link href={`/dashboard/my-products/${id}/edit`}>{t("common.edit")}</Link>
-            </Button>
-          )}
         </PageHeader>
       </div>
-      <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
-        <ProductDetails
-          product={productData}
-          showActions={canWrite}
-          redirectTo="/dashboard/my-products"
-        />
+      <div className="flex-1 flex flex-col min-h-0 px-6">
+        <ProductEditContent productId={id} />
       </div>
     </div>
   );
 }
 
-async function fetchProduct(
+async function fetchProductForEdit(
   organizationId: string,
   userId: string,
   id: string,

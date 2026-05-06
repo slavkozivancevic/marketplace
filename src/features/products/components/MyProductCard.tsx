@@ -62,14 +62,15 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
       toast.success(t("duplicated"), {
         action: {
           label: t("editCopy"),
-          onClick: () => router.push(`/dashboard/my-products/${copyId}`),
+          onClick: () => router.push(`/dashboard/my-products/${copyId}/edit`),
         },
       });
     });
   };
 
   return (
-    <div className="border border-border/50 rounded-lg overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5">
+    <div className="border border-border/50 rounded-lg overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 cursor-pointer"
+      onClick={() => router.push(`/dashboard/my-products/${product.id}`)}>
       <div className="relative">
         {product.imageUrls.length > 0 ? (
           <HoverImageCycler
@@ -139,9 +140,9 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
             {product.status === "PUBLISHED" ? t("published") : product.status === "DRAFT" ? t("draft") : t("archived")}
           </Badge>
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
           <Button asChild variant="outline" size="sm" className="flex-1 gap-1.5">
-            <Link href={`/dashboard/my-products/${product.id}`}>
+            <Link href={`/dashboard/my-products/${product.id}/edit`}>
               <Pencil className="h-3.5 w-3.5" />
               {canWrite ? t("edit") : t("view")}
             </Link>

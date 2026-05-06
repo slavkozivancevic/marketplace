@@ -4,7 +4,7 @@ import { productRepository } from "@/features/products/db/products";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import { ProductStatus } from "@/generated/prisma/client";
-import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
+import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 
 const ALLOWED_SORTS = ["createdAt", "price", "title", "status"] as const;
 type SortField = (typeof ALLOWED_SORTS)[number];
@@ -13,6 +13,12 @@ function parseSort(value: string | null): SortField | undefined {
   return ALLOWED_SORTS.includes(value as SortField)
     ? (value as SortField)
     : undefined;
+}
+
+function parseOptionalFloat(value: string | null): number | undefined {
+  if (value == null) return undefined;
+  const n = Number(value);
+  return isNaN(n) ? undefined : n;
 }
 
 export async function GET(req: NextRequest) {
@@ -26,7 +32,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = req.nextUrl;
   const take = Math.min(
-    Math.max(Number(searchParams.get("take") ?? GRID_PAGE_SIZE), 1),
+    Math.max(Number(searchParams.get("take") ?? LIST_PAGE_SIZE), 1),
     100,
   );
   const cursor = searchParams.get("cursor") ?? undefined;
@@ -36,6 +42,9 @@ export async function GET(req: NextRequest) {
   const status = searchParams
     .getAll("status")
     .filter((s): s is ProductStatus => Object.values(ProductStatus).includes(s as ProductStatus));
+  const minPrice = parseOptionalFloat(searchParams.get("minPrice"));
+  const maxPrice = parseOptionalFloat(searchParams.get("maxPrice"));
+  const brandId = searchParams.getAll("brandId");
 
   try {
     const repo = productRepository(ctx);
@@ -46,6 +55,9 @@ export async function GET(req: NextRequest) {
       sortBy,
       sortOrder,
       status,
+      minPrice,
+      maxPrice,
+      brandId,
     });
 
     return NextResponse.json({

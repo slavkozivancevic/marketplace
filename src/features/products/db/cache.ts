@@ -14,6 +14,7 @@ export function revalidateProductCache(orgId: string, productId: string) {
   revalidatePath(`/products/${productId}`);
   revalidatePath("/dashboard/my-products");
   revalidatePath(`/dashboard/my-products/${productId}`);
+  revalidatePath(`/dashboard/my-products/${productId}/edit`);
 }
 
 export function revalidateProductHistoryCache(

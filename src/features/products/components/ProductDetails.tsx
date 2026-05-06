@@ -13,11 +13,13 @@ import { ProductImageCarousel } from "@/components/product/ProductImageCarousel"
 interface ProductDetailsProps {
   product: SerializedProductWithRelations;
   showActions?: boolean;
+  redirectTo?: string;
 }
 
 export const ProductDetails: React.FC<ProductDetailsProps> = ({
   product,
   showActions = true,
+  redirectTo,
 }) => {
   const t = useTranslations("products");
   return (
@@ -29,6 +31,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
             <ProductStatusActions
               productId={product.id}
               status={product.status}
+              redirectTo={redirectTo}
             />
           )}
         </CardHeader>
@@ -59,7 +62,11 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
           <div>
             <strong>{t("statusLabel")}</strong>{" "}
             <Badge variant={getStatusBadgeVariant(product.status)}>
-              {product.status}
+              {product.status === "PUBLISHED"
+                ? t("published")
+                : product.status === "DRAFT"
+                  ? t("draft")
+                  : t("archived")}
             </Badge>
           </div>
           <div>

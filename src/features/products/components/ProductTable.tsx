@@ -5,8 +5,9 @@ import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import Image from "next/image";
-import { Copy, ImageOff, Pencil, Trash2 } from "lucide-react";
+import { Copy, ImageOff, Loader2, Pencil, Trash2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -88,7 +89,7 @@ export function ProductTableRow({
 
   const handleDelete = () => {
     startDelete(async () => {
-      const result = await deleteProduct(product.id);
+      const result = await deleteProduct(product.id, basePath);
       if (result && "error" in result) {
         toast.error(result.message);
       } else {
@@ -116,15 +117,20 @@ export function ProductTableRow({
   };
 
   const thumbnailUrl = product.images?.[0]?.url;
-
   const cols = showActions ? COLS_ACTIONS : COLS_BASE;
+  const isBusy = isDeleting || isDuplicating;
 
   return (
     <div
       role="row"
-      className="grid items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors min-w-fit"
+      className={cn(
+        "grid items-center gap-4 border-b p-3 transition-all min-w-fit",
+        isBusy
+          ? "opacity-50 pointer-events-none cursor-default"
+          : "cursor-pointer hover:bg-muted/50",
+      )}
       style={{ gridTemplateColumns: cols }}
-      onClick={() => router.push(`${basePath}/${product.id}`)}
+      onClick={() => !isBusy && router.push(`${basePath}/${product.id}`)}
     >
       <div role="cell">
         {thumbnailUrl ? (
@@ -192,13 +198,17 @@ export function ProductTableRow({
               onClick={handleDuplicate}
               title={t("duplicate")}
             >
-              <Copy className="h-4 w-4" />
+              {isDuplicating
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Copy className="h-4 w-4" />}
               <span className="sr-only">{t("duplicate")}</span>
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="ghost" size="icon" disabled={isDeleting}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
+                  {isDeleting
+                    ? <Loader2 className="h-4 w-4 animate-spin text-destructive" />
+                    : <Trash2 className="h-4 w-4 text-destructive" />}
                   <span className="sr-only">{tCommon("delete")}</span>
                 </Button>
               </AlertDialogTrigger>

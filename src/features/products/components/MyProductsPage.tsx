@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
 import {
@@ -13,9 +14,16 @@ import {
   type FilterValues,
 } from "@/components/search/FilterSidebar";
 import { ActiveFilters } from "@/components/search/ActiveFilters";
-import { MyProductsGrid } from "./MyProductsGrid";
+import { MyProductsList } from "./MyProductsList";
+import type { BrandOption } from "@/features/brands/components/BrandSelect";
 
-export function MyProductsPage({ canWrite }: { canWrite: boolean }) {
+export function MyProductsPage({
+  canWrite,
+  brands = [],
+}: {
+  canWrite: boolean;
+  brands?: BrandOption[];
+}) {
   const t = useTranslations();
 
   const SORT_OPTIONS = [
@@ -25,32 +33,58 @@ export function MyProductsPage({ canWrite }: { canWrite: boolean }) {
     { value: "status", label: t("products.status") },
   ];
 
-  const FILTER_GROUPS: FilterGroup[] = [
-    {
-      type: "checkbox",
-      key: "status",
-      label: t("products.status"),
-      options: [
-        { value: "DRAFT", label: t("myProducts.draft") },
-        { value: "PUBLISHED", label: t("myProducts.published") },
-        { value: "ARCHIVED", label: t("myProducts.archived") },
-      ],
-    },
-  ];
   const [params, setParams] = useQueryStates(myProductSearchParams, {
     shallow: false,
     throttleMs: 300,
   });
+
+  const filterGroups: FilterGroup[] = useMemo(() => {
+    const base: FilterGroup[] = [
+      {
+        type: "checkbox",
+        key: "status",
+        label: t("products.status"),
+        options: [
+          { value: "DRAFT", label: t("myProducts.draft") },
+          { value: "PUBLISHED", label: t("myProducts.published") },
+          { value: "ARCHIVED", label: t("myProducts.archived") },
+        ],
+      },
+      {
+        type: "range",
+        key: "price",
+        label: t("myProducts.price"),
+        prefix: "$",
+        min: 0,
+        step: 1,
+      },
+    ];
+    if (brands.length === 0) return base;
+    return [
+      ...base,
+      {
+        type: "checkbox" as const,
+        key: "brandId",
+        label: t("products.brand"),
+        options: brands.map((b) => ({ value: b.id, label: b.name })),
+      },
+    ];
+  }, [brands, t]);
 
   const filters: MyProductFilters = {
     search: params.search,
     sortBy: params.sortBy,
     sortOrder: params.sortOrder,
     status: params.status,
+    minPrice: params.minPrice,
+    maxPrice: params.maxPrice,
+    brandId: params.brandId,
   };
 
   const filterValues: FilterValues = {
     status: params.status,
+    price: [params.minPrice ?? undefined, params.maxPrice ?? undefined],
+    brandId: params.brandId,
   };
 
   const handleFilterChange = (
@@ -59,23 +93,32 @@ export function MyProductsPage({ canWrite }: { canWrite: boolean }) {
   ) => {
     if (key === "status") {
       setParams({ status: value as string[] });
+    } else if (key === "price") {
+      const [min, max] = value as [number?, number?];
+      setParams({ minPrice: min ?? null, maxPrice: max ?? null });
+    } else if (key === "brandId") {
+      setParams({ brandId: value as string[] });
     }
   };
 
   const handleFilterClear = () => {
-    setParams({ status: [] });
+    setParams({ status: [], minPrice: null, maxPrice: null, brandId: [] });
   };
 
   const handleFilterRemove = (key: string, value?: string) => {
     if (key === "status" && value) {
       setParams({ status: params.status.filter((s) => s !== value) });
+    } else if (key === "price") {
+      setParams({ minPrice: null, maxPrice: null });
+    } else if (key === "brandId") {
+      setParams({ brandId: [] });
     }
   };
 
   return (
     <div className="flex gap-6 flex-1 min-h-0">
       <FilterSidebar
-        groups={FILTER_GROUPS}
+        groups={filterGroups}
         values={filterValues}
         onChange={handleFilterChange}
         onClear={handleFilterClear}
@@ -92,18 +135,18 @@ export function MyProductsPage({ canWrite }: { canWrite: boolean }) {
           }
           onSortOrderChange={(v) => setParams({ sortOrder: v })}
           sortOptions={SORT_OPTIONS}
-          filterGroups={FILTER_GROUPS}
+          filterGroups={filterGroups}
           filterValues={filterValues}
           onFilterChange={handleFilterChange}
           onFilterClear={handleFilterClear}
         />
         <ActiveFilters
-          groups={FILTER_GROUPS}
+          groups={filterGroups}
           values={filterValues}
           onRemove={handleFilterRemove}
           onClearAll={handleFilterClear}
         />
-        <MyProductsGrid canWrite={canWrite} filters={filters} />
+        <MyProductsList canWrite={canWrite} filters={filters} />
       </div>
     </div>
   );
