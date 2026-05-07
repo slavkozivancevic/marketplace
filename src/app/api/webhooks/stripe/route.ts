@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { stripe } from "@/services/stripe";
 import { env } from "@/env/server";
 import { fulfillOrder, refundOrder } from "@/features/orders/db/orders";
-import { sendEmail, buildOrderConfirmationEmailHtml } from "@/services/ses";
+import { publishOrderCompleted, publishOrderRefunded } from "@/services/notifications";
 import {
   isWebhookProcessed,
   markWebhookProcessed,
@@ -45,6 +45,7 @@ export async function POST(req: Request) {
 
         const userId = session.metadata?.userId;
         const itemsJson = session.metadata?.items;
+        const locale = session.metadata?.locale ?? "en";
 
         if (!userId || !itemsJson) {
           console.error("Missing metadata in checkout session", session.id);
@@ -78,6 +79,7 @@ export async function POST(req: Request) {
             totalCents: session.amount_total ?? 0,
             items,
             shipping,
+            locale,
           });
           console.log("Order fulfilled for session:", session.id);
         } catch (fulfillError) {
@@ -113,30 +115,14 @@ export async function POST(req: Request) {
           throw fulfillError;
         }
 
-        // Send order confirmation email — fire-and-forget so email failures
-        // don't cause Stripe to retry the webhook
-        if (session.customer_email && order) {
-          const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
-            expand: ["line_items"],
-          });
-
-          const emailItems = (fullSession.line_items?.data ?? []).map((li) => ({
-            name: li.description ?? "Item",
-            quantity: li.quantity ?? 1,
-            price: (li.amount_total ?? 0) / 100 / (li.quantity ?? 1),
-          }));
-
-          sendEmail({
-            to: session.customer_email,
-            subject: "Your order is confirmed",
-            html: buildOrderConfirmationEmailHtml({
-              orderId: order.id,
-              orderUrl: `${env.APP_URL}/dashboard/orders/${order.id}`,
-              items: emailItems,
-              total: (session.amount_total ?? 0) / 100,
-              shipping,
-            }),
-          }).catch((err) => console.error("[ses] order confirmation email failed", err));
+        // Publish to notification service — fire-and-forget so SNS failures
+        // don't cause Stripe to retry the webhook.
+        // The notification Lambda fetches full order context and sends
+        // both the buyer confirmation and seller notification emails.
+        if (order) {
+          publishOrderCompleted(order.id, locale).catch((err) =>
+            console.error("[notifications] publishOrderCompleted failed", JSON.stringify(err, null, 2), err)
+          );
         }
 
         break;
@@ -178,6 +164,9 @@ export async function POST(req: Request) {
         const refunded = await refundOrder(sessionId);
         if (refunded) {
           console.log("Order refunded for session:", sessionId);
+          publishOrderRefunded(refunded.id).catch((err) =>
+            console.error("[notifications] publishOrderRefunded failed", err)
+          );
         }
         break;
       }

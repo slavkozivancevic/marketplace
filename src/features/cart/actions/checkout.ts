@@ -1,6 +1,7 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
+import { cookies } from "next/headers";
 import { prisma } from "@/core/db/prisma";
 import { stripe } from "@/services/stripe";
 import { env } from "@/env/server";
@@ -18,6 +19,8 @@ export async function createCheckoutSession(
 ): Promise<{ url: string } | ActionErrorResult> {
   try {
     const { userId: clerkUserId } = await auth();
+    const cookieStore = await cookies();
+    const locale = cookieStore.get("NEXT_LOCALE")?.value ?? "en";
 
     if (!clerkUserId) {
       return { error: true, message: "You must be signed in to checkout" };
@@ -125,6 +128,7 @@ export async function createCheckoutSession(
       }),
       metadata: {
         userId: user.id,
+        locale,
         items: JSON.stringify(
           items.map((i) => ({
             productId: i.productId,

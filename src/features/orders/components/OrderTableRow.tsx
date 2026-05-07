@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import type { UserOrderListItem } from "../db/orders";
 
@@ -18,6 +19,7 @@ function getStatusVariant(status: string) {
 
 export function OrderTableRow({ order }: { order: UserOrderListItem }) {
   const router = useRouter();
+  const t = useTranslations("orders");
 
   return (
     <div
@@ -63,7 +65,7 @@ export function OrderTableRow({ order }: { order: UserOrderListItem }) {
       </div>
       <div role="cell">
         <Badge variant={getStatusVariant(order.status)}>
-          {order.status}
+          {t(order.status.toLowerCase() as "pending" | "completed" | "cancelled" | "refunded")}
         </Badge>
       </div>
     </div>

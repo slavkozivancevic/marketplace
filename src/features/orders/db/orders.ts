@@ -195,12 +195,14 @@ export async function fulfillOrder({
   totalCents,
   items,
   shipping,
+  locale = "en",
 }: {
   userId: string;
   stripeSessionId: string;
   totalCents: number;
   items: FulfillOrderItem[];
   shipping?: ShippingAddress;
+  locale?: string;
 }) {
   const existing = await prisma.order.findUnique({
     where: { stripeSessionId },
@@ -280,6 +282,7 @@ export async function fulfillOrder({
         stripeSessionId,
         status: "COMPLETED",
         total: totalCents / 100,
+        locale,
         shippingName: shipping?.name,
         shippingLine1: shipping?.line1,
         shippingLine2: shipping?.line2,

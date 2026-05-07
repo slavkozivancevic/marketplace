@@ -19,6 +19,8 @@ export const env = createEnv({
     CHAT_INTERNAL_API_KEY: z.string().min(1),
     CONVERSATION_SEARCH_API_URL: z.string().min(1),
     CONVERSATION_SEARCH_API_KEY: z.string().min(1),
+    NOTIFICATIONS_TOPIC_ARN_PARAM: z.string().min(1),
+    NOTIFICATIONS_API_KEY: z.string().min(1),
   },
   experimental__runtimeEnv: process.env,
 });

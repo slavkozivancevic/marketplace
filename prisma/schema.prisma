@@ -373,6 +373,9 @@ model Order {
   items           OrderItem[]
   reviews         ProductReview[]
 
+  // Locale the buyer was using at checkout time — drives email language
+  locale          String      @default("en")
+
   // Shipping address collected via Stripe Checkout
   shippingName       String?
   shippingLine1      String?

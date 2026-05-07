@@ -266,7 +266,8 @@
     "thankYou": "Thank you for your order! A confirmation email has been sent to you.",
     "orderSummary": "Order Summary",
     "shippingAddress": "Shipping Address",
-    "viewMyOrders": "View My Orders"
+    "viewMyOrders": "View My Orders",
+    "total": "Total"
   },
   "admin": {
     "title": "Admin Panel",

@@ -266,7 +266,8 @@
     "thankYou": "Hvala na narudžbini! Potvrda je poslata na vašu email adresu.",
     "orderSummary": "Pregled narudžbine",
     "shippingAddress": "Adresa dostave",
-    "viewMyOrders": "Pogledaj moje narudžbine"
+    "viewMyOrders": "Pogledaj moje narudžbine",
+    "total": "Ukupno"
   },
   "admin": {
     "title": "Admin panel",
