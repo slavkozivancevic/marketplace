@@ -218,6 +218,7 @@ export function AddToCart({ product, onActiveVariantChange }: AddToCartProps) {
       variantLabel,
       price,
       maxStock,
+      requiresShipping: product.requiresShipping,
     });
 
     openCart();

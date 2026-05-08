@@ -34,24 +34,24 @@ function buildFetcher(filters: OrderFilters) {
   };
 }
 
+function OrderTableHeader({ t }: { t: ReturnType<typeof useTranslations> }) {
+  return (
+    <div
+      role="row"
+      className="grid grid-cols-[100px_100px_80px_minmax(200px,2fr)_80px_120px] items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit"
+    >
+      <div role="columnheader">{t("orders.orderId")}</div>
+      <div role="columnheader">{t("orders.date")}</div>
+      <div role="columnheader">{t("orders.time")}</div>
+      <div role="columnheader">{t("orders.items")}</div>
+      <div role="columnheader">{t("orders.total")}</div>
+      <div role="columnheader">{t("orders.status")}</div>
+    </div>
+  );
+}
+
 export function OrdersList({ filters }: { filters?: OrderFilters }) {
   const t = useTranslations();
-
-  function OrderTableHeader() {
-    return (
-      <div
-        role="row"
-        className="grid grid-cols-[100px_100px_80px_minmax(200px,2fr)_80px_100px] items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit"
-      >
-        <div role="columnheader">{t("orders.orderId")}</div>
-        <div role="columnheader">{t("orders.date")}</div>
-        <div role="columnheader">{t("orders.time")}</div>
-        <div role="columnheader">{t("orders.items")}</div>
-        <div role="columnheader">{t("orders.total")}</div>
-        <div role="columnheader">{t("orders.status")}</div>
-      </div>
-    );
-  }
 
   const defaultFilters: OrderFilters = {
     search: "",
@@ -72,7 +72,7 @@ export function OrdersList({ filters }: { filters?: OrderFilters }) {
   if (query.status === "pending") {
     return (
       <div role="table" className="rounded-lg border">
-        <OrderTableHeader />
+        <OrderTableHeader t={t} />
         {Array.from({ length: 8 }).map((_, i) => (
           <SkeletonOrderRow key={i} />
         ))}
@@ -117,7 +117,7 @@ export function OrdersList({ filters }: { filters?: OrderFilters }) {
         role="table"
         className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
       >
-        <OrderTableHeader />
+        <OrderTableHeader t={t} />
         {items.map((order) => (
           <OrderTableRow key={order.id} order={order} />
         ))}
@@ -132,7 +132,7 @@ export function OrdersList({ filters }: { filters?: OrderFilters }) {
       className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
       ref={parentRef}
     >
-      <OrderTableHeader />
+      <OrderTableHeader t={t} />
       <div
         style={{
           height: virtualizer.getTotalSize(),

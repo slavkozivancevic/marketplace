@@ -362,21 +362,28 @@ enum OrderStatus {
   COMPLETED
   CANCELLED
   REFUNDED
+  PENDING_COD
+}
+
+enum PaymentMethod {
+  STRIPE
+  COD
 }
 
 model Order {
-  id              String      @id @default(uuid())
+  id              String        @id @default(uuid())
   userId          String
-  stripeSessionId String      @unique
-  status          OrderStatus @default(PENDING)
-  total           Decimal     @db.Decimal(10, 2)
+  stripeSessionId String?       @unique
+  paymentMethod   PaymentMethod @default(STRIPE)
+  status          OrderStatus   @default(PENDING)
+  total           Decimal       @db.Decimal(10, 2)
   items           OrderItem[]
   reviews         ProductReview[]
 
   // Locale the buyer was using at checkout time — drives email language
   locale          String      @default("en")
 
-  // Shipping address collected via Stripe Checkout
+  // Shipping address (from Stripe Checkout or COD form)
   shippingName       String?
   shippingLine1      String?
   shippingLine2      String?

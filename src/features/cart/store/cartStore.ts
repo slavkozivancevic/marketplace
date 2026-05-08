@@ -11,6 +11,7 @@ export interface CartItem {
   price: number;
   quantity: number;
   maxStock: number | null; // null = unlimited
+  requiresShipping: boolean;
 }
 
 interface CartStore {

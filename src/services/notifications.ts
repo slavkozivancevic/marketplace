@@ -51,6 +51,21 @@ export async function publishOrderCompleted(orderId: string, locale = "en"): Pro
   );
 }
 
+export async function publishCodOrderPlaced(orderId: string, locale = "en"): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "order.cod_placed",
+        orderId,
+        locale,
+        eventId: `${orderId}:order.cod_placed`,
+      }),
+    })
+  );
+}
+
 export async function publishOrderRefunded(orderId: string, locale = "en"): Promise<void> {
   const topicArn = await getTopicArn();
   await sns.send(

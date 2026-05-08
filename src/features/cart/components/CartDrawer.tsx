@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
-import { Minus, Plus, Trash2, ShoppingCart, Loader2, X } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingCart, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   Sheet,
@@ -14,9 +14,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { toast } from "@/components/ui/sonner";
 import { useCartStore } from "../store/cartStore";
-import { createCheckoutSession } from "../actions/checkout";
 
 function CartItemImage({ src, alt }: { src: string; alt: string }) {
   const [loaded, setLoaded] = useState(false);
@@ -33,26 +31,11 @@ export function CartDrawer() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, totalPrice } =
     useCartStore();
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
-  const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
   const handleCheckout = () => {
-    startTransition(async () => {
-      const result = await createCheckoutSession(
-        items.map((i) => ({
-          productId: i.productId,
-          variantId: i.variantId,
-          quantity: i.quantity,
-        })),
-      );
-
-      if ("error" in result) {
-        toast.error(result.message);
-        return;
-      }
-
-      router.push(result.url);
-    });
+    closeCart();
+    router.push("/checkout");
   };
 
   return (
@@ -169,16 +152,8 @@ export function CartDrawer() {
                 className="w-full"
                 size="lg"
                 onClick={handleCheckout}
-                disabled={isPending}
               >
-                {isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {t("redirecting")}
-                  </>
-                ) : (
-                  t("checkout")
-                )}
+                {t("checkout")}
               </Button>
             </div>
           </>

@@ -1,5 +1,5 @@
 import { prisma } from "@/core/db/prisma";
-import { Prisma, OrderStatus } from "@/generated/prisma/client";
+import { Prisma, OrderStatus, PaymentMethod } from "@/generated/prisma/client";
 import { cacheTag } from "next/cache";
 import { CacheTags } from "@/lib/cache/tags";
 import { revalidateOrderCache } from "./cache";
@@ -304,6 +304,115 @@ export async function fulfillOrder({
     revalidateOrderCache(userId, order.id);
     return order;
   });
+
+  const uniqueProductIds = [...new Set(items.map((i) => i.productId))];
+  const allProducts = await prisma.product.findMany({
+    where: { id: { in: uniqueProductIds } },
+    select: { id: true, organizationId: true },
+  });
+  allProducts.forEach((p) => revalidateProductCache(p.organizationId, p.id));
+
+  return order;
+}
+
+export async function createCodOrder({
+  userId,
+  totalCents,
+  items,
+  shipping,
+  locale,
+}: {
+  userId: string;
+  totalCents: number;
+  items: FulfillOrderItem[];
+  shipping: ShippingAddress;
+  locale?: string;
+}) {
+  const variantIds = items.filter((i) => i.variantId).map((i) => i.variantId!);
+  const productOnlyIds = items.filter((i) => !i.variantId).map((i) => i.productId);
+
+  const [variants, products] = await Promise.all([
+    variantIds.length
+      ? prisma.productVariant.findMany({
+          where: { id: { in: variantIds } },
+          select: { id: true, price: true },
+        })
+      : [],
+    productOnlyIds.length
+      ? prisma.product.findMany({
+          where: { id: { in: productOnlyIds } },
+          select: { id: true, price: true, stock: true },
+        })
+      : [],
+  ]);
+
+  const variantMap = new Map(variants.map((v) => [v.id, v]));
+  const productMap = new Map(products.map((p) => [p.id, p]));
+
+  const itemsWithPrice = items.map((item) => {
+    if (item.variantId) {
+      const variant = variantMap.get(item.variantId);
+      if (!variant) throw new Error(`Variant ${item.variantId} not found`);
+      return { ...item, price: Number(variant.price) };
+    }
+    const product = productMap.get(item.productId);
+    if (!product) throw new Error(`Product ${item.productId} not found`);
+    return { ...item, price: Number(product.price) };
+  });
+
+  const order = await prisma.$transaction(async (tx) => {
+    for (const item of itemsWithPrice) {
+      if (item.variantId) {
+        const affected = await tx.$executeRaw`
+          UPDATE "ProductVariant"
+          SET stock = stock - ${item.quantity}
+          WHERE id = ${item.variantId} AND stock >= ${item.quantity}
+        `;
+        if (affected === 0) {
+          throw new Error(`Insufficient stock for variant ${item.variantId}`);
+        }
+      } else {
+        const prod = productMap.get(item.productId)!;
+        if (prod.stock !== null) {
+          const affected = await tx.$executeRaw`
+            UPDATE "Product"
+            SET stock = stock - ${item.quantity}
+            WHERE id = ${item.productId} AND stock >= ${item.quantity}
+          `;
+          if (affected === 0) {
+            throw new Error(`Insufficient stock for product ${item.productId}`);
+          }
+        }
+      }
+    }
+
+    return tx.order.create({
+      data: {
+        userId,
+        paymentMethod: PaymentMethod.COD,
+        status: OrderStatus.PENDING_COD,
+        total: totalCents / 100,
+        locale: locale ?? "en",
+        shippingName: shipping.name,
+        shippingLine1: shipping.line1,
+        shippingLine2: shipping.line2,
+        shippingCity: shipping.city,
+        shippingState: shipping.state,
+        shippingPostalCode: shipping.postalCode,
+        shippingCountry: shipping.country,
+        items: {
+          create: itemsWithPrice.map((item) => ({
+            productId: item.productId,
+            variantId: item.variantId,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+        },
+      },
+    });
+  });
+
+  revalidateOrderCache(userId, order.id);
 
   const uniqueProductIds = [...new Set(items.map((i) => i.productId))];
   const allProducts = await prisma.product.findMany({
