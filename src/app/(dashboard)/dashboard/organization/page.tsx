@@ -9,10 +9,10 @@ import { CacheTags } from "@/lib/cache/tags";
 import { OrganizationSettingsForm } from "@/features/organizations/components/OrganizationSettingsForm";
 import { InviteForm } from "@/features/organizations/components/InviteForm";
 import { InviteList } from "@/features/organizations/components/InviteList";
+import { MemberList } from "@/features/organizations/components/MemberList";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { MembershipRole } from "@/generated/prisma/client";
 
 export default async function OrganizationPage() {
@@ -65,54 +65,36 @@ export default async function OrganizationPage() {
             <CardTitle>{t("organization.members", { count: organization.members.length })}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              {organization.members.map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between py-2"
-                >
-                  <div>
-                    <p className="text-sm font-medium">
-                      {member.user.name || member.user.email}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {member.user.email}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">
-                      {member.user.role === "USER" ? t("users.user") : member.user.role === "SELLER" ? t("users.seller") : t("users.admin")}
-                    </Badge>
-                    <Badge variant="secondary">
-                      {member.role === "OWNER" ? t("organization.roleOwner") : member.role === "ADMIN" ? t("organization.roleAdmin") : t("organization.roleMember")}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {organization.members.length > 1 && <Separator className="mt-4" />}
+            <MemberList
+              members={organization.members}
+              currentUserId={ctx.userId}
+              canManage={canEdit}
+              currentUserRole={ctx.membershipRole}
+            />
           </CardContent>
         </Card>
 
         {canEdit && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("organization.inviteMember")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <InviteForm />
-            </CardContent>
-          </Card>
-        )}
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>{t("organization.inviteMember")}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <InviteForm />
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("organization.pendingInvites")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <InviteList invites={invites} canManage={canEdit} />
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>{t("organization.pendingInvites")}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <InviteList invites={invites} canManage={canEdit} />
+              </CardContent>
+            </Card>
+          </>
+        )}
         </div>
       </div>
     </div>

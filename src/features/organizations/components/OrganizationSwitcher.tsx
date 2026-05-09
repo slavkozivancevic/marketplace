@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { toast } from "@/components/ui/sonner";
+import { Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -46,7 +47,16 @@ export function OrganizationSwitcher({
       disabled={isPending}
     >
       <SelectTrigger className="w-full text-sm cursor-pointer">
-        <SelectValue placeholder="Select organization" />
+        {isPending ? (
+          <span className="flex items-center gap-2">
+            <Loader2 className="size-3.5 animate-spin shrink-0" />
+            <span className="truncate">
+              {organizations.find((o) => o.id === currentOrgId)?.name}
+            </span>
+          </span>
+        ) : (
+          <SelectValue placeholder="Select organization" />
+        )}
       </SelectTrigger>
       <SelectContent>
         {organizations.map((org) => (

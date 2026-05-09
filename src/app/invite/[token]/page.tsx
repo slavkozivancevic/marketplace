@@ -4,13 +4,13 @@ import { connection } from "next/server";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { getInviteByToken } from "@/features/organizations/db/invites";
-import { acceptInviteAction } from "@/features/organizations/actions/invites";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
+import { InviteActions } from "@/features/organizations/components/InviteActions";
 import { InviteStatus } from "@/generated/prisma/client";
 
 interface InvitePageProps {
@@ -81,24 +81,7 @@ export default async function InvitePage({ params }: InvitePageProps) {
             {t("expiresOn", { date: new Date(invite.expiresAt).toLocaleDateString(dl, { year: "numeric", month: "short", day: "numeric" }) })}
           </p>
 
-          <form
-            action={async () => {
-              "use server";
-              const result = await acceptInviteAction(token);
-              if (!result || !("error" in result)) {
-                redirect("/dashboard/organization");
-              }
-            }}
-          >
-            <div className="flex gap-2">
-              <Button type="submit" className="flex-1">
-                {t("accept")}
-              </Button>
-              <Button asChild variant="outline" className="flex-1">
-                <Link href="/dashboard">{t("decline")}</Link>
-              </Button>
-            </div>
-          </form>
+          <InviteActions token={token} />
         </CardContent>
       </Card>
     </div>

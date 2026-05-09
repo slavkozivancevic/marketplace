@@ -4,6 +4,10 @@ export const verifyOrganizationSchema = z.object({
   verified: z.boolean(),
 });
 
+export const updateMemberRoleSchema = z.object({
+  role: z.enum(["ADMIN", "MEMBER"]),
+});
+
 export const updateOrganizationNameSchema = z.object({
   name: z
     .string()

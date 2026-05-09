@@ -7,7 +7,7 @@ import {
   ForbiddenError,
 } from "@/features/common/errors/domainErrors";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
-import { createInvite, cancelInvite, acceptInvite } from "../db/invites";
+import { createInvite, cancelInvite, acceptInvite, declineInvite } from "../db/invites";
 import { getOrganizationById } from "../db/organizations";
 import { publishInviteSent } from "@/services/notifications";
 import { sendInviteSchema, SendInviteInput } from "../schema/invites";
@@ -103,6 +103,18 @@ export async function acceptInviteAction(
 
     revalidatePath("/dashboard/organization");
     revalidatePath("/dashboard");
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+export async function declineInviteAction(
+  token: string,
+): Promise<void | ActionErrorResult> {
+  try {
+    await declineInvite(token);
+
+    revalidatePath('/dashboard/organization');
   } catch (error) {
     return handleActionError(error);
   }

@@ -123,6 +123,23 @@ export async function acceptInvite(token: string, userId: string) {
   return invite;
 }
 
+export async function declineInvite(token: string) {
+  const invite = await prisma.invite.findUnique({
+    where: { token },
+  });
+
+  if (!invite) {
+    throw new NotFoundError('Invite not found');
+  }
+
+  await prisma.invite.update({
+    where: { token },
+    data: { status: InviteStatus.CANCELED },
+  });
+
+  revalidateOrganizationInvites(invite.orgId);
+}
+
 export async function cancelInvite(inviteId: string, orgId: string) {
   const invite = await prisma.invite.findUnique({
     where: { id: inviteId },

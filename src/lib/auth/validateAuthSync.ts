@@ -18,17 +18,16 @@ export async function validateAuthSync({
     throw new Error("User not found during auth sync");
   }
 
-  const resolvedOrgId = user.activeOrgId ?? user.memberships[0]?.orgId;
-
-  if (!resolvedOrgId) {
+  if (user.memberships.length === 0) {
     throw new Error("User has no membership");
   }
 
-  const membership = user.memberships.find((m) => m.orgId === resolvedOrgId);
-
-  if (!membership) {
-    throw new Error("User has no membership");
-  }
+  // Prefer the stored activeOrgId, but fall back to first membership
+  // if the user was removed from that org since the last session sync.
+  const preferredOrgId = user.activeOrgId;
+  const membership =
+    (preferredOrgId && user.memberships.find((m) => m.orgId === preferredOrgId)) ||
+    user.memberships[0];
 
   const context = {
     clerkUserId,

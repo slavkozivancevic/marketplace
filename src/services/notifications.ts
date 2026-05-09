@@ -111,6 +111,32 @@ export async function publishCodOrderCancelled(orderId: string, locale = "en"): 
   );
 }
 
+export async function publishMemberRoleChanged(params: {
+  userEmail: string;
+  userName: string | null;
+  organizationName: string;
+  oldRole: string;
+  newRole: string;
+  locale: string;
+}): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: 'member.role_changed',
+        eventId: `member-role:${params.userEmail}:${params.organizationName}:${Date.now()}`,
+        userEmail: params.userEmail,
+        userName: params.userName,
+        organizationName: params.organizationName,
+        oldRole: params.oldRole,
+        newRole: params.newRole,
+        locale: params.locale,
+      }),
+    })
+  );
+}
+
 export async function publishInviteSent(params: {
   token: string;
   email: string;
