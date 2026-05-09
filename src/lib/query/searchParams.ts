@@ -102,6 +102,22 @@ export type AdminUserFilters = {
   role: string[];
 };
 
+// ---------- Org (seller) received orders ----------
+
+export const orgOrderSearchParams = {
+  search: parseAsString.withDefault(""),
+  sortBy: parseAsStringEnum(["createdAt", "total"] as const).withDefault("createdAt"),
+  sortOrder: parseAsStringEnum(["asc", "desc"] as const).withDefault("desc"),
+  status: parseAsArrayOf(parseAsString).withDefault([]),
+};
+
+export type OrgOrderFilters = {
+  search: string;
+  sortBy: "createdAt" | "total";
+  sortOrder: "asc" | "desc";
+  status: string[];
+};
+
 // ---------- Admin organizations ----------
 
 export const adminOrgSearchParams = {

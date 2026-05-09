@@ -1,7 +1,8 @@
 "use client";
 
 import { useTransition } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { dateLocale } from "@/lib/i18n/dateLocale";
 import { toast } from "@/components/ui/sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ interface InviteListProps {
 
 export function InviteList({ invites, canManage }: InviteListProps) {
   const t = useTranslations("invite");
+  const dl = dateLocale(useLocale());
   const [isPending, startTransition] = useTransition();
 
   const handleCancel = (inviteId: string) => {
@@ -40,7 +42,7 @@ export function InviteList({ invites, canManage }: InviteListProps) {
           <div>
             <p className="text-sm font-medium">{invite.email}</p>
             <p className="text-xs text-muted-foreground">
-              {t("expires", { date: new Date(invite.expiresAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) })}
+              {t("expires", { date: new Date(invite.expiresAt).toLocaleDateString(dl, { year: "numeric", month: "short", day: "numeric" }) })}
             </p>
           </div>
           <div className="flex items-center gap-2">

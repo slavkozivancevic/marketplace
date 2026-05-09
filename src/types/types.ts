@@ -16,7 +16,9 @@ export type Permission =
   | "product:create"
   | "product:update"
   | "product:delete"
-  | "product:read";
+  | "product:read"
+  | "order:read"
+  | "order:manage";
 
 export type ImageInput = {
   key: string;

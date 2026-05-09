@@ -56,7 +56,7 @@ export default async function AdminPage() {
   const quickCards = [
     {
       href: "/dashboard",
-      title: t("admin.myDashboard"),
+      title: t("admin.dashboard"),
       description: t("admin.dashboardDesc"),
       icon: LayoutDashboard,
     },

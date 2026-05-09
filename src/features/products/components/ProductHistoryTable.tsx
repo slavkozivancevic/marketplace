@@ -1,6 +1,8 @@
 "use client";
 
 import { useTransition } from "react";
+import { useLocale } from "next-intl";
+import { dateLocale } from "@/lib/i18n/dateLocale";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,6 +59,7 @@ function HistoryRow({
 }) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const dl = dateLocale(useLocale());
 
   const handleRollback = () => {
     startTransition(async () => {
@@ -91,7 +94,7 @@ function HistoryRow({
       <div role="cell" className="truncate">
         {entry.updatedBy?.name ?? entry.updatedBy?.email ?? "—"}
       </div>
-      <div role="cell" className="truncate">{new Date(entry.createdAt).toLocaleString()}</div>
+      <div role="cell" className="truncate">{new Date(entry.createdAt).toLocaleString(dl)}</div>
       <div role="cell">
         {!isLatest && (
           <ActionButton

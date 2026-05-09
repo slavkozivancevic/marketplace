@@ -80,3 +80,33 @@ export async function publishOrderRefunded(orderId: string, locale = "en"): Prom
     })
   );
 }
+
+export async function publishCodOrderFulfilled(orderId: string, locale = "en"): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "order.cod_fulfilled",
+        orderId,
+        locale,
+        eventId: `${orderId}:order.cod_fulfilled`,
+      }),
+    })
+  );
+}
+
+export async function publishCodOrderCancelled(orderId: string, locale = "en"): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "order.cod_cancelled",
+        orderId,
+        locale,
+        eventId: `${orderId}:order.cod_cancelled`,
+      }),
+    })
+  );
+}

@@ -12,6 +12,7 @@ import {
   ClipboardList,
   Building2,
   Package,
+  PackageCheck,
   Shield,
   ArrowRight,
 } from "lucide-react";
@@ -50,6 +51,13 @@ export default async function DashboardPage() {
     },
   ];
 
+  const receivedOrdersCard = {
+    href: "/dashboard/organization/orders",
+    title: t("dashboard.receivedOrders"),
+    description: t("dashboard.receivedOrdersDesc"),
+    icon: PackageCheck,
+  };
+
   const sellerCards = [
     {
       href: "/dashboard/my-products",
@@ -57,9 +65,13 @@ export default async function DashboardPage() {
       description: t("dashboard.myProductsDesc"),
       icon: Package,
     },
+    receivedOrdersCard,
   ];
 
-  const cards = [...baseCards, ...(userRole === "SELLER" ? sellerCards : [])];
+  const extraCards =
+    userRole === "SELLER" ? sellerCards : isAdmin ? [receivedOrdersCard] : [];
+
+  const cards = [...baseCards, ...extraCards];
 
   return (
     <div className="flex-1 flex flex-col min-h-0">

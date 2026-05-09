@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { dateLocale } from "@/lib/i18n/dateLocale";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -74,6 +75,7 @@ function ReviewItem({
 }) {
   const t = useTranslations("reviews");
   const tCommon = useTranslations("common");
+  const dl = dateLocale(useLocale());
   const [isEditing, setIsEditing] = useState(false);
   const [editRating, setEditRating] = useState(review.rating);
   const [editComment, setEditComment] = useState(review.comment ?? "");
@@ -186,10 +188,10 @@ function ReviewItem({
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{new Date(review.createdAt).toLocaleString()}</p>
+                  <p>{new Date(review.createdAt).toLocaleString(dl)}</p>
                   {isEdited && (
                     <p className="text-muted-foreground">
-                      Edited: {new Date(review.updatedAt).toLocaleString()}
+                      Edited: {new Date(review.updatedAt).toLocaleString(dl)}
                     </p>
                   )}
                 </TooltipContent>

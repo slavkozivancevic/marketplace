@@ -47,6 +47,7 @@ function NavLinks({
           (link.href !== "/dashboard" &&
             link.href !== "/admin" &&
             link.href !== "/admin/products" &&
+            link.href !== "/dashboard/organization" &&
             pathname.startsWith(link.href));
 
         return (

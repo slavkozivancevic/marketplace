@@ -5,7 +5,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import type { UserOrderListItem } from "../db/orders";
+import type { OrgOrderListItem } from "../db/orgOrders";
 
 function getStatusVariant(status: string) {
   switch (status) {
@@ -19,16 +19,23 @@ function getStatusVariant(status: string) {
   }
 }
 
-export function OrderTableRow({ order }: { order: UserOrderListItem }) {
+export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
   const router = useRouter();
-  const t = useTranslations("orders");
+  const t = useTranslations("orgOrders");
   const dl = dateLocale(useLocale());
+
+  const itemSummary = order.items
+    .map((i) => {
+      const label = i.variant?.sku ? `${i.product.title} (${i.variant.sku})` : i.product.title;
+      return i.quantity > 1 ? `${label} ×${i.quantity}` : label;
+    })
+    .join(", ");
 
   return (
     <div
       role="row"
-      className="grid grid-cols-[100px_100px_80px_minmax(200px,2fr)_80px_120px] items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors min-w-fit"
-      onClick={() => router.push(`/dashboard/orders/${order.id}`)}
+      className="grid grid-cols-[100px_100px_80px_minmax(180px,2fr)_140px_90px_130px] items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors min-w-fit"
+      onClick={() => router.push(`/dashboard/organization/orders/${order.id}`)}
     >
       {/* Order ID */}
       <div role="cell" className="font-mono text-xs text-muted-foreground">
@@ -53,19 +60,18 @@ export function OrderTableRow({ order }: { order: UserOrderListItem }) {
       </div>
 
       {/* Items */}
-      <div role="cell" className="text-sm truncate">
-        {order.items.map((item, i) => {
-          const label = item.variant?.sku
-            ? `${item.product.title} (${item.variant.sku})`
-            : item.product.title;
-          const qty = item.quantity > 1 ? ` ×${item.quantity}` : "";
-          return (i > 0 ? ", " : "") + label + qty;
-        }).join("")}
+      <div role="cell" className="text-sm truncate" title={itemSummary}>
+        {itemSummary}
       </div>
 
-      {/* Total */}
+      {/* Buyer */}
+      <div role="cell" className="text-sm text-muted-foreground truncate">
+        {order.user.name ?? "—"}
+      </div>
+
+      {/* Org subtotal */}
       <div role="cell" className="font-semibold text-sm">
-        ${order.total.toFixed(2)}
+        ${order.orgSubtotal.toFixed(2)}
       </div>
 
       {/* Status */}

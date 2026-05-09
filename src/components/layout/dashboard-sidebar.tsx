@@ -7,6 +7,7 @@ import {
   Package,
   Shield,
   LayoutDashboard,
+  PackageCheck,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { OrganizationSwitcher } from "@/features/organizations/components/OrganizationSwitcher";
@@ -36,11 +37,23 @@ export function DashboardSidebar({
     { href: "/dashboard/my-products", label: t("myProducts"), icon: Package },
   ];
 
+  // Anyone with an active org can manage received orders (SELLER and ADMIN)
+  const orgOrdersLink: SidebarLink = {
+    href: "/dashboard/organization/orders",
+    label: t("receivedOrders"),
+    icon: PackageCheck,
+  };
+
   const adminLinks: SidebarLink[] = [
     { href: "/admin", label: t("adminPanel"), icon: Shield },
   ];
 
-  const links = [...baseLinks, ...(userRole === "SELLER" ? sellerLinks : [])];
+  const orgLinks = currentOrgId ? [orgOrdersLink] : [];
+  const links = [
+    ...baseLinks,
+    ...(userRole === "SELLER" ? sellerLinks : []),
+    ...orgLinks,
+  ];
   const extras = userRole === "ADMIN" ? adminLinks : undefined;
 
   return (

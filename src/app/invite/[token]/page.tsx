@@ -1,3 +1,5 @@
+import { getLocale } from "next-intl/server";
+import { dateLocale } from "@/lib/i18n/dateLocale";
 import { connection } from "next/server";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
@@ -21,6 +23,7 @@ export default async function InvitePage({ params }: InvitePageProps) {
   const { userId } = await auth();
 
   const invite = await getInviteByToken(token);
+  const dl = dateLocale(await getLocale());
 
   if (!invite) return notFound();
 
@@ -75,7 +78,7 @@ export default async function InvitePage({ params }: InvitePageProps) {
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            Invite expires on {new Date(invite.expiresAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}.
+            Invite expires on {new Date(invite.expiresAt).toLocaleDateString(dl, { year: "numeric", month: "short", day: "numeric" })}.
           </p>
 
           <form
