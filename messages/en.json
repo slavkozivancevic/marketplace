@@ -447,7 +447,9 @@
     "noPending": "No pending invites.",
     "expires": "Expires {date}",
     "cancel": "Cancel",
-    "cancelled": "Invite canceled"
+    "cancelled": "Invite canceled",
+    "roleAdmin": "Admin",
+    "roleMember": "Member"
   },
   "users": {
     "user": "User",

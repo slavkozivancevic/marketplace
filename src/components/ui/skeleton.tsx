@@ -266,7 +266,7 @@ export function SkeletonProductCard() {
 
         <div className="space-y-3">
           <SkeletonArray amount={3}>
-            <div className="rounded-lg border p-4">
+            <div className="rounded-lg border p-4 bg-background">
               <SkeletonText rows={1} size="md" className="w-3/4" />
               <div className="mt-3 flex flex-wrap gap-2">
                 <Skeleton className="h-6 w-16 rounded-full" />

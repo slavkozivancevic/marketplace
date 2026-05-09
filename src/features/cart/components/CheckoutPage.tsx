@@ -159,7 +159,7 @@ export function CheckoutPage() {
                 className={`flex flex-col items-start gap-1 rounded-lg border p-4 text-left transition-colors cursor-pointer
                   ${method === "card"
                     ? "border-foreground bg-foreground/5 ring-1 ring-foreground"
-                    : "border-border hover:border-foreground/40"
+                    : "border-border bg-background dark:bg-input/30 hover:border-foreground/40"
                   }`}
               >
                 <CreditCard className="h-5 w-5" />
@@ -171,7 +171,7 @@ export function CheckoutPage() {
                 type="button"
                 onClick={() => codAvailable && setMethod("cod")}
                 disabled={!codAvailable}
-                className={`flex flex-col items-start gap-1 rounded-lg border p-4 text-left transition-colors
+                className={`flex flex-col items-start gap-1 rounded-lg border p-4 text-left transition-colors bg-background dark:bg-input/30
                   ${!codAvailable
                     ? "border-border opacity-40 cursor-not-allowed"
                     : method === "cod"

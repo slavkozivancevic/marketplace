@@ -127,7 +127,7 @@ export function AdminUsersPage({ users }: { users: SerializedUser[] }) {
           ) : (
             <div className="space-y-4">
               {filtered.map((user) => (
-                <div key={user.id} className="border rounded-lg p-4">
+                <div key={user.id} className="border rounded-lg p-4 bg-background">
                   <div className="mb-4 flex items-start justify-between gap-4">
                     <div>
                       <p className="font-semibold">{user.name || user.email}</p>

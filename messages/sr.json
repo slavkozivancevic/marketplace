@@ -447,7 +447,9 @@
     "noPending": "Nema pozivnica na čekanju.",
     "expires": "Ističe {date}",
     "cancel": "Otkaži",
-    "cancelled": "Pozivnica otkazana"
+    "cancelled": "Pozivnica otkazana",
+    "roleAdmin": "Administrator",
+    "roleMember": "Član"
   },
   "users": {
     "user": "Korisnik",

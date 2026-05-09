@@ -760,7 +760,7 @@ export function ProductForm({
                 control={form.control}
                 name="taxable"
                 render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                  <FormItem className="flex items-center justify-between rounded-lg border p-4 bg-background dark:bg-input/30">
                     <div>
                       <FormLabel className="text-base">{t("chargeTaxes")}</FormLabel>
                       <FormDescription>
@@ -803,7 +803,7 @@ export function ProductForm({
                 control={form.control}
                 name="isDigital"
                 render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                  <FormItem className="flex items-center justify-between rounded-lg border p-4 bg-background dark:bg-input/30">
                     <div>
                       <FormLabel className="text-base">{t("digitalProduct")}</FormLabel>
                       <FormDescription>
@@ -828,7 +828,7 @@ export function ProductForm({
                   control={form.control}
                   name="requiresShipping"
                   render={({ field }) => (
-                    <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                    <FormItem className="flex items-center justify-between rounded-lg border p-4 bg-background dark:bg-input/30">
                       <div>
                         <FormLabel className="text-base">{t("requiresShipping")}</FormLabel>
                         <FormDescription>
@@ -1018,7 +1018,7 @@ export function ProductForm({
 
             {/* Preview */}
             {(form.watch("metaTitle") || form.watch("title")) && (
-              <div className="rounded-lg border p-4 space-y-1 bg-muted/30">
+              <div className="rounded-lg border p-4 space-y-1 bg-background dark:bg-input/30">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("searchPreview")}</p>
                 <p className="text-base text-blue-600 font-medium truncate">
                   {form.watch("metaTitle") || form.watch("title")}
@@ -1067,7 +1067,7 @@ export function ProductForm({
               {optionFields.map((optionField, optionIndex) => {
                 const values = watchedOptions?.[optionIndex]?.values ?? [];
                 return (
-                  <div key={optionField.id} className="border rounded-md p-4 space-y-3">
+                  <div key={optionField.id} className="border rounded-md p-4 space-y-3 bg-background dark:bg-input/30">
                     <div className="flex items-center gap-2">
                       <FormField
                         control={form.control}
@@ -1214,7 +1214,7 @@ export function ProductForm({
                 const selectedImageKeys = watchedVariants?.[variantIndex]?.imageKeys ?? [];
 
                 return (
-                  <div key={variantField.id} className="border rounded-md p-4 space-y-3">
+                  <div key={variantField.id} className="border rounded-md p-4 space-y-3 bg-background dark:bg-input/30">
                     <div className="flex items-center justify-between">
                       <div className="flex flex-wrap gap-1">
                         {variantOptions.length > 0 ? (

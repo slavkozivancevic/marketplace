@@ -222,7 +222,7 @@ export function ProductImageCarousel({
       <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
         <DialogContent
           showCloseButton={false}
-          className="max-w-[95vw]! w-[95vw] h-[95vh] p-0 gap-0 bg-white border-none overflow-hidden sm:max-w-[95vw]!"
+          className="max-w-[95vw]! w-[95vw] h-[95vh] p-0 gap-0 bg-background border-none overflow-hidden sm:max-w-[95vw]!"
         >
           <DialogTitle className="sr-only">{title}</DialogTitle>
 

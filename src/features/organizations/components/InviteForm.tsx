@@ -83,7 +83,7 @@ export function InviteForm() {
                 <SelectContent>
                   {INVITABLE_ROLES.map((role) => (
                     <SelectItem key={role} value={role}>
-                      {role.charAt(0) + role.slice(1).toLowerCase()}
+                      {role === "ADMIN" ? t("roleAdmin") : t("roleMember")}
                     </SelectItem>
                   ))}
                 </SelectContent>
