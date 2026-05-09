@@ -748,5 +748,8 @@
     "cancelOrder": "Otkaži narudžbinu",
     "markedComplete": "Narudžbina označena kao isporučena.",
     "markedCancelled": "Narudžbina otkazana."
+  },
+  "theme": {
+    "appearance": "Izgled"
   }
 }

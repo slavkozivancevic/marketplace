@@ -2,6 +2,7 @@
 
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Sun, Moon, Sparkles, Monitor, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +42,7 @@ const themes = [
 ] as const;
 
 export function ThemeSwitcher() {
+  const t = useTranslations("theme");
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -74,7 +76,7 @@ export function ThemeSwitcher() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48" onCloseAutoFocus={(e) => e.preventDefault()}>
         <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
-          Appearance
+          {t("appearance")}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {themes.map((t) => {

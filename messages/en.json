@@ -748,5 +748,8 @@
     "cancelOrder": "Cancel Order",
     "markedComplete": "Order marked as fulfilled.",
     "markedCancelled": "Order cancelled."
+  },
+  "theme": {
+    "appearance": "Appearance"
   }
 }

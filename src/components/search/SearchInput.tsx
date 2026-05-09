@@ -57,7 +57,7 @@ export function SearchInput({
   const showSpinner = isPending || isDebouncing;
 
   return (
-    <div className={cn("relative flex-1 min-w-0 max-w-sm pt-1", className)}>
+    <div className={cn("relative flex-1 min-w-0 max-w-sm", className)}>
       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
       <Input
         ref={inputRef}

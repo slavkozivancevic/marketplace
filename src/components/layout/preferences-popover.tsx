@@ -29,6 +29,7 @@ const themes = [
 
 export function PreferencesPopover() {
   const tLang = useTranslations("language");
+  const tTheme = useTranslations("theme");
   const locale = useLocale();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
@@ -50,7 +51,6 @@ export function PreferencesPopover() {
         <Button
           variant="outline"
           size="icon"
-          className="h-9 w-9"
         >
           <SlidersHorizontal className="h-4 w-4" />
           <span className="sr-only">Preferences</span>
@@ -94,7 +94,7 @@ export function PreferencesPopover() {
 
         {/* Theme */}
         <p className="mb-2 px-0.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Appearance
+          {tTheme("appearance")}
         </p>
         <div className="grid grid-cols-4 gap-1">
           {themes.map((th) => {
