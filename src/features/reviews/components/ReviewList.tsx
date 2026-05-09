@@ -11,7 +11,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Loader2 } from "lucide-react";
 import { StarRating } from "./StarRating";
 import { deleteReview, updateReview } from "../actions/reviews";
 import { SerializedProductReview } from "@/types/types";
@@ -152,6 +152,7 @@ function ReviewItem({
           {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="flex gap-2">
             <Button size="sm" onClick={handleSave} disabled={isPending}>
+              {isPending && <Loader2 className="animate-spin" />}
               {isPending ? t("saving") : t("save")}
             </Button>
             <Button

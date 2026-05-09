@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import {
   updateUserRoleSchema,
   UpdateUserRoleInput,
@@ -87,6 +88,7 @@ export function UserForm({ userId, currentRole, onSuccess }: UserFormProps) {
         />
 
         <Button type="submit" disabled={isPending}>
+          {isPending && <Loader2 className="animate-spin" />}
           {isPending ? t("saving") : t("updateRole")}
         </Button>
       </form>

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import {
   handleActionError,
   ForbiddenError,
@@ -8,7 +9,7 @@ import {
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { createInvite, cancelInvite, acceptInvite } from "../db/invites";
 import { getOrganizationById } from "../db/organizations";
-import { sendEmail, buildInviteEmailHtml } from "@/services/ses";
+import { publishInviteSent } from "@/services/notifications";
 import { sendInviteSchema, SendInviteInput } from "../schema/invites";
 import { ActionErrorResult } from "@/types/types";
 import { env } from "@/env/server";
@@ -42,6 +43,9 @@ export async function sendInviteAction(
       return { error: true, message: "Organization not found" };
     }
 
+    const cookieStore = await cookies();
+    const locale = cookieStore.get("NEXT_LOCALE")?.value ?? "en";
+
     const invite = await createInvite({
       email: parsed.data.email,
       orgId: ctx.organizationId,
@@ -51,20 +55,15 @@ export async function sendInviteAction(
 
     const inviteUrl = `${env.APP_URL}/invite/${invite.token}`;
 
-    try {
-      await sendEmail({
-        to: parsed.data.email,
-        subject: `You've been invited to join ${organization.name}`,
-        html: buildInviteEmailHtml({
-          organizationName: organization.name,
-          inviteUrl,
-          role: parsed.data.role,
-        }),
-      });
-    } catch (emailError) {
-      await cancelInvite(invite.id, ctx.organizationId);
-      throw emailError;
-    }
+    // Fire-and-forget — notification failure must not block the invite creation
+    publishInviteSent({
+      token: invite.token,
+      email: parsed.data.email,
+      inviteUrl,
+      organizationName: organization.name,
+      role: parsed.data.role,
+      locale,
+    }).catch((err) => console.error("[notifications] publishInviteSent failed", err));
 
     revalidatePath("/dashboard/organization");
   } catch (error) {

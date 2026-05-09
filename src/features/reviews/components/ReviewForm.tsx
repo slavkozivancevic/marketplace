@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StarRating } from "./StarRating";
@@ -71,6 +72,7 @@ export function ReviewForm({ productId, orderId }: ReviewFormProps) {
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <Button onClick={handleSubmit} disabled={isPending || rating === 0}>
+          {isPending && <Loader2 className="animate-spin" />}
           {isPending ? t("submitting") : t("submit")}
         </Button>
       </CardContent>

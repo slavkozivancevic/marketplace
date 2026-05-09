@@ -110,3 +110,28 @@ export async function publishCodOrderCancelled(orderId: string, locale = "en"): 
     })
   );
 }
+
+export async function publishInviteSent(params: {
+  token: string;
+  email: string;
+  inviteUrl: string;
+  organizationName: string;
+  role: string;
+  locale: string;
+}): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "invite.sent",
+        eventId: `invite:${params.token}`,
+        email: params.email,
+        inviteUrl: params.inviteUrl,
+        organizationName: params.organizationName,
+        role: params.role,
+        locale: params.locale,
+      }),
+    })
+  );
+}

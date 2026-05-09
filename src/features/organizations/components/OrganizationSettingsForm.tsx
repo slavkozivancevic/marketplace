@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useTranslations } from "next-intl";
+import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "@/components/ui/sonner";
@@ -75,6 +76,7 @@ export function OrganizationSettingsForm({
 
         {canEdit && (
           <Button type="submit" disabled={isPending}>
+            {isPending && <Loader2 className="animate-spin" />}
             {isPending ? t("saving") : t("saveChanges")}
           </Button>
         )}

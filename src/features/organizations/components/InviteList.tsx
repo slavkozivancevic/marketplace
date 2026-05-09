@@ -1,11 +1,12 @@
 "use client";
 
-import { useTransition } from "react";
+import { useTransition, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { toast } from "@/components/ui/sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { cancelInviteAction } from "../actions/invites";
 import { Invite } from "@/generated/prisma/client";
 
@@ -18,8 +19,10 @@ export function InviteList({ invites, canManage }: InviteListProps) {
   const t = useTranslations("invite");
   const dl = dateLocale(useLocale());
   const [isPending, startTransition] = useTransition();
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const handleCancel = (inviteId: string) => {
+    setCancellingId(inviteId);
     startTransition(async () => {
       const result = await cancelInviteAction(inviteId);
 
@@ -28,6 +31,7 @@ export function InviteList({ invites, canManage }: InviteListProps) {
       } else {
         toast.success(t("cancelled"));
       }
+      setCancellingId(null);
     });
   };
 
@@ -37,31 +41,35 @@ export function InviteList({ invites, canManage }: InviteListProps) {
 
   return (
     <div className="space-y-2">
-      {invites.map((invite) => (
-        <div key={invite.id} className="flex items-center justify-between py-2">
-          <div>
-            <p className="text-sm font-medium">{invite.email}</p>
-            <p className="text-xs text-muted-foreground">
-              {t("expires", { date: new Date(invite.expiresAt).toLocaleDateString(dl, { year: "numeric", month: "short", day: "numeric" }) })}
-            </p>
+      {invites.map((invite) => {
+        const isCancelling = isPending && cancellingId === invite.id;
+        return (
+          <div key={invite.id} className="flex items-center justify-between py-2">
+            <div>
+              <p className="text-sm font-medium">{invite.email}</p>
+              <p className="text-xs text-muted-foreground">
+                {t("expires", { date: new Date(invite.expiresAt).toLocaleDateString(dl, { year: "numeric", month: "short", day: "numeric" }) })}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary">
+                {invite.role === "ADMIN" ? t("roleAdmin") : t("roleMember")}
+              </Badge>
+              {canManage && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={isPending}
+                  onClick={() => handleCancel(invite.id)}
+                >
+                  {isCancelling && <Loader2 className="animate-spin" />}
+                  {isCancelling ? t("cancelling") : t("cancel")}
+                </Button>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary">
-              {invite.role.charAt(0) + invite.role.slice(1).toLowerCase()}
-            </Badge>
-            {canManage && (
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={isPending}
-                onClick={() => handleCancel(invite.id)}
-              >
-                {t("cancel")}
-              </Button>
-            )}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

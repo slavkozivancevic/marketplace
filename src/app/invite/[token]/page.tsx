@@ -1,4 +1,4 @@
-import { getLocale } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { connection } from "next/server";
 import { notFound, redirect } from "next/navigation";
@@ -22,8 +22,10 @@ export default async function InvitePage({ params }: InvitePageProps) {
   const { token } = await params;
   const { userId } = await auth();
 
+  const locale = await getLocale();
+  const t = await getTranslations("invite");
   const invite = await getInviteByToken(token);
-  const dl = dateLocale(await getLocale());
+  const dl = dateLocale(locale);
 
   if (!invite) return notFound();
 
@@ -39,21 +41,19 @@ export default async function InvitePage({ params }: InvitePageProps) {
     return (
       <div className="container px-6">
         <PageHeader
-          title="Invalid Invite"
-          description="This invite is no longer valid."
+          title={t("invalidTitle")}
+          description={t("invalidDesc")}
         />
         <Alert variant="destructive">
           <AlertTitle>
-            {isExpired ? "Invite Expired" : "Invite Already Used"}
+            {isExpired ? t("expiredHeading") : t("usedHeading")}
           </AlertTitle>
           <AlertDescription>
-            {isExpired
-              ? "This invite has expired. Please ask your organization owner to send a new invite."
-              : "This invite has already been used or canceled."}
+            {isExpired ? t("expiredBody") : t("usedBody")}
           </AlertDescription>
         </Alert>
         <Button asChild className="mt-4">
-          <Link href="/dashboard">Go to Dashboard</Link>
+          <Link href="/dashboard">{t("goToDashboard")}</Link>
         </Button>
       </div>
     );
@@ -62,8 +62,8 @@ export default async function InvitePage({ params }: InvitePageProps) {
   return (
     <div className="container max-w-md px-6">
       <PageHeader
-        title="Organization Invite"
-        description="You have been invited to join an organization."
+        title={t("pageTitle")}
+        description={t("pageDesc")}
       />
 
       <Card>
@@ -72,13 +72,13 @@ export default async function InvitePage({ params }: InvitePageProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Your role:</span>
+            <span className="text-sm text-muted-foreground">{t("yourRole")}</span>
             <Badge variant="secondary">
-              {invite.role.charAt(0) + invite.role.slice(1).toLowerCase()}
+              {invite.role === "ADMIN" ? t("roleAdmin") : t("roleMember")}
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            Invite expires on {new Date(invite.expiresAt).toLocaleDateString(dl, { year: "numeric", month: "short", day: "numeric" })}.
+            {t("expiresOn", { date: new Date(invite.expiresAt).toLocaleDateString(dl, { year: "numeric", month: "short", day: "numeric" }) })}
           </p>
 
           <form
@@ -92,10 +92,10 @@ export default async function InvitePage({ params }: InvitePageProps) {
           >
             <div className="flex gap-2">
               <Button type="submit" className="flex-1">
-                Accept Invite
+                {t("accept")}
               </Button>
               <Button asChild variant="outline" className="flex-1">
-                <Link href="/dashboard">Decline</Link>
+                <Link href="/dashboard">{t("decline")}</Link>
               </Button>
             </div>
           </form>
