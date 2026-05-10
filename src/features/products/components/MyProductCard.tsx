@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ActionButton";
 import { toast } from "@/components/ui/sonner";
 import { deleteProduct, duplicateProduct } from "@/features/products/actions/products";
+import { useCurrencyStore } from "@/store/currency";
+import { formatPrice, convertCents } from "@/lib/currency";
 
 interface MyProductCardProps {
   canWrite: boolean;
@@ -36,6 +38,7 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
   const [isDeleting, startDelete] = useTransition();
   const [isDuplicating, startDuplicate] = useTransition();
 
+  const { currency, currentRate } = useCurrencyStore();
   const isOnSale =
     product.compareAtPrice != null && product.compareAtPrice > product.price;
 
@@ -122,11 +125,11 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
         <div className="flex items-center justify-between">
           {isOnSale ? (
             <div className="flex items-baseline gap-1.5">
-              <p className="text-sm font-medium text-red-500">${product.price.toFixed(2)}</p>
-              <p className="text-xs text-muted-foreground line-through">${product.compareAtPrice!.toFixed(2)}</p>
+              <p className="text-sm font-medium text-red-500">{formatPrice(convertCents(product.price, currency, currentRate()), currency)}</p>
+              <p className="text-xs text-muted-foreground line-through">{formatPrice(convertCents(product.compareAtPrice!, currency, currentRate()), currency)}</p>
             </div>
           ) : (
-            <p className="text-sm font-medium">${product.price.toFixed(2)}</p>
+            <p className="text-sm font-medium">{formatPrice(convertCents(product.price, currency, currentRate()), currency)}</p>
           )}
           <Badge
             variant={

@@ -146,7 +146,21 @@
     "archiving": "Arhiviranje...",
     "archive": "Arhiviraj",
     "restoring": "Vraćanje...",
-    "restoreToDraft": "Vrati kao nacrt"
+    "restoreToDraft": "Vrati kao nacrt",
+    "historyVersion": "Verzija",
+    "historyCurrent": "trenutna",
+    "historyTitle": "Naziv",
+    "historyDescription": "Opis",
+    "historyPrice": "Cena",
+    "historyStatus": "Status",
+    "historyUpdatedBy": "Izmenio",
+    "historyCreatedAt": "Datum",
+    "historyActions": "Akcije",
+    "historyRollback": "Vrati",
+    "historyRollingBack": "Vraćanje...",
+    "historyRollbackTitle": "Vrati na ovu verziju",
+    "historyRollbackDesc": "Da li ste sigurni da želite da vratite na verziju {version}? Biće kreirana nova verzija sa ovim podacima.",
+    "historyRollbackSuccess": "Vraćeno na verziju {version}"
   },
   "dashboard": {
     "title": "Kontrolna tabla",
@@ -377,7 +391,7 @@
     "outOfStock": "Nema na stanju",
     "selectAllOptions": "Izaberite sve opcije",
     "outOfStockBtn": "Nema na stanju",
-    "addToCart": "Dodaj u korpu - ${price}"
+    "addToCart": "Dodaj u korpu - {price}"
   },
   "reviews": {
     "write": "Napišite recenziju",
@@ -511,6 +525,7 @@
     "descPlaceholder": "Pun opis proizvoda",
     "brand": "Brend",
     "images": "Slike",
+    "pricingCurrencyNote": "Cene se čuvaju u USD. Možete uneti iznos u bilo kojoj valuti - biće automatski konvertovan.",
     "price": "Cena",
     "compareAtPrice": "Uporedna cena",
     "compareAtDesc": "Originalna cena prikazana kao precrtan tekst.",
@@ -772,7 +787,18 @@
     "markedComplete": "Narudžbina označena kao isporučena.",
     "markedCancelled": "Narudžbina otkazana."
   },
+  "relatedProducts": {
+    "discoverMore": "Otkrijte više",
+    "youMayAlsoLike": "Možda će vam se svideti",
+    "viewAll": "Prikaži sve →"
+  },
   "theme": {
     "appearance": "Izgled"
+  },
+  "currency": {
+    "label": "Valuta",
+    "usd": "Američki dolar",
+    "eur": "Evro",
+    "rsd": "Srpski dinar"
   }
 }

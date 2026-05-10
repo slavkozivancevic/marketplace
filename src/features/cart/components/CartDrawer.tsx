@@ -15,6 +15,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useCartStore } from "../store/cartStore";
+import { useCurrencyStore } from "@/store/currency";
+import { formatPrice, convertCents } from "@/lib/currency";
 
 function CartItemImage({ src, alt }: { src: string; alt: string }) {
   const [loaded, setLoaded] = useState(false);
@@ -36,6 +38,7 @@ export function CartDrawer() {
   const t = useTranslations("cart");
   const { items, isOpen, closeCart, removeItem, updateQuantity, totalPrice } =
     useCartStore();
+  const { currency, currentRate } = useCurrencyStore();
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
   const router = useRouter();
   const pathname = usePathname();
@@ -116,7 +119,7 @@ export function CartDrawer() {
                           </p>
                         )}
                         <p className="text-sm font-semibold">
-                          ${(item.price * item.quantity).toFixed(2)}
+                          {formatPrice(convertCents(item.price * item.quantity, currency, currentRate()), currency)}
                         </p>
 
                         <div className="flex items-center gap-2 mt-1 select-none">
@@ -175,7 +178,7 @@ export function CartDrawer() {
               <div className="space-y-4 pt-4 border-t mt-4 select-none">
                 <div className="flex items-center justify-between font-semibold">
                   <span>{t("total")}</span>
-                  <span>${totalPrice().toFixed(2)}</span>
+                  <span>{formatPrice(convertCents(totalPrice(), currency, currentRate()), currency)}</span>
                 </div>
                 <Button
                   className="w-full"

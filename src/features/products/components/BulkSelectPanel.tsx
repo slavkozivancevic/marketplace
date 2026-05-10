@@ -35,6 +35,8 @@ import { bulkUpdateProductStatus, bulkDeleteProducts } from "@/features/products
 import { SerializedProductListItem } from "@/types/types";
 import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
+import { useCurrencyStore } from "@/store/currency";
+import { formatPrice, convertCents } from "@/lib/currency";
 
 type ProductStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 
@@ -68,6 +70,7 @@ export function BulkSelectPanel() {
   const t = useTranslations("bulkProducts");
   const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
+  const { currency, currentRate } = useCurrencyStore();
 
   const STATUS_OPTIONS: { value: ProductStatus; label: string }[] = [
     { value: "DRAFT", label: t("draft") },
@@ -302,7 +305,7 @@ export function BulkSelectPanel() {
                         <p className="truncate text-xs text-muted-foreground">{product.brand.name}</p>
                       )}
                     </div>
-                    <div role="cell" className="text-sm">${product.price.toFixed(2)}</div>
+                    <div role="cell" className="text-sm">{formatPrice(convertCents(product.price, currency, currentRate()), currency)}</div>
                     <div role="cell">
                       <Badge variant={getStatusVariant(product.status)}>{product.status}</Badge>
                     </div>

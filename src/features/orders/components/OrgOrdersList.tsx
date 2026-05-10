@@ -31,7 +31,7 @@ function buildFetcher(filters: OrgOrderFilters) {
   };
 }
 
-const COL = "grid-cols-[100px_100px_80px_minmax(180px,2fr)_140px_90px_130px]";
+const COL = "grid-cols-[100px_100px_80px_minmax(180px,2fr)_140px_120px_130px]";
 
 function OrgOrderTableHeader({ t }: { t: ReturnType<typeof useTranslations> }) {
   return (

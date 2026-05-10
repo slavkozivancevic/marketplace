@@ -164,9 +164,9 @@ model Product {
   slug             String
   description      String
   shortDescription String?
-  price            Decimal  @db.Decimal(10, 2)
-  compareAtPrice   Decimal? @db.Decimal(10, 2)
-  costPrice        Decimal? @db.Decimal(10, 2)
+  price            Int
+  compareAtPrice   Int?
+  costPrice        Int?
   stock            Int?
 
   status ProductStatus @default(DRAFT)
@@ -241,7 +241,7 @@ model ProductHistory {
   version   Int
   title     String
   description String
-  price     Decimal @db.Decimal(10,2)
+  price     Int
   status    ProductStatus
   updatedById String?
   createdAt DateTime @default(now())
@@ -255,9 +255,9 @@ model ProductVariant {
   id             String      @id @default(uuid())
   productId      String
   sku            String
-  price          Decimal     @db.Decimal(10, 2)
-  compareAtPrice Decimal?    @db.Decimal(10, 2)
-  costPrice      Decimal?    @db.Decimal(10, 2)
+  price          Int
+  compareAtPrice Int?
+  costPrice      Int?
   stock          Int         @default(0)
   barcode        String?
   weight         Float?
@@ -376,12 +376,17 @@ model Order {
   stripeSessionId String?       @unique
   paymentMethod   PaymentMethod @default(STRIPE)
   status          OrderStatus   @default(PENDING)
-  total           Decimal       @db.Decimal(10, 2)
+  // Stored in the smallest unit of `currency` (cents, para, etc.)
+  total           Int
   items           OrderItem[]
   reviews         ProductReview[]
 
   // Locale the buyer was using at checkout time — drives email language
   locale          String      @default("en")
+  // Currency the buyer selected at checkout time — drives Stripe charge + email formatting
+  currency        String      @default("usd")
+  // Exchange rate used at checkout (1 USD = X of currency). Always 1 for USD orders.
+  exchangeRate    Decimal     @default(1) @db.Decimal(12, 6)
 
   // Shipping address (from Stripe Checkout or COD form)
   shippingName       String?
@@ -406,7 +411,8 @@ model OrderItem {
   productId String
   variantId String?
   quantity  Int
-  price     Decimal @db.Decimal(10, 2)
+  // Stored in the smallest unit of the order's currency
+  price     Int
 
   order   Order          @relation(fields: [orderId], references: [id])
   product Product        @relation(fields: [productId], references: [id])
@@ -446,4 +452,13 @@ model ProductReview {
   @@unique([productId, userId])
   @@index([productId])
   @@index([userId])
+}
+
+// Stores how many units of each currency equal 1 USD.
+// USD is always 1.0 (the base currency) and is not stored here.
+// Updated by admins or a scheduled refresh job.
+model CurrencyRate {
+  code      String   @id        // e.g. "eur", "rsd"
+  rate      Decimal  @db.Decimal(12, 6)  // 1 USD = `rate` of this currency
+  updatedAt DateTime @updatedAt
 }

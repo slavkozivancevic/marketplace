@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { dateLocale } from "@/lib/i18n/dateLocale";
+import { formatPrice } from "@/lib/currency";
+import type { Currency } from "@/lib/currency-config";
 
 interface OrderDetailPageProps {
   params: Promise<{ id: string }>;
@@ -138,11 +140,11 @@ export default async function OrderDetailPage({
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground">
-                        ${item.price.toFixed(2)} × {item.quantity}
+                        {formatPrice(item.price, order.currency as Currency)} × {item.quantity}
                       </p>
                     </div>
                     <p className="font-semibold text-sm">
-                      ${(item.price * item.quantity).toFixed(2)}
+                      {formatPrice(item.price * item.quantity, order.currency as Currency)}
                     </p>
                   </div>
                 </div>
@@ -152,7 +154,7 @@ export default async function OrderDetailPage({
             <Separator className="my-4" />
             <div className="flex justify-between font-semibold">
               <span>{t("orders.yourTotal")}</span>
-              <span>${order.total.toFixed(2)}</span>
+              <span>{formatPrice(order.total, order.currency as Currency)}</span>
             </div>
           </CardContent>
         </Card>

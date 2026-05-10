@@ -146,7 +146,21 @@
     "archiving": "Archiving...",
     "archive": "Archive",
     "restoring": "Restoring...",
-    "restoreToDraft": "Restore to Draft"
+    "restoreToDraft": "Restore to Draft",
+    "historyVersion": "Version",
+    "historyCurrent": "current",
+    "historyTitle": "Title",
+    "historyDescription": "Description",
+    "historyPrice": "Price",
+    "historyStatus": "Status",
+    "historyUpdatedBy": "Updated By",
+    "historyCreatedAt": "Created At",
+    "historyActions": "Actions",
+    "historyRollback": "Rollback",
+    "historyRollingBack": "Rolling back...",
+    "historyRollbackTitle": "Rollback to this version",
+    "historyRollbackDesc": "Are you sure you want to rollback to version {version}? This will create a new version with this data.",
+    "historyRollbackSuccess": "Rolled back to version {version}"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -377,7 +391,7 @@
     "outOfStock": "Out of stock",
     "selectAllOptions": "Select all options",
     "outOfStockBtn": "Out of Stock",
-    "addToCart": "Add to Cart - ${price}"
+    "addToCart": "Add to Cart - {price}"
   },
   "reviews": {
     "write": "Write a Review",
@@ -511,6 +525,7 @@
     "descPlaceholder": "Full product description",
     "brand": "Brand",
     "images": "Images",
+    "pricingCurrencyNote": "Prices are stored in USD. You can enter amounts in any currency - they will be automatically converted.",
     "price": "Price",
     "compareAtPrice": "Compare at Price",
     "compareAtDesc": "Original price shown as strikethrough.",
@@ -772,7 +787,18 @@
     "markedComplete": "Order marked as fulfilled.",
     "markedCancelled": "Order cancelled."
   },
+  "relatedProducts": {
+    "discoverMore": "Discover More",
+    "youMayAlsoLike": "You May Also Like",
+    "viewAll": "View all →"
+  },
   "theme": {
     "appearance": "Appearance"
+  },
+  "currency": {
+    "label": "Currency",
+    "usd": "US Dollar",
+    "eur": "Euro",
+    "rsd": "Serbian Dinar"
   }
 }

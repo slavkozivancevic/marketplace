@@ -119,6 +119,7 @@ export async function GET(request: NextRequest) {
     id: order.id,
     total: Number(order.total),
     locale: order.locale,
+    currency: order.currency ?? "usd",
     buyer: {
       email: order.user.email,
       name: order.user.name,

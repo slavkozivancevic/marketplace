@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { setLocale } from "@/actions/setLocale";
+import { setCurrency } from "@/actions/setCurrency";
+import { VALID_CURRENCIES } from "@/lib/currency-config";
+import { useCurrencyStore } from "@/store/currency";
 import { Sun, Moon, Sparkles, Monitor, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +17,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+
+const currencySymbols: Record<string, string> = {
+  usd: "$",
+  eur: "€",
+  rsd: "дин",
+};
 
 const languages = [
   { locale: "en", flag: "https://flagcdn.com/w40/gb.png", label: "EN" },
@@ -30,10 +39,13 @@ const themes = [
 export function PreferencesPopover() {
   const tLang = useTranslations("language");
   const tTheme = useTranslations("theme");
+  const tCurrency = useTranslations("currency");
   const locale = useLocale();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+
+  const { currency, setCurrency: setStoreCurrency } = useCurrencyStore();
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -42,6 +54,12 @@ export function PreferencesPopover() {
 
   async function handleLocale(newLocale: string) {
     await setLocale(newLocale);
+    router.refresh();
+  }
+
+  async function handleCurrency(newCurrency: string) {
+    setStoreCurrency(newCurrency as typeof VALID_CURRENCIES[number]);
+    await setCurrency(newCurrency);
     router.refresh();
   }
 
@@ -86,6 +104,30 @@ export function PreferencesPopover() {
                 className="shrink-0 rounded-sm object-cover"
               />
               {lang.label}
+            </button>
+          ))}
+        </div>
+
+        <DropdownMenuSeparator className="my-3" />
+
+        {/* Currency */}
+        <p className="mb-2 px-0.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          {tCurrency("label")}
+        </p>
+        <div className="flex gap-1.5">
+          {VALID_CURRENCIES.map((code) => (
+            <button
+              key={code}
+              onClick={() => handleCurrency(code)}
+              className={cn(
+                "flex flex-1 cursor-pointer items-center justify-center rounded-md border px-2 py-1.5 text-xs font-medium transition-colors",
+                mounted && currency === code
+                  ? "border-primary bg-primary/5 text-primary"
+                  : "border-border text-muted-foreground hover:border-primary/50 hover:bg-muted hover:text-foreground"
+              )}
+            >
+              {code.toUpperCase()}
+              <span className="opacity-50">{currencySymbols[code]}</span>
             </button>
           ))}
         </div>

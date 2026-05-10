@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -10,13 +10,15 @@ import { ActionButton } from "@/components/ActionButton";
 import { toast } from "@/components/ui/sonner";
 import { rollbackProductVersion } from "@/features/products/actions/products";
 import { SerializedProductHistory } from "@/types/types";
+import { useCurrencyStore } from "@/store/currency";
+import { formatPrice, convertCents } from "@/lib/currency";
 
 interface ProductHistoryTableProps {
   history: SerializedProductHistory[];
   productId: string;
 }
 
-const GRID_COLS = "grid-cols-[60px_64px_minmax(140px,1fr)_minmax(200px,2fr)_80px_100px_minmax(120px,1fr)_minmax(180px,1fr)_100px]";
+const GRID_COLS = "grid-cols-[60px_64px_minmax(140px,1fr)_minmax(200px,2fr)_120px_100px_minmax(120px,1fr)_minmax(180px,1fr)_100px]";
 
 function getStatusVariant(status: string) {
   switch (status) {
@@ -30,20 +32,21 @@ function getStatusVariant(status: string) {
 }
 
 function HistoryTableHeader() {
+  const t = useTranslations("products");
   return (
     <div
       role="row"
       className={`grid ${GRID_COLS} items-center gap-2 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit`}
     >
-      <div role="columnheader" className="truncate">Version</div>
-      <div role="columnheader"><Badge variant="outline" className="text-xs invisible">current</Badge></div>
-      <div role="columnheader" className="truncate">Title</div>
-      <div role="columnheader" className="truncate">Description</div>
-      <div role="columnheader" className="truncate">Price</div>
-      <div role="columnheader" className="truncate">Status</div>
-      <div role="columnheader" className="truncate">Updated By</div>
-      <div role="columnheader" className="truncate">Created At</div>
-      <div role="columnheader" className="truncate">Actions</div>
+      <div role="columnheader" className="truncate">{t("historyVersion")}</div>
+      <div role="columnheader"><Badge variant="outline" className="text-xs invisible">{t("historyCurrent")}</Badge></div>
+      <div role="columnheader" className="truncate">{t("historyTitle")}</div>
+      <div role="columnheader" className="truncate">{t("historyDescription")}</div>
+      <div role="columnheader" className="truncate">{t("historyPrice")}</div>
+      <div role="columnheader" className="truncate">{t("historyStatus")}</div>
+      <div role="columnheader" className="truncate">{t("historyUpdatedBy")}</div>
+      <div role="columnheader" className="truncate">{t("historyCreatedAt")}</div>
+      <div role="columnheader" className="truncate">{t("historyActions")}</div>
     </div>
   );
 }
@@ -57,6 +60,8 @@ function HistoryRow({
   productId: string;
   isLatest: boolean;
 }) {
+  const t = useTranslations("products");
+  const { currency, currentRate } = useCurrencyStore();
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const dl = dateLocale(useLocale());
@@ -67,7 +72,7 @@ function HistoryRow({
       if (result && "error" in result) {
         toast.error(result.message);
       } else {
-        toast.success(`Rolled back to version ${entry.version}`);
+        toast.success(t("historyRollbackSuccess", { version: entry.version }));
         router.push(`/admin/products/${productId}/history`);
         router.refresh();
       }
@@ -82,14 +87,16 @@ function HistoryRow({
       <div role="cell">{entry.version}</div>
       <div role="cell">
         <Badge variant="outline" className={`text-xs ${isLatest ? "" : "invisible"}`}>
-          current
+          {t("historyCurrent")}
         </Badge>
       </div>
       <div role="cell" className="truncate">{entry.title}</div>
       <div role="cell" className="truncate text-muted-foreground">{entry.description}</div>
-      <div role="cell">${entry.price.toFixed(2)}</div>
+      <div role="cell">{formatPrice(convertCents(entry.price, currency, currentRate()), currency)}</div>
       <div role="cell">
-        <Badge variant={getStatusVariant(entry.status)}>{entry.status}</Badge>
+        <Badge variant={getStatusVariant(entry.status)}>
+          {t(entry.status.toLowerCase() as "published" | "draft" | "archived")}
+        </Badge>
       </div>
       <div role="cell" className="truncate">
         {entry.updatedBy?.name ?? entry.updatedBy?.email ?? "—"}
@@ -98,13 +105,13 @@ function HistoryRow({
       <div role="cell">
         {!isLatest && (
           <ActionButton
-            title="Rollback to this version"
-            description={`Are you sure you want to rollback to version ${entry.version}? This will create a new version with this data.`}
-            confirmText="Rollback"
+            title={t("historyRollbackTitle")}
+            description={t("historyRollbackDesc", { version: entry.version })}
+            confirmText={t("historyRollback")}
             onConfirm={handleRollback}
           >
             <Button variant="outline" size="sm" disabled={isPending}>
-              {isPending ? "Rolling back..." : "Rollback"}
+              {isPending ? t("historyRollingBack") : t("historyRollback")}
             </Button>
           </ActionButton>
         )}

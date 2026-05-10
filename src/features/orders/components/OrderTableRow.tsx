@@ -6,6 +6,8 @@ import { dateLocale } from "@/lib/i18n/dateLocale";
 import { Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { UserOrderListItem } from "../db/orders";
+import type { Currency } from "@/lib/currency-config";
+import { formatPrice } from "@/lib/currency";
 
 function getStatusVariant(status: string) {
   switch (status) {
@@ -27,7 +29,7 @@ export function OrderTableRow({ order }: { order: UserOrderListItem }) {
   return (
     <div
       role="row"
-      className="grid grid-cols-[100px_100px_80px_minmax(200px,2fr)_80px_120px] items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors min-w-fit"
+      className="grid grid-cols-[100px_100px_80px_minmax(200px,2fr)_120px_120px] items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors min-w-fit"
       onClick={() => router.push(`/dashboard/orders/${order.id}`)}
     >
       {/* Order ID */}
@@ -65,7 +67,7 @@ export function OrderTableRow({ order }: { order: UserOrderListItem }) {
 
       {/* Total */}
       <div role="cell" className="font-semibold text-sm">
-        ${order.total.toFixed(2)}
+        {formatPrice(order.total, order.currency as Currency)}
       </div>
 
       {/* Status */}

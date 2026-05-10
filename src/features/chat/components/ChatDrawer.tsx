@@ -54,7 +54,7 @@ export function ChatDrawerTrigger() {
     <Button variant="outline" size="icon" data-chat-trigger onClick={isOpen ? closeInbox : openInbox} className="relative">
       <MessageCircle className="size-4" />
       {unreadCount > 0 && (
-        <span className="absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white pointer-events-none leading-none">
+        <span className="absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground pointer-events-none leading-none">
           {unreadCount > 9 ? "9+" : unreadCount}
         </span>
       )}

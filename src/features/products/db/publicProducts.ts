@@ -91,9 +91,9 @@ export async function getPublicProductsPage({
 
   const items: SerializedProductListItem[] = rows.map((p) => ({
     ...p,
-    price: Number(p.price),
-    compareAtPrice: p.compareAtPrice != null ? Number(p.compareAtPrice) : null,
-    costPrice: p.costPrice != null ? Number(p.costPrice) : null,
+    price: p.price,
+    compareAtPrice: p.compareAtPrice,
+    costPrice: p.costPrice,
   }));
 
   return { items, nextCursor };

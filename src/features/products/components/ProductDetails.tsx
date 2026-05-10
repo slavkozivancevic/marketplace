@@ -9,6 +9,8 @@ import { Separator } from "@/components/ui/separator";
 import { SerializedProductWithRelations } from "@/types/types";
 import { ProductStatusActions } from "./ProductStatusActions";
 import { ProductImageCarousel } from "@/components/product/ProductImageCarousel";
+import { useCurrencyStore } from "@/store/currency";
+import { formatPrice, convertCents } from "@/lib/currency";
 
 interface ProductDetailsProps {
   product: SerializedProductWithRelations;
@@ -22,6 +24,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
   redirectTo,
 }) => {
   const t = useTranslations("products");
+  const { currency, currentRate } = useCurrencyStore();
   return (
     <div className="space-y-6">
       <Card>
@@ -70,7 +73,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
             </Badge>
           </div>
           <div>
-            <strong>{t("priceLabel")}</strong> ${product.price.toFixed(2)}
+            <strong>{t("priceLabel")}</strong> {formatPrice(convertCents(product.price, currency, currentRate()), currency)}
           </div>
           {product.variants?.length === 0 && (
             <div>
@@ -142,7 +145,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
                     <strong>{t("sku")}</strong> {variant.sku}
                   </span>
                   <span>
-                    <strong>{t("priceLabel")}</strong> ${variant.price.toFixed(2)}
+                    <strong>{t("priceLabel")}</strong> {formatPrice(convertCents(variant.price, currency, currentRate()), currency)}
                   </span>
                   <span>
                     <strong>{t("stockLabel")}</strong> {variant.stock}

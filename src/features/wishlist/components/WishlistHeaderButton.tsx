@@ -16,7 +16,7 @@ export function WishlistHeaderButton() {
         </Link>
       </Button>
       {count > 0 && (
-        <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white pointer-events-none">
+        <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground pointer-events-none">
           {count > 99 ? "99+" : count}
         </span>
       )}

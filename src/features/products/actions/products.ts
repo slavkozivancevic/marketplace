@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { decimalToCents } from "@/lib/currency";
 import {
   createProductSchema,
   updateProductSchema,
@@ -66,7 +67,19 @@ export async function createProduct(
     requirePermission(ctx, "product:create");
     const repo = productRepository(ctx);
 
-    await repo.create(parsed.data);
+    const { price, compareAtPrice, costPrice, variants, ...rest } = parsed.data;
+    await repo.create({
+      ...rest,
+      price: decimalToCents(price),
+      compareAtPrice: compareAtPrice != null ? decimalToCents(compareAtPrice) : null,
+      costPrice: costPrice != null ? decimalToCents(costPrice) : null,
+      variants: variants?.map((v) => ({
+        ...v,
+        price: decimalToCents(v.price),
+        compareAtPrice: v.compareAtPrice != null ? decimalToCents(v.compareAtPrice) : null,
+        costPrice: v.costPrice != null ? decimalToCents(v.costPrice) : null,
+      })),
+    });
   } catch (error) {
     return handleActionError(error);
   }
@@ -95,7 +108,19 @@ export async function updateProduct(
     requirePermission(ctx, "product:update");
     const repo = productRepository(ctx);
 
-    await repo.update(id, version, data);
+    const { price: dPrice, compareAtPrice: dCap, costPrice: dCost, variants: dVariants, ...restData } = data;
+    await repo.update(id, version, {
+      ...restData,
+      ...(dPrice !== undefined && { price: decimalToCents(dPrice) }),
+      ...(dCap !== undefined && { compareAtPrice: dCap != null ? decimalToCents(dCap) : null }),
+      ...(dCost !== undefined && { costPrice: dCost != null ? decimalToCents(dCost) : null }),
+      variants: dVariants?.map((v) => ({
+        ...v,
+        price: decimalToCents(v.price),
+        compareAtPrice: v.compareAtPrice != null ? decimalToCents(v.compareAtPrice) : null,
+        costPrice: v.costPrice != null ? decimalToCents(v.costPrice) : null,
+      })),
+    });
   } catch (error) {
     return handleActionError(error);
   }
@@ -274,9 +299,9 @@ export async function bulkCreateProducts(
           title: row.title,
           description: row.description,
           shortDescription: row.shortDescription,
-          price: row.price,
-          compareAtPrice: row.compareAtPrice ?? null,
-          costPrice: row.costPrice ?? null,
+          price: decimalToCents(row.price),
+          compareAtPrice: row.compareAtPrice != null ? decimalToCents(row.compareAtPrice) : null,
+          costPrice: row.costPrice != null ? decimalToCents(row.costPrice) : null,
           stock: row.stock ?? null,
           barcode: row.barcode,
           taxable: row.taxable ?? true,
@@ -321,7 +346,12 @@ export async function previewBulkFilter(
     const ctx = await resolveRequestContext();
     requirePermission(ctx, "product:read");
     const repo = productRepository(ctx);
-    const data = await repo.previewByFilter(filter);
+    const filterInCents: BulkFilter = {
+      ...filter,
+      ...(filter.minPrice != null && { minPrice: decimalToCents(filter.minPrice) }),
+      ...(filter.maxPrice != null && { maxPrice: decimalToCents(filter.maxPrice) }),
+    };
+    const data = await repo.previewByFilter(filterInCents);
     return { error: false, data };
   } catch (error) {
     return handleActionError(error);
@@ -335,7 +365,12 @@ export async function bulkDeleteByFilter(
     const ctx = await resolveRequestContext();
     requirePermission(ctx, "product:delete");
     const repo = productRepository(ctx);
-    const { count } = await repo.bulkDeleteByFilter(filter);
+    const filterInCents: BulkFilter = {
+      ...filter,
+      ...(filter.minPrice != null && { minPrice: decimalToCents(filter.minPrice) }),
+      ...(filter.maxPrice != null && { maxPrice: decimalToCents(filter.maxPrice) }),
+    };
+    const { count } = await repo.bulkDeleteByFilter(filterInCents);
     return {
       error: false,
       count,
@@ -354,7 +389,18 @@ export async function bulkUpdateByFilter(
     const ctx = await resolveRequestContext();
     requirePermission(ctx, "product:update");
     const repo = productRepository(ctx);
-    const { count } = await repo.bulkUpdateByFilter(filter, updates);
+    const updatesInCents: BulkUpdateFields = {
+      ...updates,
+      ...(updates.price !== undefined && { price: decimalToCents(updates.price) }),
+      ...(updates.compareAtPrice != null && { compareAtPrice: decimalToCents(updates.compareAtPrice) }),
+      ...(updates.costPrice != null && { costPrice: decimalToCents(updates.costPrice) }),
+    };
+    const filterInCents: BulkFilter = {
+      ...filter,
+      ...(filter.minPrice != null && { minPrice: decimalToCents(filter.minPrice) }),
+      ...(filter.maxPrice != null && { maxPrice: decimalToCents(filter.maxPrice) }),
+    };
+    const { count } = await repo.bulkUpdateByFilter(filterInCents, updatesInCents);
     return {
       error: false,
       count,

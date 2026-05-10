@@ -46,6 +46,98 @@ import { X, Plus, RefreshCw, ImageOff, AlertCircle } from "lucide-react";
 import Image from "next/image";
 import { cn, slugify } from "@/lib/utils";
 import { BrandSelect, type BrandOption } from "@/features/brands/components/BrandSelect";
+import { useCurrencyStore } from "@/store/currency";
+import { CURRENCIES } from "@/lib/currency";
+import type { Currency } from "@/lib/currency-config";
+
+/**
+ * Price input with inline currency selector.
+ * The form field always stores USD decimal (e.g. 18.43).
+ * Seller can switch to any supported currency and type in that currency —
+ * the value is auto-converted to USD for the form field.
+ */
+function PriceInput({
+  value,
+  onChange,
+  rates,
+  placeholder = "0.00",
+  className,
+  inputClassName,
+}: {
+  value: number;
+  onChange: (usd: number) => void;
+  rates: Record<string, number>;
+  placeholder?: string;
+  className?: string;
+  inputClassName?: string;
+}) {
+  const [inputCurrency, setInputCurrency] = useState<Currency>("usd");
+  const rate = inputCurrency === "usd" ? 1 : (rates[inputCurrency] ?? 1);
+
+  // What the seller sees in the input box (in their chosen currency)
+  const [displayValue, setDisplayValue] = useState<string>(value > 0 ? String(value) : "");
+
+  const symbol = CURRENCIES.find((c) => c.code === inputCurrency)?.symbol ?? "$";
+
+  const handleCurrencyChange = (newCurrency: Currency) => {
+    const newRate = newCurrency === "usd" ? 1 : (rates[newCurrency] ?? 1);
+    // Re-express the current USD form value in the new currency
+    if (value > 0) {
+      setDisplayValue((value * newRate).toFixed(2));
+    }
+    setInputCurrency(newCurrency);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setDisplayValue(raw);
+    const parsed = parseFloat(raw);
+    if (!isNaN(parsed) && parsed >= 0) {
+      onChange(parsed / rate);
+    } else {
+      onChange(0);
+    }
+  };
+
+  // Show the USD equivalent when seller is typing in a non-USD currency
+  const usdEquivalent = inputCurrency !== "usd" && parseFloat(displayValue) > 0
+    ? parseFloat(displayValue) / rate
+    : null;
+
+  return (
+    <div className={className}>
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm select-none pointer-events-none">
+            {symbol}
+          </span>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder={placeholder}
+            className={cn(symbol.length <= 1 ? "pl-7" : symbol.length === 2 ? "pl-9" : "pl-12", inputClassName)}
+            value={displayValue}
+            onChange={handleChange}
+          />
+        </div>
+        <Select value={inputCurrency} onValueChange={(v) => handleCurrencyChange(v as Currency)}>
+          <SelectTrigger className="w-24 shrink-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {CURRENCIES.map((c) => (
+              <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {usdEquivalent !== null && (
+        <p className="text-xs text-muted-foreground mt-1">≈ ${usdEquivalent.toFixed(2)} USD</p>
+      )}
+    </div>
+  );
+}
 
 type ProductFormData = {
   title: string;
@@ -157,6 +249,7 @@ export function ProductForm({
   redirectTo,
 }: ProductFormProps) {
   const t = useTranslations("productForm");
+  const { rates } = useCurrencyStore();
   const [isPending, startTransition] = useTransition();
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(
     mode === "update" && !!product?.slug,
@@ -195,9 +288,9 @@ export function ProductForm({
           slug: product.slug ?? "",
           description: product.description,
           shortDescription: product.shortDescription ?? "",
-          price: Number(product.price),
-          compareAtPrice: product.compareAtPrice != null ? Number(product.compareAtPrice) : null,
-          costPrice: product.costPrice != null ? Number(product.costPrice) : null,
+          price: product.price / 100,
+          compareAtPrice: product.compareAtPrice != null ? product.compareAtPrice / 100 : null,
+          costPrice: product.costPrice != null ? product.costPrice / 100 : null,
           stock: product.stock ?? null,
           barcode: product.barcode ?? "",
           taxable: product.taxable ?? true,
@@ -232,9 +325,9 @@ export function ProductForm({
               .filter((k): k is string => Boolean(k));
             return {
               sku: v.sku,
-              price: Number(v.price),
-              compareAtPrice: v.compareAtPrice != null ? Number(v.compareAtPrice) : null,
-              costPrice: v.costPrice != null ? Number(v.costPrice) : null,
+              price: v.price / 100,
+              compareAtPrice: v.compareAtPrice != null ? v.compareAtPrice / 100 : null,
+              costPrice: v.costPrice != null ? v.costPrice / 100 : null,
               stock: v.stock,
               barcode: v.barcode ?? "",
               weight: v.weight ?? null,
@@ -632,6 +725,7 @@ export function ProductForm({
 
           {/* ── PRICING & INVENTORY TAB ── */}
           <TabsContent value="pricing" className="space-y-6 pt-4 overflow-y-auto min-h-0 pb-6">
+            <p className="text-xs text-muted-foreground">{t("pricingCurrencyNote")}</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <FormField
                 control={form.control}
@@ -640,13 +734,7 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>{t("price")}</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        value={field.value}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                      />
+                      <PriceInput value={field.value} onChange={field.onChange} rates={rates} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -663,15 +751,7 @@ export function ProductForm({
                       <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        value={field.value ?? ""}
-                        onChange={(e) =>
-                          field.onChange(e.target.value === "" ? null : parseFloat(e.target.value) || 0)
-                        }
-                      />
+                      <PriceInput value={field.value ?? 0} onChange={(v) => field.onChange(v || null)} rates={rates} />
                     </FormControl>
                     <FormDescription>{t("compareAtDesc")}</FormDescription>
                     <FormMessage />
@@ -689,15 +769,7 @@ export function ProductForm({
                       <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        value={field.value ?? ""}
-                        onChange={(e) =>
-                          field.onChange(e.target.value === "" ? null : parseFloat(e.target.value) || 0)
-                        }
-                      />
+                      <PriceInput value={field.value ?? 0} onChange={(v) => field.onChange(v || null)} rates={rates} />
                     </FormControl>
                     <FormDescription>{t("costDesc")}</FormDescription>
                     <FormMessage />
@@ -1259,13 +1331,7 @@ export function ProductForm({
                           <FormItem>
                             <FormLabel className="text-xs">{t("price")}</FormLabel>
                             <FormControl>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="0.00"
-                                value={field.value}
-                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                              />
+                              <PriceInput value={field.value} onChange={field.onChange} rates={rates} inputClassName="text-sm" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -1300,15 +1366,7 @@ export function ProductForm({
                           <FormItem>
                             <FormLabel className="text-xs">{t("compareAt")}</FormLabel>
                             <FormControl>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="—"
-                                value={field.value ?? ""}
-                                onChange={(e) =>
-                                  field.onChange(e.target.value === "" ? null : parseFloat(e.target.value) || 0)
-                                }
-                              />
+                              <PriceInput value={field.value ?? 0} onChange={(v) => field.onChange(v || null)} rates={rates} inputClassName="text-sm" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -1321,15 +1379,7 @@ export function ProductForm({
                           <FormItem>
                             <FormLabel className="text-xs">{t("cost")}</FormLabel>
                             <FormControl>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                placeholder="—"
-                                value={field.value ?? ""}
-                                onChange={(e) =>
-                                  field.onChange(e.target.value === "" ? null : parseFloat(e.target.value) || 0)
-                                }
-                              />
+                              <PriceInput value={field.value ?? 0} onChange={(v) => field.onChange(v || null)} rates={rates} inputClassName="text-sm" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

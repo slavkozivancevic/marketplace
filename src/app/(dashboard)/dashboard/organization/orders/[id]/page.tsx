@@ -14,6 +14,8 @@ import { Separator } from "@/components/ui/separator";
 import { OrgOrderStatusManager } from "@/features/orders/components/OrgOrderStatusManager";
 import { MembershipRole } from "@/generated/prisma/client";
 import { dateLocale } from "@/lib/i18n/dateLocale";
+import { formatPrice } from "@/lib/currency";
+import type { Currency } from "@/lib/currency-config";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -153,11 +155,11 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                           <p className="text-xs text-muted-foreground">SKU: {item.variant.sku}</p>
                         )}
                         <p className="text-xs text-muted-foreground">
-                          ${item.price.toFixed(2)} × {item.quantity}
+                          {formatPrice(item.price, order.currency as Currency)} × {item.quantity}
                         </p>
                       </div>
                       <p className="font-semibold text-sm shrink-0">
-                        ${(item.price * item.quantity).toFixed(2)}
+                        {formatPrice(item.price * item.quantity, order.currency as Currency)}
                       </p>
                     </div>
                   </div>
@@ -167,7 +169,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
               <Separator className="my-4" />
               <div className="flex justify-between font-semibold text-sm">
                 <span>{t("yourSubtotal")}</span>
-                <span>${order.orgSubtotal.toFixed(2)}</span>
+                <span>{formatPrice(order.orgSubtotal, order.currency as Currency)}</span>
               </div>
             </CardContent>
           </Card>

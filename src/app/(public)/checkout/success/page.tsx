@@ -12,6 +12,8 @@ import { stripe } from "@/services/stripe";
 import { getOrderByStripeSessionId, getOrderById } from "@/features/orders/db/orders";
 import { prisma } from "@/core/db/prisma";
 import type Stripe from "stripe";
+import { formatPrice } from "@/lib/currency";
+import type { Currency } from "@/lib/currency-config";
 
 interface CheckoutSuccessPageProps {
   searchParams: Promise<{ session_id?: string; order_id?: string }>;
@@ -83,11 +85,11 @@ export default async function CheckoutSuccessPage({
                           <p className="text-muted-foreground text-xs">{item.variant.sku}</p>
                         )}
                         <p className="text-muted-foreground text-xs">
-                          ${item.price.toFixed(2)} × {item.quantity}
+                          {formatPrice(item.price, order.currency as Currency)} × {item.quantity}
                         </p>
                       </div>
                       <p className="font-semibold">
-                        ${(item.price * item.quantity).toFixed(2)}
+                        {formatPrice(item.price * item.quantity, order.currency as Currency)}
                       </p>
                     </div>
                   </div>
@@ -95,7 +97,7 @@ export default async function CheckoutSuccessPage({
                 <Separator className="my-4" />
                 <div className="flex justify-between font-semibold text-sm">
                   <span>{t("checkout.total")}</span>
-                  <span>${order.total.toFixed(2)}</span>
+                  <span>{formatPrice(order.total, order.currency as Currency)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -152,8 +154,7 @@ export default async function CheckoutSuccessPage({
   ]);
 
   const lineItems = session?.line_items?.data ?? [];
-  const total = (session?.amount_total ?? 0) / 100;
-  const hasShipping = !!order?.shippingLine1;
+    const hasShipping = !!order?.shippingLine1;
 
   const paymentIntent = session?.payment_intent as Stripe.PaymentIntent | null | undefined;
   const latestCharge = paymentIntent?.latest_charge as Stripe.Charge | null | undefined;
@@ -244,11 +245,11 @@ export default async function CheckoutSuccessPage({
                     <div>
                       <p className="font-medium">{item.description}</p>
                       <p className="text-muted-foreground text-xs">
-                        ${((item.amount_total ?? 0) / 100 / (item.quantity ?? 1)).toFixed(2)} × {item.quantity}
+                        {formatPrice(Math.round((item.amount_total ?? 0) / (item.quantity ?? 1)), (session?.currency ?? "usd") as Currency)} × {item.quantity}
                       </p>
                     </div>
                     <p className="font-semibold">
-                      ${((item.amount_total ?? 0) / 100).toFixed(2)}
+                      {formatPrice(item.amount_total ?? 0, (session?.currency ?? "usd") as Currency)}
                     </p>
                   </div>
                 </div>
@@ -256,7 +257,7 @@ export default async function CheckoutSuccessPage({
               <Separator className="my-4" />
               <div className="flex justify-between font-semibold text-sm">
                 <span>{t("checkout.total")}</span>
-                <span>${total.toFixed(2)}</span>
+                <span>{formatPrice(session?.amount_total ?? 0, (session?.currency ?? "usd") as Currency)}</span>
               </div>
             </CardContent>
           </Card>

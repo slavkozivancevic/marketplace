@@ -81,6 +81,7 @@ export async function getOrgOrdersPage({
     items: rows.map((order) => ({
       ...order,
       total: Number(order.total),
+      exchangeRate: order.exchangeRate != null ? Number(order.exchangeRate) : null,
       orgSubtotal: order.items.reduce(
         (sum, item) => sum + Number(item.price) * item.quantity,
         0,
@@ -139,6 +140,7 @@ export async function getOrgOrderById(orderId: string, organizationId: string) {
   return {
     ...order,
     total: Number(order.total),
+    exchangeRate: order.exchangeRate != null ? Number(order.exchangeRate) : null,
     orgSubtotal: order.items.reduce(
       (sum, item) => sum + Number(item.price) * item.quantity,
       0,

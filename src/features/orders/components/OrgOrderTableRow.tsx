@@ -6,6 +6,8 @@ import { dateLocale } from "@/lib/i18n/dateLocale";
 import { Truck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { OrgOrderListItem } from "../db/orgOrders";
+import type { Currency } from "@/lib/currency-config";
+import { formatPrice } from "@/lib/currency";
 
 function getStatusVariant(status: string) {
   switch (status) {
@@ -34,7 +36,7 @@ export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
   return (
     <div
       role="row"
-      className="grid grid-cols-[100px_100px_80px_minmax(180px,2fr)_140px_90px_130px] items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors min-w-fit"
+      className="grid grid-cols-[100px_100px_80px_minmax(180px,2fr)_140px_120px_130px] items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors min-w-fit"
       onClick={() => router.push(`/dashboard/organization/orders/${order.id}`)}
     >
       {/* Order ID */}
@@ -71,7 +73,7 @@ export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
 
       {/* Org subtotal */}
       <div role="cell" className="font-semibold text-sm">
-        ${order.orgSubtotal.toFixed(2)}
+        {formatPrice(order.orgSubtotal, order.currency as Currency)}
       </div>
 
       {/* Status */}

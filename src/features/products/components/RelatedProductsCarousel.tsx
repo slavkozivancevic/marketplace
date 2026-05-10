@@ -5,6 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { ImageOff } from "lucide-react";
 import Autoplay from "embla-carousel-autoplay";
+import { useTranslations } from "next-intl";
+import { useCurrencyStore } from "@/store/currency";
+import { formatPrice, convertCents } from "@/lib/currency";
 import {
   Carousel,
   CarouselContent,
@@ -23,6 +26,7 @@ export type RelatedProduct = {
 };
 
 function RelatedProductCard({ product }: { product: RelatedProduct }) {
+  const { currency, currentRate } = useCurrencyStore();
   const [imgLoaded, setImgLoaded] = useState(false);
   const isOnSale =
     product.compareAtPrice != null && product.compareAtPrice > product.price;
@@ -106,15 +110,15 @@ function RelatedProductCard({ product }: { product: RelatedProduct }) {
           {isOnSale ? (
             <div className="flex items-baseline gap-2">
               <span className="text-base font-bold text-red-500">
-                ${product.price.toFixed(2)}
+                {formatPrice(convertCents(product.price, currency, currentRate()), currency)}
               </span>
               <span className="text-xs text-muted-foreground line-through">
-                ${product.compareAtPrice!.toFixed(2)}
+                {formatPrice(convertCents(product.compareAtPrice!, currency, currentRate()), currency)}
               </span>
             </div>
           ) : (
             <span className="text-base font-bold">
-              ${product.price.toFixed(2)}
+              {formatPrice(convertCents(product.price, currency, currentRate()), currency)}
             </span>
           )}
         </div>
@@ -128,6 +132,7 @@ export function RelatedProductsCarousel({
 }: {
   products: RelatedProduct[];
 }) {
+  const t = useTranslations("relatedProducts");
   const autoplay = useRef(
     Autoplay({ delay: 4000, stopOnInteraction: true, stopOnMouseEnter: true }),
   );
@@ -141,17 +146,17 @@ export function RelatedProductsCarousel({
         <div className="mb-8 flex items-end justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">
-              Discover More
+              {t("discoverMore")}
             </p>
             <h2 className="text-2xl font-bold tracking-tight">
-              You May Also Like
+              {t("youMayAlsoLike")}
             </h2>
           </div>
           <Link
             href="/products"
             className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:block"
           >
-            View all →
+            {t("viewAll")}
           </Link>
         </div>
 

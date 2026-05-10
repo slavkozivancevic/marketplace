@@ -25,6 +25,8 @@ import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
 import { GRID_PAGE_SIZE, MAX_PAGES } from "@/constants/queryConstants";
 import type { ProductFilters } from "@/lib/query/searchParams";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
+import { useCurrencyStore } from "@/store/currency";
+import { formatPrice, convertCents } from "@/lib/currency";
 
 function buildFetcher(filters: ProductFilters) {
   return async ({
@@ -50,6 +52,7 @@ function buildFetcher(filters: ProductFilters) {
 }
 
 function ProductCard({ product }: { product: SerializedProductListItem }) {
+  const { currency, currentRate } = useCurrencyStore();
   const isOnSale =
     product.compareAtPrice != null && product.compareAtPrice > product.price;
 
@@ -118,15 +121,15 @@ function ProductCard({ product }: { product: SerializedProductListItem }) {
           {isOnSale ? (
             <div className="flex items-baseline gap-2 mt-2">
               <p className="text-lg font-semibold text-red-500">
-                ${product.price.toFixed(2)}
+                {formatPrice(convertCents(product.price, currency, currentRate()), currency)}
               </p>
               <p className="text-sm text-muted-foreground line-through">
-                ${product.compareAtPrice!.toFixed(2)}
+                {formatPrice(convertCents(product.compareAtPrice!, currency, currentRate()), currency)}
               </p>
             </div>
           ) : (
             <p className="text-lg font-semibold mt-2">
-              ${product.price.toFixed(2)}
+              {formatPrice(convertCents(product.price, currency, currentRate()), currency)}
             </p>
           )}
         </CardContent>

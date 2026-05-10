@@ -10,6 +10,8 @@ import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
 import { MessageSellerButton } from "@/features/chat/components/MessageSellerButton";
 import { cn } from "@/lib/utils";
 import { SerializedPublicProduct } from "@/types/types";
+import { useCurrencyStore } from "@/store/currency";
+import { formatPrice, convertCents } from "@/lib/currency";
 
 interface ProductPurchaseSectionProps {
   product: SerializedPublicProduct;
@@ -28,6 +30,7 @@ export function ProductPurchaseSection({
 }: ProductPurchaseSectionProps) {
   const t = useTranslations("products");
   const tCart = useTranslations("cart");
+  const { currency, currentRate } = useCurrencyStore();
   const activeVariant = activeVariantId
     ? product.variants.find((v) => v.id === activeVariantId)
     : null;
@@ -47,17 +50,17 @@ export function ProductPurchaseSection({
               {isOnSale ? (
                 <>
                   <span className="text-3xl font-bold text-red-500">
-                    ${displayPrice.toFixed(2)}
+                    {formatPrice(convertCents(displayPrice, currency, currentRate()), currency)}
                   </span>
                   <span className="text-xl text-muted-foreground line-through">
-                    ${displayCompareAt!.toFixed(2)}
+                    {formatPrice(convertCents(displayCompareAt!, currency, currentRate()), currency)}
                   </span>
                   <Badge className="bg-red-500 text-white hover:bg-red-600">
                     -{discountPct(displayPrice, displayCompareAt!)}%
                   </Badge>
                 </>
               ) : (
-                <span className="text-3xl font-bold">${displayPrice.toFixed(2)}</span>
+                <span className="text-3xl font-bold">{formatPrice(convertCents(displayPrice, currency, currentRate()), currency)}</span>
               )}
             </div>
             <WishlistButton productId={product.id} size={20} className="shrink-0" />
@@ -156,17 +159,17 @@ export function ProductPurchaseSection({
                     {variantOnSale ? (
                       <span className="flex items-baseline gap-1.5">
                         <span className="text-red-500 font-semibold">
-                          ${variant.price.toFixed(2)}
+                          {formatPrice(convertCents(variant.price, currency, currentRate()), currency)}
                         </span>
                         <span className="text-xs line-through text-muted-foreground">
-                          ${variant.compareAtPrice!.toFixed(2)}
+                          {formatPrice(convertCents(variant.compareAtPrice!, currency, currentRate()), currency)}
                         </span>
                         <Badge className="bg-red-500 text-white hover:bg-red-600 text-xs py-0">
                           -{discountPct(variant.price, variant.compareAtPrice!)}%
                         </Badge>
                       </span>
                     ) : (
-                      <span>${variant.price.toFixed(2)}</span>
+                      <span>{formatPrice(convertCents(variant.price, currency, currentRate()), currency)}</span>
                     )}
                     <span>
                       {variant.stock > 0

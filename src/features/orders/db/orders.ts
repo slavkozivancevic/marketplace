@@ -1,4 +1,6 @@
 import { prisma } from "@/core/db/prisma";
+import { convertCents } from "@/lib/currency";
+import type { Currency } from "@/lib/currency-config";
 import { Prisma, OrderStatus, PaymentMethod } from "@/generated/prisma/client";
 import { cacheTag } from "next/cache";
 import { CacheTags } from "@/lib/cache/tags";
@@ -25,6 +27,7 @@ export async function getUserOrders(userId: string) {
   return orders.map((order) => ({
     ...order,
     total: Number(order.total),
+    exchangeRate: order.exchangeRate != null ? Number(order.exchangeRate) : null,
     items: order.items.map((item) => ({
       ...item,
       price: Number(item.price),
@@ -103,6 +106,7 @@ export async function getUserOrdersPage({
   const items = rows.map((order) => ({
     ...order,
     total: Number(order.total),
+    exchangeRate: order.exchangeRate != null ? Number(order.exchangeRate) : null,
     items: order.items.map((item) => ({
       ...item,
       price: Number(item.price),
@@ -166,6 +170,7 @@ export async function getOrderById(id: string, userId: string) {
   return {
     ...order,
     total: Number(order.total),
+    exchangeRate: order.exchangeRate != null ? Number(order.exchangeRate) : null,
     items: order.items.map((item) => ({
       ...item,
       price: Number(item.price),
@@ -193,6 +198,8 @@ export async function fulfillOrder({
   userId,
   stripeSessionId,
   totalCents,
+  currency,
+  exchangeRate,
   items,
   shipping,
   locale = "en",
@@ -200,6 +207,8 @@ export async function fulfillOrder({
   userId: string;
   stripeSessionId: string;
   totalCents: number;
+  currency?: string;
+  exchangeRate?: number;
   items: FulfillOrderItem[];
   shipping?: ShippingAddress;
   locale?: string;
@@ -237,15 +246,17 @@ export async function fulfillOrder({
   const variantMap = new Map(variants.map((v) => [v.id, v]));
   const productMap = new Map(products.map((p) => [p.id, p]));
 
+  const rate = exchangeRate ?? 1;
+  const curr = (currency ?? "usd") as Currency;
   const itemsWithPrice = items.map((item) => {
     if (item.variantId) {
       const variant = variantMap.get(item.variantId);
       if (!variant) throw new Error(`Variant ${item.variantId} not found`);
-      return { ...item, price: Number(variant.price) };
+      return { ...item, price: convertCents(Number(variant.price), curr, rate) };
     }
     const product = productMap.get(item.productId);
     if (!product) throw new Error(`Product ${item.productId} not found`);
-    return { ...item, price: Number(product.price) };
+    return { ...item, price: convertCents(Number(product.price), curr, rate) };
   });
 
   const order = await prisma.$transaction(async (tx) => {
@@ -281,8 +292,10 @@ export async function fulfillOrder({
         userId,
         stripeSessionId,
         status: "COMPLETED",
-        total: totalCents / 100,
+        total: totalCents,
         locale,
+        currency: currency ?? "usd",
+        exchangeRate: exchangeRate ?? 1,
         shippingName: shipping?.name,
         shippingLine1: shipping?.line1,
         shippingLine2: shipping?.line2,
@@ -317,13 +330,17 @@ export async function fulfillOrder({
 
 export async function createCodOrder({
   userId,
-  totalCents,
+  totalInCurrency,
+  currency = "usd",
+  exchangeRate = 1,
   items,
   shipping,
   locale,
 }: {
   userId: string;
-  totalCents: number;
+  totalInCurrency: number;
+  currency?: string;
+  exchangeRate?: number;
   items: FulfillOrderItem[];
   shipping: ShippingAddress;
   locale?: string;
@@ -353,11 +370,11 @@ export async function createCodOrder({
     if (item.variantId) {
       const variant = variantMap.get(item.variantId);
       if (!variant) throw new Error(`Variant ${item.variantId} not found`);
-      return { ...item, price: Number(variant.price) };
+      return { ...item, price: convertCents(Number(variant.price), currency as Currency, exchangeRate) };
     }
     const product = productMap.get(item.productId);
     if (!product) throw new Error(`Product ${item.productId} not found`);
-    return { ...item, price: Number(product.price) };
+    return { ...item, price: convertCents(Number(product.price), currency as Currency, exchangeRate) };
   });
 
   const order = await prisma.$transaction(async (tx) => {
@@ -391,8 +408,10 @@ export async function createCodOrder({
         userId,
         paymentMethod: PaymentMethod.COD,
         status: OrderStatus.PENDING_COD,
-        total: totalCents / 100,
+        total: totalInCurrency,
         locale: locale ?? "en",
+        currency,
+        exchangeRate,
         shippingName: shipping.name,
         shippingLine1: shipping.line1,
         shippingLine2: shipping.line2,

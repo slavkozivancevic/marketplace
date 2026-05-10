@@ -6,6 +6,8 @@ import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useCartStore } from "../store/cartStore";
+import { useCurrencyStore } from "@/store/currency";
+import { formatPrice, convertCents } from "@/lib/currency";
 import { SerializedPublicProduct } from "@/types/types";
 
 interface AddToCartProps {
@@ -18,6 +20,7 @@ type SelectedValues = Record<string, string>;
 export function AddToCart({ product, onActiveVariantChange }: AddToCartProps) {
   const t = useTranslations("cart");
   const { addItem, openCart, items } = useCartStore();
+  const { currency, currentRate } = useCurrencyStore();
   const hasOptions = product.options.length > 0;
 
   const optionVariants = product.variants.filter(
@@ -323,7 +326,7 @@ export function AddToCart({ product, onActiveVariantChange }: AddToCartProps) {
                   {variant.sku ?? `Variant ${variant.id.slice(-4)}`}
                   {variant.price !== product.price && (
                     <span className="ml-1.5 text-xs opacity-75">
-                      ${variant.price.toFixed(2)}
+                      {formatPrice(convertCents(variant.price, currency, currentRate()), currency)}
                     </span>
                   )}
                 </button>
@@ -384,7 +387,7 @@ export function AddToCart({ product, onActiveVariantChange }: AddToCartProps) {
           ? t("selectAllOptions")
           : isOutOfStock
             ? t("outOfStockBtn")
-            : t("addToCart", { price: price.toFixed(2) })}
+            : t("addToCart", { price: formatPrice(convertCents(price, currency, currentRate()), currency) })}
         {isOnSale && !isOutOfStock && allOptionsSelected && (
           <span className="ml-2 bg-white/20 text-white text-xs font-bold px-1.5 py-0.5 rounded-4xl">
             -{salePct}%

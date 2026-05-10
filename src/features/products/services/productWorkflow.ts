@@ -23,7 +23,7 @@ function assertCanPublish(product: {
     );
   }
 
-  if (!product.price || Number(product.price) <= 0) {
+  if (!product.price || (product.price as number) <= 0) {
     throw new ForbiddenError(
       "Product price must be greater than 0 before publishing",
     );

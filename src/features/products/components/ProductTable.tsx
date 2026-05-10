@@ -24,6 +24,8 @@ import {
 import { toast } from "@/components/ui/sonner";
 import { deleteProduct, duplicateProduct } from "@/features/products/actions/products";
 import { SerializedProductListItem } from "@/types/types";
+import { useCurrencyStore } from "@/store/currency";
+import { formatPrice, convertCents } from "@/lib/currency";
 
 function getStatusVariant(status: string) {
   switch (status) {
@@ -36,7 +38,7 @@ function getStatusVariant(status: string) {
   }
 }
 
-const COLS_BASE = "64px minmax(100px,1fr) 120px minmax(150px,2fr) 80px 100px";
+const COLS_BASE = "64px minmax(100px,1fr) 120px minmax(150px,2fr) 120px 100px";
 const COLS_ACTIONS = COLS_BASE + " 116px";
 
 /**
@@ -85,6 +87,7 @@ export function ProductTableRow({
   const queryClient = useQueryClient();
   const [isDeleting, startDelete] = useTransition();
   const [isDuplicating, startDuplicate] = useTransition();
+  const { currency, currentRate } = useCurrencyStore();
   const [thumbLoaded, setThumbLoaded] = useState(false);
 
   const handleDelete = () => {
@@ -176,7 +179,7 @@ export function ProductTableRow({
       <div role="cell" className="truncate text-muted-foreground">
         {product.description}
       </div>
-      <div role="cell">${product.price.toFixed(2)}</div>
+      <div role="cell">{formatPrice(convertCents(product.price, currency, currentRate()), currency)}</div>
       <div role="cell">
         <Badge variant={getStatusVariant(product.status)}>
           {product.status === "PUBLISHED" ? t("published") : product.status === "DRAFT" ? t("draft") : t("archived")}

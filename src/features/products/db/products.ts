@@ -848,7 +848,7 @@ export function productRepository(
       return this.update(productId, currentProduct.version, {
         title: history.title,
         description: history.description,
-        price: Number(history.price),
+        price: history.price,
         status: history.status,
       });
     },
@@ -975,9 +975,9 @@ export function productRepository(
 
       const variants: ProductVariantInput[] = source.variants.map((v) => ({
         sku: `${v.sku}-copy-${suffix}`,
-        price: Number(v.price),
-        compareAtPrice: v.compareAtPrice != null ? Number(v.compareAtPrice) : undefined,
-        costPrice: v.costPrice != null ? Number(v.costPrice) : undefined,
+        price: v.price,
+        compareAtPrice: v.compareAtPrice ?? undefined,
+        costPrice: v.costPrice ?? undefined,
         stock: v.stock,
         barcode: v.barcode ?? undefined,
         weight: v.weight ?? undefined,
@@ -997,9 +997,9 @@ export function productRepository(
           title: `Copy of ${source.title}`,
           description: source.description,
           shortDescription: source.shortDescription ?? undefined,
-          price: Number(source.price),
-          compareAtPrice: source.compareAtPrice != null ? Number(source.compareAtPrice) : undefined,
-          costPrice: source.costPrice != null ? Number(source.costPrice) : undefined,
+          price: source.price,
+          compareAtPrice: source.compareAtPrice ?? undefined,
+          costPrice: source.costPrice ?? undefined,
           stock: source.stock ?? undefined,
           barcode: source.barcode ?? undefined,
           taxable: source.taxable,
@@ -1063,7 +1063,7 @@ export function productRepository(
         count,
         samples: samples.map((p) => ({
           ...p,
-          price: Number(p.price),
+          price: p.price,
         })),
       };
     },

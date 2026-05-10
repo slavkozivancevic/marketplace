@@ -58,12 +58,8 @@ export async function getWishlistProducts(
     .filter((i) => i.product.status === "PUBLISHED" && !i.product.deletedAt)
     .map((i) => ({
       ...i.product,
-      price: Number(i.product.price),
-      compareAtPrice:
-        i.product.compareAtPrice != null
-          ? Number(i.product.compareAtPrice)
-          : null,
-      costPrice:
-        i.product.costPrice != null ? Number(i.product.costPrice) : null,
+      price: i.product.price,
+      compareAtPrice: i.product.compareAtPrice,
+      costPrice: i.product.costPrice,
     }));
 }

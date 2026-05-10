@@ -14,6 +14,8 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/sonner";
 import { useCartStore } from "../store/cartStore";
+import { useCurrencyStore } from "@/store/currency";
+import { formatPrice, convertCents } from "@/lib/currency";
 import { createCheckoutSession } from "../actions/checkout";
 import { createCodCheckout } from "../actions/codCheckout";
 import Link from "next/link";
@@ -36,6 +38,7 @@ export function CheckoutPage() {
   const t = useTranslations("checkout");
   const router = useRouter();
   const { items, totalPrice } = useCartStore();
+  const { currency, currentRate } = useCurrencyStore();
   const codAvailable = items.every((i) => i.requiresShipping);
   const [method, setMethod] = useState<PaymentMethod>("card");
   const [isPending, startTransition] = useTransition();
@@ -129,11 +132,11 @@ export function CheckoutPage() {
                       <p className="text-xs text-muted-foreground">{item.variantLabel}</p>
                     )}
                     <p className="text-xs text-muted-foreground">
-                      ${item.price.toFixed(2)} × {item.quantity}
+                      {formatPrice(convertCents(item.price, currency, currentRate()), currency)} × {item.quantity}
                     </p>
                   </div>
                   <p className="font-semibold shrink-0 ml-4">
-                    ${(item.price * item.quantity).toFixed(2)}
+                    {formatPrice(convertCents(item.price * item.quantity, currency, currentRate()), currency)}
                   </p>
                 </div>
               </div>
@@ -141,7 +144,7 @@ export function CheckoutPage() {
             <Separator />
             <div className="flex justify-between font-semibold text-sm">
               <span>{t("total")}</span>
-              <span>${totalPrice().toFixed(2)}</span>
+              <span>{formatPrice(convertCents(totalPrice(), currency, currentRate()), currency)}</span>
             </div>
           </CardContent>
         </Card>

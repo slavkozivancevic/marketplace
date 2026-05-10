@@ -14,6 +14,10 @@ import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
 import { HoverImageCycler } from "@/components/product/HoverImageCycler";
 import { StarRating } from "@/features/reviews/components/StarRating";
 import { Footer } from "@/components/layout/footer";
+import { cookies } from "next/headers";
+import { formatPrice, convertCents } from "@/lib/currency";
+import { getCurrencyRate } from "@/features/currency/db/currencyRates";
+import { VALID_CURRENCIES, type Currency } from "@/lib/currency-config";
 
 export default async function WishlistPage() {
   const t = await getTranslations();
@@ -28,6 +32,10 @@ export default async function WishlistPage() {
   if (!user) redirect("/sign-in");
 
   const products = await getWishlistProducts(user.id);
+  const cookieStore = await cookies();
+  const rawCurrency = cookieStore.get("NEXT_CURRENCY")?.value ?? "usd";
+  const currency: Currency = VALID_CURRENCIES.includes(rawCurrency as Currency) ? (rawCurrency as Currency) : "usd";
+  const rate = await getCurrencyRate(currency);
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
@@ -64,7 +72,7 @@ export default async function WishlistPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {products.map((product) => (
-                <WishlistProductCard key={product.id} product={product} />
+                <WishlistProductCard key={product.id} product={product} currency={currency} rate={rate} />
               ))}
             </div>
           )}
@@ -75,7 +83,7 @@ export default async function WishlistPage() {
   );
 }
 
-function WishlistProductCard({ product }: { product: SerializedProductListItem }) {
+function WishlistProductCard({ product, currency, rate }: { product: SerializedProductListItem; currency: Currency; rate: number }) {
   const isOnSale =
     product.compareAtPrice != null && product.compareAtPrice > product.price;
 
@@ -139,15 +147,15 @@ function WishlistProductCard({ product }: { product: SerializedProductListItem }
           {isOnSale ? (
             <div className="flex items-baseline gap-2 mt-2">
               <p className="text-lg font-semibold text-red-500">
-                ${product.price.toFixed(2)}
+                {formatPrice(convertCents(product.price, currency, rate), currency)}
               </p>
               <p className="text-sm text-muted-foreground line-through">
-                ${product.compareAtPrice!.toFixed(2)}
+                {formatPrice(convertCents(product.compareAtPrice!, currency, rate), currency)}
               </p>
             </div>
           ) : (
             <p className="text-lg font-semibold mt-2">
-              ${product.price.toFixed(2)}
+              {formatPrice(convertCents(product.price, currency, rate), currency)}
             </p>
           )}
         </CardContent>

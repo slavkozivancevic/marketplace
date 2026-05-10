@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import "./globals.css";
 import { Providers } from "@/providers/providers";
+import { CurrencyRatesProvider } from "@/providers/CurrencyRatesProvider";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import { getCurrencyRates } from "@/features/currency/db/currencyRates";
 import { connection } from "next/server";
 import { Suspense } from "react";
 
@@ -21,11 +23,16 @@ export const metadata: Metadata = {
 
 async function LocaleShell({ children }: { children: React.ReactNode }) {
   await connection();
-  const locale = await getLocale();
-  const messages = await getMessages();
+  const [locale, messages, rates] = await Promise.all([
+    getLocale(),
+    getMessages(),
+    getCurrencyRates(),
+  ]);
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
-      <Providers>{children}</Providers>
+      <CurrencyRatesProvider rates={rates}>
+        <Providers>{children}</Providers>
+      </CurrencyRatesProvider>
     </NextIntlClientProvider>
   );
 }

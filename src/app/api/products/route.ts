@@ -1,3 +1,4 @@
+import { decimalToCents } from "@/lib/currency";
 import { NextResponse, type NextRequest } from "next/server";
 import { connection } from "next/server";
 import { getPublicProductsPage } from "@/features/products/db/publicProducts";
@@ -30,8 +31,10 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get("search") ?? undefined;
   const sortBy = parseSort(searchParams.get("sortBy"));
   const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
-  const minPrice = parseOptionalFloat(searchParams.get("minPrice"));
-  const maxPrice = parseOptionalFloat(searchParams.get("maxPrice"));
+  const minPriceRaw = parseOptionalFloat(searchParams.get("minPrice"));
+  const maxPriceRaw = parseOptionalFloat(searchParams.get("maxPrice"));
+  const minPrice = minPriceRaw != null ? decimalToCents(minPriceRaw) : undefined;
+  const maxPrice = maxPriceRaw != null ? decimalToCents(maxPriceRaw) : undefined;
   const onSaleParam = searchParams.get("onSale");
   const onSale = onSaleParam === "true" ? true : onSaleParam === "false" ? false : null;
   const isDigitalParam = searchParams.get("isDigital");

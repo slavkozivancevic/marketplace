@@ -144,7 +144,7 @@ export function ConversationList({
                     </span>
                   )}
                   {unread > 0 && (
-                    <span className="flex size-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white leading-none">
+                    <span className="flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground leading-none">
                       {unread > 9 ? "9+" : unread}
                     </span>
                   )}

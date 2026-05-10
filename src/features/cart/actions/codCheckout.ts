@@ -6,8 +6,11 @@ import { prisma } from "@/core/db/prisma";
 import { createCodOrder } from "@/features/orders/db/orders";
 import { publishCodOrderPlaced } from "@/services/notifications";
 import { handleActionError } from "@/features/common/errors/domainErrors";
+import { getCurrencyRate } from "@/features/currency/db/currencyRates";
+import { convertCents } from "@/lib/currency";
 import type { ActionErrorResult } from "@/types/types";
 import type { CheckoutCartItem } from "./checkout";
+import { VALID_CURRENCIES, type Currency } from "@/lib/currency-config";
 
 export type CodShippingInput = {
   name: string;
@@ -27,6 +30,10 @@ export async function createCodCheckout(
     const { userId: clerkUserId } = await auth();
     const cookieStore = await cookies();
     const locale = cookieStore.get("NEXT_LOCALE")?.value ?? "en";
+    const rawCurrency = cookieStore.get("NEXT_CURRENCY")?.value ?? "usd";
+    const currency: Currency = VALID_CURRENCIES.includes(rawCurrency as Currency)
+      ? (rawCurrency as Currency)
+      : "usd";
 
     if (!clerkUserId) {
       return { error: true, message: "You must be signed in to checkout" };
@@ -39,6 +46,9 @@ export async function createCodCheckout(
 
     if (!user) return { error: true, message: "User not found" };
     if (items.length === 0) return { error: true, message: "Cart is empty" };
+
+    // Fetch exchange rate once for the entire order
+    const exchangeRate = await getCurrencyRate(currency);
 
     // Server-side price calculation — never trust client
     const productIds = items.filter((i) => !i.variantId).map((i) => i.productId);
@@ -62,25 +72,29 @@ export async function createCodCheckout(
     const productMap = new Map(dbProducts.map((p) => [p.id, p]));
     const variantMap = new Map(dbVariants.map((v) => [v.id, v]));
 
-    let totalCents = 0;
+    let totalInCurrency = 0;
     for (const item of items) {
       if (item.variantId) {
         const v = variantMap.get(item.variantId);
         if (!v) return { error: true, message: "Item no longer available" };
         if (v.stock < item.quantity) return { error: true, message: "Insufficient stock" };
-        totalCents += Math.round(Number(v.price) * 100) * item.quantity;
+        const unitCents = convertCents(Number(v.price), currency, exchangeRate);
+        totalInCurrency += unitCents * item.quantity;
       } else {
         const p = productMap.get(item.productId);
         if (!p) return { error: true, message: "Item no longer available" };
         if (p.stock !== null && p.stock < item.quantity)
           return { error: true, message: "Insufficient stock" };
-        totalCents += Math.round(Number(p.price) * 100) * item.quantity;
+        const unitCents = convertCents(Number(p.price), currency, exchangeRate);
+        totalInCurrency += unitCents * item.quantity;
       }
     }
 
     const order = await createCodOrder({
       userId: user.id,
-      totalCents,
+      totalInCurrency,
+      currency,
+      exchangeRate,
       items,
       shipping: {
         name: shipping.name,
@@ -95,7 +109,7 @@ export async function createCodCheckout(
     });
 
     // Fire-and-forget — notification failure must not block the order
-    publishCodOrderPlaced(order.id, locale).catch((err) =>
+    publishCodOrderPlaced(order.id, locale, currency).catch((err) =>
       console.error("[notifications] publishCodOrderPlaced failed", err),
     );
 

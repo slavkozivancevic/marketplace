@@ -46,6 +46,8 @@ export async function POST(req: Request) {
         const userId = session.metadata?.userId;
         const itemsJson = session.metadata?.items;
         const locale = session.metadata?.locale ?? "en";
+        const currency = session.metadata?.currency ?? "usd";
+        const exchangeRate = parseFloat(session.metadata?.exchangeRate ?? "1");
 
         if (!userId || !itemsJson) {
           console.error("Missing metadata in checkout session", session.id);
@@ -77,6 +79,8 @@ export async function POST(req: Request) {
             userId,
             stripeSessionId: session.id,
             totalCents: session.amount_total ?? 0,
+            currency,
+            exchangeRate,
             items,
             shipping,
             locale,
@@ -120,7 +124,7 @@ export async function POST(req: Request) {
         // The notification Lambda fetches full order context and sends
         // both the buyer confirmation and seller notification emails.
         if (order) {
-          publishOrderCompleted(order.id, locale).catch((err) =>
+          publishOrderCompleted(order.id, locale, currency).catch((err) =>
             console.error("[notifications] publishOrderCompleted failed", JSON.stringify(err, null, 2), err)
           );
         }

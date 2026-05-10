@@ -7,6 +7,9 @@ import { stripe } from "@/services/stripe";
 import { env } from "@/env/server";
 import { ActionErrorResult } from "@/types/types";
 import { handleActionError } from "@/features/common/errors/domainErrors";
+import { getCurrencyRate } from "@/features/currency/db/currencyRates";
+import { convertCents } from "@/lib/currency";
+import { VALID_CURRENCIES, type Currency } from "@/lib/currency-config";
 
 export type CheckoutCartItem = {
   productId: string;
@@ -21,6 +24,10 @@ export async function createCheckoutSession(
     const { userId: clerkUserId } = await auth();
     const cookieStore = await cookies();
     const locale = cookieStore.get("NEXT_LOCALE")?.value ?? "en";
+    const rawCurrency = cookieStore.get("NEXT_CURRENCY")?.value ?? "usd";
+    const currency: Currency = VALID_CURRENCIES.includes(rawCurrency as Currency)
+      ? (rawCurrency as Currency)
+      : "usd";
 
     if (!clerkUserId) {
       return { error: true, message: "You must be signed in to checkout" };
@@ -38,6 +45,9 @@ export async function createCheckoutSession(
     if (items.length === 0) {
       return { error: true, message: "Cart is empty" };
     }
+
+    // Fetch exchange rate once for the entire session
+    const exchangeRate = await getCurrencyRate(currency);
 
     // Validate and fetch each item from DB — never trust client prices
     const lineItems: {
@@ -75,7 +85,7 @@ export async function createCheckoutSession(
         };
       }
 
-      let unitPrice: number;
+      let unitPriceUsdCents: number;
       let itemName = product.title;
 
       if (item.variantId) {
@@ -89,15 +99,18 @@ export async function createCheckoutSession(
             message: `Not enough stock for ${product.title}`,
           };
         }
-        unitPrice = Number(variant.price);
+        unitPriceUsdCents = Number(variant.price); // Int after migration; Number() is safe for both Decimal and Int
         itemName = `${product.title} (${variant.sku})`;
       } else {
-        unitPrice = Number(product.price);
+        unitPriceUsdCents = Number(product.price); // Int after migration
       }
 
       if (!product.isDigital && product.requiresShipping) {
         needsShipping = true;
       }
+
+      // Convert from USD cents to target currency's smallest unit
+      const unitAmountInCurrency = convertCents(unitPriceUsdCents, currency, exchangeRate);
 
       const variantImageUrl = item.variantId
         ? product.variants.find((v) => v.id === item.variantId)?.images[0]?.image.url
@@ -106,12 +119,12 @@ export async function createCheckoutSession(
 
       lineItems.push({
         price_data: {
-          currency: "usd",
+          currency: currency, // Stripe accepts lowercase ISO 4217
           product_data: {
             name: itemName,
             ...(imageUrl ? { images: [imageUrl] } : {}),
           },
-          unit_amount: Math.round(unitPrice * 100), // Stripe expects cents
+          unit_amount: unitAmountInCurrency,
         },
         quantity: item.quantity,
       });
@@ -129,6 +142,8 @@ export async function createCheckoutSession(
       metadata: {
         userId: user.id,
         locale,
+        currency,
+        exchangeRate: String(exchangeRate),
         items: JSON.stringify(
           items.map((i) => ({
             productId: i.productId,

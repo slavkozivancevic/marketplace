@@ -1,3 +1,4 @@
+import { decimalToCents } from "@/lib/currency";
 import { NextResponse, type NextRequest } from "next/server";
 import { connection } from "next/server";
 import { productRepository } from "@/features/products/db/products";
@@ -42,8 +43,10 @@ export async function GET(req: NextRequest) {
   const status = searchParams
     .getAll("status")
     .filter((s): s is ProductStatus => Object.values(ProductStatus).includes(s as ProductStatus));
-  const minPrice = parseOptionalFloat(searchParams.get("minPrice"));
-  const maxPrice = parseOptionalFloat(searchParams.get("maxPrice"));
+  const minPriceRaw = parseOptionalFloat(searchParams.get("minPrice"));
+  const maxPriceRaw = parseOptionalFloat(searchParams.get("maxPrice"));
+  const minPrice = minPriceRaw != null ? decimalToCents(minPriceRaw) : undefined;
+  const maxPrice = maxPriceRaw != null ? decimalToCents(maxPriceRaw) : undefined;
   const brandId = searchParams.getAll("brandId");
 
   try {
@@ -63,9 +66,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       items: result.products.map((p) => ({
         ...p,
-        price: Number(p.price),
-        compareAtPrice: p.compareAtPrice != null ? Number(p.compareAtPrice) : null,
-        costPrice: p.costPrice != null ? Number(p.costPrice) : null,
+        price: p.price,
+        compareAtPrice: p.compareAtPrice,
+        costPrice: p.costPrice,
       })),
       nextCursor: result.nextCursor,
     });

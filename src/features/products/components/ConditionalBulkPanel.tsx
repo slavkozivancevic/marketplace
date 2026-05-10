@@ -30,6 +30,8 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/sonner";
+import { useCurrencyStore } from "@/store/currency";
+import { formatPrice, convertCents } from "@/lib/currency";
 
 import {
   previewBulkFilter,
@@ -377,6 +379,7 @@ function ActionEditor({
 
 function PreviewCard({ preview }: { preview: PreviewResult }) {
   const t = useTranslations("bulkProducts");
+  const { currency, currentRate } = useCurrencyStore();
   return (
     <div className="rounded-lg border bg-muted/20 p-4 flex flex-col gap-3">
       <p className="text-sm font-semibold">
@@ -399,7 +402,7 @@ function PreviewCard({ preview }: { preview: PreviewResult }) {
               {preview.samples.map((p) => (
                 <tr key={p.id} className="border-b last:border-b-0">
                   <td className="px-3 py-1.5 max-w-50 truncate font-medium">{p.title}</td>
-                  <td className="px-3 py-1.5">${p.price.toFixed(2)}</td>
+                  <td className="px-3 py-1.5">{formatPrice(convertCents(p.price, currency, currentRate()), currency)}</td>
                   <td className="px-3 py-1.5">
                     <Badge variant={getStatusVariant(p.status)} className="text-[10px]">
                       {p.status}

@@ -125,16 +125,19 @@ function parseRow(cells: string[], headerIndex: Map<string, number>): ParsedRow 
   if (!description) errors.push("description is required");
 
   const rawPrice = get("price");
-  const price = parseFloat(rawPrice);
-  if (!rawPrice || isNaN(price) || price < 0) errors.push("price must be a non-negative number");
+  const priceDecimal = parseFloat(rawPrice);
+  if (!rawPrice || isNaN(priceDecimal) || priceDecimal < 0) errors.push("price must be a non-negative number");
+  const price = Math.round(priceDecimal * 100);
 
   const rawCompare = get("compareAtPrice");
-  const compareAtPrice = rawCompare ? parseFloat(rawCompare) : undefined;
-  if (rawCompare && isNaN(compareAtPrice!)) errors.push("compareAtPrice must be a number");
+  const compareAtPriceDecimal = rawCompare ? parseFloat(rawCompare) : undefined;
+  if (rawCompare && isNaN(compareAtPriceDecimal!)) errors.push("compareAtPrice must be a number");
+  const compareAtPrice = compareAtPriceDecimal != null ? Math.round(compareAtPriceDecimal * 100) : undefined;
 
   const rawCost = get("costPrice");
-  const costPrice = rawCost ? parseFloat(rawCost) : undefined;
-  if (rawCost && isNaN(costPrice!)) errors.push("costPrice must be a number");
+  const costPriceDecimal = rawCost ? parseFloat(rawCost) : undefined;
+  if (rawCost && isNaN(costPriceDecimal!)) errors.push("costPrice must be a number");
+  const costPrice = costPriceDecimal != null ? Math.round(costPriceDecimal * 100) : undefined;
 
   const rawStock = get("stock");
   const stock = rawStock ? parseInt(rawStock, 10) : undefined;
