@@ -64,7 +64,7 @@ export function SearchInput({
         value={localValue}
         onChange={handleChange}
         placeholder={placeholder}
-        className="pl-8 pr-8"
+        className="pl-8 pr-8 text-sm text-ellipsis"
       />
       <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center">
         {showSpinner && (

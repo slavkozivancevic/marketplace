@@ -51,7 +51,7 @@ export async function ProductReviewsSection({
         <h2 className="text-xl font-semibold">Reviews</h2>
         {ratingCount > 0 && (
           <div className="flex items-center gap-2">
-            <StarRating rating={Math.round(avgRating)} size={18} />
+            <StarRating rating={avgRating} size={18} />
             <span className="text-sm text-muted-foreground">
               {avgRating.toFixed(1)} ({ratingCount}{" "}
               {ratingCount === 1 ? "review" : "reviews"})
@@ -64,7 +64,7 @@ export async function ProductReviewsSection({
         <ReviewForm productId={productId} orderId={eligibleOrderId} />
       )}
 
-      <ReviewList reviews={reviews} currentUserId={dbUserId} />
+      <ReviewList reviews={reviews} currentUserId={dbUserId} productId={productId} />
     </div>
   );
 }

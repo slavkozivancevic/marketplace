@@ -65,6 +65,9 @@ export function MyProductsGrid({
     sortBy: "createdAt",
     sortOrder: "desc",
     status: [],
+    minPrice: null,
+    maxPrice: null,
+    brandId: [],
   };
   const f = filters ?? defaultFilters;
 

@@ -3,6 +3,8 @@
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
+import { useCurrencyStore } from "@/store/currency";
+import { getCurrencyConfig } from "@/lib/currency";
 import {
   adminProductSearchParams,
   type AdminProductFilters,
@@ -19,6 +21,8 @@ import type { BrandOption } from "@/features/brands/components/BrandSelect";
 
 export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
   const t = useTranslations();
+  const currency = useCurrencyStore((s) => s.currency);
+  const currencySymbol = getCurrencyConfig(currency).symbol;
 
   const SORT_OPTIONS = [
     { value: "createdAt", label: t("products.dateAdded") },
@@ -27,43 +31,42 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
     { value: "status", label: t("products.status") },
   ];
 
-  const BASE_FILTER_GROUPS: FilterGroup[] = [
-    {
-      type: "checkbox",
-      key: "status",
-      label: t("products.status"),
-      options: [
-        { value: "DRAFT", label: t("products.draft") },
-        { value: "PUBLISHED", label: t("products.published") },
-        { value: "ARCHIVED", label: t("products.archived") },
-      ],
-    },
-    {
-      type: "range",
-      key: "price",
-      label: t("products.price"),
-      prefix: "$",
-      min: 0,
-      step: 1,
-    },
-  ];
   const [params, setParams] = useQueryStates(adminProductSearchParams, {
     shallow: false,
     throttleMs: 300,
   });
 
   const filterGroups: FilterGroup[] = useMemo(() => {
-    if (brands.length === 0) return BASE_FILTER_GROUPS;
-    return [
-      ...BASE_FILTER_GROUPS,
+    const groups: FilterGroup[] = [
       {
-        type: "checkbox" as const,
+        type: "checkbox",
+        key: "status",
+        label: t("products.status"),
+        options: [
+          { value: "DRAFT", label: t("products.draft") },
+          { value: "PUBLISHED", label: t("products.published") },
+          { value: "ARCHIVED", label: t("products.archived") },
+        ],
+      },
+      {
+        type: "range",
+        key: "price",
+        label: t("products.price"),
+        prefix: currencySymbol,
+        min: 0,
+        step: 1,
+      },
+    ];
+    if (brands.length > 0) {
+      groups.push({
+        type: "checkbox",
         key: "brandId",
         label: t("products.brand"),
         options: brands.map((b) => ({ value: b.id, label: b.name })),
-      },
-    ];
-  }, [brands]);
+      });
+    }
+    return groups;
+  }, [brands, t, currencySymbol]);
 
   const filters: AdminProductFilters = {
     search: params.search,
@@ -83,7 +86,7 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
 
   const handleFilterChange = (
     key: string,
-    value: string[] | [number?, number?],
+    value: string[] | [number?, number?] | number | null,
   ) => {
     if (key === "status") {
       setParams({ status: value as string[] });

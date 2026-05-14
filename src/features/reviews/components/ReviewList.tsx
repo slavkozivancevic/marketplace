@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import { useQueryClient } from "@tanstack/react-query";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,9 +44,10 @@ function formatRelativeTime(date: Date): string {
 interface ReviewListProps {
   reviews: SerializedProductReview[];
   currentUserId?: string;
+  productId: string;
 }
 
-export function ReviewList({ reviews, currentUserId }: ReviewListProps) {
+export function ReviewList({ reviews, currentUserId, productId }: ReviewListProps) {
   const t = useTranslations("reviews");
   if (reviews.length === 0) {
     return (
@@ -60,6 +62,7 @@ export function ReviewList({ reviews, currentUserId }: ReviewListProps) {
           key={review.id}
           review={review}
           isOwner={currentUserId === review.user.id}
+          productId={productId}
         />
       ))}
     </div>
@@ -69,13 +72,16 @@ export function ReviewList({ reviews, currentUserId }: ReviewListProps) {
 function ReviewItem({
   review,
   isOwner,
+  productId,
 }: {
   review: SerializedProductReview;
   isOwner: boolean;
+  productId: string;
 }) {
   const t = useTranslations("reviews");
   const tCommon = useTranslations("common");
   const dl = dateLocale(useLocale());
+  const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [editRating, setEditRating] = useState(review.rating);
   const [editComment, setEditComment] = useState(review.comment ?? "");
@@ -91,6 +97,9 @@ function ReviewItem({
       const result = await deleteReview(review.id);
       if (isActionErrorResult(result)) {
         console.error(result.message);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["products", "public"] });
+        queryClient.invalidateQueries({ queryKey: ["product", "rating-breakdown", productId] });
       }
     });
   };
@@ -125,6 +134,8 @@ function ReviewItem({
         setError(result.message);
       } else {
         setIsEditing(false);
+        queryClient.invalidateQueries({ queryKey: ["products", "public"] });
+        queryClient.invalidateQueries({ queryKey: ["product", "rating-breakdown", productId] });
       }
     });
   };

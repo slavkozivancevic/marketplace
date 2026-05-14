@@ -101,6 +101,11 @@ export type ProductWithRelations = Prisma.ProductGetPayload<{
         values: true;
       };
     };
+    categories: {
+      include: {
+        category: { select: { id: true; name: true; translations: true; parentId: true } };
+      };
+    };
   };
 }>;
 

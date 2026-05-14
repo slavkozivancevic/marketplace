@@ -4,6 +4,7 @@ import {
   parseAsFloat,
   parseAsArrayOf,
   parseAsBoolean,
+  parseAsInteger,
 } from "nuqs/server";
 
 // ---------- Public products ----------
@@ -17,6 +18,11 @@ export const productSearchParams = {
   onSale: parseAsBoolean,
   isDigital: parseAsBoolean,
   brandId: parseAsArrayOf(parseAsString).withDefault([]),
+  minRating: parseAsInteger,
+  // dept = slug of the selected department/category (any level).
+  // "" means "All Departments". The API resolves this to the full
+  // descendant ID set before querying the DB.
+  dept: parseAsString.withDefault(""),
 };
 
 export type ProductFilters = {
@@ -28,6 +34,8 @@ export type ProductFilters = {
   onSale: boolean | null;
   isDigital: boolean | null;
   brandId: string[];
+  minRating: number | null;
+  dept: string;
 };
 
 // ---------- Admin products ----------

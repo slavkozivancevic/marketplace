@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SerializedProductWithRelations } from "@/types/types";
 import { getAllBrands } from "@/features/brands/db/brands";
+import { getCategoryTree } from "@/features/categories/db/categories";
 
 interface EditProductPageProps {
   params: Promise<{ id: string }>;
@@ -27,9 +28,10 @@ async function EditProductForm({ productId }: { productId: string }) {
   const ctx = await resolveRequestContext();
   requirePermission(ctx, "product:read");
 
-  const [result, brands] = await Promise.all([
+  const [result, brands, categoryTree] = await Promise.all([
     fetchProductForEdit(ctx.organizationId, ctx.userId, productId),
     fetchBrands(),
+    fetchCategoryTree(),
   ]);
 
   if (isActionErrorResult(result)) {
@@ -45,13 +47,19 @@ async function EditProductForm({ productId }: { productId: string }) {
 
   if (!product) notFound();
 
-  return <ProductForm mode="update" product={product} brands={brands} />;
+  return <ProductForm mode="update" product={product} brands={brands} categoryTree={categoryTree} />;
 }
 
 async function fetchBrands() {
   "use cache";
   cacheTag(CacheTags.brands.all());
   return getAllBrands();
+}
+
+async function fetchCategoryTree() {
+  "use cache";
+  cacheTag(CacheTags.categories.all());
+  return getCategoryTree();
 }
 
 export default async function EditProductPage({

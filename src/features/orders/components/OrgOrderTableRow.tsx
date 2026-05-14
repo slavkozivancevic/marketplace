@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { dateLocale } from "@/lib/i18n/dateLocale";
-import { Truck } from "lucide-react";
+import { Truck, CreditCard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { OrgOrderListItem } from "../db/orgOrders";
 import type { Currency } from "@/lib/currency-config";
@@ -19,6 +19,11 @@ function getStatusVariant(status: string) {
     default:
       return "secondary" as const;
   }
+}
+
+function PaymentMethodIcon({ method }: { method: string }) {
+  if (method === "COD") return <Truck className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
+  return <CreditCard className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
 }
 
 export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
@@ -78,9 +83,7 @@ export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
 
       {/* Status */}
       <div role="cell" className="flex items-center gap-1.5">
-        {order.paymentMethod === "COD" && (
-          <Truck className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        )}
+        <PaymentMethodIcon method={order.paymentMethod} />
         <Badge variant={getStatusVariant(order.status)}>
           {t(order.status.toLowerCase() as "pending" | "pending_cod" | "completed" | "cancelled" | "refunded")}
         </Badge>

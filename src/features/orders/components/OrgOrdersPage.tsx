@@ -44,7 +44,7 @@ export function OrgOrdersPage() {
 
   const filterValues: FilterValues = { status: params.status };
 
-  const handleFilterChange = (key: string, value: string[] | [number?, number?]) => {
+  const handleFilterChange = (key: string, value: string[] | [number?, number?] | number | null) => {
     if (key === "status") setParams({ status: value as string[] });
   };
 

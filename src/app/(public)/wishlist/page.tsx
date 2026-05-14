@@ -138,7 +138,7 @@ function WishlistProductCard({ product, currency, rate }: { product: SerializedP
           <CardDescription>{product.description}</CardDescription>
           {product.ratingCount > 0 && (
             <div className="flex items-center gap-1.5 mt-1">
-              <StarRating rating={Math.round(product.avgRating)} size={14} />
+              <StarRating rating={product.avgRating} size={14} />
               <span className="text-xs text-muted-foreground">
                 {product.avgRating.toFixed(1)} ({product.ratingCount})
               </span>

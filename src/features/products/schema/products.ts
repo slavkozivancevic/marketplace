@@ -120,8 +120,9 @@ export const createProductSchema = z
     metaTitle: z.string().optional(),
     metaDescription: z.string().optional(),
 
-    // Relacije (za buduće korake)
+    // Relacije
     brandId: z.string().optional(),
+    categoryIds: z.array(z.string()).default([]),
 
     images: z.array(productImageSchema).default([]),
     options: z.array(productOptionSchema).default([]),

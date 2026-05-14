@@ -74,7 +74,7 @@ export function AdminOrganizationsPage({
 
   const filterValues: FilterValues = { verified: verifiedFilter };
 
-  const handleFilterChange = (key: string, value: string[] | [number?, number?]) => {
+  const handleFilterChange = (key: string, value: string[] | [number?, number?] | number | null) => {
     if (key === "verified") setVerifiedFilter(value as string[]);
   };
 

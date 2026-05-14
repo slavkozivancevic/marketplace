@@ -30,19 +30,41 @@ export default async function DashboardPage() {
   const userRole = user?.role ?? "USER";
   const isAdmin = userRole === "ADMIN";
 
-  const baseCards = [
+  const showReceivedOrders = userRole === "SELLER" || isAdmin;
+
+  const cards = [
     {
       href: "/products",
       title: t("dashboard.browse"),
       description: t("dashboard.browseDesc"),
       icon: ShoppingBag,
     },
+    ...(userRole === "SELLER"
+      ? [
+          {
+            href: "/dashboard/my-products",
+            title: t("dashboard.myProducts"),
+            description: t("dashboard.myProductsDesc"),
+            icon: Package,
+          },
+        ]
+      : []),
     {
       href: "/dashboard/orders",
       title: t("dashboard.orders"),
       description: t("dashboard.ordersDesc"),
       icon: ClipboardList,
     },
+    ...(showReceivedOrders
+      ? [
+          {
+            href: "/dashboard/organization/orders",
+            title: t("dashboard.receivedOrders"),
+            description: t("dashboard.receivedOrdersDesc"),
+            icon: PackageCheck,
+          },
+        ]
+      : []),
     {
       href: "/dashboard/organization",
       title: t("dashboard.org"),
@@ -50,28 +72,6 @@ export default async function DashboardPage() {
       icon: Building2,
     },
   ];
-
-  const receivedOrdersCard = {
-    href: "/dashboard/organization/orders",
-    title: t("dashboard.receivedOrders"),
-    description: t("dashboard.receivedOrdersDesc"),
-    icon: PackageCheck,
-  };
-
-  const sellerCards = [
-    {
-      href: "/dashboard/my-products",
-      title: t("dashboard.myProducts"),
-      description: t("dashboard.myProductsDesc"),
-      icon: Package,
-    },
-    receivedOrdersCard,
-  ];
-
-  const extraCards =
-    userRole === "SELLER" ? sellerCards : isAdmin ? [receivedOrdersCard] : [];
-
-  const cards = [...baseCards, ...extraCards];
 
   return (
     <div className="flex-1 flex flex-col min-h-0">

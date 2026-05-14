@@ -152,16 +152,18 @@ export function SkeletonHistoryTable({ rows = 5 }: { rows?: number }) {
 
 export function SkeletonProductGridCard() {
   return (
-    <div className="border rounded overflow-hidden">
-      <Skeleton className="w-full h-48 rounded-none rounded-t" />
-      <div className="p-4 space-y-2">
-        <SkeletonText rows={1} size="md" className="w-3/4" />
-        <SkeletonText rows={2} size="sm" className="w-full" />
-        <div className="flex items-center justify-between pt-1">
-          <SkeletonText rows={1} size="md" className="w-16" />
-          <Skeleton className="h-5 w-16 rounded-full" />
+    <div className="border rounded-xl overflow-hidden h-full flex flex-col">
+      <Skeleton className="w-full h-48 rounded-none shrink-0" />
+      <div className="px-4 pt-3 pb-3 flex flex-col flex-1">
+        <div className="flex-1 space-y-2">
+          <SkeletonText rows={1} size="md" className="w-3/4" />
+          <SkeletonText rows={2} size="sm" className="w-full" />
+          <div className="flex items-center justify-between pt-1">
+            <SkeletonText rows={1} size="md" className="w-16" />
+            <Skeleton className="h-5 w-16 rounded-full" />
+          </div>
         </div>
-        <SkeletonButton className="w-full" />
+        <SkeletonButton className="w-full mt-3" />
       </div>
     </div>
   );

@@ -26,18 +26,6 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const t = useTranslations("sidebar");
 
-  const baseLinks: SidebarLink[] = [
-    { href: "/dashboard", label: t("overview"), icon: LayoutDashboard },
-    { href: "/products", label: t("browseProducts"), icon: ShoppingBag },
-    { href: "/dashboard/orders", label: t("myOrders"), icon: ClipboardList },
-    { href: "/dashboard/organization", label: t("organization"), icon: Building2 },
-  ];
-
-  const sellerLinks: SidebarLink[] = [
-    { href: "/dashboard/my-products", label: t("myProducts"), icon: Package },
-  ];
-
-  // Anyone with an active org can manage received orders (SELLER and ADMIN)
   const orgOrdersLink: SidebarLink = {
     href: "/dashboard/organization/orders",
     label: t("receivedOrders"),
@@ -48,11 +36,13 @@ export function DashboardSidebar({
     { href: "/admin", label: t("adminPanel"), icon: Shield },
   ];
 
-  const orgLinks = currentOrgId ? [orgOrdersLink] : [];
-  const links = [
-    ...baseLinks,
-    ...(userRole === "SELLER" ? sellerLinks : []),
-    ...orgLinks,
+  const links: SidebarLink[] = [
+    { href: "/dashboard", label: t("overview"), icon: LayoutDashboard },
+    { href: "/products", label: t("browseProducts"), icon: ShoppingBag },
+    ...(userRole === "SELLER" ? [{ href: "/dashboard/my-products", label: t("myProducts"), icon: Package } as SidebarLink] : []),
+    { href: "/dashboard/orders", label: t("myOrders"), icon: ClipboardList },
+    ...(currentOrgId ? [orgOrdersLink] : []),
+    { href: "/dashboard/organization", label: t("organization"), icon: Building2 },
   ];
   const extras = userRole === "ADMIN" ? adminLinks : undefined;
 

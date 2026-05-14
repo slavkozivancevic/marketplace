@@ -4,6 +4,13 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useCartStore } from "../store/cartStore";
 import { useCurrencyStore } from "@/store/currency";
@@ -13,11 +20,15 @@ import { SerializedPublicProduct } from "@/types/types";
 interface AddToCartProps {
   product: SerializedPublicProduct;
   onActiveVariantChange?: (variantId: string | null) => void;
+  /** Use <Select> dropdowns instead of pill buttons — better for compact layouts */
+  selectMode?: boolean;
+  /** Omit the Add to Cart button — parent renders it instead */
+  hideButton?: boolean;
 }
 
 type SelectedValues = Record<string, string>;
 
-export function AddToCart({ product, onActiveVariantChange }: AddToCartProps) {
+export function AddToCart({ product, onActiveVariantChange, selectMode = false, hideButton = false }: AddToCartProps) {
   const t = useTranslations("cart");
   const { addItem, openCart, items } = useCartStore();
   const { currency, currentRate } = useCurrencyStore();
@@ -228,112 +239,198 @@ export function AddToCart({ product, onActiveVariantChange }: AddToCartProps) {
   }
 
   return (
-    <div className="space-y-5">
-      {product.options.map((option) => {
-        const uniqueValues = [...new Set(option.values.map((v) => v.value))];
-        const selected = selectedValues[option.id];
+    <div className="space-y-4">
+      {/* ── Option selectors ── */}
+      {selectMode ? (
+        /* Dropdown mode */
+        <>
+          {product.options.map((option) => {
+            const uniqueValues = [...new Set(option.values.map((v) => v.value))];
+            const selected = selectedValues[option.id];
 
-        return (
-          <div key={option.id}>
-            <p className="text-sm font-medium mb-2.5">
-              {option.name}
-              {selected && (
-                <span className="font-normal text-muted-foreground ml-1.5">
-                  — {selected}
-                </span>
-              )}
-            </p>
-
-            <div className="flex flex-wrap gap-2">
-              {uniqueValues.map((value) => {
-                const compatible = isCompatible(option.id, value);
-                const inStock = isInStock(option.id, value);
-                const isSelected = !selectedManualId && selected === value;
-
-                return (
-                  <button
-                    key={value}
-                    onClick={() => compatible && handleSelect(option.id, value)}
-                    disabled={!compatible}
-                    className={cn(
-                      "relative px-3 py-1.5 text-sm rounded-md border transition-all select-none",
-                      isSelected &&
-                        "border-primary bg-primary text-primary-foreground shadow-sm",
-                      !isSelected &&
-                        compatible &&
-                        inStock &&
-                        "border-input bg-background hover:border-primary cursor-pointer",
-                      !isSelected &&
-                        compatible &&
-                        !inStock &&
-                        "border-input bg-background text-muted-foreground cursor-pointer",
-                      !compatible &&
-                        "border-input bg-muted text-muted-foreground opacity-40 cursor-not-allowed",
-                    )}
-                  >
-                    {compatible && !inStock && !isSelected && (
-                      <span
-                        aria-hidden
-                        className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                      >
-                        <span className="absolute w-[calc(100%+4px)] h-px bg-muted-foreground/50 -rotate-12" />
-                      </span>
-                    )}
-                    {value}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-
-      {/* Manual variants section */}
-      {manualVariants.length > 0 && (
-        <div>
-          {hasOptions && (
-            <p className="text-sm font-medium mb-2.5">{t("otherVariants")}</p>
-          )}
-          <div className="flex flex-wrap gap-2">
-            {manualVariants.map((variant) => {
-              const isSelected = selectedManualId === variant.id;
-              const outOfStock = variant.stock === 0;
-
-              return (
-                <button
-                  key={variant.id}
-                  onClick={() => handleSelectManual(variant.id)}
-                  className={cn(
-                    "relative px-3 py-1.5 text-sm rounded-md border transition-all select-none",
-                    isSelected &&
-                      "border-primary bg-primary text-primary-foreground shadow-sm",
-                    !isSelected &&
-                      !outOfStock &&
-                      "border-input bg-background hover:border-primary cursor-pointer",
-                    !isSelected &&
-                      outOfStock &&
-                      "border-input bg-background text-muted-foreground cursor-pointer",
-                  )}
+            return (
+              <div key={option.id} className="space-y-1.5">
+                <p className="text-sm font-medium">{option.name}</p>
+                <Select
+                  value={selected ?? ""}
+                  onValueChange={(val) => {
+                    setSelectedManualId(null);
+                    handleSelect(option.id, val);
+                  }}
                 >
-                  {outOfStock && !isSelected && (
-                    <span
-                      aria-hidden
-                      className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={`— ${t("selectOption")}`} />
+                  </SelectTrigger>
+                  <SelectContent position="popper">
+                    {uniqueValues.map((value) => {
+                      const compatible = isCompatible(option.id, value);
+                      const inStock = isInStock(option.id, value);
+                      return (
+                        <SelectItem
+                          key={value}
+                          value={value}
+                          disabled={!compatible}
+                          className={cn(!inStock && compatible && "text-muted-foreground")}
+                        >
+                          {value}
+                          {!inStock && compatible && (
+                            <span className="ml-1 text-xs">({t("outOfStock")})</span>
+                          )}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+            );
+          })}
+
+          {manualVariants.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium">
+                {hasOptions ? t("otherVariants") : t("variant")}
+              </p>
+              <Select
+                value={selectedManualId ?? ""}
+                onValueChange={(val) => handleSelectManual(val)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={`— ${t("selectOption")}`} />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  {manualVariants.map((variant) => {
+                    const outOfStock = variant.stock === 0;
+                    const label = variant.sku ?? `Variant ${variant.id.slice(-4)}`;
+                    const priceStr =
+                      variant.price !== product.price
+                        ? formatPrice(convertCents(variant.price, currency, currentRate()), currency)
+                        : null;
+                    return (
+                      <SelectItem
+                        key={variant.id}
+                        value={variant.id}
+                        className={cn(outOfStock && "text-muted-foreground")}
+                      >
+                        {label}
+                        {priceStr && <span className="ml-1.5 text-xs opacity-75">{priceStr}</span>}
+                        {outOfStock && <span className="ml-1 text-xs">({t("outOfStock")})</span>}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </>
+      ) : (
+        /* Pill mode (default) */
+        <>
+          {product.options.map((option) => {
+            const uniqueValues = [...new Set(option.values.map((v) => v.value))];
+            const selected = selectedValues[option.id];
+
+            return (
+              <div key={option.id}>
+                <p className="text-sm font-medium mb-2.5">
+                  {option.name}
+                  {selected && (
+                    <span className="font-normal text-muted-foreground ml-1.5">
+                      — {selected}
+                    </span>
+                  )}
+                </p>
+
+                <div className="flex flex-wrap gap-2">
+                  {uniqueValues.map((value) => {
+                    const compatible = isCompatible(option.id, value);
+                    const inStock = isInStock(option.id, value);
+                    const isSelected = !selectedManualId && selected === value;
+
+                    return (
+                      <button
+                        key={value}
+                        onClick={() => compatible && handleSelect(option.id, value)}
+                        disabled={!compatible}
+                        className={cn(
+                          "relative px-3 py-1.5 text-sm rounded-md border transition-all select-none",
+                          isSelected &&
+                            "border-primary bg-primary text-primary-foreground shadow-sm",
+                          !isSelected &&
+                            compatible &&
+                            inStock &&
+                            "border-input bg-background hover:border-primary cursor-pointer",
+                          !isSelected &&
+                            compatible &&
+                            !inStock &&
+                            "border-input bg-background text-muted-foreground cursor-pointer",
+                          !compatible &&
+                            "border-input bg-muted text-muted-foreground opacity-40 cursor-not-allowed",
+                        )}
+                      >
+                        {compatible && !inStock && !isSelected && (
+                          <span
+                            aria-hidden
+                            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                          >
+                            <span className="absolute w-[calc(100%+4px)] h-px bg-muted-foreground/50 -rotate-12" />
+                          </span>
+                        )}
+                        {value}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
+          {manualVariants.length > 0 && (
+            <div>
+              {hasOptions && (
+                <p className="text-sm font-medium mb-2.5">{t("otherVariants")}</p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {manualVariants.map((variant) => {
+                  const isSelected = selectedManualId === variant.id;
+                  const outOfStock = variant.stock === 0;
+
+                  return (
+                    <button
+                      key={variant.id}
+                      onClick={() => handleSelectManual(variant.id)}
+                      className={cn(
+                        "relative px-3 py-1.5 text-sm rounded-md border transition-all select-none",
+                        isSelected &&
+                          "border-primary bg-primary text-primary-foreground shadow-sm",
+                        !isSelected &&
+                          !outOfStock &&
+                          "border-input bg-background hover:border-primary cursor-pointer",
+                        !isSelected &&
+                          outOfStock &&
+                          "border-input bg-background text-muted-foreground cursor-pointer",
+                      )}
                     >
-                      <span className="absolute w-[calc(100%+4px)] h-px bg-muted-foreground/50 -rotate-12" />
-                    </span>
-                  )}
-                  {variant.sku ?? `Variant ${variant.id.slice(-4)}`}
-                  {variant.price !== product.price && (
-                    <span className="ml-1.5 text-xs opacity-75">
-                      {formatPrice(convertCents(variant.price, currency, currentRate()), currency)}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+                      {outOfStock && !isSelected && (
+                        <span
+                          aria-hidden
+                          className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                        >
+                          <span className="absolute w-[calc(100%+4px)] h-px bg-muted-foreground/50 -rotate-12" />
+                        </span>
+                      )}
+                      {variant.sku ?? `Variant ${variant.id.slice(-4)}`}
+                      {variant.price !== product.price && (
+                        <span className="ml-1.5 text-xs opacity-75">
+                          {formatPrice(convertCents(variant.price, currency, currentRate()), currency)}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Stock indicator for selected variant */}
@@ -376,24 +473,26 @@ export function AddToCart({ product, onActiveVariantChange }: AddToCartProps) {
         </p>
       )}
 
-      <Button
-        className="w-full relative"
-        size="lg"
-        onClick={handleAdd}
-        disabled={isOutOfStock}
-      >
-        <ShoppingCart className="mr-2 h-4 w-4" />
-        {!allOptionsSelected
-          ? t("selectAllOptions")
-          : isOutOfStock
-            ? t("outOfStockBtn")
-            : t("addToCart", { price: formatPrice(convertCents(price, currency, currentRate()), currency) })}
-        {isOnSale && !isOutOfStock && allOptionsSelected && (
-          <span className="ml-2 bg-white/20 text-white text-xs font-bold px-1.5 py-0.5 rounded-4xl">
-            -{salePct}%
-          </span>
-        )}
-      </Button>
+      {!hideButton && (
+        <Button
+          className="w-full relative"
+          size="lg"
+          onClick={handleAdd}
+          disabled={isOutOfStock}
+        >
+          <ShoppingCart className="mr-2 h-4 w-4" />
+          {!allOptionsSelected
+            ? t("selectAllOptions")
+            : isOutOfStock
+              ? t("outOfStockBtn")
+              : t("addToCart", { price: formatPrice(convertCents(price, currency, currentRate()), currency) })}
+          {isOnSale && !isOutOfStock && allOptionsSelected && (
+            <span className="ml-2 bg-white/20 text-white text-xs font-bold px-1.5 py-0.5 rounded-4xl">
+              -{salePct}%
+            </span>
+          )}
+        </Button>
+      )}
     </div>
   );
 }

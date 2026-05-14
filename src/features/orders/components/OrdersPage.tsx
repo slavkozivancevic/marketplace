@@ -54,7 +54,7 @@ export function OrdersPage() {
 
   const handleFilterChange = (
     key: string,
-    value: string[] | [number?, number?],
+    value: string[] | [number?, number?] | number | null,
   ) => {
     if (key === "status") {
       setParams({ status: value as string[] });

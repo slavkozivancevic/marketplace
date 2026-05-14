@@ -12,6 +12,7 @@ import {
 } from "@/features/common/errors/domainErrors";
 import { CacheTags } from "@/lib/cache/tags";
 import { getAllBrands } from "@/features/brands/db/brands";
+import { getCategoryTree } from "@/features/categories/db/categories";
 import { ProductForm } from "@/features/products/components/ProductForm";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -68,9 +69,10 @@ async function ProductEditContent({ productId }: { productId: string }) {
 
   if (!canWrite) notFound();
 
-  const [result, brands] = await Promise.all([
+  const [result, brands, categoryTree] = await Promise.all([
     fetchProductForEdit(product.organizationId, user.id, productId),
     fetchBrands(),
+    fetchCategoryTree(),
   ]);
 
   if (isActionErrorResult(result)) {
@@ -91,6 +93,7 @@ async function ProductEditContent({ productId }: { productId: string }) {
       mode="update"
       product={productData}
       brands={brands}
+      categoryTree={categoryTree}
       redirectTo={`/dashboard/my-products/${productData.id}`}
     />
   );
@@ -100,6 +103,12 @@ async function fetchBrands() {
   "use cache";
   cacheTag(CacheTags.brands.all());
   return getAllBrands();
+}
+
+async function fetchCategoryTree() {
+  "use cache";
+  cacheTag(CacheTags.categories.all());
+  return getCategoryTree();
 }
 
 export default async function MyProductEditPage({

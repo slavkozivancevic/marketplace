@@ -71,7 +71,7 @@ export function AdminUsersPage({ users }: { users: SerializedUser[] }) {
 
   const handleFilterChange = (
     key: string,
-    value: string[] | [number?, number?],
+    value: string[] | [number?, number?] | number | null,
   ) => {
     if (key === "role") setRoleFilter(value as string[]);
   };

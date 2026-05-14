@@ -2,7 +2,7 @@
 import axios from "axios";
 
 import { useEffect, useRef, useState, useTransition, KeyboardEvent } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useForm, useFieldArray, useWatch, Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "@/components/ui/sonner";
@@ -46,6 +46,10 @@ import { X, Plus, RefreshCw, ImageOff, AlertCircle } from "lucide-react";
 import Image from "next/image";
 import { cn, slugify } from "@/lib/utils";
 import { BrandSelect, type BrandOption } from "@/features/brands/components/BrandSelect";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { getCategoryName } from "@/features/categories/utils/translations";
+import type { CategoryTreeItem } from "@/features/categories/db/categories";
 import { useCurrencyStore } from "@/store/currency";
 import { CURRENCIES } from "@/lib/currency";
 import type { Currency } from "@/lib/currency-config";
@@ -162,6 +166,7 @@ type ProductFormData = {
   metaTitle: string;
   metaDescription: string;
   brandId: string | undefined;
+  categoryIds: string[];
   images: { key: string }[];
   options: { name: string; values: string[] }[];
   variants: {
@@ -225,8 +230,91 @@ interface ProductFormProps {
   mode: "create" | "update";
   product?: SerializedProductWithRelations;
   brands?: BrandOption[];
+  categoryTree?: CategoryTreeItem[];
   onSuccess?: () => void;
   redirectTo?: string;
+}
+
+// ---------- CategoryPicker ----------
+
+function CategoryPicker({
+  tree,
+  value,
+  onChange,
+}: {
+  tree: CategoryTreeItem[];
+  value: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const locale = useLocale();
+  const tForm = useTranslations("productForm");
+
+  const toggle = (id: string) =>
+    onChange(value.includes(id) ? value.filter((v) => v !== id) : [...value, id]);
+
+  const allNodes = tree.flatMap((dept) => [dept, ...dept.children]);
+  const selectedNames = value
+    .map((id) => {
+      const node = allNodes.find((n) => n.id === id);
+      return node ? getCategoryName(node, locale) : null;
+    })
+    .filter(Boolean) as string[];
+
+  return (
+    <div className="space-y-2">
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="outline" className="w-full justify-start font-normal text-left">
+            {value.length === 0
+              ? <span className="text-muted-foreground">{tForm("selectCategories")}</span>
+              : <span className="truncate">{selectedNames.join(", ")}</span>}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-80 p-0 max-h-72 overflow-y-auto">
+          {tree.length === 0 ? (
+            <p className="p-4 text-sm text-muted-foreground">{tForm("noCategories")}</p>
+          ) : (
+            <div className="p-2 space-y-3">
+              {tree.map((dept) => (
+                <div key={dept.id}>
+                  <label className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted cursor-pointer">
+                    <Checkbox checked={value.includes(dept.id)} onCheckedChange={() => toggle(dept.id)} />
+                    <span className="text-sm font-semibold">{getCategoryName(dept, locale)}</span>
+                  </label>
+                  {dept.children.length > 0 && (
+                    <div className="ml-4 mt-0.5 space-y-0.5">
+                      {dept.children.map((sub) => (
+                        <label key={sub.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted cursor-pointer">
+                          <Checkbox checked={value.includes(sub.id)} onCheckedChange={() => toggle(sub.id)} />
+                          <span className="text-sm text-muted-foreground">{getCategoryName(sub, locale)}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {value.map((id) => {
+            const node = allNodes.find((n) => n.id === id);
+            if (!node) return null;
+            return (
+              <Badge key={id} variant="secondary" className="gap-1 pr-1">
+                {getCategoryName(node, locale)}
+                <button type="button" onClick={() => toggle(id)} className="rounded-full hover:bg-muted-foreground/20 p-0.5 cursor-pointer">
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 const WEIGHT_UNITS = [
@@ -245,6 +333,7 @@ export function ProductForm({
   mode,
   product,
   brands = [],
+  categoryTree = [],
   onSuccess,
   redirectTo,
 }: ProductFormProps) {
@@ -306,6 +395,7 @@ export function ProductForm({
           metaTitle: product.metaTitle ?? "",
           metaDescription: product.metaDescription ?? "",
           brandId: product.brandId ?? undefined,
+          categoryIds: product.categories.map((c) => c.categoryId),
           images: product.images.map((img) => ({ key: img.key })),
           options: product.options.map((opt) => ({
             name: opt.name,
@@ -361,6 +451,7 @@ export function ProductForm({
           metaTitle: "",
           metaDescription: "",
           brandId: undefined,
+          categoryIds: [],
           images: [],
           options: [],
           variants: [],
@@ -546,6 +637,7 @@ export function ProductForm({
           metaTitle: data.metaTitle || undefined,
           metaDescription: data.metaDescription || undefined,
           brandId: data.brandId || undefined,
+          categoryIds: data.categoryIds,
           images: data.images,
           options: data.options,
           variants: data.variants,
@@ -688,6 +780,29 @@ export function ProductForm({
                 </FormItem>
               )}
             />
+
+            {categoryTree.length > 0 && (
+              <FormField
+                control={form.control}
+                name="categoryIds"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t("categories")}
+                      <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
+                    </FormLabel>
+                    <FormControl>
+                      <CategoryPicker
+                        tree={categoryTree}
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {brands.length > 0 && (
               <FormField

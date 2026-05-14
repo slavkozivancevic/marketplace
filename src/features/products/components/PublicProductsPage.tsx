@@ -1,13 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
 import {
   productSearchParams,
   type ProductFilters,
 } from "@/lib/query/searchParams";
-import { SearchToolbar } from "@/components/search/SearchToolbar";
 import {
   FilterSidebar,
   type FilterGroup,
@@ -16,15 +15,23 @@ import {
 import { ActiveFilters } from "@/components/search/ActiveFilters";
 import { PublicProductsGrid } from "./PublicProductsGrid";
 import type { BrandOption } from "@/features/brands/components/BrandSelect";
+import { DepartmentSearchBar } from "@/features/categories/components/DepartmentSearchBar";
+import type { CategoryTreeItem } from "@/features/categories/db/categories";
+import { useCurrencyStore } from "@/store/currency";
+import { getCurrencyConfig } from "@/lib/currency";
 
 export function PublicProductsPage({
   brands = [],
+  categoryTree = [],
   footer,
 }: {
   brands?: BrandOption[];
+  categoryTree?: CategoryTreeItem[];
   footer?: React.ReactNode;
 }) {
   const t = useTranslations();
+  const { currency } = useCurrencyStore();
+  const currencySymbol = getCurrencyConfig(currency).symbol;
 
   const SORT_OPTIONS = [
     { value: "createdAt", label: t("products.dateAdded") },
@@ -33,120 +40,138 @@ export function PublicProductsPage({
     { value: "avgRating", label: t("products.rating") },
   ];
 
-  const BASE_FILTER_GROUPS: FilterGroup[] = [
-    {
-      type: "range",
-      key: "price",
-      label: t("products.price"),
-      prefix: "$",
-      min: 0,
-      step: 1,
-    },
-    {
-      type: "checkbox",
-      key: "onSale",
-      label: t("products.deals"),
-      options: [{ value: "true", label: t("products.onSale") }],
-    },
-    {
-      type: "checkbox",
-      key: "isDigital",
-      label: t("products.productType"),
-      options: [
-        { value: "false", label: t("products.physical") },
-        { value: "true", label: t("products.digital") },
-      ],
-    },
-  ];
   const [params, setParams] = useQueryStates(productSearchParams, {
     shallow: false,
     throttleMs: 300,
   });
 
+  // ---- Filter groups ----
   const filterGroups: FilterGroup[] = useMemo(() => {
-    if (brands.length === 0) return BASE_FILTER_GROUPS;
-    return [
-      ...BASE_FILTER_GROUPS,
+    const groups: FilterGroup[] = [
       {
-        type: "checkbox" as const,
+        type: "range",
+        key: "price",
+        label: t("products.price"),
+        prefix: currencySymbol,
+        min: 0,
+        step: 1,
+      },
+      {
+        type: "rating",
+        key: "minRating",
+        label: t("search.customerReviews"),
+      },
+      {
+        type: "checkbox",
+        key: "onSale",
+        label: t("products.deals"),
+        options: [{ value: "true", label: t("products.onSale") }],
+      },
+      {
+        type: "checkbox",
+        key: "isDigital",
+        label: t("products.productType"),
+        options: [
+          { value: "false", label: t("products.physical") },
+          { value: "true", label: t("products.digital") },
+        ],
+      },
+    ];
+
+    if (brands.length > 0) {
+      groups.push({
+        type: "checkbox",
         key: "brandId",
         label: t("products.brand"),
         options: brands.map((b) => ({ value: b.id, label: b.name })),
-      },
-    ];
-  }, [brands]);
+        maxVisible: 5,
+      });
+    }
 
-  const filters: ProductFilters = {
-    search: params.search,
-    sortBy: params.sortBy,
-    sortOrder: params.sortOrder,
-    minPrice: params.minPrice,
-    maxPrice: params.maxPrice,
-    onSale: params.onSale,
-    isDigital: params.isDigital,
-    brandId: params.brandId,
-  };
+    return groups;
+  }, [brands, t, currencySymbol]);
 
+  // ---- Filter values ----
+  // URL stores values as typed by user (in selected currency) — no conversion, no rounding.
   const filterValues: FilterValues = {
     price: [params.minPrice ?? undefined, params.maxPrice ?? undefined],
+    minRating: params.minRating ?? null,
     onSale: params.onSale === true ? ["true"] : [],
     isDigital: params.isDigital != null ? [String(params.isDigital)] : [],
     brandId: params.brandId,
   };
 
+  // ---- Handlers ----
   const handleFilterChange = (
     key: string,
-    value: string[] | [number?, number?],
+    value: string[] | [number?, number?] | number | null,
   ) => {
     if (key === "price") {
       const [min, max] = value as [number?, number?];
       setParams({ minPrice: min ?? null, maxPrice: max ?? null });
+    } else if (key === "minRating") {
+      setParams({ minRating: (value as number | null) ?? null });
     } else if (key === "onSale") {
       const vals = value as string[];
       setParams({ onSale: vals.includes("true") ? true : null });
     } else if (key === "isDigital") {
       const vals = value as string[];
-      if (vals.length === 0 || vals.length === 2) {
-        setParams({ isDigital: null });
-      } else {
-        setParams({ isDigital: vals[0] === "true" });
-      }
+      if (vals.length === 0 || vals.length === 2) setParams({ isDigital: null });
+      else setParams({ isDigital: vals[0] === "true" });
     } else if (key === "brandId") {
-      const vals = value as string[];
-      setParams({ brandId: vals });
+      setParams({ brandId: value as string[] });
     }
   };
 
   const handleFilterClear = () => {
-    setParams({ minPrice: null, maxPrice: null, onSale: null, isDigital: null, brandId: [] });
+    setParams({
+      minPrice: null,
+      maxPrice: null,
+      onSale: null,
+      isDigital: null,
+      brandId: [],
+      minRating: null,
+    });
   };
 
   const handleFilterRemove = (key: string) => {
     if (key === "price") setParams({ minPrice: null, maxPrice: null });
+    else if (key === "minRating") setParams({ minRating: null });
     else if (key === "onSale") setParams({ onSale: null });
     else if (key === "isDigital") setParams({ isDigital: null });
     else if (key === "brandId") setParams({ brandId: [] });
   };
 
+  const filters: ProductFilters = {
+    search: params.search,
+    sortBy: params.sortBy,
+    sortOrder: params.sortOrder,
+    // Raw display-currency values — buildFetcher converts to USD at fetch time.
+    minPrice: params.minPrice,
+    maxPrice: params.maxPrice,
+    onSale: params.onSale,
+    isDigital: params.isDigital,
+    brandId: params.brandId,
+    minRating: params.minRating,
+    dept: params.dept,
+  };
+
+  const outerScrollRef = useRef<HTMLDivElement>(null);
+
   return (
-    <div className="flex gap-6 flex-1 min-h-0">
-      <FilterSidebar
-        groups={filterGroups}
-        values={filterValues}
-        onChange={handleFilterChange}
-        onClear={handleFilterClear}
-      />
-      <div className="flex-1 min-w-0 flex flex-col gap-4 min-h-0">
-        <SearchToolbar
+    <div className="flex flex-col flex-1 min-h-0 gap-4">
+
+      {/* Search bar — shrink-0, ne skroluje */}
+      <div className="flex flex-col gap-2 shrink-0 px-6">
+        <DepartmentSearchBar
+          tree={categoryTree}
+          dept={params.dept}
+          onDeptChange={(slug) => setParams({ dept: slug, search: "" })}
           search={params.search}
           onSearchChange={(v) => setParams({ search: v })}
-          searchPlaceholder={t("products.searchPlaceholder")}
-          isPending={false}
           sortBy={params.sortBy}
           sortOrder={params.sortOrder}
-          onSortByChange={(v) =>
-            setParams({ sortBy: v as ProductFilters["sortBy"] })
-          }
+          onSortByChange={(v) => setParams({ sortBy: v as ProductFilters["sortBy"] })}
           onSortOrderChange={(v) => setParams({ sortOrder: v })}
           sortOptions={SORT_OPTIONS}
           filterGroups={filterGroups}
@@ -160,8 +185,23 @@ export function PublicProductsPage({
           onRemove={handleFilterRemove}
           onClearAll={handleFilterClear}
         />
-        <PublicProductsGrid filters={filters} />
-        {/* footer */}
+      </div>
+
+      {/* Outer scroll container: sidebar + grid + footer */}
+      <div ref={outerScrollRef} className="flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable] flex flex-col">
+        <div className="flex gap-6 flex-1 px-6">
+          <FilterSidebar
+            groups={filterGroups}
+            values={filterValues}
+            onChange={handleFilterChange}
+            onClear={handleFilterClear}
+            sticky
+          />
+          <div className="flex-1 min-w-0">
+            <PublicProductsGrid filters={filters} scrollContainerRef={outerScrollRef} />
+          </div>
+        </div>
+        <div className="mt-8 pb-6">{footer}</div>
       </div>
     </div>
   );

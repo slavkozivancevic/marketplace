@@ -379,6 +379,11 @@ export function productRepository(
             orderBy: { order: "asc" },
             include: { values: { orderBy: { order: "asc" } } },
           },
+          categories: {
+            include: {
+              category: { select: { id: true, name: true, translations: true, parentId: true } },
+            },
+          },
         },
       });
     },
@@ -523,6 +528,7 @@ export function productRepository(
       metaTitle?: string;
       metaDescription?: string;
       brandId?: string;
+      categoryIds?: string[];
       images?: ImageInput[];
       variants?: ProductVariantInput[];
       options?: VariantOptionInput[];
@@ -571,6 +577,13 @@ export function productRepository(
           await syncOptions(tx, created.id, data.options, data.variants ?? []);
         }
 
+        if (data?.categoryIds?.length) {
+          await tx.productCategory.createMany({
+            data: data.categoryIds.map((categoryId) => ({ productId: created.id, categoryId })),
+            skipDuplicates: true,
+          });
+        }
+
         await tx.productHistory.create({
           data: {
             productId: created.id,
@@ -606,6 +619,11 @@ export function productRepository(
             options: {
               orderBy: { order: "asc" },
               include: { values: { orderBy: { order: "asc" } } },
+            },
+            categories: {
+              include: {
+                category: { select: { id: true, name: true, translations: true, parentId: true } },
+              },
             },
           },
         });
@@ -650,6 +668,7 @@ export function productRepository(
         metaTitle?: string;
         metaDescription?: string;
         brandId?: string;
+        categoryIds?: string[];
         images?: ImageInput[];
         status?: ProductStatus;
         variants?: ProductVariantInput[];
@@ -661,7 +680,7 @@ export function productRepository(
           throw new VersionRequiredError();
         }
 
-        const { images, variants, options, weightUnit, dimensionUnit, ...productData } = data;
+        const { images, variants, options, weightUnit, dimensionUnit, categoryIds, ...productData } = data;
 
         const result = await tx.product.updateMany({
           where: {
@@ -704,6 +723,16 @@ export function productRepository(
           await syncOptions(tx, id, options, variants ?? []);
         }
 
+        if (categoryIds !== undefined) {
+          await tx.productCategory.deleteMany({ where: { productId: id } });
+          if (categoryIds.length > 0) {
+            await tx.productCategory.createMany({
+              data: categoryIds.map((categoryId) => ({ productId: id, categoryId })),
+              skipDuplicates: true,
+            });
+          }
+        }
+
         const updatedProduct = await tx.product.findFirst({
           where: {
             id,
@@ -726,6 +755,11 @@ export function productRepository(
             options: {
               orderBy: { order: "asc" },
               include: { values: { orderBy: { order: "asc" } } },
+            },
+            categories: {
+              include: {
+                category: { select: { id: true, name: true, translations: true, parentId: true } },
+              },
             },
           },
         });

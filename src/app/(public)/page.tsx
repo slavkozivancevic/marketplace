@@ -10,9 +10,21 @@ import { HeroBackground } from "@/components/layout/hero-background";
 import { Footer } from "@/components/layout/footer";
 import { StatsSection } from "@/components/layout/stats-section";
 import { getTranslations } from "next-intl/server";
+import { cacheTag } from "next/cache";
+import { CacheTags } from "@/lib/cache/tags";
+import { getFeaturedDepartmentsWithImages } from "@/features/categories/db/categories";
+import { DepartmentCards } from "@/features/categories/components/DepartmentCards";
+
+async function fetchFeaturedDepartments() {
+  "use cache";
+  cacheTag(CacheTags.categories.all());
+  cacheTag(CacheTags.products.publicAll());
+  return getFeaturedDepartmentsWithImages();
+}
 
 export default async function HomePage() {
   const t = await getTranslations();
+  const featuredDepartments = await fetchFeaturedDepartments();
 
   const features = [
     {
@@ -92,6 +104,9 @@ export default async function HomePage() {
         {/* Bottom fade */}
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-linear-to-t from-background to-transparent" />
       </section>
+
+      {/* Department Cards Section */}
+      <DepartmentCards departments={featuredDepartments} />
 
       {/* Features Section */}
       <section className="relative py-24 sm:py-32">

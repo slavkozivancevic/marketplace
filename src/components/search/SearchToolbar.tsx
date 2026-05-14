@@ -1,6 +1,5 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { SearchInput } from "./SearchInput";
 import { SortSelect, type SortOption } from "./SortSelect";
 import { MobileFilterSheet, type FilterGroup, type FilterValues } from "./FilterSidebar";
@@ -19,7 +18,7 @@ interface SearchToolbarProps {
 
   filterGroups?: FilterGroup[];
   filterValues?: FilterValues;
-  onFilterChange?: (key: string, value: string[] | [number?, number?]) => void;
+  onFilterChange?: (key: string, value: string[] | [number?, number?] | number | null) => void;
   onFilterClear?: () => void;
 
   resultCount?: number;
@@ -42,9 +41,10 @@ export function SearchToolbar({
   resultCount,
 }: SearchToolbarProps) {
   const activeFilterCount = filterValues
-    ? Object.entries(filterValues).filter(([, v]) =>
-        Array.isArray(v) && v.some((item) => item != null),
-      ).length
+    ? Object.entries(filterValues).filter(([, v]) => {
+        if (Array.isArray(v)) return v.some((item) => item != null);
+        return v != null;
+      }).length
     : 0;
 
   return (

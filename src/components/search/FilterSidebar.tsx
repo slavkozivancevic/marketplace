@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Filter } from "lucide-react";
+import { Filter, ChevronDown, ChevronUp, X } from "lucide-react";
+import { StarRating } from "@/features/reviews/components/StarRating";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
@@ -25,6 +25,8 @@ export interface CheckboxFilterGroup {
   key: string;
   label: string;
   options: { value: string; label: string; count?: number }[];
+  /** Max items shown before "see more". Defaults to showing all. */
+  maxVisible?: number;
 }
 
 export interface RangeFilterGroup {
@@ -37,11 +39,17 @@ export interface RangeFilterGroup {
   step?: number;
 }
 
-export type FilterGroup = CheckboxFilterGroup | RangeFilterGroup;
+export interface StarRatingFilterGroup {
+  type: "rating";
+  key: string;
+  label: string;
+}
 
-export type FilterValues = Record<string, string[] | [number?, number?]>;
+export type FilterGroup = CheckboxFilterGroup | RangeFilterGroup | StarRatingFilterGroup;
 
-// ---------- Internal filter rendering ----------
+export type FilterValues = Record<string, string[] | [number?, number?] | number | null>;
+
+// ---------- CheckboxFilter with see-more ----------
 
 function CheckboxFilter({
   group,
@@ -52,6 +60,9 @@ function CheckboxFilter({
   values: string[];
   onChange: (values: string[]) => void;
 }) {
+  const t = useTranslations("search");
+  const [expanded, setExpanded] = useState(false);
+
   const toggle = (value: string) => {
     onChange(
       values.includes(value)
@@ -60,11 +71,15 @@ function CheckboxFilter({
     );
   };
 
+  const maxVisible = group.maxVisible ?? group.options.length;
+  const showToggle = group.options.length > maxVisible;
+  const visible = expanded ? group.options : group.options.slice(0, maxVisible);
+
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium">{group.label}</p>
       <div className="space-y-1.5">
-        {group.options.map((option) => (
+        {visible.map((option) => (
           <label
             key={option.value}
             className="flex items-center gap-2 text-sm cursor-pointer hover:text-foreground text-muted-foreground transition-colors"
@@ -82,6 +97,70 @@ function CheckboxFilter({
           </label>
         ))}
       </div>
+      {showToggle && (
+        <button
+          onClick={() => setExpanded((p) => !p)}
+          className="flex items-center gap-1 text-xs text-primary hover:underline mt-1"
+        >
+          {expanded ? (
+            <>
+              <ChevronUp className="h-3 w-3" />
+              {t("seeLess")}
+            </>
+          ) : (
+            <>
+              <ChevronDown className="h-3 w-3" />
+              {t("seeMore", { count: group.options.length - maxVisible })}
+            </>
+          )}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ---------- RangeFilter ----------
+
+function RangeInputGroup({
+  prefix,
+  placeholder,
+  value,
+  onChange,
+  onBlur,
+  onKeyDown,
+  min,
+  max,
+  step,
+}: {
+  prefix?: string;
+  placeholder: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onBlur: () => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+}) {
+  return (
+    <div className="flex flex-1 min-w-0 items-center h-8 rounded-lg border border-input bg-background shadow-sm focus-within:border-ring focus-within:inset-ring-2 focus-within:inset-ring-ring/50 overflow-hidden">
+      {prefix && (
+        <span className="shrink-0 px-1.5 text-xs text-muted-foreground border-r border-input bg-muted/40 self-stretch flex items-center">
+          {prefix}
+        </span>
+      )}
+      <input
+        type="number"
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        onBlur={onBlur}
+        onKeyDown={onKeyDown}
+        min={min}
+        max={max}
+        step={step ?? 1}
+        className="flex-1 min-w-0 bg-transparent py-1 px-2 text-sm outline-none placeholder:text-muted-foreground"
+      />
     </div>
   );
 }
@@ -127,47 +206,78 @@ function RangeFilter({
 
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium">{group.label}</p>
+      <p className="text-sm font-medium">
+        {group.label}
+        {group.prefix && (
+          <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+            ({group.prefix})
+          </span>
+        )}
+      </p>
       <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          {group.prefix && (
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-              {group.prefix}
-            </span>
-          )}
-          <Input
-            type="number"
-            placeholder={t("min")}
-            value={minStr}
-            onChange={(e) => setMinStr(e.target.value)}
-            onBlur={handleMinBlur}
-            onKeyDown={(e) => e.key === "Enter" && handleMinBlur()}
-            min={group.min}
-            max={group.max}
-            step={group.step ?? 1}
-            className={cn("text-sm", group.prefix && "pl-6")}
-          />
-        </div>
-        <span className="text-xs text-muted-foreground">{t("to")}</span>
-        <div className="relative flex-1">
-          {group.prefix && (
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-              {group.prefix}
-            </span>
-          )}
-          <Input
-            type="number"
-            placeholder={t("max")}
-            value={maxStr}
-            onChange={(e) => setMaxStr(e.target.value)}
-            onBlur={handleMaxBlur}
-            onKeyDown={(e) => e.key === "Enter" && handleMaxBlur()}
-            min={group.min}
-            max={group.max}
-            step={group.step ?? 1}
-            className={cn("text-sm", group.prefix && "pl-6")}
-          />
-        </div>
+        <RangeInputGroup
+          placeholder={t("min")}
+          value={minStr}
+          onChange={(e) => setMinStr(e.target.value)}
+          onBlur={handleMinBlur}
+          onKeyDown={(e) => e.key === "Enter" && handleMinBlur()}
+          min={group.min}
+          max={group.max}
+          step={group.step}
+        />
+        <span className="text-xs text-muted-foreground shrink-0">{t("to")}</span>
+        <RangeInputGroup
+          placeholder={t("max")}
+          value={maxStr}
+          onChange={(e) => setMaxStr(e.target.value)}
+          onBlur={handleMaxBlur}
+          onKeyDown={(e) => e.key === "Enter" && handleMaxBlur()}
+          min={group.min}
+          max={group.max}
+          step={group.step}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ---------- StarRatingFilter ----------
+
+function StarRatingFilter({
+  group,
+  value,
+  onChange,
+}: {
+  group: StarRatingFilterGroup;
+  value: number | null;
+  onChange: (value: number | null) => void;
+}) {
+  const t = useTranslations("search");
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium">{group.label}</p>
+        {value != null && (
+          <button
+            onClick={() => onChange(null)}
+            className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            aria-label="Clear rating filter"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <StarRating
+          rating={value ?? 0}
+          size={20}
+          interactive
+          onRatingChange={(star) => {
+            if (star !== value) onChange(star);
+          }}
+        />
+        <span className="text-xs text-muted-foreground shrink-0">{t("andUp")}</span>
       </div>
     </div>
   );
@@ -182,7 +292,7 @@ function FilterGroups({
 }: {
   groups: FilterGroup[];
   values: FilterValues;
-  onChange: (key: string, value: string[] | [number?, number?]) => void;
+  onChange: (key: string, value: string[] | [number?, number?] | number | null) => void;
 }) {
   return (
     <div className="space-y-4 pt-4">
@@ -202,6 +312,13 @@ function FilterGroups({
               onChange={(v) => onChange(group.key, v)}
             />
           )}
+          {group.type === "rating" && (
+            <StarRatingFilter
+              group={group}
+              value={(values[group.key] as number | null) ?? null}
+              onChange={(v) => onChange(group.key, v)}
+            />
+          )}
           <Separator className="mt-4" />
         </div>
       ))}
@@ -214,19 +331,20 @@ function FilterGroups({
 function DesktopFilterSidebar(props: {
   groups: FilterGroup[];
   values: FilterValues;
-  onChange: (key: string, value: string[] | [number?, number?]) => void;
+  onChange: (key: string, value: string[] | [number?, number?] | number | null) => void;
   onClear: () => void;
   sticky?: boolean;
 }) {
   const t = useTranslations("search");
-  const activeCount = Object.entries(props.values).filter(
-    ([, v]) => Array.isArray(v) && v.some((item) => item != null),
-  ).length;
+  const activeCount = Object.entries(props.values).filter(([, v]) => {
+    if (Array.isArray(v)) return v.some((item) => item != null);
+    return v != null;
+  }).length;
 
   return (
     <aside className={cn(
       "hidden lg:flex flex-col w-56 shrink-0 border-r",
-      props.sticky && "sticky top-0 self-start max-h-screen"
+      props.sticky && "sticky top-0 self-start max-h-[calc(100svh-8rem)]"
     )}>
       <div className="shrink-0 pr-6 pt-1 pb-2">
         <div className="flex items-center justify-between">
@@ -258,9 +376,10 @@ function DesktopFilterSidebar(props: {
 function MobileFilterSheet(props: {
   groups: FilterGroup[];
   values: FilterValues;
-  onChange: (key: string, value: string[] | [number?, number?]) => void;
+  onChange: (key: string, value: string[] | [number?, number?] | number | null) => void;
   onClear: () => void;
   activeCount: number;
+  className?: string;
 }) {
   const t = useTranslations("search");
   const [open, setOpen] = useState(false);
@@ -269,12 +388,11 @@ function MobileFilterSheet(props: {
     <div className="lg:hidden">
       <Button
         variant="outline"
-        size="sm"
         onClick={() => setOpen(true)}
-        className="gap-1.5"
+        className={cn("font-normal", props.className)}
       >
         <Filter className="size-3.5" />
-        {t("filters")}
+        <span className="hidden sm:inline">{t("filters")}</span>
         {props.activeCount > 0 && (
           <Badge variant="secondary" className="ml-0.5 px-1.5 py-0">
             {props.activeCount}
@@ -310,7 +428,7 @@ function MobileFilterSheet(props: {
 interface FilterSidebarProps {
   groups: FilterGroup[];
   values: FilterValues;
-  onChange: (key: string, value: string[] | [number?, number?]) => void;
+  onChange: (key: string, value: string[] | [number?, number?] | number | null) => void;
   onClear: () => void;
   sticky?: boolean;
 }

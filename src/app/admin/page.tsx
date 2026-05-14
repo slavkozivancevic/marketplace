@@ -13,6 +13,7 @@ import {
   Building2,
   Users,
   LayoutDashboard,
+  LayoutGrid,
   ArrowRight,
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
@@ -38,6 +39,12 @@ export default async function AdminPage() {
       title: t("admin.brands"),
       description: t("admin.brandsDesc"),
       icon: Tag,
+    },
+    {
+      href: "/admin/categories",
+      title: t("admin.categories"),
+      description: t("admin.categoriesDesc"),
+      icon: LayoutGrid,
     },
     {
       href: "/admin/organizations",

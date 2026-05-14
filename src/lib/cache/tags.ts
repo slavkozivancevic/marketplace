@@ -32,6 +32,10 @@ export const CacheTags = {
     all: () => "global:brands" as const,
     byId: (id: string) => `id:brands:${id}` as const,
   },
+  categories: {
+    all: () => "global:categories" as const,
+    byId: (id: string) => `id:categories:${id}` as const,
+  },
   wishlist: {
     byUser: (userId: string) => `id:wishlist:user:${userId}` as const,
   },

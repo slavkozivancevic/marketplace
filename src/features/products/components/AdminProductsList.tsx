@@ -12,6 +12,7 @@ import { SerializedProductListItem } from "@/types/types";
 import { LIST_PAGE_SIZE, MAX_PAGES } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
 import type { AdminProductFilters } from "@/lib/query/searchParams";
+import { useCurrencyStore } from "@/store/currency";
 
 function buildFetcher(filters: AdminProductFilters) {
   return async ({
@@ -19,6 +20,7 @@ function buildFetcher(filters: AdminProductFilters) {
   }: {
     pageParam: string | undefined;
   }): Promise<InfinitePage<SerializedProductListItem>> => {
+    const rate = useCurrencyStore.getState().currentRate();
     const params = new URLSearchParams();
     params.set("take", String(LIST_PAGE_SIZE));
     if (pageParam) params.set("cursor", pageParam);
@@ -26,10 +28,8 @@ function buildFetcher(filters: AdminProductFilters) {
     if (filters.sortBy) params.set("sortBy", filters.sortBy);
     if (filters.sortOrder) params.set("sortOrder", filters.sortOrder);
     for (const s of filters.status) params.append("status", s);
-    if (filters.minPrice != null)
-      params.set("minPrice", String(filters.minPrice));
-    if (filters.maxPrice != null)
-      params.set("maxPrice", String(filters.maxPrice));
+    if (filters.minPrice != null) params.set("minPrice", String(filters.minPrice / rate));
+    if (filters.maxPrice != null) params.set("maxPrice", String(filters.maxPrice / rate));
     for (const id of filters.brandId) params.append("brandId", id);
 
     const { data } = await axios.get(`/api/admin/products?${params.toString()}`);
@@ -53,10 +53,11 @@ export function AdminProductsList({
     brandId: [],
   };
   const f = filters ?? defaultFilters;
+  const { currency } = useCurrencyStore();
 
   const { parentRef, virtualizer, items, query, isSentinelIndex, isPlaceholderData } =
     useInfiniteVirtualList<SerializedProductListItem>({
-      queryKey: ["products", "admin", f],
+      queryKey: ["products", "admin", f, currency],
       queryFn: buildFetcher(f),
       estimateSize: 73,
       maxPages: MAX_PAGES,

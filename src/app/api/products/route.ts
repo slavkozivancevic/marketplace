@@ -2,6 +2,7 @@ import { decimalToCents } from "@/lib/currency";
 import { NextResponse, type NextRequest } from "next/server";
 import { connection } from "next/server";
 import { getPublicProductsPage } from "@/features/products/db/publicProducts";
+import { getCategoryTree, getDescendantIds } from "@/features/categories/db/categories";
 import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
 
 const ALLOWED_SORTS = ["createdAt", "price", "title", "avgRating"] as const;
@@ -40,6 +41,17 @@ export async function GET(req: NextRequest) {
   const isDigitalParam = searchParams.get("isDigital");
   const isDigital = isDigitalParam === "true" ? true : isDigitalParam === "false" ? false : null;
   const brandId = searchParams.getAll("brandId");
+  const minRatingRaw = searchParams.get("minRating");
+  const minRating = minRatingRaw ? parseInt(minRatingRaw, 10) : undefined;
+  const dept = searchParams.get("dept") ?? "";
+
+  // Resolve department slug → all descendant category IDs
+  let categoryId: string[] | undefined;
+  if (dept) {
+    const tree = await getCategoryTree();
+    const ids = getDescendantIds(tree, dept);
+    categoryId = ids.length ? ids : ["__no_match__"]; // empty dept = no results
+  }
 
   try {
     const result = await getPublicProductsPage({
@@ -53,6 +65,8 @@ export async function GET(req: NextRequest) {
       onSale,
       isDigital,
       brandId,
+      minRating,
+      categoryId,
     });
     return NextResponse.json(result);
   } catch (error) {

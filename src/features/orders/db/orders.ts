@@ -71,11 +71,10 @@ export async function getUserOrdersPage({
   }
 
   if (search) {
-    where.items = {
-      some: {
-        product: { title: { contains: search, mode: "insensitive" } },
-      },
-    };
+    where.OR = [
+      { id: { contains: search, mode: "insensitive" } },
+      { items: { some: { product: { title: { contains: search, mode: "insensitive" } } } } },
+    ];
   }
 
   const sortField: Prisma.OrderOrderByWithRelationInput = sortBy === "createdAt" ? { createdAt: sortOrder } : { total: sortOrder };

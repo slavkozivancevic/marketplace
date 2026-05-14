@@ -10,7 +10,10 @@ import { PublicProductsPage } from "@/features/products/components/PublicProduct
 import { Footer } from "@/components/layout/footer";
 import { CacheTags } from "@/lib/cache/tags";
 import { getAllBrands } from "@/features/brands/db/brands";
-
+import {
+  getCategoryTree,
+  getDescendantIds,
+} from "@/features/categories/db/categories";
 import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
 
 const searchParamsCache = createSearchParamsCache(productSearchParams);
@@ -23,6 +26,17 @@ export default async function ProductsRoute({
   const t = await getTranslations();
   const params = searchParamsCache.parse(await searchParams);
 
+  const [queryClient, brands, categoryTree] = await Promise.all([
+    Promise.resolve(getQueryClient()),
+    fetchBrands(),
+    fetchCategoryTree(),
+  ]);
+
+  // Resolve dept slug → descendant IDs for the SSR prefetch
+  const deptCategoryIds = params.dept
+    ? getDescendantIds(categoryTree, params.dept)
+    : undefined;
+
   const filters = {
     search: params.search,
     sortBy: params.sortBy,
@@ -32,12 +46,9 @@ export default async function ProductsRoute({
     onSale: params.onSale,
     isDigital: params.isDigital,
     brandId: params.brandId,
+    minRating: params.minRating,
+    dept: params.dept,
   };
-
-  const [queryClient, brands] = await Promise.all([
-    Promise.resolve(getQueryClient()),
-    fetchBrands(),
-  ]);
 
   await queryClient.prefetchInfiniteQuery({
     queryKey: ["products", "public", filters],
@@ -52,6 +63,8 @@ export default async function ProductsRoute({
         onSale: filters.onSale,
         isDigital: filters.isDigital,
         brandId: filters.brandId.length ? filters.brandId : undefined,
+        minRating: filters.minRating ?? undefined,
+        categoryId: deptCategoryIds?.length ? deptCategoryIds : undefined,
       }),
     initialPageParam: undefined as string | undefined,
   });
@@ -64,9 +77,13 @@ export default async function ProductsRoute({
           description={t("products.browse")}
         />
       </div>
-      <div className="flex-1 flex flex-col min-h-0 px-6 pb-6">
+      <div className="flex-1 flex flex-col min-h-0">
         <HydrationBoundary state={dehydrate(queryClient)}>
-          <PublicProductsPage brands={brands} footer={<Footer />} />
+          <PublicProductsPage
+            brands={brands}
+            categoryTree={categoryTree}
+            footer={<Footer />}
+          />
         </HydrationBoundary>
       </div>
     </div>
@@ -77,4 +94,10 @@ async function fetchBrands() {
   "use cache";
   cacheTag(CacheTags.brands.all());
   return getAllBrands();
+}
+
+async function fetchCategoryTree() {
+  "use cache";
+  cacheTag(CacheTags.categories.all());
+  return getCategoryTree();
 }

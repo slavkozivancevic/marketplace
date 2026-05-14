@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StarRating } from "./StarRating";
@@ -17,6 +18,7 @@ interface ReviewFormProps {
 
 export function ReviewForm({ productId, orderId }: ReviewFormProps) {
   const t = useTranslations("reviews");
+  const queryClient = useQueryClient();
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +41,9 @@ export function ReviewForm({ productId, orderId }: ReviewFormProps) {
 
       if (isActionErrorResult(result)) {
         setError(result.message);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["products", "public"] });
+        queryClient.invalidateQueries({ queryKey: ["product", "rating-breakdown", productId] });
       }
     });
   };
@@ -50,7 +55,19 @@ export function ReviewForm({ productId, orderId }: ReviewFormProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <p className="text-sm font-medium mb-2">{t("rating")}</p>
+          <div className="flex items-center gap-2 mb-2">
+            <p className="text-sm font-medium">{t("rating")}</p>
+            {rating > 0 && (
+              <button
+                type="button"
+                onClick={() => setRating(0)}
+                className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                aria-label="Clear rating"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
           <StarRating
             rating={rating}
             size={24}

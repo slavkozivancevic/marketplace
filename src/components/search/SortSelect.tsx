@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { ArrowUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -21,6 +22,7 @@ interface SortSelectProps {
   onSortByChange: (value: string) => void;
   onSortOrderChange: (value: "asc" | "desc") => void;
   options: SortOption[];
+  triggerClassName?: string;
 }
 
 export function SortSelect({
@@ -29,6 +31,7 @@ export function SortSelect({
   onSortByChange,
   onSortOrderChange,
   options,
+  triggerClassName,
 }: SortSelectProps) {
   const t = useTranslations("search");
   // Combine sortBy and sortOrder into a single value for simpler UX
@@ -66,11 +69,19 @@ export function SortSelect({
       : `${opt.label}: ${t("newestFirst")}`;
   };
 
+  const [field, order] = combinedValue.split(":") as [string, "asc" | "desc"];
+  const currentOption = options.find((o) => o.value === field);
+  const currentLabel = currentOption
+    ? getLabelForOption(currentOption, order)
+    : t("sortBy");
+
   return (
     <Select value={combinedValue} onValueChange={handleChange}>
-      <SelectTrigger className="gap-1.5">
-        <ArrowUpDown className="size-3.5 text-muted-foreground" />
-        <SelectValue placeholder={t("sortBy")} />
+      <SelectTrigger className={cn("gap-1.5 max-w-52", triggerClassName)}>
+        <ArrowUpDown className="size-3.5 text-muted-foreground shrink-0" />
+        <SelectValue placeholder={t("sortBy")}>
+          <span className="truncate">{currentLabel}</span>
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         {options.map((opt) => (

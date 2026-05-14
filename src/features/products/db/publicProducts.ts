@@ -22,6 +22,8 @@ export async function getPublicProductsPage({
   onSale,
   isDigital,
   brandId,
+  minRating,
+  categoryId,
 }: {
   take: number;
   cursor?: string;
@@ -33,6 +35,8 @@ export async function getPublicProductsPage({
   onSale?: boolean | null;
   isDigital?: boolean | null;
   brandId?: string[];
+  minRating?: number | null;
+  categoryId?: string[];
 }): Promise<{ items: SerializedProductListItem[]; nextCursor?: string }> {
   const where: Prisma.ProductWhereInput = {
     status: "PUBLISHED",
@@ -64,6 +68,16 @@ export async function getPublicProductsPage({
 
   if (brandId?.length) {
     where.brandId = { in: brandId };
+  }
+
+  if (minRating != null && minRating > 0) {
+    where.avgRating = { gte: minRating };
+  }
+
+  if (categoryId?.length) {
+    where.categories = {
+      some: { categoryId: { in: categoryId } },
+    };
   }
 
   const orderBy: Prisma.ProductOrderByWithRelationInput[] = [

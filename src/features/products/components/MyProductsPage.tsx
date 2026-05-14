@@ -3,6 +3,8 @@
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
+import { useCurrencyStore } from "@/store/currency";
+import { getCurrencyConfig } from "@/lib/currency";
 import {
   myProductSearchParams,
   type MyProductFilters,
@@ -25,6 +27,8 @@ export function MyProductsPage({
   brands?: BrandOption[];
 }) {
   const t = useTranslations();
+  const currency = useCurrencyStore((s) => s.currency);
+  const currencySymbol = getCurrencyConfig(currency).symbol;
 
   const SORT_OPTIONS = [
     { value: "createdAt", label: t("myProducts.dateAdded") },
@@ -54,7 +58,7 @@ export function MyProductsPage({
         type: "range",
         key: "price",
         label: t("myProducts.price"),
-        prefix: "$",
+        prefix: currencySymbol,
         min: 0,
         step: 1,
       },
@@ -69,7 +73,7 @@ export function MyProductsPage({
         options: brands.map((b) => ({ value: b.id, label: b.name })),
       },
     ];
-  }, [brands, t]);
+  }, [brands, t, currencySymbol]);
 
   const filters: MyProductFilters = {
     search: params.search,
@@ -89,7 +93,7 @@ export function MyProductsPage({
 
   const handleFilterChange = (
     key: string,
-    value: string[] | [number?, number?],
+    value: string[] | [number?, number?] | number | null,
   ) => {
     if (key === "status") {
       setParams({ status: value as string[] });

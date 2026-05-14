@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import Link from "next/link";
 import Image from "next/image";
 import { Copy, ImageOff, Loader2, Pencil, Trash2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -87,6 +86,7 @@ export function ProductTableRow({
   const queryClient = useQueryClient();
   const [isDeleting, startDelete] = useTransition();
   const [isDuplicating, startDuplicate] = useTransition();
+  const [isNavigating, startNavigate] = useTransition();
   const { currency, currentRate } = useCurrencyStore();
   const [thumbLoaded, setThumbLoaded] = useState(false);
 
@@ -121,7 +121,7 @@ export function ProductTableRow({
 
   const thumbnailUrl = product.images?.[0]?.url;
   const cols = showActions ? COLS_ACTIONS : COLS_BASE;
-  const isBusy = isDeleting || isDuplicating;
+  const isBusy = isDeleting || isDuplicating || isNavigating;
 
   return (
     <div
@@ -188,11 +188,16 @@ export function ProductTableRow({
       {showActions && (
         <div role="cell" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" asChild>
-              <Link href={`${basePath}/${product.id}/edit`}>
-                <Pencil className="h-4 w-4" />
-                <span className="sr-only">{tCommon("edit")}</span>
-              </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              disabled={isNavigating}
+              onClick={() => startNavigate(() => router.push(`${basePath}/${product.id}/edit`))}
+            >
+              {isNavigating
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Pencil className="h-4 w-4" />}
+              <span className="sr-only">{tCommon("edit")}</span>
             </Button>
             <Button
               variant="ghost"

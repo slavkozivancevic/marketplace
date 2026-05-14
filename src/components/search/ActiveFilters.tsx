@@ -51,6 +51,14 @@ export function ActiveFilters({
         chips.push({ key: group.key, value: "__range__", label });
       }
     }
+
+    if (group.type === "rating" && typeof val === "number" && val > 0) {
+      chips.push({
+        key: group.key,
+        value: "__rating__",
+        label: `${group.label}: ${val}★ ${t("andUp")}`,
+      });
+    }
   }
 
   if (chips.length === 0) return null;

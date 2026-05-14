@@ -109,12 +109,19 @@ model Brand {
 
 model Category {
   id          String    @id @default(uuid())
-  name        String
-  slug        String
-  description String?
+  name          String
+  slug          String
+  description   String?
+  translations  Json?
   imageUrl    String?
   parentId    String?
   order       Int       @default(0)
+
+  // Controls visibility in navigation and search bar dropdown
+  isActive    Boolean   @default(true)
+  // Featured departments appear as cards on the homepage
+  isFeatured  Boolean   @default(false)
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -125,6 +132,8 @@ model Category {
 
   @@unique([slug, parentId])
   @@index([parentId])
+  @@index([isActive, parentId])
+  @@index([isFeatured])
 }
 
 model ProductCategory {
