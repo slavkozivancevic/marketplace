@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { useDropzone } from "react-dropzone";
@@ -125,6 +125,7 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
   initialImages = [],
 }) => {
   const t = useTranslations("imageUpload");
+  const dndId = useId();
   const [images, setImages] = useState<PresignedUploadedImage[]>(initialImages);
   const [previewImage, setPreviewImage] =
     useState<PresignedUploadedImage | null>(null);
@@ -258,7 +259,7 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
         }
       }
     },
-    [images.length],
+    [images.length, t],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -372,6 +373,7 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
 
         {/* Thumbnails sa drag & drop */}
         <DndContext
+          id={dndId}
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}

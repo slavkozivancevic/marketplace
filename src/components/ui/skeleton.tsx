@@ -205,44 +205,65 @@ export function SkeletonOrderRow() {
   );
 }
 
+function SkeletonDetailsCard({
+  titleWidth,
+  rows,
+}: {
+  titleWidth: string;
+  rows: number;
+}) {
+  return (
+    <div className="rounded-xl border bg-background p-6">
+      <div className="mb-4">
+        <SkeletonText rows={1} size="lg" className={titleWidth} />
+      </div>
+      <div className="space-y-3">
+        <SkeletonArray amount={rows}>
+          <div className="flex gap-3">
+            <SkeletonText rows={1} size="md" className="w-32 shrink-0" />
+            <SkeletonText rows={1} size="md" className="w-1/2" />
+          </div>
+        </SkeletonArray>
+      </div>
+    </div>
+  );
+}
+
 export function SkeletonProductCard() {
   return (
     <div className="space-y-6">
       {/* Basic info */}
       <div className="rounded-xl border bg-background p-6">
-        <div className="mb-4">
+        <div className="mb-4 flex items-center justify-between">
           <SkeletonText rows={1} size="lg" className="w-48" />
+          <SkeletonButton className="w-28" />
         </div>
 
-        <div className="space-y-4">
-          <div>
-            <SkeletonText rows={1} size="md" className="w-24" />
-            <div className="mt-2">
-              <SkeletonText rows={1} size="md" className="w-1/2" />
+        <div className="space-y-3">
+          <div className="flex gap-3">
+            <SkeletonText rows={1} size="md" className="w-24 shrink-0" />
+            <SkeletonText rows={1} size="md" className="w-1/2" />
+          </div>
+          <div className="flex gap-3">
+            <SkeletonText rows={1} size="md" className="w-24 shrink-0" />
+            <SkeletonText rows={1} size="md" className="w-1/3" />
+          </div>
+          <div className="flex gap-3">
+            <SkeletonText rows={1} size="md" className="w-24 shrink-0" />
+            <div className="flex flex-wrap gap-1.5">
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-5 w-20 rounded-full" />
             </div>
           </div>
-
           <div>
             <SkeletonText rows={1} size="md" className="w-28" />
             <div className="mt-2">
               <SkeletonText rows={2} size="md" className="w-full" />
             </div>
           </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <SkeletonText rows={1} size="md" className="w-20" />
-              <div className="mt-2">
-                <Skeleton className="h-6 w-24 rounded-full" />
-              </div>
-            </div>
-
-            <div>
-              <SkeletonText rows={1} size="md" className="w-16" />
-              <div className="mt-2">
-                <SkeletonText rows={1} size="md" className="w-20" />
-              </div>
-            </div>
+          <div className="flex gap-3">
+            <SkeletonText rows={1} size="md" className="w-24 shrink-0" />
+            <Skeleton className="h-5 w-20 rounded-full" />
           </div>
         </div>
       </div>
@@ -252,13 +273,21 @@ export function SkeletonProductCard() {
         <div className="mb-4">
           <SkeletonText rows={1} size="lg" className="w-24" />
         </div>
-
-        <div className="flex flex-wrap gap-4">
-          <SkeletonArray amount={4}>
-            <Skeleton className="h-32 w-32 rounded-lg" />
-          </SkeletonArray>
+        <div className="space-y-3">
+          <Skeleton className="w-full h-96 rounded-lg" />
+          <div className="flex gap-2 flex-wrap">
+            <SkeletonArray amount={5}>
+              <Skeleton className="h-16 w-16 rounded border-2" />
+            </SkeletonArray>
+          </div>
         </div>
       </div>
+
+      {/* Pricing & Inventory */}
+      <SkeletonDetailsCard titleWidth="w-40" rows={4} />
+
+      {/* Shipping */}
+      <SkeletonDetailsCard titleWidth="w-28" rows={3} />
 
       {/* Variants */}
       <div className="rounded-xl border bg-background p-6">
@@ -278,6 +307,77 @@ export function SkeletonProductCard() {
             </div>
           </SkeletonArray>
         </div>
+      </div>
+    </div>
+  );
+}
+
+export function SkeletonProductForm() {
+  return (
+    <div className="flex-1 flex flex-col min-h-0">
+      {/* TabsList */}
+      <div className="shrink-0 flex flex-wrap gap-1 rounded-lg bg-muted p-1">
+        <Skeleton className="h-8 w-24 rounded-md" />
+        <Skeleton className="h-8 w-24 rounded-md" />
+        <Skeleton className="h-8 w-24 rounded-md" />
+        <Skeleton className="h-8 w-16 rounded-md" />
+        <Skeleton className="h-8 w-32 rounded-md" />
+      </div>
+
+      {/* Active tab content (mirrors "Details" tab) */}
+      <div className="flex-1 min-h-0 pt-6 space-y-6 overflow-hidden">
+        {/* Title field */}
+        <div className="space-y-2">
+          <SkeletonText rows={1} size="md" className="w-16" />
+          <Skeleton className="h-9 w-full rounded-md" />
+        </div>
+
+        {/* Slug field with refresh button */}
+        <div className="space-y-2">
+          <SkeletonText rows={1} size="md" className="w-12" />
+          <div className="flex gap-2">
+            <Skeleton className="h-9 flex-1 rounded-md" />
+          </div>
+          <SkeletonText rows={1} size="sm" className="w-64" />
+        </div>
+
+        {/* Short description */}
+        <div className="space-y-2">
+          <SkeletonText rows={1} size="md" className="w-32" />
+          <Skeleton className="h-9 w-full rounded-md" />
+        </div>
+
+        {/* Description (textarea) */}
+        <div className="space-y-2">
+          <SkeletonText rows={1} size="md" className="w-24" />
+          <Skeleton className="h-30 w-full rounded-md" />
+        </div>
+
+        {/* Categories */}
+        <div className="space-y-2">
+          <SkeletonText rows={1} size="md" className="w-28" />
+          <Skeleton className="h-9 w-full rounded-md" />
+        </div>
+
+        {/* Brand */}
+        <div className="space-y-2">
+          <SkeletonText rows={1} size="md" className="w-16" />
+          <Skeleton className="h-9 w-full rounded-md" />
+        </div>
+
+        {/* Separator */}
+        <div className="h-px bg-border" />
+
+        {/* Images uploader */}
+        <div className="space-y-2">
+          <SkeletonText rows={1} size="md" className="w-20" />
+          <Skeleton className="h-36 w-full rounded-md" />
+        </div>
+      </div>
+
+      {/* Submit button */}
+      <div className="shrink-0 pt-4 pb-6 border-t">
+        <SkeletonButton className="w-32" />
       </div>
     </div>
   );

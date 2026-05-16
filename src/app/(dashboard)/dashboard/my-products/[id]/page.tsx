@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -15,6 +16,7 @@ import { ProductDetails } from "@/features/products/components/ProductDetails";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { SkeletonProductCard } from "@/components/ui/skeleton";
 import { SerializedProductWithRelations } from "@/types/types";
 
 interface MyProductPageProps {
@@ -22,8 +24,39 @@ interface MyProductPageProps {
 }
 
 export default async function MyProductPage({ params }: MyProductPageProps) {
-  const t = await getTranslations();
   const { id } = await params;
+  return (
+    <div className="flex-1 flex flex-col min-h-0">
+      <Suspense fallback={<MyProductLoading />}>
+        <MyProductContent id={id} />
+      </Suspense>
+    </div>
+  );
+}
+
+async function MyProductLoading() {
+  const t = await getTranslations();
+  return (
+    <>
+      <div className="shrink-0 px-6">
+        <PageHeader
+          title={t("myProducts.viewProduct")}
+          description={t("myProducts.viewProductDesc")}
+        >
+          <Button asChild variant="outline">
+            <Link href="/dashboard/my-products">{t("myProducts.backTo")}</Link>
+          </Button>
+        </PageHeader>
+      </div>
+      <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
+        <SkeletonProductCard />
+      </div>
+    </>
+  );
+}
+
+async function MyProductContent({ id }: { id: string }) {
+  const t = await getTranslations();
 
   const { userId: clerkUserId } = await auth();
   if (!clerkUserId) notFound();
@@ -56,7 +89,7 @@ export default async function MyProductPage({ params }: MyProductPageProps) {
 
   if (user.activeOrgId !== product.organizationId) {
     return (
-      <div className="flex-1 flex flex-col min-h-0">
+      <>
         <div className="shrink-0 px-6">
           <PageHeader
             title={t("myProducts.viewProduct")}
@@ -73,7 +106,7 @@ export default async function MyProductPage({ params }: MyProductPageProps) {
             <AlertDescription>{t("myProducts.wrongOrgDesc")}</AlertDescription>
           </Alert>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -83,7 +116,7 @@ export default async function MyProductPage({ params }: MyProductPageProps) {
 
   if (isActionErrorResult(result)) {
     return (
-      <div className="flex-1 flex flex-col min-h-0">
+      <>
         <div className="shrink-0 px-6">
           <PageHeader
             title={t("myProducts.viewProduct")}
@@ -100,7 +133,7 @@ export default async function MyProductPage({ params }: MyProductPageProps) {
             <AlertDescription>{result.message}</AlertDescription>
           </Alert>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -108,7 +141,7 @@ export default async function MyProductPage({ params }: MyProductPageProps) {
   if (!productData) notFound();
 
   return (
-    <div className="flex-1 flex flex-col min-h-0">
+    <>
       <div className="shrink-0 px-6">
         <PageHeader
           title={productData.title}
@@ -131,7 +164,7 @@ export default async function MyProductPage({ params }: MyProductPageProps) {
           redirectTo="/dashboard/my-products"
         />
       </div>
-    </div>
+    </>
   );
 }
 

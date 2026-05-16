@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -12,6 +13,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ProductDetails } from "@/features/products/components/ProductDetails";
+import { SkeletonProductCard } from "@/components/ui/skeleton";
 import { SerializedProductWithRelations } from "@/types/types";
 
 interface ProductPageProps {
@@ -19,9 +21,45 @@ interface ProductPageProps {
 }
 
 export default async function AdminProductPage({ params }: ProductPageProps) {
-  const t = await getTranslations();
   const { id } = await params;
+  return (
+    <div className="flex-1 flex flex-col min-h-0">
+      <Suspense fallback={<ProductDetailsLoading id={id} />}>
+        <ProductDetailsContent id={id} />
+      </Suspense>
+    </div>
+  );
+}
 
+async function ProductDetailsLoading({ id }: { id: string }) {
+  const t = await getTranslations();
+  return (
+    <>
+      <div className="shrink-0 px-6">
+        <PageHeader
+          title={t("admin.productDetails")}
+          description={t("common.loadingDetails")}
+        >
+          <Button asChild variant="outline">
+            <Link href="/admin/products">{t("admin.backToProducts")}</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href={`/admin/products/${id}/history`}>{t("admin.history")}</Link>
+          </Button>
+          <Button asChild>
+            <Link href={`/admin/products/${id}/edit`}>{t("common.edit")}</Link>
+          </Button>
+        </PageHeader>
+      </div>
+      <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
+        <SkeletonProductCard />
+      </div>
+    </>
+  );
+}
+
+async function ProductDetailsContent({ id }: { id: string }) {
+  const t = await getTranslations();
   const ctx = await resolveRequestContext();
   requirePermission(ctx, "product:read");
 
@@ -29,7 +67,7 @@ export default async function AdminProductPage({ params }: ProductPageProps) {
 
   if (isActionErrorResult(result)) {
     return (
-      <div className="flex-1 flex flex-col min-h-0">
+      <>
         <div className="shrink-0 px-6">
           <PageHeader
             title={t("admin.productDetails")}
@@ -46,7 +84,7 @@ export default async function AdminProductPage({ params }: ProductPageProps) {
             <AlertDescription>{result.message}</AlertDescription>
           </Alert>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -55,7 +93,7 @@ export default async function AdminProductPage({ params }: ProductPageProps) {
   if (!product) notFound();
 
   return (
-    <div className="flex-1 flex flex-col min-h-0">
+    <>
       <div className="shrink-0 px-6">
         <PageHeader
           title={product.title}
@@ -75,7 +113,7 @@ export default async function AdminProductPage({ params }: ProductPageProps) {
       <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
         <ProductDetails product={product} />
       </div>
-    </div>
+    </>
   );
 }
 
