@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useTranslations } from "next-intl";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ActionButton";
@@ -26,6 +27,7 @@ export function ProductStatusActions({
 }: ProductStatusActionsProps) {
   const t = useTranslations("products");
   const tCommon = useTranslations("common");
+  const queryClient = useQueryClient();
   const [isPublishing, startPublish] = useTransition();
   const [isUnpublishing, startUnpublish] = useTransition();
   const [isArchiving, startArchive] = useTransition();
@@ -37,6 +39,8 @@ export function ProductStatusActions({
       const result = await publishProduct(productId, redirectTo);
       if (result && "error" in result) {
         toast.error(result.message);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["products"] });
       }
     });
   };
@@ -46,6 +50,8 @@ export function ProductStatusActions({
       const result = await unpublishProduct(productId, redirectTo);
       if (result && "error" in result) {
         toast.error(result.message);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["products"] });
       }
     });
   };
@@ -55,6 +61,8 @@ export function ProductStatusActions({
       const result = await archiveProduct(productId, redirectTo);
       if (result && "error" in result) {
         toast.error(result.message);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["products"] });
       }
     });
   };
@@ -64,6 +72,8 @@ export function ProductStatusActions({
       const result = await unarchiveProduct(productId, redirectTo);
       if (result && "error" in result) {
         toast.error(result.message);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["products"] });
       }
     });
   };
@@ -112,11 +122,15 @@ export function ProductStatusActions({
         title={t("deleteProduct")}
         description={t("deleteProductDesc")}
         confirmText={tCommon("delete")}
+        loadingText={t("deleting")}
+        isLoading={isDeleting}
         onConfirm={() => {
           startDelete(async () => {
             const result = await deleteProduct(productId, redirectTo);
             if (result && "error" in result) {
               toast.error(result.message);
+            } else {
+              queryClient.invalidateQueries({ queryKey: ["products"] });
             }
           });
         }}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -58,6 +58,16 @@ function BrandTableRow({
   isEditing: boolean;
 }) {
   const t = useTranslations();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  // Close the dialog once the delete that we started actually settles.
+  const wasDeleting = useRef(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (wasDeleting.current && !isDeleting) setDeleteOpen(false);
+    wasDeleting.current = isDeleting;
+  }, [isDeleting]);
+
   return (
     <div
       role="row"
@@ -98,7 +108,13 @@ function BrandTableRow({
               : <Pencil className="h-4 w-4" />}
             <span className="sr-only">Edit</span>
           </Button>
-          <AlertDialog>
+          <AlertDialog
+            open={deleteOpen}
+            onOpenChange={(next) => {
+              if (isDeleting) return;
+              setDeleteOpen(next);
+            }}
+          >
             <AlertDialogTrigger asChild>
               <Button variant="ghost" size="icon" disabled={isDeleting}>
                 {isDeleting
@@ -115,12 +131,23 @@ function BrandTableRow({
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                <AlertDialogCancel disabled={isDeleting}>{t("common.cancel")}</AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={() => onDelete(brand.id)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onDelete(brand.id);
+                  }}
+                  disabled={isDeleting}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
-                  {t("common.delete")}
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {t("products.deleting")}
+                    </>
+                  ) : (
+                    t("common.delete")
+                  )}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

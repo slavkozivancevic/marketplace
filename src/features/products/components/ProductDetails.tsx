@@ -12,6 +12,7 @@ import { ProductImageCarousel } from "@/components/product/ProductImageCarousel"
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
 import { getCategoryName, type CategoryTranslations } from "@/features/categories/utils/translations";
+import { getOptionName, getOptionValue, type OptionTranslations } from "@/features/products/utils/optionTranslations";
 
 interface ProductDetailsProps {
   product: SerializedProductWithRelations;
@@ -227,16 +228,23 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
               <CardTitle>{t("options")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {product.options.map((option) => (
-                <div key={option.id} className="flex items-center gap-2">
-                  <span className="text-sm font-medium w-20">{option.name}:</span>
-                  <div className="flex flex-wrap gap-1">
-                    {Array.from(new Set(option.values.map((v) => v.value))).map((value) => (
-                      <Badge key={value} variant="secondary">{value}</Badge>
-                    ))}
+              {product.options.map((option) => {
+                const optionTranslations = option.translations as OptionTranslations | null;
+                return (
+                  <div key={option.id} className="flex items-center gap-2">
+                    <span className="text-sm font-medium w-20">
+                      {getOptionName({ name: option.name, translations: optionTranslations }, locale)}:
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {Array.from(new Set(option.values.map((v) => v.value))).map((value) => (
+                        <Badge key={value} variant="secondary">
+                          {getOptionValue({ translations: optionTranslations }, value, locale)}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
           <Separator />
@@ -271,9 +279,19 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
                 </div>
                 {variant.optionValues?.length > 0 && (
                   <div className="flex flex-wrap gap-1">
-                    {variant.optionValues.map((ov) => (
-                      <Badge key={ov.id} variant="outline">{ov.value}</Badge>
-                    ))}
+                    {variant.optionValues.map((ov) => {
+                      const opt = product.options.find((o) => o.id === ov.optionId);
+                      const translated = opt
+                        ? getOptionValue(
+                            { translations: opt.translations as OptionTranslations | null },
+                            ov.value,
+                            locale,
+                          )
+                        : ov.value;
+                      return (
+                        <Badge key={ov.id} variant="outline">{translated}</Badge>
+                      );
+                    })}
                   </div>
                 )}
               </div>

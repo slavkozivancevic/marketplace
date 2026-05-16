@@ -13,6 +13,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Carousel,
   CarouselContent,
@@ -56,12 +57,17 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [activeVariantId, setActiveVariantId] = useState<string | null>(null);
 
-  const { data: product, isLoading } = useQuery({
+  const { data: product, isLoading, error } = useQuery({
     queryKey: ["product", "quick-view", productId],
     queryFn: () => fetchProduct(productId!),
     enabled: productId != null,
     staleTime: 1000 * 60 * 5,
+    retry: (failureCount, err) =>
+      axios.isAxiosError(err) && err.response?.status === 404 ? false : failureCount < 3,
   });
+
+  const isGone =
+    axios.isAxiosError(error) && error.response?.status === 404;
 
   const images = product?.images ?? [];
   const activeVariant = product?.variants.find((v) => v.id === activeVariantId);
@@ -130,6 +136,35 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
     setCurrentSlide(0);
     setActiveVariantId(null);
   };
+
+  if (isGone) {
+    return (
+      <Dialog open={productId != null} onOpenChange={(open) => { if (!open) handleClose(); }}>
+        <DialogContent
+          className="px-6 pt-10 pb-6 w-[calc(100vw-2rem)] max-w-none sm:max-w-md"
+          showCloseButton={false}
+        >
+          <DialogTitle className="sr-only">{t("noLongerAvailable")}</DialogTitle>
+          <button
+            onClick={handleClose}
+            className="absolute top-2.5 right-2.5 z-10 rounded-full bg-background/80 backdrop-blur-sm border border-border/50 p-1 text-muted-foreground hover:text-foreground transition-colors shadow-sm cursor-pointer"
+            aria-label="Close"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+          <Alert>
+            <AlertTitle>{t("noLongerAvailable")}</AlertTitle>
+            <AlertDescription>{t("noLongerAvailableDesc")}</AlertDescription>
+          </Alert>
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={handleClose}>
+              {t("cancel")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={productId != null} onOpenChange={(open) => { if (!open) handleClose(); }}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { SerializedPublicProduct } from "@/types/types";
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
+import { getOptionValue, type OptionTranslations } from "@/features/products/utils/optionTranslations";
 
 interface ProductPurchaseSectionProps {
   product: SerializedPublicProduct;
@@ -30,10 +31,18 @@ export function ProductPurchaseSection({
 }: ProductPurchaseSectionProps) {
   const t = useTranslations("products");
   const tCart = useTranslations("cart");
+  const locale = useLocale();
   const { currency, currentRate } = useCurrencyStore();
   const activeVariant = activeVariantId
     ? product.variants.find((v) => v.id === activeVariantId)
     : null;
+
+  const optionById = new Map(product.options.map((o) => [o.id, o]));
+  const translateOptionValue = (optionId: string, value: string) => {
+    const opt = optionById.get(optionId);
+    if (!opt) return value;
+    return getOptionValue({ translations: opt.translations as OptionTranslations | null }, value, locale);
+  };
 
   const displayPrice = activeVariant ? activeVariant.price : product.price;
   const displayCompareAt = activeVariant
@@ -144,7 +153,7 @@ export function ProductPurchaseSection({
                         key={ov.id}
                         variant={isSelected ? "default" : "secondary"}
                       >
-                        {ov.value}
+                        {translateOptionValue(ov.optionId, ov.value)}
                       </Badge>
                     ))}
                   </div>

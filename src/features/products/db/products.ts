@@ -269,15 +269,24 @@ async function syncOptions(
 
   for (const [optionIndex, option] of options.entries()) {
     let optionId = existingMap.get(option.name)?.id;
+    const translations = (option.translations ?? null) as Prisma.InputJsonValue | null;
 
     if (optionId) {
       await tx.variantOption.update({
         where: { id: optionId },
-        data: { order: optionIndex },
+        data: {
+          order: optionIndex,
+          translations: translations === null ? Prisma.JsonNull : translations,
+        },
       });
     } else {
       const createdOption = await tx.variantOption.create({
-        data: { productId, name: option.name, order: optionIndex },
+        data: {
+          productId,
+          name: option.name,
+          order: optionIndex,
+          translations: translations === null ? Prisma.JsonNull : translations,
+        },
       });
       optionId = createdOption.id;
     }
@@ -1044,6 +1053,7 @@ export function productRepository(
       const options = source.options.map((opt) => ({
         name: opt.name,
         values: opt.values.map((v) => v.value),
+        translations: opt.translations as VariantOptionInput["translations"] ?? null,
       }));
 
       const variants: ProductVariantInput[] = source.variants.map((v) => ({

@@ -7,11 +7,24 @@ export const productImageSchema = z.object({
   key: z.string().min(1, "Image key is required"),
 });
 
+export const variantOptionTranslationsSchema = z
+  .object({
+    sr: z
+      .object({
+        name: z.string().optional(),
+        values: z.record(z.string(), z.string()).optional(),
+      })
+      .optional(),
+  })
+  .nullable()
+  .optional();
+
 export const productOptionSchema = z.object({
   name: z.string().min(1, "Option name is required"),
   values: z
     .array(z.string().min(1, "Option value is required"))
     .min(1, "At least one option value is required"),
+  translations: variantOptionTranslationsSchema,
 });
 
 export const productVariantOptionSchema = z.object({

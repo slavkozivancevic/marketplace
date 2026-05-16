@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useId } from "react";
+import { useEffect, useRef, useState, useTransition, useId } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Trash2, Search, AlertCircle, CheckCircle2, Loader2, ChevronDown } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -464,6 +464,14 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
   const [isPreviewing, startPreview] = useTransition();
   const [isExecuting, startExecute] = useTransition();
   const [lastResult, setLastResult] = useState<{ count: number; message: string } | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const wasExecuting = useRef(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (wasExecuting.current && !isExecuting) setConfirmOpen(false);
+    wasExecuting.current = isExecuting;
+  }, [isExecuting]);
 
   const [showAddMenu, setShowAddMenu] = useState(false);
 
@@ -682,7 +690,13 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
 
         {/* Execute button + confirm dialog */}
         {preview !== null && (
-          <AlertDialog>
+          <AlertDialog
+            open={confirmOpen}
+            onOpenChange={(next) => {
+              if (isExecuting) return;
+              setConfirmOpen(next);
+            }}
+          >
             <AlertDialogTrigger asChild>
               <Button
                 disabled={!canExecute || isExecuting}
@@ -711,16 +725,27 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
                 <AlertDialogDescription>{confirmDescription()}</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
+                <AlertDialogCancel disabled={isExecuting}>{tCommon("cancel")}</AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={handleExecute}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleExecute();
+                  }}
+                  disabled={isExecuting}
                   className={
                     action.type === "delete"
                       ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       : undefined
                   }
                 >
-                  {confirmLabel()}
+                  {isExecuting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {t("executing")}
+                    </>
+                  ) : (
+                    confirmLabel()
+                  )}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

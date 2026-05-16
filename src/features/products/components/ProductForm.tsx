@@ -3,7 +3,7 @@ import axios from "axios";
 
 import { useEffect, useRef, useState, useTransition, KeyboardEvent } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { useForm, useFieldArray, useWatch, Resolver } from "react-hook-form";
+import { useForm, useFieldArray, useWatch, Resolver, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "@/components/ui/sonner";
 import {
@@ -143,6 +143,41 @@ function PriceInput({
   );
 }
 
+type OptionTranslationsForm = {
+  sr?: { name?: string; values?: Record<string, string> };
+} | null;
+
+/**
+ * Always returns the full translation shape with `sr.values` as a record.
+ * Pre-initializing the object prevents RHF's `setValue` from creating an
+ * array when a value key looks numeric (e.g. size "10").
+ */
+function normalizeOptionTranslations(
+  raw: unknown,
+): NonNullable<OptionTranslationsForm> {
+  const empty = { sr: { name: "", values: {} as Record<string, string> } };
+  if (!raw || typeof raw !== "object") return empty;
+  const srRaw = (raw as { sr?: unknown }).sr;
+  if (!srRaw || typeof srRaw !== "object") return empty;
+  const sr = srRaw as { name?: unknown; values?: unknown };
+  const values: Record<string, string> = {};
+  if (Array.isArray(sr.values)) {
+    sr.values.forEach((v, i) => {
+      if (typeof v === "string") values[String(i)] = v;
+    });
+  } else if (sr.values && typeof sr.values === "object") {
+    for (const [k, v] of Object.entries(sr.values as Record<string, unknown>)) {
+      if (typeof v === "string") values[k] = v;
+    }
+  }
+  return {
+    sr: {
+      name: typeof sr.name === "string" ? sr.name : "",
+      values,
+    },
+  };
+}
+
 type ProductFormData = {
   title: string;
   slug: string;
@@ -168,7 +203,7 @@ type ProductFormData = {
   brandId: string | undefined;
   categoryIds: string[];
   images: { key: string }[];
-  options: { name: string; values: string[] }[];
+  options: { name: string; values: string[]; translations: OptionTranslationsForm }[];
   variants: {
     sku: string;
     price: number;
@@ -193,7 +228,7 @@ function snapshotOptions(
 }
 
 function optionsAreSynced(
-  current: { name: string; values: string[] }[] | undefined,
+  current: { name: string; values: string[]; translations?: OptionTranslationsForm }[] | undefined,
   snapshot: OptionSnapshot[],
 ): boolean {
   if (!current) return true;
@@ -207,8 +242,27 @@ function optionsAreSynced(
   });
 }
 
+function collectErrorMessages(errors: unknown): string[] {
+  const messages: string[] = [];
+  const visit = (node: unknown) => {
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node)) {
+      node.forEach(visit);
+      return;
+    }
+    const obj = node as Record<string, unknown>;
+    if (typeof obj.message === "string" && obj.message.length > 0) {
+      messages.push(obj.message);
+      return;
+    }
+    Object.values(obj).forEach(visit);
+  };
+  visit(errors);
+  return messages;
+}
+
 function cartesianProduct(
-  options: { name: string; values: string[] }[],
+  options: { name: string; values: string[]; translations?: OptionTranslationsForm }[],
 ): { name: string; value: string }[][] {
   const valid = options.filter((o) => o.name.trim() && o.values.length > 0);
   if (!valid.length) return [];
@@ -400,6 +454,7 @@ export function ProductForm({
           options: product.options.map((opt) => ({
             name: opt.name,
             values: Array.from(new Set(opt.values.map((v) => v.value))),
+            translations: normalizeOptionTranslations(opt.translations),
           })),
           variants: product.variants.map((v) => {
             const seenOptionNames = new Set<string>();
@@ -533,6 +588,12 @@ export function ProductForm({
       current.filter((v) => v !== value),
       { shouldValidate: true },
     );
+    const srValues = form.getValues(`options.${optionIndex}.translations.sr.values`);
+    if (srValues && value in srValues) {
+      const next = { ...srValues };
+      delete next[value];
+      form.setValue(`options.${optionIndex}.translations.sr.values`, next, { shouldValidate: false });
+    }
   };
 
   const handleOptionValueKeyDown = (e: KeyboardEvent<HTMLInputElement>, optionIndex: number) => {
@@ -660,6 +721,26 @@ export function ProductForm({
     });
   };
 
+  const onSubmitInvalid = (formErrors: FieldErrors<ProductFormData>) => {
+    const tabs: string[] = [];
+    if (formErrors.title || formErrors.slug || formErrors.description || formErrors.shortDescription) tabs.push(t("tabDetails"));
+    if (formErrors.price || formErrors.compareAtPrice || formErrors.costPrice || formErrors.stock || formErrors.barcode || formErrors.taxCode) tabs.push(t("tabPricing"));
+    if (formErrors.weight || formErrors.length || formErrors.width || formErrors.height) tabs.push(t("tabShipping"));
+    if (formErrors.metaTitle || formErrors.metaDescription) tabs.push(t("tabSeo"));
+    if (formErrors.options || formErrors.variants) tabs.push(t("tabOptions"));
+
+    const messages = collectErrorMessages(formErrors);
+    const first = messages[0];
+    const tabList = tabs.join(", ");
+    if (first && tabList) {
+      toast.error(t("validationFailedOnTabs", { tabs: tabList, message: first }));
+    } else if (first) {
+      toast.error(first);
+    } else {
+      toast.error(t("validationFailed"));
+    }
+  };
+
   function TabLabel({ label, hasError }: { label: string; hasError: boolean }) {
     return (
       <span className="flex items-center gap-1.5">
@@ -671,7 +752,7 @@ export function ProductForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
+      <form onSubmit={form.handleSubmit(onSubmit, onSubmitInvalid)} className="flex-1 flex flex-col min-h-0">
         <Tabs defaultValue="details" className="flex-1 min-h-0">
           <TabsList className="w-full justify-start flex-wrap h-auto gap-1 shrink-0">
             <TabsTrigger value="details">
@@ -1236,7 +1317,7 @@ export function ProductForm({
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    appendOption({ name: "", values: [] });
+                    appendOption({ name: "", values: [], translations: { sr: { name: "", values: {} } } });
                     setOptionValueInputs((prev) => [...prev, ""]);
                   }}
                 >
@@ -1253,21 +1334,11 @@ export function ProductForm({
 
               {optionFields.map((optionField, optionIndex) => {
                 const values = watchedOptions?.[optionIndex]?.values ?? [];
+                const uniqueValues = Array.from(new Set(values));
                 return (
-                  <div key={optionField.id} className="border rounded-md p-4 space-y-3 bg-background dark:bg-input/30">
-                    <div className="flex items-center gap-2">
-                      <FormField
-                        control={form.control}
-                        name={`options.${optionIndex}.name`}
-                        render={({ field }) => (
-                          <FormItem className="flex-1">
-                            <FormControl>
-                              <Input placeholder={t("optionNamePlaceholder")} {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                  <div key={optionField.id} className="border rounded-md p-4 space-y-4 bg-background dark:bg-input/30">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">{t("option")} {optionIndex + 1}</p>
                       <Button
                         type="button"
                         variant="ghost"
@@ -1281,51 +1352,129 @@ export function ProductForm({
                       </Button>
                     </div>
 
-                    <div className="space-y-2">
-                      <FormLabel className="text-xs text-muted-foreground">
-                        {t("valuesHint")}
-                      </FormLabel>
-                      {values.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {Array.from(new Set(values)).map((value: string) => (
-                            <Badge
-                              key={value}
-                              variant="secondary"
-                              className="gap-1 cursor-pointer"
-                              onClick={() => handleRemoveOptionValue(optionIndex, value)}
-                            >
-                              {value}
-                              <X className="w-3 h-3" />
-                            </Badge>
-                          ))}
+                    {/* English (default) */}
+                    <div className="rounded-md border border-border/60 p-3 space-y-3">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                        🇬🇧 {t("langEn")}
+                      </p>
+
+                      <FormField
+                        control={form.control}
+                        name={`options.${optionIndex}.name`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">{t("optionName")}</FormLabel>
+                            <FormControl>
+                              <Input placeholder={t("optionNamePlaceholder")} {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="space-y-2">
+                        <FormLabel className="text-xs text-muted-foreground">
+                          {t("valuesHint")}
+                        </FormLabel>
+                        {uniqueValues.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {uniqueValues.map((value: string) => (
+                              <Badge
+                                key={value}
+                                variant="secondary"
+                                className="gap-1 cursor-pointer"
+                                onClick={() => handleRemoveOptionValue(optionIndex, value)}
+                              >
+                                {value}
+                                <X className="w-3 h-3" />
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder={t("addValuePlaceholder")}
+                            value={optionValueInputs[optionIndex] ?? ""}
+                            onChange={(e) =>
+                              setOptionValueInputs((prev) => {
+                                const next = [...prev];
+                                next[optionIndex] = e.target.value;
+                                return next;
+                              })
+                            }
+                            onKeyDown={(e) => handleOptionValueKeyDown(e, optionIndex)}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleAddOptionValue(optionIndex)}
+                          >
+                            {t("addValue")}
+                          </Button>
                         </div>
-                      )}
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder={t("addValuePlaceholder")}
-                          value={optionValueInputs[optionIndex] ?? ""}
-                          onChange={(e) =>
-                            setOptionValueInputs((prev) => {
-                              const next = [...prev];
-                              next[optionIndex] = e.target.value;
-                              return next;
-                            })
-                          }
-                          onKeyDown={(e) => handleOptionValueKeyDown(e, optionIndex)}
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleAddOptionValue(optionIndex)}
-                        >
-                          {t("addValue")}
-                        </Button>
+                        {form.formState.errors.options?.[optionIndex]?.values && (
+                          <p className="text-sm text-destructive">
+                            {form.formState.errors.options[optionIndex]?.values?.message}
+                          </p>
+                        )}
                       </div>
-                      {form.formState.errors.options?.[optionIndex]?.values && (
-                        <p className="text-sm text-destructive">
-                          {form.formState.errors.options[optionIndex]?.values?.message}
-                        </p>
+                    </div>
+
+                    {/* Serbian translation */}
+                    <div className="rounded-md border border-border/60 p-3 space-y-3">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                        🇷🇸 {t("langSr")}
+                      </p>
+
+                      <FormField
+                        control={form.control}
+                        name={`options.${optionIndex}.translations.sr.name`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">{t("optionName")}</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder={t("optionNameSrPlaceholder")}
+                                {...field}
+                                value={field.value ?? ""}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {uniqueValues.length > 0 && (
+                        <div className="space-y-2">
+                          <FormLabel className="text-xs text-muted-foreground">
+                            {t("valueTranslations")}
+                          </FormLabel>
+                          <div className="space-y-1.5">
+                            {uniqueValues.map((value: string) => (
+                              <FormField
+                                key={value}
+                                control={form.control}
+                                name={`options.${optionIndex}.translations.sr.values.${value}` as `options.${number}.translations.sr.values.${string}`}
+                                render={({ field }) => (
+                                  <FormItem className="flex items-center gap-2 space-y-0">
+                                    <span className="text-xs text-muted-foreground w-24 shrink-0 truncate">
+                                      {value}
+                                    </span>
+                                    <FormControl>
+                                      <Input
+                                        placeholder={value}
+                                        className="h-8 text-sm"
+                                        {...field}
+                                        value={(field.value as string | undefined) ?? ""}
+                                      />
+                                    </FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>

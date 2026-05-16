@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import {
@@ -76,8 +76,17 @@ export function AdminCategoriesPage({
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteOpenId, setDeleteOpenId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isNavigating, startNavigate] = useTransition();
+
+  // Close the open dialog once its delete settles.
+  const wasPending = useRef(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (wasPending.current && !isPending) setDeleteOpenId(null);
+    wasPending.current = isPending;
+  }, [isPending]);
 
   const treeRows = useMemo(() => toTreeOrder(categories), [categories]);
 
@@ -218,7 +227,14 @@ export function AdminCategoriesPage({
                       : <Pencil className="h-4 w-4" />}
                     <span className="sr-only">{t("edit")}</span>
                   </Button>
-                  <AlertDialog>
+                  <AlertDialog
+                    open={deleteOpenId === row.id}
+                    onOpenChange={(next) => {
+                      const rowBusy = isPending && deletingId === row.id;
+                      if (rowBusy) return;
+                      setDeleteOpenId(next ? row.id : null);
+                    }}
+                  >
                     <AlertDialogTrigger asChild>
                       <Button
                         variant="ghost"
@@ -243,12 +259,25 @@ export function AdminCategoriesPage({
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+                        <AlertDialogCancel disabled={isPending && deletingId === row.id}>
+                          {t("cancel")}
+                        </AlertDialogCancel>
                         <AlertDialogAction
-                          onClick={() => handleDelete(row.id)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleDelete(row.id);
+                          }}
+                          disabled={isPending && deletingId === row.id}
                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                          {t("delete")}
+                          {isPending && deletingId === row.id ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              {t("deleting")}
+                            </>
+                          ) : (
+                            t("delete")
+                          )}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>

@@ -23,6 +23,8 @@ type Options<TItem> = {
   overscan?: number;
   maxPages?: number;
   enabled?: boolean;
+  staleTime?: number;
+  refetchOnMount?: boolean | "always";
   /**
    * When provided, this element is used as the virtualizer's scroll container
    * instead of parentRef. parentRef still measures column width via ResizeObserver.
@@ -72,6 +74,8 @@ export function useInfiniteVirtualGrid<TItem>({
   overscan = 4,
   maxPages = 5,
   enabled = true,
+  staleTime,
+  refetchOnMount,
   scrollContainerRef,
 }: Options<TItem>) {
   const parentRef = useRef<HTMLDivElement>(null);
@@ -125,6 +129,8 @@ export function useInfiniteVirtualGrid<TItem>({
     placeholderData: keepPreviousData,
     maxPages,
     enabled,
+    ...(staleTime !== undefined && { staleTime }),
+    ...(refetchOnMount !== undefined && { refetchOnMount }),
   });
 
   const items: TItem[] =

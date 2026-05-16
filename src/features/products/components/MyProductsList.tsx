@@ -63,6 +63,11 @@ export function MyProductsList({
       queryFn: buildFetcher(f),
       estimateSize: 73,
       maxPages: MAX_PAGES,
+      // SSR prefetch uses ["products","my-products",filters] (no currency),
+      // so hydration cannot push fresh data into this cache after a server
+      // revalidatePath. Refetch on every mount so status changes show up
+      // immediately on soft-nav back.
+      refetchOnMount: "always",
     });
 
   if (query.status === "pending") {

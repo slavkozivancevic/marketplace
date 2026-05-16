@@ -23,6 +23,8 @@ type Options<TItem> = {
   /** Cap the in-memory cache. Older pages are evicted as the user scrolls deeper. */
   maxPages?: number;
   enabled?: boolean;
+  staleTime?: number;
+  refetchOnMount?: boolean | "always";
 };
 
 /**
@@ -40,6 +42,8 @@ export function useInfiniteVirtualList<TItem>({
   overscan = 8,
   maxPages = 5,
   enabled = true,
+  staleTime,
+  refetchOnMount,
 }: Options<TItem>) {
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -57,6 +61,8 @@ export function useInfiniteVirtualList<TItem>({
     placeholderData: keepPreviousData,
     maxPages,
     enabled,
+    ...(staleTime !== undefined && { staleTime }),
+    ...(refetchOnMount !== undefined && { refetchOnMount }),
   });
 
   const items: TItem[] =

@@ -324,6 +324,13 @@ export function PublicProductsGrid({
     estimateRowHeight: 380,
     maxPages: MAX_PAGES,
     scrollContainerRef,
+    // Public listings reflect cross-tenant product status changes (publish /
+    // unpublish / archive). Server actions revalidate the Next route, but the
+    // queryKey on the client includes `currency` while the SSR prefetch does
+    // not, so hydration never carries new data into this cache. Force a
+    // refetch on every mount so a soft-nav back to /products after a status
+    // change always reflects the latest state.
+    refetchOnMount: "always",
   });
 
   const skeletonCount = columnCountReady ? Math.max(6, columnCount * 2) : 12;

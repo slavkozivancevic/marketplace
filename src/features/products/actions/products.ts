@@ -132,7 +132,7 @@ export async function updateProduct(
 
 export async function deleteProduct(
   id: string,
-  redirectTo = "/admin/products",
+  redirectTo: string | null = "/admin/products",
 ): Promise<void | ActionErrorResult> {
   try {
     const ctx = await resolveRequestContext();
@@ -144,7 +144,7 @@ export async function deleteProduct(
     return handleActionError(error);
   }
 
-  redirect(redirectTo);
+  if (redirectTo) redirect(redirectTo);
 }
 
 export async function rollbackProductVersion(

@@ -44,7 +44,7 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
 
   const handleDelete = () => {
     startDelete(async () => {
-      const result = await deleteProduct(product.id, "/dashboard/my-products");
+      const result = await deleteProduct(product.id, null);
       if (result && "error" in result) {
         toast.error(result.message);
       } else {
@@ -166,6 +166,8 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
                 title={t("deleteProduct")}
                 description={t("deleteConfirm", { title: product.title })}
                 confirmText={tCommon("delete")}
+                loadingText={t("deleting")}
+                isLoading={isDeleting}
                 onConfirm={handleDelete}
               >
                 <Button

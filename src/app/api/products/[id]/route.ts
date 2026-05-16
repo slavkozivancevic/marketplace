@@ -23,7 +23,7 @@ export async function GET(
       },
       options: {
         orderBy: { order: "asc" },
-        include: { values: { orderBy: { id: "asc" } } },
+        include: { values: { orderBy: { order: "asc" } } },
       },
       brand: { select: { id: true, name: true, logoUrl: true } },
     },

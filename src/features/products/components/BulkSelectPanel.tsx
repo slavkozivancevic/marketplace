@@ -1,7 +1,7 @@
 "use client";
 import axios from "axios";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import Image from "next/image";
@@ -82,6 +82,14 @@ export function BulkSelectPanel() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isChangingStatus, startStatusChange] = useTransition();
   const [isDeleting, startDelete] = useTransition();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const wasDeleting = useRef(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (wasDeleting.current && !isDeleting) setDeleteOpen(false);
+    wasDeleting.current = isDeleting;
+  }, [isDeleting]);
 
   const query = useInfiniteQuery({
     queryKey: ["products", "admin", "bulk", search],
@@ -195,7 +203,13 @@ export function BulkSelectPanel() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <AlertDialog>
+            <AlertDialog
+              open={deleteOpen}
+              onOpenChange={(next) => {
+                if (isDeleting) return;
+                setDeleteOpen(next);
+              }}
+            >
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm" disabled={isBusy} className="gap-1.5">
                   <Trash2 className="h-3.5 w-3.5" />
@@ -212,12 +226,23 @@ export function BulkSelectPanel() {
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
+                  <AlertDialogCancel disabled={isDeleting}>{tCommon("cancel")}</AlertDialogCancel>
                   <AlertDialogAction
-                    onClick={handleDelete}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleDelete();
+                    }}
+                    disabled={isDeleting}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    {t("deleteAction", { count: selectedCount })}
+                    {isDeleting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {tCommon("deleting")}
+                      </>
+                    ) : (
+                      t("deleteAction", { count: selectedCount })
+                    )}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>

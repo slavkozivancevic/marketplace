@@ -89,6 +89,9 @@ export function MyProductsGrid({
     gap: 24,
     estimateRowHeight: 340,
     maxPages: MAX_PAGES,
+    // Force refetch on mount so product status changes (publish/unpublish/
+    // archive) reflect immediately on soft-nav back to this view.
+    refetchOnMount: "always",
   });
 
   const skeletonCount = columnCountReady ? Math.max(6, columnCount * 2) : 12;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { Copy, ImageOff, Loader2, Pencil, Trash2 } from "lucide-react";
@@ -89,10 +89,19 @@ export function ProductTableRow({
   const [isNavigating, startNavigate] = useTransition();
   const { currency, currentRate } = useCurrencyStore();
   const [thumbLoaded, setThumbLoaded] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  // Auto-close the confirm dialog once the in-flight delete finishes.
+  const wasDeleting = useRef(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (wasDeleting.current && !isDeleting) setDeleteOpen(false);
+    wasDeleting.current = isDeleting;
+  }, [isDeleting]);
 
   const handleDelete = () => {
     startDelete(async () => {
-      const result = await deleteProduct(product.id, basePath);
+      const result = await deleteProduct(product.id, null);
       if (result && "error" in result) {
         toast.error(result.message);
       } else {
@@ -211,7 +220,13 @@ export function ProductTableRow({
                 : <Copy className="h-4 w-4" />}
               <span className="sr-only">{t("duplicate")}</span>
             </Button>
-            <AlertDialog>
+            <AlertDialog
+              open={deleteOpen}
+              onOpenChange={(next) => {
+                if (isDeleting) return;
+                setDeleteOpen(next);
+              }}
+            >
               <AlertDialogTrigger asChild>
                 <Button variant="ghost" size="icon" disabled={isDeleting}>
                   {isDeleting
@@ -228,12 +243,23 @@ export function ProductTableRow({
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
+                  <AlertDialogCancel disabled={isDeleting}>{tCommon("cancel")}</AlertDialogCancel>
                   <AlertDialogAction
-                    onClick={handleDelete}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleDelete();
+                    }}
+                    disabled={isDeleting}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    {tCommon("delete")}
+                    {isDeleting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {t("deleting")}
+                      </>
+                    ) : (
+                      tCommon("delete")
+                    )}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>

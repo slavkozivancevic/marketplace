@@ -43,9 +43,17 @@ export type ProductVariantInput = {
   options?: VariantOptionValueInput[];
 };
 
+export type VariantOptionTranslations = {
+  sr?: {
+    name?: string;
+    values?: Record<string, string>;
+  };
+};
+
 export type VariantOptionInput = {
   name: string;
   values: string[];
+  translations?: VariantOptionTranslations | null;
 };
 
 export type ImageProcessingResult = {

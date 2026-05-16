@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +16,11 @@ import { useCartStore } from "../store/cartStore";
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
 import { SerializedPublicProduct } from "@/types/types";
+import {
+  getOptionName,
+  getOptionValue,
+  type OptionTranslations,
+} from "@/features/products/utils/optionTranslations";
 
 interface AddToCartProps {
   product: SerializedPublicProduct;
@@ -30,9 +35,23 @@ type SelectedValues = Record<string, string>;
 
 export function AddToCart({ product, onActiveVariantChange, selectMode = false, hideButton = false }: AddToCartProps) {
   const t = useTranslations("cart");
+  const locale = useLocale();
   const { addItem, openCart, items } = useCartStore();
   const { currency, currentRate } = useCurrencyStore();
   const hasOptions = product.options.length > 0;
+
+  const localizedOption = (option: typeof product.options[number]) => ({
+    name: getOptionName(
+      { name: option.name, translations: option.translations as OptionTranslations | null },
+      locale,
+    ),
+    translate: (value: string) =>
+      getOptionValue(
+        { translations: option.translations as OptionTranslations | null },
+        value,
+        locale,
+      ),
+  });
 
   const optionVariants = product.variants.filter(
     (v) => v.optionValues.length > 0,
@@ -247,10 +266,11 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
           {product.options.map((option) => {
             const uniqueValues = [...new Set(option.values.map((v) => v.value))];
             const selected = selectedValues[option.id];
+            const loc = localizedOption(option);
 
             return (
               <div key={option.id} className="space-y-1.5">
-                <p className="text-sm font-medium">{option.name}</p>
+                <p className="text-sm font-medium">{loc.name}</p>
                 <Select
                   value={selected ?? ""}
                   onValueChange={(val) => {
@@ -272,7 +292,7 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
                           disabled={!compatible}
                           className={cn(!inStock && compatible && "text-muted-foreground")}
                         >
-                          {value}
+                          {loc.translate(value)}
                           {!inStock && compatible && (
                             <span className="ml-1 text-xs">({t("outOfStock")})</span>
                           )}
@@ -328,14 +348,15 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
           {product.options.map((option) => {
             const uniqueValues = [...new Set(option.values.map((v) => v.value))];
             const selected = selectedValues[option.id];
+            const loc = localizedOption(option);
 
             return (
               <div key={option.id}>
                 <p className="text-sm font-medium mb-2.5">
-                  {option.name}
+                  {loc.name}
                   {selected && (
                     <span className="font-normal text-muted-foreground ml-1.5">
-                      — {selected}
+                      — {loc.translate(selected)}
                     </span>
                   )}
                 </p>
@@ -375,7 +396,7 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
                             <span className="absolute w-[calc(100%+4px)] h-px bg-muted-foreground/50 -rotate-12" />
                           </span>
                         )}
-                        {value}
+                        {loc.translate(value)}
                       </button>
                     );
                   })}
