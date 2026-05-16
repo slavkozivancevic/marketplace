@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { CacheTags } from "@/lib/cache/tags";
 import { getBrandById } from "@/features/brands/db/brands";
+import type { BrandTranslations } from "@/features/brands/utils/translations";
 import { BrandForm } from "@/features/brands/components/BrandForm";
 
 export default async function EditBrandPage({
@@ -40,6 +41,7 @@ export default async function EditBrandPage({
             slug: brand.slug,
             logoUrl: brand.logoUrl ?? "",
             description: brand.description ?? "",
+            translations: (brand.translations as BrandTranslations | null) ?? null,
           }}
         />
       </div>

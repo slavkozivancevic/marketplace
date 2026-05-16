@@ -2,9 +2,9 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Pencil, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { SearchInput } from "@/components/search/SearchInput";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -47,11 +47,15 @@ function BrandTableHeader() {
 function BrandTableRow({
   brand,
   onDelete,
+  onEdit,
   isDeleting,
+  isEditing,
 }: {
   brand: BrandListItem;
   onDelete: (id: string) => void;
+  onEdit: (id: string) => void;
   isDeleting: boolean;
+  isEditing: boolean;
 }) {
   const t = useTranslations();
   return (
@@ -83,16 +87,23 @@ function BrandTableRow({
       <div role="cell" className="text-right tabular-nums text-sm">{brand._count.products}</div>
       <div role="cell" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-end gap-1">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href={`/admin/brands/${brand.id}/edit`}>
-              <Pencil className="h-4 w-4" />
-              <span className="sr-only">Edit</span>
-            </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            disabled={isEditing}
+            onClick={() => onEdit(brand.id)}
+          >
+            {isEditing
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <Pencil className="h-4 w-4" />}
+            <span className="sr-only">Edit</span>
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="ghost" size="icon" disabled={isDeleting}>
-                <Trash2 className="h-4 w-4 text-destructive" />
+                {isDeleting
+                  ? <Loader2 className="h-4 w-4 animate-spin text-destructive" />
+                  : <Trash2 className="h-4 w-4 text-destructive" />}
                 <span className="sr-only">Delete</span>
               </Button>
             </AlertDialogTrigger>
@@ -122,9 +133,12 @@ function BrandTableRow({
 
 export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
   const t = useTranslations();
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isNavigating, startNavigate] = useTransition();
 
   const filtered = useMemo(() => {
     if (!search) return brands;
@@ -148,6 +162,11 @@ export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
       }
       setDeletingId(null);
     });
+  };
+
+  const handleEdit = (id: string) => {
+    setEditingId(id);
+    startNavigate(() => router.push(`/admin/brands/${id}/edit`));
   };
 
   return (
@@ -174,7 +193,9 @@ export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
               key={brand.id}
               brand={brand}
               onDelete={handleDelete}
+              onEdit={handleEdit}
               isDeleting={isPending && deletingId === brand.id}
+              isEditing={isNavigating && editingId === brand.id}
             />
           ))}
         </div>

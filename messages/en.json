@@ -541,7 +541,11 @@
     "saving": "Saving...",
     "creating": "Creating...",
     "saveChanges": "Save Changes",
-    "create": "Create Brand"
+    "create": "Create Brand",
+    "langEn": "English",
+    "langSr": "Serbian",
+    "nameSrPlaceholder": "e.g. Najki",
+    "descSrPlaceholder": "Kratak opis brenda..."
   },
   "invite": {
     "email": "Email Address",

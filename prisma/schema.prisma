@@ -5,12 +5,14 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  extensions = [pgTrgm(map: "pg_trgm")]
 }
 
 enum UserRole {
@@ -96,13 +98,14 @@ enum DimensionUnit {
 }
 
 model Brand {
-  id          String   @id @default(uuid())
-  name        String
-  slug        String   @unique
-  logoUrl     String?
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(uuid())
+  name         String
+  slug         String   @unique
+  logoUrl      String?
+  description  String?
+  translations Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   products Product[]
 }
@@ -173,6 +176,10 @@ model Product {
   slug             String
   description      String
   shortDescription String?
+  // Denormalized search blob (title + shortDescription + brand name + category names).
+  // Maintained by the application layer on create/update; used as the sole target for
+  // public product search via a GIN pg_trgm index.
+  searchText       String?
   price            Int
   compareAtPrice   Int?
   costPrice        Int?
@@ -242,6 +249,7 @@ model Product {
   @@index([organizationId, status, deletedAt])
   @@index([brandId])
   @@index([featuredAt])
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 model ProductHistory {

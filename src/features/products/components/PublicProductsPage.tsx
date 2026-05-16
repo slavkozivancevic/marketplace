@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
 import {
@@ -44,6 +45,12 @@ export function PublicProductsPage({
     shallow: false,
     throttleMs: 300,
   });
+
+  // Bypass nuqs's internal pending-queue cache for the user-typed `search` field:
+  // it can leak across navigation (queue is a global singleton). Read directly
+  // from the URL so navigating to a clean URL always starts empty.
+  const urlSearchParams = useSearchParams();
+  const search = urlSearchParams.get("search") ?? "";
 
   // ---- Filter groups ----
   const filterGroups: FilterGroup[] = useMemo(() => {
@@ -143,7 +150,7 @@ export function PublicProductsPage({
   };
 
   const filters: ProductFilters = {
-    search: params.search,
+    search,
     sortBy: params.sortBy,
     sortOrder: params.sortOrder,
     // Raw display-currency values — buildFetcher converts to USD at fetch time.
@@ -167,7 +174,7 @@ export function PublicProductsPage({
           tree={categoryTree}
           dept={params.dept}
           onDeptChange={(slug) => setParams({ dept: slug, search: "" })}
-          search={params.search}
+          search={search}
           onSearchChange={(v) => setParams({ search: v })}
           sortBy={params.sortBy}
           sortOrder={params.sortOrder}

@@ -2,6 +2,7 @@ import { prisma } from "@/core/db/prisma";
 import { NotFoundError } from "@/features/common/errors/domainErrors";
 import { revalidateCategoryCache } from "./cache";
 import { slugify } from "@/lib/utils";
+import { refreshProductSearchText } from "@/features/products/db/products";
 
 // ---------- Translation types & helpers ----------
 
@@ -282,10 +283,19 @@ export async function updateCategory(id: string, data: CategoryMutationData) {
 
   const slug = data.slug?.trim() || slugify(data.name);
 
+  const newName = data.name.trim();
+  const newSrName =
+    (data.translations as CategoryTranslations | null | undefined)?.sr?.name?.trim() ?? "";
+  const existingSrName =
+    (existing.translations as CategoryTranslations | null)?.sr?.name?.trim() ?? "";
+
+  const searchableChanged =
+    newName !== existing.name || newSrName !== existingSrName;
+
   const category = await prisma.category.update({
     where: { id },
     data: {
-      name: data.name.trim(),
+      name: newName,
       slug,
       parentId: data.parentId ?? null,
       imageUrl: data.imageUrl || null,
@@ -296,6 +306,16 @@ export async function updateCategory(id: string, data: CategoryMutationData) {
       isFeatured: data.isFeatured ?? false,
     },
   });
+
+  if (searchableChanged) {
+    const productCategories = await prisma.productCategory.findMany({
+      where: { categoryId: id, product: { deletedAt: null } },
+      select: { productId: true },
+    });
+    for (const pc of productCategories) {
+      await refreshProductSearchText(prisma, pc.productId);
+    }
+  }
 
   revalidateCategoryCache(category.id);
   return category;

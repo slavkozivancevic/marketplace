@@ -2,6 +2,7 @@
 
 import { useEffect, useTransition } from "react";
 import { useTranslations } from "next-intl";
+import { Loader2 } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "@/components/ui/sonner";
@@ -45,6 +46,7 @@ export function BrandForm(props: BrandFormProps) {
       slug: "",
       logoUrl: "",
       description: "",
+      translations: { sr: { name: "", description: "" } },
       ...props.defaultValues,
     },
   });
@@ -74,22 +76,89 @@ export function BrandForm(props: BrandFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-2xl">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t("brandName")}</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder={t("brandNamePlaceholder")}
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {/* ── English ── */}
+        <div className="rounded-lg border border-border/60 p-4 space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            🇬🇧 {t("langEn")}
+          </p>
+
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("brandName")}</FormLabel>
+                <FormControl>
+                  <Input placeholder={t("brandNamePlaceholder")} {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("description")}</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder={t("descPlaceholder")}
+                    rows={3}
+                    {...field}
+                    value={field.value ?? ""}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        {/* ── Serbian ── */}
+        <div className="rounded-lg border border-border/60 p-4 space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            🇷🇸 {t("langSr")}
+          </p>
+
+          <FormField
+            control={form.control}
+            name="translations.sr.name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("brandName")}</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder={t("nameSrPlaceholder")}
+                    {...field}
+                    value={field.value ?? ""}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="translations.sr.description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("description")}</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder={t("descSrPlaceholder")}
+                    rows={3}
+                    {...field}
+                    value={field.value ?? ""}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         <FormField
           control={form.control}
@@ -121,28 +190,17 @@ export function BrandForm(props: BrandFormProps) {
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t("description")}</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder={t("descPlaceholder")}
-                  rows={3}
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+        <Button type="submit" disabled={isPending} className="min-w-32">
+          {isPending ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {props.mode === "edit" ? t("saving") : t("creating")}
+            </>
+          ) : props.mode === "edit" ? (
+            t("saveChanges")
+          ) : (
+            t("create")
           )}
-        />
-
-        <Button type="submit" disabled={isPending}>
-          {isPending
-            ? props.mode === "edit" ? t("saving") : t("creating")
-            : props.mode === "edit" ? t("saveChanges") : t("create")}
         </Button>
       </form>
     </Form>

@@ -34,7 +34,7 @@ async function getTopicArn(): Promise<string> {
 
 // ── Event publishers ──────────────────────────────────────────────────────
 
-export async function publishOrderCompleted(orderId: string, locale = "en"): Promise<void> {
+export async function publishOrderCompleted(orderId: string, locale = "en", currency = "usd"): Promise<void> {
   const topicArn = await getTopicArn();
   await sns.send(
     new PublishCommand({
@@ -43,6 +43,7 @@ export async function publishOrderCompleted(orderId: string, locale = "en"): Pro
         type: "order.completed",
         orderId,
         locale,
+        currency,
         // Unique per-event ID for idempotency — combines orderId + type
         // so replaying the same Stripe webhook doesn't double-send emails.
         eventId: `${orderId}:order.completed`,

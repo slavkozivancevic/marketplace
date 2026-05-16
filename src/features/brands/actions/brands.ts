@@ -24,6 +24,7 @@ export async function createBrandAction(
       slug: parsed.data.slug || undefined,
       logoUrl: parsed.data.logoUrl || null,
       description: parsed.data.description || null,
+      translations: parsed.data.translations ?? null,
     });
   } catch (error) {
     return handleActionError(error);
@@ -50,6 +51,7 @@ export async function updateBrandAction(
       slug: parsed.data.slug || undefined,
       logoUrl: parsed.data.logoUrl || null,
       description: parsed.data.description || null,
+      translations: parsed.data.translations ?? null,
     });
   } catch (error) {
     return handleActionError(error);

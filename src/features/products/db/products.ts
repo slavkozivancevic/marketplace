@@ -308,6 +308,43 @@ async function syncOptions(
   }
 }
 
+type SrNamed = { sr?: { name?: string } };
+
+function srName(translations: unknown): string {
+  return ((translations as SrNamed | null)?.sr?.name ?? "").trim();
+}
+
+export async function refreshProductSearchText(
+  tx: Prisma.TransactionClient,
+  productId: string,
+): Promise<void> {
+  const p = await tx.product.findFirst({
+    where: { id: productId },
+    select: {
+      title: true,
+      shortDescription: true,
+      brand: { select: { name: true, translations: true } },
+      categories: {
+        select: { category: { select: { name: true, translations: true } } },
+      },
+    },
+  });
+  if (!p) return;
+
+  const parts: string[] = [
+    p.title,
+    p.shortDescription ?? "",
+    p.brand?.name ?? "",
+    srName(p.brand?.translations),
+    ...p.categories.flatMap((c) => [c.category.name, srName(c.category.translations)]),
+  ].filter((s) => s.trim().length > 0);
+
+  await tx.product.update({
+    where: { id: productId },
+    data: { searchText: parts.join(" ") },
+  });
+}
+
 /**
  * Builds the Prisma `where` clause for filter-based bulk operations.
  * Always scoped to the org and non-deleted products.
@@ -426,9 +463,7 @@ export function productRepository(
 
       if (params?.search) {
         where.OR = [
-          { title: { contains: params.search, mode: "insensitive" } },
-          { shortDescription: { contains: params.search, mode: "insensitive" } },
-          { description: { contains: params.search, mode: "insensitive" } },
+          { searchText: { contains: params.search, mode: "insensitive" } },
           { barcode: { contains: params.search, mode: "insensitive" } },
         ];
       }
@@ -584,6 +619,8 @@ export function productRepository(
           });
         }
 
+        await refreshProductSearchText(tx, created.id);
+
         await tx.productHistory.create({
           data: {
             productId: created.id,
@@ -732,6 +769,8 @@ export function productRepository(
             });
           }
         }
+
+        await refreshProductSearchText(tx, id);
 
         const updatedProduct = await tx.product.findFirst({
           where: {

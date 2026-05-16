@@ -2,6 +2,11 @@ import { prisma } from "@/core/db/prisma";
 import { NotFoundError } from "@/features/common/errors/domainErrors";
 import { revalidateBrandCache } from "./cache";
 import { slugify } from "@/lib/utils";
+import { refreshProductSearchText } from "@/features/products/db/products";
+import type { BrandTranslations } from "../utils/translations";
+
+export type { BrandTranslations } from "../utils/translations";
+export { getBrandName, getBrandDescription } from "../utils/translations";
 
 export type BrandListItem = {
   id: string;
@@ -29,6 +34,7 @@ export async function createBrand(data: {
   slug?: string;
   logoUrl?: string | null;
   description?: string | null;
+  translations?: BrandTranslations | null;
 }) {
   const slug = data.slug?.trim() || slugify(data.name);
 
@@ -38,6 +44,7 @@ export async function createBrand(data: {
       slug,
       logoUrl: data.logoUrl ?? null,
       description: data.description ?? null,
+      translations: data.translations ?? undefined,
     },
   });
 
@@ -52,6 +59,7 @@ export async function updateBrand(
     slug?: string;
     logoUrl?: string | null;
     description?: string | null;
+    translations?: BrandTranslations | null;
   },
 ) {
   const existing = await prisma.brand.findUnique({ where: { id } });
@@ -59,15 +67,35 @@ export async function updateBrand(
 
   const slug = data.slug?.trim() || slugify(data.name);
 
+  const newName = data.name.trim();
+  const newSrName =
+    data.translations?.sr?.name?.trim() ?? "";
+  const existingSrName =
+    (existing.translations as BrandTranslations | null)?.sr?.name?.trim() ?? "";
+
+  const searchableChanged =
+    newName !== existing.name || newSrName !== existingSrName;
+
   const brand = await prisma.brand.update({
     where: { id },
     data: {
-      name: data.name.trim(),
+      name: newName,
       slug,
       logoUrl: data.logoUrl ?? null,
       description: data.description ?? null,
+      translations: data.translations ?? undefined,
     },
   });
+
+  if (searchableChanged) {
+    const products = await prisma.product.findMany({
+      where: { brandId: id, deletedAt: null },
+      select: { id: true },
+    });
+    for (const p of products) {
+      await refreshProductSearchText(prisma, p.id);
+    }
+  }
 
   revalidateBrandCache(brand.id);
   return brand;

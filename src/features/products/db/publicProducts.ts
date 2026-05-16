@@ -44,11 +44,7 @@ export async function getPublicProductsPage({
   };
 
   if (search) {
-    where.OR = [
-      { title: { contains: search, mode: "insensitive" } },
-      { shortDescription: { contains: search, mode: "insensitive" } },
-      { description: { contains: search, mode: "insensitive" } },
-    ];
+    where.searchText = { contains: search, mode: "insensitive" };
   }
 
   if (minPrice != null || maxPrice != null) {

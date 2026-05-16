@@ -1,10 +1,23 @@
 import { z } from "zod";
 
+const translationsSchema = z
+  .object({
+    sr: z
+      .object({
+        name: z.string().max(100).optional(),
+        description: z.string().max(1000).optional(),
+      })
+      .optional(),
+  })
+  .optional()
+  .nullable();
+
 export const createBrandSchema = z.object({
   name: z.string().min(1, "Brand name is required").max(100, "Brand name is too long"),
   slug: z.string().optional(),
   logoUrl: z.string().url("Logo URL must be a valid URL").optional().or(z.literal("")),
   description: z.string().max(1000, "Description is too long").optional(),
+  translations: translationsSchema,
 });
 
 export const updateBrandSchema = createBrandSchema;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
 import { useCurrencyStore } from "@/store/currency";
@@ -42,6 +43,12 @@ export function MyProductsPage({
     throttleMs: 300,
   });
 
+  // Bypass nuqs's internal pending-queue cache for the user-typed `search` field:
+  // it can leak across navigation (queue is a global singleton). Read directly
+  // from the URL so navigating to a clean URL always starts empty.
+  const urlSearchParams = useSearchParams();
+  const search = urlSearchParams.get("search") ?? "";
+
   const filterGroups: FilterGroup[] = useMemo(() => {
     const base: FilterGroup[] = [
       {
@@ -76,7 +83,7 @@ export function MyProductsPage({
   }, [brands, t, currencySymbol]);
 
   const filters: MyProductFilters = {
-    search: params.search,
+    search,
     sortBy: params.sortBy,
     sortOrder: params.sortOrder,
     status: params.status,
@@ -129,7 +136,7 @@ export function MyProductsPage({
       />
       <div className="flex-1 min-w-0 flex flex-col gap-4 min-h-0">
         <SearchToolbar
-          search={params.search}
+          search={search}
           onSearchChange={(v) => setParams({ search: v })}
           searchPlaceholder={t("myProducts.searchPlaceholder")}
           sortBy={params.sortBy}
