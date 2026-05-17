@@ -276,7 +276,8 @@ function ActionEditor({
         <Label className="text-xs text-muted-foreground">{t("actionLabel")}</Label>
         <Select value={action.type} onValueChange={(v) => onChangeType(v as ActionType)}>
           <SelectTrigger className="w-fit min-w-60">
-            <SelectValue />
+            {/* Explicit label so it shows pre-hydration. */}
+            <SelectValue>{ACTION_LABELS[action.type]}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {(Object.keys(ACTION_LABELS) as ActionType[]).map((k) => (
@@ -297,7 +298,12 @@ function ActionEditor({
             onValueChange={(v) => onChangeValue(v)}
           >
             <SelectTrigger className="w-44">
-              <SelectValue placeholder={t("pickStatus")} />
+              {/* Explicit label so it shows pre-hydration. */}
+              <SelectValue placeholder={t("pickStatus")}>
+                {action.value
+                  ? STATUS_LABELS[action.value as keyof typeof STATUS_LABELS]
+                  : null}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {STATUS_OPTIONS.map((s) => (
@@ -316,7 +322,12 @@ function ActionEditor({
             onValueChange={(v) => onChangeValue(v)}
           >
             <SelectTrigger className="w-56">
-              <SelectValue placeholder={t("pickBrand")} />
+              {/* Explicit label so it shows pre-hydration. */}
+              <SelectValue placeholder={t("pickBrand")}>
+                {action.value
+                  ? brands.find((b) => b.id === action.value)?.name ?? null
+                  : null}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {brands.map((b) => (
@@ -360,7 +371,8 @@ function ActionEditor({
             onValueChange={(v) => onChangeValue(v === "true")}
           >
             <SelectTrigger className="w-28">
-              <SelectValue />
+              {/* Explicit label so it shows pre-hydration. */}
+              <SelectValue>{action.value === true ? t("yes") : t("no")}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="true">{t("yes")}</SelectItem>

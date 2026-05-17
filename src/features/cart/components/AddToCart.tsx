@@ -279,7 +279,12 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
                   }}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder={`— ${t("selectOption")}`} />
+                    {/* Explicit label so it shows pre-hydration (Radix
+                        SelectContent is portaled and not available for
+                        value→item lookup yet). */}
+                    <SelectValue placeholder={`— ${t("selectOption")}`}>
+                      {selected ? loc.translate(selected) : null}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent position="popper">
                     {uniqueValues.map((value) => {
@@ -315,7 +320,15 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
                 onValueChange={(val) => handleSelectManual(val)}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder={`— ${t("selectOption")}`} />
+                  {/* Explicit label so it shows pre-hydration. */}
+                  <SelectValue placeholder={`— ${t("selectOption")}`}>
+                    {selectedManualId
+                      ? (() => {
+                          const v = manualVariants.find((mv) => mv.id === selectedManualId);
+                          return v ? (v.sku ?? `Variant ${v.id.slice(-4)}`) : null;
+                        })()
+                      : null}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent position="popper">
                   {manualVariants.map((variant) => {

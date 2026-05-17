@@ -23,6 +23,7 @@ interface BrandSelectProps {
 
 export function BrandSelect({ brands, value, onChange, disabled }: BrandSelectProps) {
   const t = useTranslations("brands");
+  const selectedBrand = value ? brands.find((b) => b.id === value) : undefined;
   return (
     <Select
       value={value ?? "none"}
@@ -30,7 +31,11 @@ export function BrandSelect({ brands, value, onChange, disabled }: BrandSelectPr
       disabled={disabled}
     >
       <SelectTrigger className="cursor-pointer">
-        <SelectValue placeholder={t("noBrand")} />
+        {/* Explicit children so the label shows pre-hydration (the SelectContent
+            is portaled and not available for Radix's value→item lookup yet). */}
+        <SelectValue placeholder={t("noBrand")}>
+          {selectedBrand?.name ?? t("noBrand")}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="none" className="cursor-pointer">{t("noBrand")}</SelectItem>

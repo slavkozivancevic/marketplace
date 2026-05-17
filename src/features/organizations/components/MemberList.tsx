@@ -143,7 +143,13 @@ function MemberRow({
                   {t("changingRole")}
                 </span>
               ) : (
-                <SelectValue />
+                /* Explicit label so it shows pre-hydration (Radix's
+                   SelectContent is portaled and not available for lookup). */
+                <SelectValue>
+                  {member.role === MembershipRole.ADMIN
+                    ? t("roleAdmin")
+                    : t("roleMember")}
+                </SelectValue>
               )}
             </SelectTrigger>
             <SelectContent>

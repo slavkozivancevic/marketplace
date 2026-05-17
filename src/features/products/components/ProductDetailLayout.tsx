@@ -10,7 +10,16 @@ interface ProductDetailLayoutProps {
 }
 
 export function ProductDetailLayout({ product }: ProductDetailLayoutProps) {
-  const [activeVariantId, setActiveVariantId] = useState<string | null>(null);
+  // Match AddToCart's initial-variant logic so the variant list is already
+  // highlighted in the SSR HTML — without this, the highlight lags until
+  // hydration + AddToCart's useEffect callback fires.
+  const [activeVariantId, setActiveVariantId] = useState<string | null>(() => {
+    const optionVariants = product.variants.filter(
+      (v) => v.optionValues.length > 0,
+    );
+    if (optionVariants.length === 0) return null;
+    return optionVariants.find((v) => v.stock > 0)?.id ?? null;
+  });
   const [jumpTicket, setJumpTicket] = useState<{
     ticket: number;
     imageId: string | null;

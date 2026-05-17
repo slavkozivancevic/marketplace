@@ -75,10 +75,19 @@ export function InviteForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>{t("role")}</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select value={field.value} onValueChange={field.onChange}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder={t("selectRole")} />
+                    {/* Explicit label so it shows pre-hydration (Radix's
+                        SelectContent is portaled and the value→item lookup
+                        isn't available yet). */}
+                    <SelectValue placeholder={t("selectRole")}>
+                      {field.value === "ADMIN"
+                        ? t("roleAdmin")
+                        : field.value === "MEMBER"
+                          ? t("roleMember")
+                          : null}
+                    </SelectValue>
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>

@@ -127,7 +127,11 @@ function PriceInput({
         </div>
         <Select value={inputCurrency} onValueChange={(v) => handleCurrencyChange(v as Currency)}>
           <SelectTrigger className="w-24 shrink-0">
-            <SelectValue />
+            {/* Explicit label so it shows pre-hydration (Radix SelectContent
+                is portaled and not yet available for value→item lookup). */}
+            <SelectValue>
+              {CURRENCIES.find((c) => c.code === inputCurrency)?.label ?? ""}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {CURRENCIES.map((c) => (
@@ -1179,7 +1183,10 @@ export function ProductForm({
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="—" />
+                                {/* Explicit label so it shows pre-hydration. */}
+                                <SelectValue placeholder="—">
+                                  {WEIGHT_UNITS.find((u) => u.value === field.value)?.label ?? "—"}
+                                </SelectValue>
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -1236,7 +1243,10 @@ export function ProductForm({
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="—" />
+                                {/* Explicit label so it shows pre-hydration. */}
+                                <SelectValue placeholder="—">
+                                  {DIMENSION_UNITS.find((u) => u.value === field.value)?.label ?? "—"}
+                                </SelectValue>
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -1723,7 +1733,10 @@ export function ProductForm({
                               >
                                 <FormControl>
                                   <SelectTrigger>
-                                    <SelectValue placeholder="—" />
+                                    {/* Explicit label so it shows pre-hydration. */}
+                                    <SelectValue placeholder="—">
+                                      {WEIGHT_UNITS.find((u) => u.value === field.value)?.label ?? "—"}
+                                    </SelectValue>
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>

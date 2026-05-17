@@ -222,7 +222,19 @@ export function CategoryForm(props: CategoryFormProps) {
               >
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder={t("parentPlaceholder")} />
+                    {/* Explicit label so it shows pre-hydration (Radix's
+                        SelectContent is portaled and the value→item lookup
+                        isn't available yet). */}
+                    <SelectValue placeholder={t("parentPlaceholder")}>
+                      {field.value
+                        ? (() => {
+                            const opt = props.parentOptions.find(
+                              (o) => o.id === field.value,
+                            );
+                            return opt ? getCategoryName(opt, locale) : t("noParent");
+                          })()
+                        : t("noParent")}
+                    </SelectValue>
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent position="popper" className="max-h-72">
