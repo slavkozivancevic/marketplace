@@ -1,7 +1,7 @@
 "use client";
 import axios from "axios";
 
-import { useEffect, useRef, useState, useTransition, KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition, KeyboardEvent } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useForm, useFieldArray, useWatch, Resolver, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -394,9 +394,7 @@ export function ProductForm({
   const t = useTranslations("productForm");
   const { rates } = useCurrencyStore();
   const [isPending, startTransition] = useTransition();
-  const [slugManuallyEdited, setSlugManuallyEdited] = useState(
-    mode === "update" && !!product?.slug,
-  );
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 
   const [uploadedImages, setUploadedImages] = useState<PresignedUploadedImage[]>(
     product?.images.map((img) => ({ key: img.key, url: img.url })) ?? [],
@@ -416,102 +414,109 @@ export function ProductForm({
       ),
   );
 
-  const optionById = new Map(product?.options.map((o) => [o.id, o.name]) ?? []);
-  const imageKeyById = new Map(
-    product?.images.map((img) => [img.id, img.key]) ?? [],
-  );
-
   const schema = mode === "create" ? createProductSchema : updateProductSchema;
+
+  const derivedValues = useMemo<ProductFormData>(() => {
+    if (!product) {
+      return {
+        title: "",
+        slug: "",
+        description: "",
+        shortDescription: "",
+        price: 0,
+        compareAtPrice: null,
+        costPrice: null,
+        stock: null,
+        barcode: "",
+        taxable: true,
+        taxCode: "",
+        requiresShipping: true,
+        isDigital: false,
+        weight: null,
+        weightUnit: null,
+        length: null,
+        width: null,
+        height: null,
+        dimensionUnit: null,
+        metaTitle: "",
+        metaDescription: "",
+        brandId: undefined,
+        categoryIds: [],
+        images: [],
+        options: [],
+        variants: [],
+        version: 1,
+      };
+    }
+    const optionById = new Map(product.options.map((o) => [o.id, o.name]));
+    const imageKeyById = new Map(product.images.map((img) => [img.id, img.key]));
+    return {
+      title: product.title,
+      slug: product.slug ?? "",
+      description: product.description,
+      shortDescription: product.shortDescription ?? "",
+      price: product.price / 100,
+      compareAtPrice: product.compareAtPrice != null ? product.compareAtPrice / 100 : null,
+      costPrice: product.costPrice != null ? product.costPrice / 100 : null,
+      stock: product.stock ?? null,
+      barcode: product.barcode ?? "",
+      taxable: product.taxable ?? true,
+      taxCode: product.taxCode ?? "",
+      requiresShipping: product.requiresShipping ?? true,
+      isDigital: product.isDigital ?? false,
+      weight: product.weight ?? null,
+      weightUnit: (product.weightUnit ?? null) as ProductFormData["weightUnit"],
+      length: product.length ?? null,
+      width: product.width ?? null,
+      height: product.height ?? null,
+      dimensionUnit: (product.dimensionUnit ?? null) as ProductFormData["dimensionUnit"],
+      metaTitle: product.metaTitle ?? "",
+      metaDescription: product.metaDescription ?? "",
+      brandId: product.brandId ?? undefined,
+      categoryIds: product.categories.map((c) => c.categoryId),
+      images: product.images.map((img) => ({ key: img.key })),
+      options: product.options.map((opt) => ({
+        name: opt.name,
+        values: Array.from(new Set(opt.values.map((v) => v.value))),
+        translations: normalizeOptionTranslations(opt.translations),
+      })),
+      variants: product.variants.map((v) => {
+        const seenOptionNames = new Set<string>();
+        const dedupedOptions: { name: string; value: string }[] = [];
+        for (const ov of v.optionValues) {
+          const name = optionById.get(ov.optionId) ?? "";
+          if (seenOptionNames.has(name)) continue;
+          seenOptionNames.add(name);
+          dedupedOptions.push({ name, value: ov.value });
+        }
+        const imageKeys = v.images
+          .map((vi) => imageKeyById.get(vi.imageId))
+          .filter((k): k is string => Boolean(k));
+        return {
+          sku: v.sku,
+          price: v.price / 100,
+          compareAtPrice: v.compareAtPrice != null ? v.compareAtPrice / 100 : null,
+          costPrice: v.costPrice != null ? v.costPrice / 100 : null,
+          stock: v.stock,
+          barcode: v.barcode ?? "",
+          weight: v.weight ?? null,
+          weightUnit: (v.weightUnit ?? null) as ProductFormData["weightUnit"],
+          imageKeys,
+          options: dedupedOptions,
+        };
+      }),
+      version: product.version,
+    };
+  }, [product]);
 
   const form = useForm<ProductFormData, unknown, ProductFormData>({
     resolver: zodResolver(schema) as unknown as Resolver<ProductFormData, unknown, ProductFormData>,
-    defaultValues: product
-      ? {
-          title: product.title,
-          slug: product.slug ?? "",
-          description: product.description,
-          shortDescription: product.shortDescription ?? "",
-          price: product.price / 100,
-          compareAtPrice: product.compareAtPrice != null ? product.compareAtPrice / 100 : null,
-          costPrice: product.costPrice != null ? product.costPrice / 100 : null,
-          stock: product.stock ?? null,
-          barcode: product.barcode ?? "",
-          taxable: product.taxable ?? true,
-          taxCode: product.taxCode ?? "",
-          requiresShipping: product.requiresShipping ?? true,
-          isDigital: product.isDigital ?? false,
-          weight: product.weight ?? null,
-          weightUnit: (product.weightUnit ?? null) as ProductFormData["weightUnit"],
-          length: product.length ?? null,
-          width: product.width ?? null,
-          height: product.height ?? null,
-          dimensionUnit: (product.dimensionUnit ?? null) as ProductFormData["dimensionUnit"],
-          metaTitle: product.metaTitle ?? "",
-          metaDescription: product.metaDescription ?? "",
-          brandId: product.brandId ?? undefined,
-          categoryIds: product.categories.map((c) => c.categoryId),
-          images: product.images.map((img) => ({ key: img.key })),
-          options: product.options.map((opt) => ({
-            name: opt.name,
-            values: Array.from(new Set(opt.values.map((v) => v.value))),
-            translations: normalizeOptionTranslations(opt.translations),
-          })),
-          variants: product.variants.map((v) => {
-            const seenOptionNames = new Set<string>();
-            const dedupedOptions: { name: string; value: string }[] = [];
-            for (const ov of v.optionValues) {
-              const name = optionById.get(ov.optionId) ?? "";
-              if (seenOptionNames.has(name)) continue;
-              seenOptionNames.add(name);
-              dedupedOptions.push({ name, value: ov.value });
-            }
-            const imageKeys = v.images
-              .map((vi) => imageKeyById.get(vi.imageId))
-              .filter((k): k is string => Boolean(k));
-            return {
-              sku: v.sku,
-              price: v.price / 100,
-              compareAtPrice: v.compareAtPrice != null ? v.compareAtPrice / 100 : null,
-              costPrice: v.costPrice != null ? v.costPrice / 100 : null,
-              stock: v.stock,
-              barcode: v.barcode ?? "",
-              weight: v.weight ?? null,
-              weightUnit: (v.weightUnit ?? null) as ProductFormData["weightUnit"],
-              imageKeys,
-              options: dedupedOptions,
-            };
-          }),
-          version: product.version,
-        }
-      : {
-          title: "",
-          slug: "",
-          description: "",
-          shortDescription: "",
-          price: 0,
-          compareAtPrice: null,
-          costPrice: null,
-          stock: null,
-          barcode: "",
-          taxable: true,
-          taxCode: "",
-          requiresShipping: true,
-          isDigital: false,
-          weight: null,
-          weightUnit: null,
-          length: null,
-          width: null,
-          height: null,
-          dimensionUnit: null,
-          metaTitle: "",
-          metaDescription: "",
-          brandId: undefined,
-          categoryIds: [],
-          images: [],
-          options: [],
-          variants: [],
-          version: 1,
-        },
+    defaultValues: derivedValues,
+    // In update mode, re-sync the form when the underlying product changes
+    // (e.g., user navigates away and returns — Next.js can preserve the React
+    // tree and form state in memory, so without this the unsaved edits would
+    // persist).
+    values: mode === "update" ? derivedValues : undefined,
   });
 
   const {
@@ -569,6 +574,28 @@ export function ProductForm({
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id]);
+
+  // Re-sync local UI state (not in RHF) when the product reference changes —
+  // happens on navigation back to the edit page. Skips the initial mount to
+  // avoid redundant state writes.
+  const productRef = useRef(product);
+  useEffect(() => {
+    if (productRef.current === product) return;
+    productRef.current = product;
+    if (!product) return;
+    setSlugManuallyEdited(false);
+    prevTitleRef.current = product.title;
+    setUploadedImages(product.images.map((img) => ({ key: img.key, url: img.url })));
+    setOptionValueInputs(product.options.map(() => ""));
+    setSyncedOptionsSnapshot(
+      snapshotOptions(
+        product.options.map((opt) => ({
+          name: opt.name,
+          values: Array.from(new Set(opt.values.map((v) => v.value))),
+        })),
+      ),
+    );
+  }, [product]);
 
   const optionsChanged = !optionsAreSynced(watchedOptions, syncedOptionsSnapshot);
 

@@ -53,7 +53,10 @@ export default async function OrganizationPage() {
                 {t("organization.pendingVerification")}
               </p>
             )}
+            {/* Fresh key forces remount on each page render so unsaved edits
+                don't persist across navigations. */}
             <OrganizationSettingsForm
+              key={crypto.randomUUID()}
               currentName={organization.name}
               canEdit={canEdit}
             />
@@ -81,7 +84,7 @@ export default async function OrganizationPage() {
                 <CardTitle>{t("organization.inviteMember")}</CardTitle>
               </CardHeader>
               <CardContent>
-                <InviteForm />
+                <InviteForm key={crypto.randomUUID()} />
               </CardContent>
             </Card>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useTransition } from "react";
+import { useEffect, useMemo, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
@@ -50,9 +50,8 @@ export function CategoryForm(props: CategoryFormProps) {
   const locale = useLocale();
   const [isPending, startTransition] = useTransition();
 
-  const form = useForm<CategoryInput>({
-    resolver: zodResolver(categorySchema),
-    defaultValues: {
+  const derivedValues = useMemo<CategoryInput>(
+    () => ({
       name: "",
       slug: "",
       parentId: null,
@@ -63,7 +62,17 @@ export function CategoryForm(props: CategoryFormProps) {
       isActive: true,
       isFeatured: false,
       ...props.defaultValues,
-    },
+    }),
+    [props.defaultValues],
+  );
+
+  const form = useForm<CategoryInput>({
+    resolver: zodResolver(categorySchema),
+    defaultValues: derivedValues,
+    // In edit mode, re-sync the form when the underlying category changes
+    // (e.g., user navigates away from the edit page and returns — Next.js can
+    // preserve the React tree, so without this the unsaved edits would persist).
+    values: props.mode === "edit" ? derivedValues : undefined,
   });
 
   const nameValue = useWatch({ control: form.control, name: "name" });

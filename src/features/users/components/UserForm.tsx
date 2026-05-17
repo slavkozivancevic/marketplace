@@ -1,6 +1,7 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useTransition } from "react";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -38,13 +39,21 @@ interface UserFormProps {
 export function UserForm({ userId, currentRole, onSuccess }: UserFormProps) {
   const t = useTranslations("users");
   const [isPending, startTransition] = useTransition();
+  const pathname = usePathname();
 
   const form = useForm<UpdateUserRoleInput>({
     resolver: zodResolver(updateUserRoleSchema),
-    defaultValues: {
-      role: currentRole,
-    },
+    defaultValues: { role: currentRole },
   });
+
+  // Reset on every navigation — the admin users list is a long-lived page that
+  // Next.js can keep in memory via the Router Cache, so a Select change that
+  // wasn't submitted would otherwise persist when the user leaves and returns.
+  // RHF's `values` prop only reacts to value changes, not to navigation itself,
+  // so it can't cover this case when the server-supplied role is unchanged.
+  useEffect(() => {
+    form.reset({ role: currentRole });
+  }, [pathname, currentRole, form]);
 
   const onSubmit = (data: UpdateUserRoleInput) => {
     startTransition(async () => {
@@ -68,16 +77,32 @@ export function UserForm({ userId, currentRole, onSuccess }: UserFormProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>{t("role")}</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select value={field.value} onValueChange={field.onChange}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder={t("selectRole")} />
+                    {/* Pass the label explicitly so it shows before the
+                        portaled SelectContent has mounted (slow networks,
+                        pre-hydration). Without this, Radix Select renders
+                        empty until it can look up the matching SelectItem. */}
+                    <SelectValue placeholder={t("selectRole")}>
+                      {field.value === "USER"
+                        ? t("user")
+                        : field.value === "SELLER"
+                          ? t("seller")
+                          : field.value === "ADMIN"
+                            ? t("admin")
+                            : null}
+                    </SelectValue>
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
                   {UserRoleEnum.options.map((role) => (
                     <SelectItem key={role} value={role}>
-                      {role.charAt(0) + role.slice(1).toLowerCase()}
+                      {role === "USER"
+                        ? t("user")
+                        : role === "SELLER"
+                          ? t("seller")
+                          : t("admin")}
                     </SelectItem>
                   ))}
                 </SelectContent>

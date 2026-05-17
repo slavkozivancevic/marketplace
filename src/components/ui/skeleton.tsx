@@ -312,6 +312,89 @@ export function SkeletonProductCard() {
   );
 }
 
+export function SkeletonOrganizationCard({
+  members = 3,
+}: {
+  members?: number;
+}) {
+  return (
+    <div className="rounded-xl border bg-background p-6 space-y-4">
+      <div className="flex items-start justify-between">
+        <div className="space-y-2">
+          <SkeletonText rows={1} size="lg" className="w-40" />
+          <Skeleton className="h-5 w-20 rounded-full" />
+        </div>
+        <SkeletonButton className="w-20" />
+      </div>
+      <div className="space-y-2">
+        <SkeletonText rows={1} size="md" className="w-24" />
+        <div className="space-y-1.5">
+          <SkeletonArray amount={members}>
+            <div className="flex items-center justify-between">
+              <SkeletonText rows={1} size="md" className="w-40" />
+              <div className="flex gap-2">
+                <Skeleton className="h-5 w-14 rounded-full" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+            </div>
+          </SkeletonArray>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function SkeletonUserRow() {
+  return (
+    <div className="border rounded-lg p-4 bg-background space-y-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-2">
+          <SkeletonText rows={1} size="md" className="w-36" />
+          <SkeletonText rows={1} size="sm" className="w-56" />
+        </div>
+        <Skeleton className="h-5 w-16 rounded-full" />
+      </div>
+      <div className="flex items-end gap-3">
+        <div className="flex-1 space-y-2">
+          <SkeletonText rows={1} size="sm" className="w-12" />
+          <Skeleton className="h-9 w-full max-w-xs rounded-md" />
+        </div>
+        <SkeletonButton className="w-28" />
+      </div>
+    </div>
+  );
+}
+
+export function SkeletonFilteredListPage({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex gap-6 flex-1 min-h-0">
+      {/* FilterSidebar (desktop only) */}
+      <div className="hidden md:flex w-64 shrink-0 flex-col gap-4 rounded-xl border bg-background p-4">
+        <SkeletonText rows={1} size="md" className="w-20" />
+        <div className="space-y-2">
+          <SkeletonArray amount={3}>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-4 w-4 rounded-sm" />
+              <SkeletonText rows={1} size="md" className="w-24" />
+            </div>
+          </SkeletonArray>
+        </div>
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col min-h-0 gap-3">
+        <div className="shrink-0 flex flex-wrap items-center gap-3">
+          <Skeleton className="h-9 w-full max-w-sm rounded-md" />
+          <SkeletonText rows={1} size="sm" className="w-20 ml-auto" />
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto pb-6">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 export function SkeletonProductForm() {
   return (
     <div className="flex-1 flex flex-col min-h-0">

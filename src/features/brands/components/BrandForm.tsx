@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useTransition } from "react";
+import { useEffect, useMemo, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
@@ -39,16 +39,25 @@ export function BrandForm(props: BrandFormProps) {
   const t = useTranslations("brands");
   const [isPending, startTransition] = useTransition();
 
-  const form = useForm<CreateBrandInput>({
-    resolver: zodResolver(props.mode === "create" ? createBrandSchema : updateBrandSchema),
-    defaultValues: {
+  const derivedValues = useMemo<CreateBrandInput>(
+    () => ({
       name: "",
       slug: "",
       logoUrl: "",
       description: "",
       translations: { sr: { name: "", description: "" } },
       ...props.defaultValues,
-    },
+    }),
+    [props.defaultValues],
+  );
+
+  const form = useForm<CreateBrandInput>({
+    resolver: zodResolver(props.mode === "create" ? createBrandSchema : updateBrandSchema),
+    defaultValues: derivedValues,
+    // In edit mode, re-sync the form when the underlying brand changes
+    // (e.g., user navigates away from the edit page and returns — Next.js can
+    // preserve the React tree, so without this the unsaved edits would persist).
+    values: props.mode === "edit" ? derivedValues : undefined,
   });
 
   const nameValue = useWatch({ control: form.control, name: "name" });

@@ -88,8 +88,13 @@ async function ProductEditContent({ productId }: { productId: string }) {
 
   if (!productData) notFound();
 
+  // Fresh key forces the form to remount on each page render. Without this,
+  // Next.js (cacheComponents + React Compiler + Router Cache) can preserve the
+  // form's in-memory state across navigations, so unsaved edits would still
+  // be visible when the user comes back to the edit page.
   return (
     <ProductForm
+      key={crypto.randomUUID()}
       mode="update"
       product={productData}
       brands={brands}

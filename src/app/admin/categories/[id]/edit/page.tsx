@@ -41,7 +41,11 @@ export default async function EditCategoryPage({
         </PageHeader>
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
+        {/* Fresh key forces remount on each page render so unsaved edits
+            don't persist across navigations (Next.js can preserve the
+            form's in-memory state otherwise). */}
         <CategoryForm
+          key={crypto.randomUUID()}
           mode="edit"
           categoryId={id}
           parentOptions={parentOptions}

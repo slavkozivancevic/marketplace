@@ -32,6 +32,18 @@ export async function getUserByClerkId(clerkUserId: string) {
   });
 }
 
+export async function getAllUsers() {
+  "use cache";
+
+  cacheTag(CacheTags.users.all());
+
+  return prisma.user.findMany({
+    where: { deletedAt: null },
+    include: { memberships: { include: { organization: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 /* ================= WRITE ================= */
 
 export async function createOrUpdateUserFromClerk(params: {
