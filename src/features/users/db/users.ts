@@ -212,6 +212,17 @@ export async function deleteUser(clerkUserId: string) {
 }
 
 export async function updateUserRole(userId: string, role: UserRole) {
+  const existing = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+
+  if (!existing) {
+    throw new Error(`User ${userId} not found`);
+  }
+
+  const oldRole = existing.role;
+
   const user = await prisma.user.update({
     where: { id: userId },
     data: { role },
@@ -250,5 +261,10 @@ export async function updateUserRole(userId: string, role: UserRole) {
 
   revalidateUserCache(user.id, user.clerkUserId);
 
-  return user;
+  return {
+    user,
+    oldRole,
+    newRole: role,
+    roleChanged: oldRole !== role,
+  };
 }

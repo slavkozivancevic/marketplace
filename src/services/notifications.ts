@@ -139,6 +139,30 @@ export async function publishMemberRoleChanged(params: {
   );
 }
 
+export async function publishUserRoleChanged(params: {
+  userEmail: string;
+  userName: string | null;
+  oldRole: string;
+  newRole: string;
+  locale: string;
+}): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: 'user.role_changed',
+        eventId: `user-role:${params.userEmail}:${Date.now()}`,
+        userEmail: params.userEmail,
+        userName: params.userName,
+        oldRole: params.oldRole,
+        newRole: params.newRole,
+        locale: params.locale,
+      }),
+    })
+  );
+}
+
 export async function publishInviteSent(params: {
   token: string;
   email: string;
