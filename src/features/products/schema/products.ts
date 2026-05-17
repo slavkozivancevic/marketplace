@@ -7,6 +7,21 @@ export const productImageSchema = z.object({
   key: z.string().min(1, "Image key is required"),
 });
 
+export const productTranslationsSchema = z
+  .object({
+    sr: z
+      .object({
+        title: z.string().optional(),
+        description: z.string().optional(),
+        shortDescription: z.string().optional(),
+        metaTitle: z.string().optional(),
+        metaDescription: z.string().optional(),
+      })
+      .optional(),
+  })
+  .nullable()
+  .optional();
+
 export const variantOptionTranslationsSchema = z
   .object({
     sr: z
@@ -132,6 +147,9 @@ export const createProductSchema = z
     // SEO
     metaTitle: z.string().optional(),
     metaDescription: z.string().optional(),
+
+    // Translations
+    translations: productTranslationsSchema,
 
     // Relacije
     brandId: z.string().optional(),

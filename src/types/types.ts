@@ -56,6 +56,16 @@ export type VariantOptionInput = {
   translations?: VariantOptionTranslations | null;
 };
 
+export type ProductTranslationsInput = {
+  sr?: {
+    title?: string;
+    description?: string;
+    shortDescription?: string;
+    metaTitle?: string;
+    metaDescription?: string;
+  };
+};
+
 export type ImageProcessingResult = {
   key: string;
   thumbKey: string;

@@ -1,5 +1,6 @@
 import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
+import { getLocale } from "next-intl/server";
 import Link from "next/link";
 
 import { prisma } from "@/core/db/prisma";
@@ -8,6 +9,11 @@ import { SerializedPublicProduct } from "@/types/types";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { ProductDetailLayout } from "@/features/products/components/ProductDetailLayout";
+import {
+  getProductTitle,
+  getProductShortDescription,
+  type ProductTranslations,
+} from "@/features/products/utils/translations";
 import { ProductReviewsSection } from "@/features/reviews/components/ProductReviewsSection";
 import {
   RelatedProductsCarousel,
@@ -24,17 +30,27 @@ export default async function PublicProductPage({
 }: PublicProductPageProps) {
   const { id } = await params;
 
-  const [product, relatedProducts] = await Promise.all([
+  const [product, relatedProducts, locale] = await Promise.all([
     fetchPublicProduct(id),
     fetchRelatedProducts(id),
+    getLocale(),
   ]);
 
   if (!product) notFound();
 
+  const productTranslations = product.translations as ProductTranslations | null;
+  const localTitle = getProductTitle({ title: product.title, translations: productTranslations }, locale);
+  // PageHeader gets the short description (one-liner); the full description is
+  // rendered inside ProductPurchaseSection on the right card.
+  const localShortDescription = getProductShortDescription(
+    { shortDescription: product.shortDescription, translations: productTranslations },
+    locale,
+  );
+
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6">
-        <PageHeader title={product.title} description={product.description}>
+        <PageHeader title={localTitle} description={localShortDescription ?? undefined}>
           <Button asChild variant="outline">
             <Link href="/products">Back to Products</Link>
           </Button>
@@ -145,6 +161,7 @@ async function fetchRelatedProducts(productId: string): Promise<RelatedProduct[]
     select: {
       id: true,
       title: true,
+      translations: true,
       price: true,
       compareAtPrice: true,
       images: {

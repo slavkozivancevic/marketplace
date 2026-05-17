@@ -13,6 +13,7 @@ import { SerializedPublicProduct } from "@/types/types";
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
 import { getOptionValue, type OptionTranslations } from "@/features/products/utils/optionTranslations";
+import { getProductDescription, type ProductTranslations } from "@/features/products/utils/translations";
 
 interface ProductPurchaseSectionProps {
   product: SerializedPublicProduct;
@@ -91,7 +92,15 @@ export function ProductPurchaseSection({
               <span className="font-medium">{product.brand.name}</span>
             </div>
           )}
-          <p className="text-muted-foreground">{product.description}</p>
+          <p className="text-muted-foreground">
+            {getProductDescription(
+              {
+                description: product.description,
+                translations: product.translations as ProductTranslations | null,
+              },
+              locale,
+            )}
+          </p>
           <AddToCart
             product={product}
             onActiveVariantChange={onActiveVariantChange}

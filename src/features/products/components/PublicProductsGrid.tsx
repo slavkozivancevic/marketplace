@@ -1,6 +1,6 @@
 "use client";
 import axios from "axios";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
 
 import { cn } from "@/lib/utils";
@@ -25,7 +25,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 import { SerializedProductListItem } from "@/types/types";
+import {
+  getProductTitle,
+  getProductDescription,
+  getProductShortDescription,
+  type ProductTranslations,
+} from "@/features/products/utils/translations";
 import { StarRating } from "@/features/reviews/components/StarRating";
 import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
 import { GRID_PAGE_SIZE, MAX_PAGES } from "@/constants/queryConstants";
@@ -189,6 +196,19 @@ function ProductCard({
   onQuickView: (id: string) => void;
 }) {
   const { currency, currentRate } = useCurrencyStore();
+  const locale = useLocale();
+  const productTranslations = product.translations as ProductTranslations | null;
+  const localTitle = getProductTitle({ title: product.title, translations: productTranslations }, locale);
+  const localShortDescription = getProductShortDescription(
+    { shortDescription: product.shortDescription, translations: productTranslations },
+    locale,
+  );
+  const localDescription = getProductDescription(
+    { description: product.description, translations: productTranslations },
+    locale,
+  );
+  // Prefer shortDescription on the card; fall back to full description.
+  const cardDescription = localShortDescription ?? localDescription;
   const isOnSale =
     product.compareAtPrice != null && product.compareAtPrice > product.price;
 
@@ -200,7 +220,7 @@ function ProductCard({
             {product.images.length > 0 ? (
               <HoverImageCycler
                 images={product.images.map((img: { url: string }) => img.url)}
-                alt={product.title}
+                alt={localTitle}
                 className="w-full h-48 rounded-t"
               />
             ) : (
@@ -246,8 +266,14 @@ function ProductCard({
           </CardHeader>
           <CardContent className="pt-3 pb-3 flex flex-col flex-1">
             <div className="flex-1">
-              <CardTitle className="text-sm leading-snug line-clamp-2">{product.title}</CardTitle>
-              <CardDescription className="line-clamp-2 mt-0.5">{product.description}</CardDescription>
+              <TruncatedTooltip content={localTitle}>
+                <CardTitle className="text-sm leading-snug line-clamp-2">{localTitle}</CardTitle>
+              </TruncatedTooltip>
+              {cardDescription && (
+                <TruncatedTooltip content={cardDescription}>
+                  <CardDescription className="line-clamp-2 mt-0.5">{cardDescription}</CardDescription>
+                </TruncatedTooltip>
+              )}
               {product.ratingCount > 0 && (
                 <div className="mt-1.5" onClick={(e) => e.preventDefault()}>
                   <RatingBreakdownPopover

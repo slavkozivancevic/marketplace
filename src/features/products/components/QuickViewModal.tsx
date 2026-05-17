@@ -8,11 +8,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { X, ImageOff, ExternalLink, ShoppingCart } from "lucide-react";
 
+import { useLocale } from "next-intl";
 import {
   Dialog,
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  getProductTitle,
+  getProductShortDescription,
+  type ProductTranslations,
+} from "@/features/products/utils/translations";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Carousel,
@@ -50,6 +56,7 @@ interface QuickViewModalProps {
 export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
   const t = useTranslations("products");
   const tCart = useTranslations("cart");
+  const locale = useLocale();
   const { currency, currentRate } = useCurrencyStore();
   const { addItem, openCart, items } = useCartStore();
 
@@ -71,6 +78,18 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
 
   const images = product?.images ?? [];
   const activeVariant = product?.variants.find((v) => v.id === activeVariantId);
+  const localTitle = product
+    ? getProductTitle(
+        { title: product.title, translations: product.translations as ProductTranslations | null },
+        locale,
+      )
+    : "";
+  const localShortDescription = product
+    ? getProductShortDescription(
+        { shortDescription: product.shortDescription, translations: product.translations as ProductTranslations | null },
+        locale,
+      )
+    : null;
 
   const handleSetApi = useCallback((api: CarouselApi) => {
     setCarouselApi(api);
@@ -119,7 +138,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
     const maxStock = activeVariant ? activeVariant.stock : (product.stock ?? null);
     addItem({
       productId: product.id,
-      productTitle: product.title,
+      productTitle: localTitle,
       productImage: firstImage,
       variantId: activeVariant?.id ?? null,
       variantSku: activeVariant?.sku ?? null,
@@ -173,7 +192,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">
-          {product?.title ?? t("quickView")}
+          {localTitle || t("quickView")}
         </DialogTitle>
 
         {/* Close */}
@@ -213,7 +232,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                         <div className="relative w-full h-44 sm:h-52 bg-muted/10">
                           <Image
                             src={img.url}
-                            alt={`${product!.title} ${idx + 1}`}
+                            alt={`${localTitle} ${idx + 1}`}
                             fill
                             sizes="(max-width:640px) calc(100vw-2rem), 44vw"
                             className="object-contain"
@@ -249,7 +268,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                       i === currentSlide ? "border-primary" : "border-transparent hover:border-border",
                     )}
                   >
-                    <Image src={img.url} alt={`${product!.title} ${i + 1}`} fill sizes="36px" className="object-cover" />
+                    <Image src={img.url} alt={`${localTitle} ${i + 1}`} fill sizes="36px" className="object-cover" />
                   </button>
                 ))}
               </div>
@@ -281,12 +300,16 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
               {isLoading ? (
                 <div className="space-y-1.5 pr-5">
                   <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-full" />
                   <Skeleton className="h-3 w-2/5" />
                   <Skeleton className="h-5 w-1/3 mt-0.5" />
                 </div>
               ) : product ? (
                 <>
-                  <h2 className="text-sm font-semibold leading-snug pr-5 line-clamp-2">{product.title}</h2>
+                  <h2 className="text-sm font-semibold leading-snug pr-5 line-clamp-2">{localTitle}</h2>
+                  {localShortDescription && (
+                    <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">{localShortDescription}</p>
+                  )}
                   {product.brand && (
                     <p className="text-[11px] text-muted-foreground">{t("brandLabel")} {product.brand.name}</p>
                   )}

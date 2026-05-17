@@ -39,6 +39,7 @@ import {
 } from "../schema/products";
 import { createProduct, updateProduct } from "../actions/products";
 import {
+  ProductTranslationsInput,
   SerializedProductWithRelations,
   PresignedUploadedImage,
 } from "@/types/types";
@@ -151,6 +152,60 @@ type OptionTranslationsForm = {
   sr?: { name?: string; values?: Record<string, string> };
 } | null;
 
+type ProductTranslationsForm = {
+  sr: {
+    title: string;
+    description: string;
+    shortDescription: string;
+    metaTitle: string;
+    metaDescription: string;
+  };
+};
+
+function normalizeProductTranslations(
+  raw: unknown,
+): ProductTranslationsForm {
+  const empty: ProductTranslationsForm = {
+    sr: { title: "", description: "", shortDescription: "", metaTitle: "", metaDescription: "" },
+  };
+  if (!raw || typeof raw !== "object") return empty;
+  const srRaw = (raw as { sr?: unknown }).sr;
+  if (!srRaw || typeof srRaw !== "object") return empty;
+  const sr = srRaw as Record<string, unknown>;
+  const pick = (k: string) => (typeof sr[k] === "string" ? (sr[k] as string) : "");
+  return {
+    sr: {
+      title: pick("title"),
+      description: pick("description"),
+      shortDescription: pick("shortDescription"),
+      metaTitle: pick("metaTitle"),
+      metaDescription: pick("metaDescription"),
+    },
+  };
+}
+
+function buildProductTranslationsPayload(
+  form: ProductTranslationsForm,
+): ProductTranslationsInput | null {
+  const trim = (s: string) => s.trim();
+  const sr = {
+    title: trim(form.sr.title),
+    description: trim(form.sr.description),
+    shortDescription: trim(form.sr.shortDescription),
+    metaTitle: trim(form.sr.metaTitle),
+    metaDescription: trim(form.sr.metaDescription),
+  };
+  const hasAny = Object.values(sr).some((v) => v.length > 0);
+  if (!hasAny) return null;
+  const out: NonNullable<ProductTranslationsInput["sr"]> = {};
+  if (sr.title) out.title = sr.title;
+  if (sr.description) out.description = sr.description;
+  if (sr.shortDescription) out.shortDescription = sr.shortDescription;
+  if (sr.metaTitle) out.metaTitle = sr.metaTitle;
+  if (sr.metaDescription) out.metaDescription = sr.metaDescription;
+  return { sr: out };
+}
+
 /**
  * Always returns the full translation shape with `sr.values` as a record.
  * Pre-initializing the object prevents RHF's `setValue` from creating an
@@ -204,6 +259,7 @@ type ProductFormData = {
   dimensionUnit: "CM" | "IN" | null;
   metaTitle: string;
   metaDescription: string;
+  translations: ProductTranslationsForm;
   brandId: string | undefined;
   categoryIds: string[];
   images: { key: string }[];
@@ -444,6 +500,7 @@ export function ProductForm({
         dimensionUnit: null,
         metaTitle: "",
         metaDescription: "",
+        translations: normalizeProductTranslations(null),
         brandId: undefined,
         categoryIds: [],
         images: [],
@@ -476,6 +533,7 @@ export function ProductForm({
       dimensionUnit: (product.dimensionUnit ?? null) as ProductFormData["dimensionUnit"],
       metaTitle: product.metaTitle ?? "",
       metaDescription: product.metaDescription ?? "",
+      translations: normalizeProductTranslations(product.translations),
       brandId: product.brandId ?? undefined,
       categoryIds: product.categories.map((c) => c.categoryId),
       images: product.images.map((img) => ({ key: img.key })),
@@ -705,6 +763,8 @@ export function ProductForm({
     startTransition(async () => {
       let result;
 
+      const translationsPayload = buildProductTranslationsPayload(data.translations);
+
       if (mode === "create") {
         const createData: CreateProductInput = {
           title: data.title,
@@ -728,6 +788,7 @@ export function ProductForm({
           dimensionUnit: data.dimensionUnit,
           metaTitle: data.metaTitle || undefined,
           metaDescription: data.metaDescription || undefined,
+          translations: translationsPayload,
           brandId: data.brandId || undefined,
           categoryIds: data.categoryIds,
           images: data.images,
@@ -736,9 +797,13 @@ export function ProductForm({
         };
         result = await createProduct(createData, redirectTo);
       } else {
+        const updateData: UpdateProductInput = {
+          ...(data as UpdateProductInput),
+          translations: translationsPayload,
+        };
         result = await updateProduct(
           product!.id,
-          data as UpdateProductInput,
+          updateData,
           redirectTo,
         );
       }
@@ -805,19 +870,124 @@ export function ProductForm({
 
           {/* ── DETAILS TAB ── */}
           <TabsContent value="details" className="space-y-6 pt-4 overflow-y-auto min-h-0 pb-6">
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("titleField")}</FormLabel>
-                  <FormControl>
-                    <Input placeholder={t("titlePlaceholder")} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* English (default) */}
+            <div className="rounded-md border border-border/60 p-4 space-y-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                🇬🇧 {t("langEn")}
+              </p>
+
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("titleField")}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={t("titlePlaceholder")} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="shortDescription"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t("shortDesc")}
+                      <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input placeholder={t("shortDescPlaceholder")} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("description")}</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder={t("descPlaceholder")}
+                        className="min-h-30"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Serbian translation */}
+            <div className="rounded-md border border-border/60 p-4 space-y-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                🇷🇸 {t("langSr")}
+                <span className="ml-1.5 font-normal text-muted-foreground normal-case tracking-normal">— {t("optional")}</span>
+              </p>
+
+              <FormField
+                control={form.control}
+                name="translations.sr.title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("titleField")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={t("titleSrPlaceholder")}
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="translations.sr.shortDescription"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("shortDesc")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={t("shortDescSrPlaceholder")}
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="translations.sr.description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("description")}</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder={t("descSrPlaceholder")}
+                        className="min-h-30"
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <FormField
               control={form.control}
@@ -853,41 +1023,6 @@ export function ProductForm({
                   <FormDescription>
                     {t("slugDesc")}
                   </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="shortDescription"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t("shortDesc")}
-                    <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
-                  </FormLabel>
-                  <FormControl>
-                    <Input placeholder={t("shortDescPlaceholder")} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("description")}</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder={t("descPlaceholder")}
-                      className="min-h-30"
-                      {...field}
-                    />
-                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -1273,53 +1408,112 @@ export function ProductForm({
               {t("seoHint")}
             </p>
 
-            <FormField
-              control={form.control}
-              name="metaTitle"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t("metaTitle")}
-                    <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder={form.watch("title") || t("metaTitlePlaceholder")}
-                      maxLength={70}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {t("charsRecommended", { count: field.value?.length ?? 0, max: 70 })}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* English (default) */}
+            <div className="rounded-md border border-border/60 p-4 space-y-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                🇬🇧 {t("langEn")}
+              </p>
 
-            <FormField
-              control={form.control}
-              name="metaDescription"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t("metaDescription")}
-                    <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
-                  </FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder={t("metaDescPlaceholder")}
-                      maxLength={160}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {t("charsRecommended", { count: field.value?.length ?? 0, max: 160 })}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="metaTitle"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t("metaTitle")}
+                      <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={form.watch("title") || t("metaTitlePlaceholder")}
+                        maxLength={70}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t("charsRecommended", { count: field.value?.length ?? 0, max: 70 })}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="metaDescription"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t("metaDescription")}
+                      <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder={t("metaDescPlaceholder")}
+                        maxLength={160}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t("charsRecommended", { count: field.value?.length ?? 0, max: 160 })}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Serbian translation */}
+            <div className="rounded-md border border-border/60 p-4 space-y-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                🇷🇸 {t("langSr")}
+                <span className="ml-1.5 font-normal text-muted-foreground normal-case tracking-normal">— {t("optional")}</span>
+              </p>
+
+              <FormField
+                control={form.control}
+                name="translations.sr.metaTitle"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("metaTitle")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={form.watch("translations.sr.title") || t("metaTitleSrPlaceholder")}
+                        maxLength={70}
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t("charsRecommended", { count: field.value?.length ?? 0, max: 70 })}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="translations.sr.metaDescription"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("metaDescription")}</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder={t("metaDescSrPlaceholder")}
+                        maxLength={160}
+                        {...field}
+                        value={field.value ?? ""}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t("charsRecommended", { count: field.value?.length ?? 0, max: 160 })}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             {/* Preview */}
             {(form.watch("metaTitle") || form.watch("title")) && (

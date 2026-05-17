@@ -43,6 +43,7 @@ function renderCard(
         id: product.id,
         title: product.title,
         description: product.description,
+        translations: product.translations,
         price: product.price,
         compareAtPrice: product.compareAtPrice != null ? Number(product.compareAtPrice) : null,
         status: product.status,

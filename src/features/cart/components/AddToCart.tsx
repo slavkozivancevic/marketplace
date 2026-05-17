@@ -21,6 +21,7 @@ import {
   getOptionValue,
   type OptionTranslations,
 } from "@/features/products/utils/optionTranslations";
+import { getProductTitle, type ProductTranslations } from "@/features/products/utils/translations";
 
 interface AddToCartProps {
   product: SerializedPublicProduct;
@@ -244,7 +245,10 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
 
     addItem({
       productId: product.id,
-      productTitle: product.title,
+      productTitle: getProductTitle(
+        { title: product.title, translations: product.translations as ProductTranslations | null },
+        locale,
+      ),
       productImage: firstImage,
       variantId: activeVariant?.id ?? null,
       variantSku: activeVariant?.sku ?? null,

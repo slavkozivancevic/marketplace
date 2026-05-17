@@ -5,8 +5,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { ImageOff } from "lucide-react";
 import Autoplay from "embla-carousel-autoplay";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useCurrencyStore } from "@/store/currency";
+import {
+  getProductTitle,
+  type ProductTranslations,
+} from "@/features/products/utils/translations";
 import { formatPrice, convertCents } from "@/lib/currency";
 import {
   Carousel,
@@ -19,6 +23,7 @@ import {
 export type RelatedProduct = {
   id: string;
   title: string;
+  translations: unknown;
   price: number;
   compareAtPrice: number | null;
   images: { url: string }[];
@@ -27,6 +32,14 @@ export type RelatedProduct = {
 
 function RelatedProductCard({ product }: { product: RelatedProduct }) {
   const { currency, currentRate } = useCurrencyStore();
+  const locale = useLocale();
+  const localTitle = getProductTitle(
+    {
+      title: product.title,
+      translations: (product.translations as ProductTranslations | null) ?? null,
+    },
+    locale,
+  );
   const [imgLoaded, setImgLoaded] = useState(false);
   const isOnSale =
     product.compareAtPrice != null && product.compareAtPrice > product.price;
@@ -48,7 +61,7 @@ function RelatedProductCard({ product }: { product: RelatedProduct }) {
               {!imgLoaded && <div className="absolute inset-0 z-10 skeleton-shimmer" />}
               <Image
                 src={imageUrl}
-                alt={product.title}
+                alt={localTitle}
                 fill
                 sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
                 className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -105,7 +118,7 @@ function RelatedProductCard({ product }: { product: RelatedProduct }) {
         {/* Info */}
         <div className="p-4 space-y-1.5">
           <p className="font-semibold text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors duration-200">
-            {product.title}
+            {localTitle}
           </p>
           {isOnSale ? (
             <div className="flex items-baseline gap-2">

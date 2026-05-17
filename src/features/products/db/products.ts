@@ -5,6 +5,7 @@ import type { BulkFilter, BulkUpdateFields } from "../types/bulk";
 import {
   ImageInput,
   ProductListItem,
+  ProductTranslationsInput,
   ProductVariantInput,
   ProductWithRelations,
   RequestContext,
@@ -318,9 +319,18 @@ async function syncOptions(
 }
 
 type SrNamed = { sr?: { name?: string } };
+type SrProduct = { sr?: { title?: string; shortDescription?: string } };
 
 function srName(translations: unknown): string {
   return ((translations as SrNamed | null)?.sr?.name ?? "").trim();
+}
+
+function srProductTitle(translations: unknown): string {
+  return ((translations as SrProduct | null)?.sr?.title ?? "").trim();
+}
+
+function srProductShortDescription(translations: unknown): string {
+  return ((translations as SrProduct | null)?.sr?.shortDescription ?? "").trim();
 }
 
 export async function refreshProductSearchText(
@@ -332,6 +342,7 @@ export async function refreshProductSearchText(
     select: {
       title: true,
       shortDescription: true,
+      translations: true,
       brand: { select: { name: true, translations: true } },
       categories: {
         select: { category: { select: { name: true, translations: true } } },
@@ -343,6 +354,8 @@ export async function refreshProductSearchText(
   const parts: string[] = [
     p.title,
     p.shortDescription ?? "",
+    srProductTitle(p.translations),
+    srProductShortDescription(p.translations),
     p.brand?.name ?? "",
     srName(p.brand?.translations),
     ...p.categories.flatMap((c) => [c.category.name, srName(c.category.translations)]),
@@ -571,6 +584,7 @@ export function productRepository(
       dimensionUnit?: string | null;
       metaTitle?: string;
       metaDescription?: string;
+      translations?: ProductTranslationsInput | null;
       brandId?: string;
       categoryIds?: string[];
       images?: ImageInput[];
@@ -580,6 +594,7 @@ export function productRepository(
       const { slugify } = await import("@/lib/utils");
       const product = await db.prisma.$transaction(async (tx) => {
         const slug = data.slug?.trim() || slugify(data.title) + "-" + Date.now().toString(36);
+        const translations = (data.translations ?? null) as Prisma.InputJsonValue | null;
         const created = await tx.product.create({
           data: {
             title: data.title,
@@ -603,6 +618,7 @@ export function productRepository(
             dimensionUnit: (data.dimensionUnit as never) ?? null,
             metaTitle: data.metaTitle,
             metaDescription: data.metaDescription,
+            translations: translations === null ? Prisma.JsonNull : translations,
             brandId: data.brandId,
             organizationId: ctx.organizationId,
             createdById: ctx.userId,
@@ -713,6 +729,7 @@ export function productRepository(
         dimensionUnit?: string | null;
         metaTitle?: string;
         metaDescription?: string;
+        translations?: ProductTranslationsInput | null;
         brandId?: string;
         categoryIds?: string[];
         images?: ImageInput[];
@@ -726,7 +743,7 @@ export function productRepository(
           throw new VersionRequiredError();
         }
 
-        const { images, variants, options, weightUnit, dimensionUnit, categoryIds, ...productData } = data;
+        const { images, variants, options, weightUnit, dimensionUnit, categoryIds, translations, ...productData } = data;
 
         const result = await tx.product.updateMany({
           where: {
@@ -739,6 +756,12 @@ export function productRepository(
             ...productData,
             ...(weightUnit !== undefined && { weightUnit: weightUnit as never }),
             ...(dimensionUnit !== undefined && { dimensionUnit: dimensionUnit as never }),
+            ...(translations !== undefined && {
+              translations:
+                translations === null
+                  ? Prisma.JsonNull
+                  : (translations as Prisma.InputJsonValue),
+            }),
             updatedById: ctx.userId,
             version: { increment: 1 },
           },
@@ -1097,6 +1120,7 @@ export function productRepository(
           dimensionUnit: source.dimensionUnit ?? undefined,
           metaTitle: source.metaTitle ?? undefined,
           metaDescription: source.metaDescription ?? undefined,
+          translations: (source.translations as ProductTranslationsInput | null) ?? null,
           brandId: source.brandId ?? undefined,
           images: images.length > 0 ? images : undefined,
           variants: variants.length > 0 ? variants : undefined,
@@ -1381,6 +1405,7 @@ export type ProductRepo = {
     dimensionUnit?: string | null;
     metaTitle?: string;
     metaDescription?: string;
+    translations?: ProductTranslationsInput | null;
     brandId?: string;
     images?: ImageInput[];
     variants?: ProductVariantInput[];
@@ -1412,6 +1437,7 @@ export type ProductRepo = {
       dimensionUnit?: string | null;
       metaTitle?: string;
       metaDescription?: string;
+      translations?: ProductTranslationsInput | null;
       brandId?: string;
       images?: ImageInput[];
       status?: ProductStatus;

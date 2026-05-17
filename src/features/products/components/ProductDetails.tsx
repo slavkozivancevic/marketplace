@@ -13,6 +13,14 @@ import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
 import { getCategoryName, type CategoryTranslations } from "@/features/categories/utils/translations";
 import { getOptionName, getOptionValue, type OptionTranslations } from "@/features/products/utils/optionTranslations";
+import {
+  getProductTitle,
+  getProductDescription,
+  getProductShortDescription,
+  getProductMetaTitle,
+  getProductMetaDescription,
+  type ProductTranslations,
+} from "@/features/products/utils/translations";
 
 interface ProductDetailsProps {
   product: SerializedProductWithRelations;
@@ -33,6 +41,19 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
   const rate = currentRate();
   const fmt = (cents: number) => formatPrice(convertCents(cents, currency, rate), currency);
 
+  const productTranslations = (product.translations as ProductTranslations | null) ?? null;
+  const localTitle = getProductTitle({ title: product.title, translations: productTranslations }, locale);
+  const localDescription = getProductDescription({ description: product.description, translations: productTranslations }, locale);
+  const localShortDescription = getProductShortDescription(
+    { shortDescription: product.shortDescription, translations: productTranslations },
+    locale,
+  );
+  const localMetaTitle = getProductMetaTitle({ metaTitle: product.metaTitle, translations: productTranslations }, locale);
+  const localMetaDescription = getProductMetaDescription(
+    { metaDescription: product.metaDescription, translations: productTranslations },
+    locale,
+  );
+
   return (
     <div className="space-y-6">
       {/* ── BASIC INFO ── */}
@@ -48,12 +69,12 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
           )}
         </CardHeader>
         <CardContent className="space-y-2">
-          <Row label={t("titleLabel")} value={product.title} />
+          <Row label={t("titleLabel")} value={localTitle} />
           {product.slug && (
             <Row label={tf("slug")} value={product.slug} mono />
           )}
-          {product.shortDescription && (
-            <Row label={tf("shortDesc")} value={product.shortDescription} />
+          {localShortDescription && (
+            <Row label={tf("shortDesc")} value={localShortDescription} />
           )}
           {product.brand && (
             <div className="flex items-center gap-2">
@@ -85,7 +106,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
               ))}
             </div>
           )}
-          <Row label={t("descLabel")} value={product.description || "—"} />
+          <Row label={t("descLabel")} value={localDescription || "—"} />
           <div>
             <strong>{t("statusLabel")}</strong>{" "}
             <Badge variant={getStatusBadgeVariant(product.status)}>
@@ -201,18 +222,18 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
       <Separator />
 
       {/* ── SEO ── */}
-      {(product.metaTitle || product.metaDescription) && (
+      {(localMetaTitle || localMetaDescription) && (
         <>
           <Card>
             <CardHeader>
               <CardTitle>{tf("tabSeo")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {product.metaTitle && (
-                <Row label={tf("metaTitle")} value={product.metaTitle} />
+              {localMetaTitle && (
+                <Row label={tf("metaTitle")} value={localMetaTitle} />
               )}
-              {product.metaDescription && (
-                <Row label={tf("metaDescription")} value={product.metaDescription} />
+              {localMetaDescription && (
+                <Row label={tf("metaDescription")} value={localMetaDescription} />
               )}
             </CardContent>
           </Card>

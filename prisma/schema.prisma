@@ -176,9 +176,11 @@ model Product {
   slug             String
   description      String
   shortDescription String?
-  // Denormalized search blob (title + shortDescription + brand name + category names).
-  // Maintained by the application layer on create/update; used as the sole target for
-  // public product search via a GIN pg_trgm index.
+  translations     Json?
+  // Denormalized search blob (title + shortDescription + brand name + category names,
+  // plus their Serbian translations). Maintained by the application layer on
+  // create/update; used as the sole target for public product search via a GIN
+  // pg_trgm index.
   searchText       String?
   price            Int
   compareAtPrice   Int?

@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
@@ -15,6 +15,11 @@ import { toast } from "@/components/ui/sonner";
 import { deleteProduct, duplicateProduct } from "@/features/products/actions/products";
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
+import {
+  getProductTitle,
+  getProductDescription,
+  type ProductTranslations,
+} from "@/features/products/utils/translations";
 
 interface MyProductCardProps {
   canWrite: boolean;
@@ -22,6 +27,7 @@ interface MyProductCardProps {
     id: string;
     title: string;
     description: string;
+    translations: unknown;
     price: number;
     compareAtPrice: number | null;
     status: string;
@@ -33,12 +39,19 @@ interface MyProductCardProps {
 export function MyProductCard({ canWrite, product }: MyProductCardProps) {
   const t = useTranslations("products");
   const tCommon = useTranslations("common");
+  const locale = useLocale();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [isDeleting, startDelete] = useTransition();
   const [isDuplicating, startDuplicate] = useTransition();
 
   const { currency, currentRate } = useCurrencyStore();
+  const productTranslations = (product.translations as ProductTranslations | null) ?? null;
+  const localTitle = getProductTitle({ title: product.title, translations: productTranslations }, locale);
+  const localDescription = getProductDescription(
+    { description: product.description, translations: productTranslations },
+    locale,
+  );
   const isOnSale =
     product.compareAtPrice != null && product.compareAtPrice > product.price;
 
@@ -78,7 +91,7 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
         {product.imageUrls.length > 0 ? (
           <HoverImageCycler
             images={product.imageUrls}
-            alt={product.title}
+            alt={localTitle}
             className="w-full h-48"
           />
         ) : (
@@ -118,9 +131,9 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
         )}
       </div>
       <div className="p-4 space-y-2">
-        <h2 className="font-semibold">{product.title}</h2>
+        <h2 className="font-semibold">{localTitle}</h2>
         <p className="text-sm text-muted-foreground line-clamp-2">
-          {product.description}
+          {localDescription}
         </p>
         <div className="flex items-center justify-between">
           {isOnSale ? (
@@ -164,7 +177,7 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
               </Button>
               <ActionButton
                 title={t("deleteProduct")}
-                description={t("deleteConfirm", { title: product.title })}
+                description={t("deleteConfirm", { title: localTitle })}
                 confirmText={tCommon("delete")}
                 loadingText={t("deleting")}
                 isLoading={isDeleting}

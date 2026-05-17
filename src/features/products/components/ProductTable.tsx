@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import Image from "next/image";
 import { Copy, ImageOff, Loader2, Pencil, Trash2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -25,6 +25,11 @@ import { deleteProduct, duplicateProduct } from "@/features/products/actions/pro
 import { SerializedProductListItem } from "@/types/types";
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
+import {
+  getProductTitle,
+  getProductDescription,
+  type ProductTranslations,
+} from "@/features/products/utils/translations";
 
 function getStatusVariant(status: string) {
   switch (status) {
@@ -82,6 +87,7 @@ export function ProductTableRow({
 }) {
   const t = useTranslations("products");
   const tCommon = useTranslations("common");
+  const locale = useLocale();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [isDeleting, startDelete] = useTransition();
@@ -90,6 +96,13 @@ export function ProductTableRow({
   const { currency, currentRate } = useCurrencyStore();
   const [thumbLoaded, setThumbLoaded] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const productTranslations = (product.translations as ProductTranslations | null) ?? null;
+  const localTitle = getProductTitle({ title: product.title, translations: productTranslations }, locale);
+  const localDescription = getProductDescription(
+    { description: product.description, translations: productTranslations },
+    locale,
+  );
 
   // Auto-close the confirm dialog once the in-flight delete finishes.
   const wasDeleting = useRef(false);
@@ -150,7 +163,7 @@ export function ProductTableRow({
             {!thumbLoaded && <div className="absolute inset-0 z-10 skeleton-shimmer" />}
             <Image
               src={thumbnailUrl}
-              alt={product.title}
+              alt={localTitle}
               fill
               sizes="48px"
               className="object-cover"
@@ -164,7 +177,7 @@ export function ProductTableRow({
           </div>
         )}
       </div>
-      <div role="cell" className="truncate">{product.title}</div>
+      <div role="cell" className="truncate">{localTitle}</div>
       <div role="cell">
         {product.brand ? (
           <div className="flex items-center gap-1.5 min-w-0">
@@ -186,7 +199,7 @@ export function ProductTableRow({
         )}
       </div>
       <div role="cell" className="truncate text-muted-foreground">
-        {product.description}
+        {localDescription}
       </div>
       <div role="cell">{formatPrice(convertCents(product.price, currency, currentRate()), currency)}</div>
       <div role="cell">
@@ -237,7 +250,7 @@ export function ProductTableRow({
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>{t("deleteConfirm", { title: product.title })}</AlertDialogTitle>
+                  <AlertDialogTitle>{t("deleteConfirm", { title: localTitle })}</AlertDialogTitle>
                   <AlertDialogDescription>
                     {t("cannotUndo")}
                   </AlertDialogDescription>

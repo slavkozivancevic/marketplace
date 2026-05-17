@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, getLocale } from "next-intl/server";
 import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/core/db/prisma";
@@ -9,7 +9,8 @@ import { SerializedProductListItem } from "@/types/types";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Heart } from "lucide-react";
+import { TruncatedTooltip } from "@/components/TruncatedTooltip";
+import { Heart, ImageOff } from "lucide-react";
 import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
 import { HoverImageCycler } from "@/components/product/HoverImageCycler";
 import { StarRating } from "@/features/reviews/components/StarRating";
@@ -18,9 +19,16 @@ import { cookies } from "next/headers";
 import { formatPrice, convertCents } from "@/lib/currency";
 import { getCurrencyRate } from "@/features/currency/db/currencyRates";
 import { VALID_CURRENCIES, type Currency } from "@/lib/currency-config";
+import {
+  getProductTitle,
+  getProductDescription,
+  getProductShortDescription,
+  type ProductTranslations,
+} from "@/features/products/utils/translations";
 
 export default async function WishlistPage() {
   const t = await getTranslations();
+  const locale = await getLocale();
   const { userId: clerkUserId } = await auth();
   if (!clerkUserId) redirect("/sign-in");
 
@@ -72,7 +80,13 @@ export default async function WishlistPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {products.map((product) => (
-                <WishlistProductCard key={product.id} product={product} currency={currency} rate={rate} />
+                <WishlistProductCard
+                  key={product.id}
+                  product={product}
+                  locale={locale}
+                  currency={currency}
+                  rate={rate}
+                />
               ))}
             </div>
           )}
@@ -83,83 +97,123 @@ export default async function WishlistPage() {
   );
 }
 
-function WishlistProductCard({ product, currency, rate }: { product: SerializedProductListItem; currency: Currency; rate: number }) {
+function WishlistProductCard({
+  product,
+  locale,
+  currency,
+  rate,
+}: {
+  product: SerializedProductListItem;
+  locale: string;
+  currency: Currency;
+  rate: number;
+}) {
   const isOnSale =
     product.compareAtPrice != null && product.compareAtPrice > product.price;
 
+  const productTranslations = (product.translations as ProductTranslations | null) ?? null;
+  const localTitle = getProductTitle({ title: product.title, translations: productTranslations }, locale);
+  const localShortDescription = getProductShortDescription(
+    { shortDescription: product.shortDescription, translations: productTranslations },
+    locale,
+  );
+  const localDescription = getProductDescription(
+    { description: product.description, translations: productTranslations },
+    locale,
+  );
+  const cardDescription = localShortDescription ?? localDescription;
+
   return (
-    <Link href={`/products/${product.id}`} className="block group">
-      <Card className="h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 border-border/50">
-        <CardHeader className="p-0 relative">
-          {product.images.length > 0 && (
-            <HoverImageCycler
-              images={product.images.map((img) => img.url)}
-              alt={product.title}
-              className="w-full h-48 rounded-t"
-            />
-          )}
-          {isOnSale && (
-            <div className="absolute top-3 left-0 flex flex-col items-start gap-1 pointer-events-none">
-              <span className="bg-linear-to-r from-red-500 to-rose-600 text-white text-sm font-black px-4 py-1.5 rounded-r-full shadow-lg shadow-red-500/50 tracking-wider uppercase">
-                -{Math.round(((product.compareAtPrice! - product.price) / product.compareAtPrice!) * 100)}%
-              </span>
-            </div>
-          )}
-          {product.brand && (
-            <div className="absolute top-2 right-2 pointer-events-none">
-              {product.brand.logoUrl ? (
-                <div className="flex items-center gap-2 bg-background/85 backdrop-blur-sm border border-border/60 rounded-full px-2.5 py-1.5 shadow-sm">
-                  <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded-full border border-border/40 bg-white">
-                    <Image
-                      src={product.brand.logoUrl}
-                      alt={product.brand.name}
-                      fill
-                      sizes="20px"
-                      className="object-contain"
-                    />
+    <div className="relative h-full">
+      <Link href={`/products/${product.id}`} className="block h-full">
+        <Card className="h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 border-border/50 pt-0 pb-0 gap-0 flex flex-col">
+          <CardHeader className="p-0 relative">
+            {product.images.length > 0 ? (
+              <HoverImageCycler
+                images={product.images.map((img) => img.url)}
+                alt={localTitle}
+                className="w-full h-48 rounded-t"
+              />
+            ) : (
+              <div className="w-full h-48 rounded-t flex flex-col items-center justify-center gap-2 bg-muted/50">
+                <ImageOff className="h-8 w-8 text-muted-foreground/40" />
+                <span className="text-xs text-muted-foreground/40">No image</span>
+              </div>
+            )}
+            {isOnSale && (
+              <div className="absolute top-3 left-0 flex flex-col items-start gap-1 pointer-events-none">
+                <span className="bg-linear-to-r from-red-500 to-rose-600 text-white text-sm font-black px-4 py-1.5 rounded-r-full shadow-lg shadow-red-500/50 tracking-wider uppercase">
+                  -{Math.round(((product.compareAtPrice! - product.price) / product.compareAtPrice!) * 100)}%
+                </span>
+              </div>
+            )}
+            {product.brand && (
+              <div className="absolute top-2 right-2 pointer-events-none">
+                {product.brand.logoUrl ? (
+                  <div className="flex items-center gap-2 bg-background/85 backdrop-blur-sm border border-border/60 rounded-full px-2.5 py-1.5 shadow-sm">
+                    <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded-full border border-border/40 bg-white">
+                      <Image
+                        src={product.brand.logoUrl}
+                        alt={product.brand.name}
+                        fill
+                        sizes="20px"
+                        className="object-contain"
+                      />
+                    </div>
+                    <span className="text-xs font-semibold leading-none">{product.brand.name}</span>
                   </div>
-                  <span className="text-xs font-semibold leading-none">{product.brand.name}</span>
-                </div>
-              ) : (
-                <div className="bg-background/85 backdrop-blur-sm border border-border/60 rounded-full px-2.5 py-1.5 shadow-sm">
-                  <span className="text-xs font-semibold leading-none">{product.brand.name}</span>
+                ) : (
+                  <div className="bg-background/85 backdrop-blur-sm border border-border/60 rounded-full px-2.5 py-1.5 shadow-sm">
+                    <span className="text-xs font-semibold leading-none">{product.brand.name}</span>
+                  </div>
+                )}
+              </div>
+            )}
+            <WishlistButton
+              productId={product.id}
+              size={16}
+              className="absolute bottom-2 right-2"
+            />
+          </CardHeader>
+          <CardContent className="pt-3 pb-3 flex flex-col flex-1">
+            <div className="flex-1">
+              <TruncatedTooltip content={localTitle}>
+                <CardTitle className="text-sm leading-snug line-clamp-2">{localTitle}</CardTitle>
+              </TruncatedTooltip>
+              {cardDescription && (
+                <TruncatedTooltip content={cardDescription}>
+                  <CardDescription className="line-clamp-2 mt-0.5">{cardDescription}</CardDescription>
+                </TruncatedTooltip>
+              )}
+              {product.ratingCount > 0 && (
+                <div className="flex items-center gap-1 mt-1.5">
+                  <StarRating rating={product.avgRating} size={14} />
+                  <span className="text-xs text-muted-foreground ml-1">
+                    {product.avgRating.toFixed(1)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    ({product.ratingCount})
+                  </span>
                 </div>
               )}
+              {isOnSale ? (
+                <div className="flex items-baseline gap-2 mt-2">
+                  <p className="text-lg font-semibold text-red-500">
+                    {formatPrice(convertCents(product.price, currency, rate), currency)}
+                  </p>
+                  <p className="text-sm text-muted-foreground line-through">
+                    {formatPrice(convertCents(product.compareAtPrice!, currency, rate), currency)}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-lg font-semibold mt-2">
+                  {formatPrice(convertCents(product.price, currency, rate), currency)}
+                </p>
+              )}
             </div>
-          )}
-          <WishlistButton
-            productId={product.id}
-            size={16}
-            className="absolute bottom-2 right-2"
-          />
-        </CardHeader>
-        <CardContent className="pt-4">
-          <CardTitle>{product.title}</CardTitle>
-          <CardDescription>{product.description}</CardDescription>
-          {product.ratingCount > 0 && (
-            <div className="flex items-center gap-1.5 mt-1">
-              <StarRating rating={product.avgRating} size={14} />
-              <span className="text-xs text-muted-foreground">
-                {product.avgRating.toFixed(1)} ({product.ratingCount})
-              </span>
-            </div>
-          )}
-          {isOnSale ? (
-            <div className="flex items-baseline gap-2 mt-2">
-              <p className="text-lg font-semibold text-red-500">
-                {formatPrice(convertCents(product.price, currency, rate), currency)}
-              </p>
-              <p className="text-sm text-muted-foreground line-through">
-                {formatPrice(convertCents(product.compareAtPrice!, currency, rate), currency)}
-              </p>
-            </div>
-          ) : (
-            <p className="text-lg font-semibold mt-2">
-              {formatPrice(convertCents(product.price, currency, rate), currency)}
-            </p>
-          )}
-        </CardContent>
-      </Card>
-    </Link>
+          </CardContent>
+        </Card>
+      </Link>
+    </div>
   );
 }

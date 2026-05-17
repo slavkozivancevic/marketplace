@@ -1,15 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale } from "next-intl";
 import { ProductImageCarousel } from "@/components/product/ProductImageCarousel";
 import { ProductPurchaseSection } from "./ProductPurchaseSection";
 import { SerializedPublicProduct } from "@/types/types";
+import { getProductTitle, type ProductTranslations } from "@/features/products/utils/translations";
 
 interface ProductDetailLayoutProps {
   product: SerializedPublicProduct;
 }
 
 export function ProductDetailLayout({ product }: ProductDetailLayoutProps) {
+  const locale = useLocale();
+  const localTitle = getProductTitle(
+    { title: product.title, translations: product.translations as ProductTranslations | null },
+    locale,
+  );
   // Match AddToCart's initial-variant logic so the variant list is already
   // highlighted in the SSR HTML — without this, the highlight lags until
   // hydration + AddToCart's useEffect callback fires.
@@ -45,7 +52,7 @@ export function ProductDetailLayout({ product }: ProductDetailLayoutProps) {
       <div className="space-y-4">
         <ProductImageCarousel
           images={product.images}
-          title={product.title}
+          title={localTitle}
           jumpToImageId={jumpTicket.imageId}
           jumpTicket={jumpTicket.ticket}
         />
