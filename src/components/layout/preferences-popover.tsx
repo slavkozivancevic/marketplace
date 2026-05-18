@@ -8,6 +8,7 @@ import { setLocale } from "@/actions/setLocale";
 import { setCurrency } from "@/actions/setCurrency";
 import { VALID_CURRENCIES } from "@/lib/currency-config";
 import { useCurrencyStore } from "@/store/currency";
+import { SUPPORTED_LOCALES, LOCALE_LABELS } from "@/i18n/config";
 import { Sun, Moon, Sparkles, Monitor, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,10 +25,11 @@ const currencySymbols: Record<string, string> = {
   rsd: "дин",
 };
 
-const languages = [
-  { locale: "en", flag: "https://flagcdn.com/w40/gb.png", label: "EN" },
-  { locale: "sr", flag: "https://flagcdn.com/w40/rs.png", label: "SR" },
-];
+const languages = SUPPORTED_LOCALES.map((loc) => ({
+  locale: loc,
+  flag: LOCALE_LABELS[loc].flag,
+  label: loc.toUpperCase(),
+}));
 
 const themes = [
   { value: "light", icon: Sun, label: "Light" },
@@ -83,13 +85,13 @@ export function PreferencesPopover() {
         <p className="mb-2 px-0.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {tLang("label")}
         </p>
-        <div className="flex gap-1.5">
+        <div className="grid grid-cols-2 gap-1.5">
           {languages.map((lang) => (
             <button
               key={lang.locale}
               onClick={() => handleLocale(lang.locale)}
               className={cn(
-                "flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition-colors",
+                "flex cursor-pointer items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition-colors",
                 locale === lang.locale
                   ? "border-primary bg-primary/5 text-primary"
                   : "border-border text-muted-foreground hover:border-primary/50 hover:bg-muted hover:text-foreground"

@@ -26,6 +26,7 @@ import { emitProductEvent } from "@/features/webhooks/productEvents";
 import { deleteS3Object } from "@/services/s3Delete";
 import { copyProductImage } from "@/services/s3Copy";
 import { env } from "@/env/server";
+import { NON_DEFAULT_LOCALES } from "@/i18n/config";
 
 async function syncProductImages(
   tx: Prisma.TransactionClient,
@@ -318,19 +319,22 @@ async function syncOptions(
   }
 }
 
-type SrNamed = { sr?: { name?: string } };
-type SrProduct = { sr?: { title?: string; shortDescription?: string } };
-
-function srName(translations: unknown): string {
-  return ((translations as SrNamed | null)?.sr?.name ?? "").trim();
-}
-
-function srProductTitle(translations: unknown): string {
-  return ((translations as SrProduct | null)?.sr?.title ?? "").trim();
-}
-
-function srProductShortDescription(translations: unknown): string {
-  return ((translations as SrProduct | null)?.sr?.shortDescription ?? "").trim();
+/**
+ * Reads a single translated string from a `translations` JSON column.
+ * Generic over the `field` so it works for `name` (Brand/Category) and
+ * `title`/`shortDescription` (Product). Skips the default locale (which
+ * lives in the canonical column).
+ */
+function translatedString(
+  translations: unknown,
+  locale: string,
+  field: string,
+): string {
+  if (!translations || typeof translations !== "object") return "";
+  const localeData = (translations as Record<string, unknown>)[locale];
+  if (!localeData || typeof localeData !== "object") return "";
+  const value = (localeData as Record<string, unknown>)[field];
+  return typeof value === "string" ? value.trim() : "";
 }
 
 export async function refreshProductSearchText(
@@ -354,16 +358,26 @@ export async function refreshProductSearchText(
   const parts: string[] = [
     p.title,
     p.shortDescription ?? "",
-    srProductTitle(p.translations),
-    srProductShortDescription(p.translations),
     p.brand?.name ?? "",
-    srName(p.brand?.translations),
-    ...p.categories.flatMap((c) => [c.category.name, srName(c.category.translations)]),
-  ].filter((s) => s.trim().length > 0);
+    ...p.categories.map((c) => c.category.name),
+  ];
+
+  // Index every non-default locale so search hits work regardless of which
+  // language the buyer typed.
+  for (const loc of NON_DEFAULT_LOCALES) {
+    parts.push(translatedString(p.translations, loc, "title"));
+    parts.push(translatedString(p.translations, loc, "shortDescription"));
+    parts.push(translatedString(p.brand?.translations, loc, "name"));
+    for (const c of p.categories) {
+      parts.push(translatedString(c.category.translations, loc, "name"));
+    }
+  }
+
+  const searchText = parts.filter((s) => s.trim().length > 0).join(" ");
 
   await tx.product.update({
     where: { id: productId },
-    data: { searchText: parts.join(" ") },
+    data: { searchText },
   });
 }
 

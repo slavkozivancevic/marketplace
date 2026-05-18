@@ -15,18 +15,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
+import { SUPPORTED_LOCALES, LOCALE_LABELS, DEFAULT_LOCALE, asLocale } from "@/i18n/config";
 
-const languages: { locale: string; flag: string; label: string }[] = [
-  { locale: "en", flag: "https://flagcdn.com/w40/gb.png", label: "English" },
-  { locale: "sr", flag: "https://flagcdn.com/w40/rs.png", label: "Srpski" },
-];
+const languages = SUPPORTED_LOCALES.map((loc) => ({
+  locale: loc,
+  flag: LOCALE_LABELS[loc].flag,
+  label: LOCALE_LABELS[loc].label,
+}));
 
 export function LanguageSwitcher() {
   const t = useTranslations("language");
-  const locale = useLocale();
+  const locale = asLocale(useLocale());
   const router = useRouter();
 
-  const current = languages.find((l) => l.locale === locale) ?? languages[0];
+  const current =
+    languages.find((l) => l.locale === locale) ??
+    languages.find((l) => l.locale === DEFAULT_LOCALE)!;
 
   async function handleSelect(newLocale: string) {
     await setLocale(newLocale);

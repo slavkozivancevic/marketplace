@@ -21,6 +21,15 @@ import { Button } from "@/components/ui/button";
 import { createBrandSchema, updateBrandSchema, CreateBrandInput, UpdateBrandInput } from "../schema/brands";
 import { createBrandAction, updateBrandAction } from "../actions/brands";
 import { slugify } from "@/lib/utils";
+import { NON_DEFAULT_LOCALES, LOCALE_LABELS, DEFAULT_LOCALE } from "@/i18n/config";
+
+function emptyBrandTranslations(): NonNullable<CreateBrandInput["translations"]> {
+  const out: Record<string, { name?: string; description?: string }> = {};
+  for (const loc of NON_DEFAULT_LOCALES) {
+    out[loc] = { name: "", description: "" };
+  }
+  return out;
+}
 
 type CreateMode = {
   mode: "create";
@@ -45,7 +54,7 @@ export function BrandForm(props: BrandFormProps) {
       slug: "",
       logoUrl: "",
       description: "",
-      translations: { sr: { name: "", description: "" } },
+      translations: emptyBrandTranslations(),
       ...props.defaultValues,
     }),
     [props.defaultValues],
@@ -61,6 +70,7 @@ export function BrandForm(props: BrandFormProps) {
   });
 
   const nameValue = useWatch({ control: form.control, name: "name" });
+  const descriptionValue = useWatch({ control: form.control, name: "description" });
 
   useEffect(() => {
     const currentSlug = form.getValues("slug");
@@ -85,10 +95,10 @@ export function BrandForm(props: BrandFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-2xl">
-        {/* ── English ── */}
+        {/* ── Default locale (canonical) ── */}
         <div className="rounded-lg border border-border/60 p-4 space-y-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            🇬🇧 {t("langEn")}
+            {LOCALE_LABELS[DEFAULT_LOCALE].emoji} {LOCALE_LABELS[DEFAULT_LOCALE].label}
           </p>
 
           <FormField
@@ -125,49 +135,51 @@ export function BrandForm(props: BrandFormProps) {
           />
         </div>
 
-        {/* ── Serbian ── */}
-        <div className="rounded-lg border border-border/60 p-4 space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            🇷🇸 {t("langSr")}
-          </p>
+        {/* ── Translation sections — one per non-default locale ── */}
+        {NON_DEFAULT_LOCALES.map((loc) => (
+          <div key={loc} className="rounded-lg border border-border/60 p-4 space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              {LOCALE_LABELS[loc].emoji} {LOCALE_LABELS[loc].label}
+            </p>
 
-          <FormField
-            control={form.control}
-            name="translations.sr.name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("brandName")}</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder={t("nameSrPlaceholder")}
-                    {...field}
-                    value={field.value ?? ""}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name={`translations.${loc}.name` as const}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("brandName")}</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder={nameValue || t("brandNamePlaceholder")}
+                      {...field}
+                      value={field.value ?? ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name="translations.sr.description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("description")}</FormLabel>
-                <FormControl>
-                  <Textarea
-                    placeholder={t("descSrPlaceholder")}
-                    rows={3}
-                    {...field}
-                    value={field.value ?? ""}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+            <FormField
+              control={form.control}
+              name={`translations.${loc}.description` as const}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("description")}</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder={descriptionValue || t("descPlaceholder")}
+                      rows={3}
+                      {...field}
+                      value={field.value ?? ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        ))}
 
         <FormField
           control={form.control}

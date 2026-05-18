@@ -31,6 +31,15 @@ import { createCategoryAction, updateCategoryAction } from "../actions/categorie
 import { slugify } from "@/lib/utils";
 import { getCategoryName, type CategoryTranslations } from "../utils/translations";
 import { useLocale } from "next-intl";
+import { NON_DEFAULT_LOCALES, LOCALE_LABELS, DEFAULT_LOCALE } from "@/i18n/config";
+
+function emptyCategoryTranslations(): NonNullable<CategoryInput["translations"]> {
+  const out: Record<string, { name?: string; description?: string }> = {};
+  for (const loc of NON_DEFAULT_LOCALES) {
+    out[loc] = { name: "", description: "" };
+  }
+  return out;
+}
 
 type ParentOption = { id: string; name: string; parentId: string | null; translations: CategoryTranslations | null };
 
@@ -57,7 +66,7 @@ export function CategoryForm(props: CategoryFormProps) {
       parentId: null,
       imageUrl: "",
       description: "",
-      translations: { sr: { name: "", description: "" } },
+      translations: emptyCategoryTranslations(),
       order: 0,
       isActive: true,
       isFeatured: false,
@@ -76,6 +85,7 @@ export function CategoryForm(props: CategoryFormProps) {
   });
 
   const nameValue = useWatch({ control: form.control, name: "name" });
+  const descriptionValue = useWatch({ control: form.control, name: "description" });
   const parentId = useWatch({ control: form.control, name: "parentId" });
 
   // Auto-slug from name (only if slug is empty)
@@ -109,10 +119,10 @@ export function CategoryForm(props: CategoryFormProps) {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-2xl">
 
-        {/* ── English ── */}
+        {/* ── Default locale (canonical) ── */}
         <div className="rounded-lg border border-border/60 p-4 space-y-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            🇬🇧 {t("langEn")}
+            {LOCALE_LABELS[DEFAULT_LOCALE].emoji} {LOCALE_LABELS[DEFAULT_LOCALE].label}
           </p>
 
           <FormField
@@ -149,49 +159,51 @@ export function CategoryForm(props: CategoryFormProps) {
           />
         </div>
 
-        {/* ── Serbian ── */}
-        <div className="rounded-lg border border-border/60 p-4 space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            🇷🇸 {t("langSr")}
-          </p>
+        {/* ── Translation sections — one per non-default locale ── */}
+        {NON_DEFAULT_LOCALES.map((loc) => (
+          <div key={loc} className="rounded-lg border border-border/60 p-4 space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              {LOCALE_LABELS[loc].emoji} {LOCALE_LABELS[loc].label}
+            </p>
 
-          <FormField
-            control={form.control}
-            name="translations.sr.name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("name")}</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder={t("nameSrPlaceholder")}
-                    {...field}
-                    value={field.value ?? ""}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name={`translations.${loc}.name` as const}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("name")}</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder={nameValue || t("namePlaceholder")}
+                      {...field}
+                      value={field.value ?? ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name="translations.sr.description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("description")}</FormLabel>
-                <FormControl>
-                  <Textarea
-                    placeholder={t("descSrPlaceholder")}
-                    rows={2}
-                    {...field}
-                    value={field.value ?? ""}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+            <FormField
+              control={form.control}
+              name={`translations.${loc}.description` as const}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("description")}</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder={descriptionValue || t("descPlaceholder")}
+                      rows={2}
+                      {...field}
+                      value={field.value ?? ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        ))}
 
         {/* Slug */}
         <FormField

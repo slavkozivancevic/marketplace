@@ -460,7 +460,8 @@
     "outOfStock": "Nema na stanju",
     "selectAllOptions": "Izaberite sve opcije",
     "outOfStockBtn": "Nema na stanju",
-    "addToCart": "Dodaj u korpu - {price}"
+    "addToCart": "Dodaj u korpu - {price}",
+    "addToCartShort": "Dodaj u korpu"
   },
   "reviews": {
     "write": "Napišite recenziju",

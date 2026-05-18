@@ -1,4 +1,5 @@
 import { MembershipRole, Prisma, UserRole } from "@/generated/prisma/client";
+import type { Locale } from "@/i18n/config";
 
 export type RequestContext = {
   clerkUserId: string;
@@ -43,12 +44,9 @@ export type ProductVariantInput = {
   options?: VariantOptionValueInput[];
 };
 
-export type VariantOptionTranslations = {
-  sr?: {
-    name?: string;
-    values?: Record<string, string>;
-  };
-};
+export type VariantOptionTranslations = Partial<
+  Record<Locale, { name?: string; values?: Record<string, string> }>
+>;
 
 export type VariantOptionInput = {
   name: string;
@@ -56,15 +54,18 @@ export type VariantOptionInput = {
   translations?: VariantOptionTranslations | null;
 };
 
-export type ProductTranslationsInput = {
-  sr?: {
-    title?: string;
-    description?: string;
-    shortDescription?: string;
-    metaTitle?: string;
-    metaDescription?: string;
-  };
-};
+export type ProductTranslationsInput = Partial<
+  Record<
+    Locale,
+    {
+      title?: string;
+      description?: string;
+      shortDescription?: string;
+      metaTitle?: string;
+      metaDescription?: string;
+    }
+  >
+>;
 
 export type ImageProcessingResult = {
   key: string;
@@ -77,6 +78,11 @@ export type ImageProcessingResult = {
 export type PresignedUploadedImage = {
   key: string;
   url: string;
+
+  // Stable client-side identifier used as React key and dnd-kit id.
+  // Survives the temp→processed key swap so the DOM <img> isn't remounted
+  // (prevents the brief flash when the blob URL is replaced with the S3 URL).
+  clientId?: string;
 
   downloadUrl?: string;
 

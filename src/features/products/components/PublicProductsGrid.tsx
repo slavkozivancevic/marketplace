@@ -197,6 +197,7 @@ function ProductCard({
 }) {
   const { currency, currentRate } = useCurrencyStore();
   const locale = useLocale();
+  const tCart = useTranslations("cart");
   const productTranslations = product.translations as ProductTranslations | null;
   const localTitle = getProductTitle({ title: product.title, translations: productTranslations }, locale);
   const localShortDescription = getProductShortDescription(
@@ -308,7 +309,7 @@ function ProductCard({
               }}
             >
               <ShoppingCart className="h-3.5 w-3.5" />
-              Add to Cart
+              {tCart("addToCartShort")}
             </Button>
           </CardContent>
         </Card>

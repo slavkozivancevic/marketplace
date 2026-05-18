@@ -1,5 +1,6 @@
 "use client";
 import axios from "axios";
+import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { cn } from "@/lib/utils";
@@ -68,6 +69,21 @@ export function AdminProductsList({
       refetchOnMount: "always",
     });
 
+  // Lock the whole table while any row has an action (edit nav / duplicate /
+  // delete) in flight, to prevent racing actions on other rows.
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+  const handleBusyChange = useCallback((id: string, busy: boolean) => {
+    setBusyIds((prev) => {
+      if (busy === prev.has(id)) return prev;
+      const next = new Set(prev);
+      if (busy) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+  const anyRowBusy = busyIds.size > 0;
+  const tableLocked = isPlaceholderData || anyRowBusy;
+
   if (query.status === "pending") {
     return (
       <div role="table" className="rounded-lg border">
@@ -110,11 +126,11 @@ export function AdminProductsList({
     return (
       <div
         role="table"
-        className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
+        className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", tableLocked && "opacity-60 pointer-events-none transition-opacity duration-150")}
       >
         <ProductTableHeader showActions />
         {items.map((product) => (
-          <ProductTableRow key={product.id} product={product} showActions />
+          <ProductTableRow key={product.id} product={product} showActions onBusyChange={handleBusyChange} />
         ))}
       </div>
     );
@@ -124,7 +140,7 @@ export function AdminProductsList({
   return (
     <div
       role="table"
-      className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
+      className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", tableLocked && "opacity-60 pointer-events-none transition-opacity duration-150")}
       ref={parentRef}
     >
       <ProductTableHeader showActions />
@@ -169,7 +185,7 @@ export function AdminProductsList({
                 transform: `translateY(${vRow.start}px)`,
               }}
             >
-              <ProductTableRow product={product} showActions />
+              <ProductTableRow product={product} showActions onBusyChange={handleBusyChange} />
             </div>
           );
         })}

@@ -8,17 +8,20 @@ const urlOrEmpty = z
   )
   .optional();
 
+// Locale-keyed translations map. Any locale supported by the app may appear
+// as a key. The default locale uses the canonical columns and never appears here.
 const translationsSchema = z
-  .object({
-    sr: z
+  .record(
+    z.string(),
+    z
       .object({
         name: z.string().max(100).optional(),
         description: z.string().max(500).optional(),
       })
       .optional(),
-  })
-  .optional()
-  .nullable();
+  )
+  .nullable()
+  .optional();
 
 export const categorySchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long"),

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { useDropzone } from "react-dropzone";
@@ -47,9 +47,21 @@ import {
 } from "@/types/types";
 
 type ProductImageUploadProps = {
-  onUploadComplete: (images: PresignedUploadedImage[]) => void;
-  initialImages?: PresignedUploadedImage[];
+  images: PresignedUploadedImage[];
+  setImages: React.Dispatch<React.SetStateAction<PresignedUploadedImage[]>>;
 };
+
+// Fetch the image into the browser cache before swapping the visible <img>
+// src. Resolves on success or failure so a missing/blocked URL never wedges
+// the upload flow — at worst the user sees the usual fallback.
+function preloadImage(url: string): Promise<void> {
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    img.onload = () => resolve();
+    img.onerror = () => resolve();
+    img.src = url;
+  });
+}
 
 type SortableItemProps = {
   img: PresignedUploadedImage;
@@ -58,6 +70,7 @@ type SortableItemProps = {
 };
 
 function SortableItem({ img, onClick, onRemove }: SortableItemProps) {
+  const sortableId = img.clientId ?? img.key;
   const {
     attributes,
     listeners,
@@ -65,7 +78,7 @@ function SortableItem({ img, onClick, onRemove }: SortableItemProps) {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: img.key });
+  } = useSortable({ id: sortableId });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -87,14 +100,12 @@ function SortableItem({ img, onClick, onRemove }: SortableItemProps) {
           width={96}
           height={96}
           className="h-full w-full object-cover"
-          placeholder="blur"
-          blurDataURL={img.url}
         />
 
         {img.progress !== undefined && img.progress < 100 && (
-          <div className="absolute right-0 bottom-0 left-0 h-1 bg-muted">
+          <div className="absolute right-0 bottom-0 left-0 h-1.5 bg-muted">
             <div
-              className="h-full bg-primary"
+              className="h-full bg-primary transition-[width] duration-300 ease-out"
               style={{ width: `${img.progress}%` }}
             />
           </div>
@@ -121,12 +132,11 @@ function SortableItem({ img, onClick, onRemove }: SortableItemProps) {
 }
 
 export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
-  onUploadComplete,
-  initialImages = [],
+  images,
+  setImages,
 }) => {
   const t = useTranslations("imageUpload");
   const dndId = useId();
-  const [images, setImages] = useState<PresignedUploadedImage[]>(initialImages);
   const [previewImage, setPreviewImage] =
     useState<PresignedUploadedImage | null>(null);
 
@@ -138,23 +148,6 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
       },
     }),
   );
-
-  /**
-   * Ako parent promeni initialImages (npr edit mode / reset forme),
-   * uskladi local state.
-   */
-  useEffect(() => {
-    setImages(initialImages);
-  }, [initialImages]);
-
-  // Keep a stable ref so the effect below doesn't re-fire when the parent
-  // re-renders and passes a new function reference for onUploadComplete.
-  const onUploadCompleteRef = useRef(onUploadComplete);
-  onUploadCompleteRef.current = onUploadComplete;
-
-  useEffect(() => {
-    onUploadCompleteRef.current(images);
-  }, [images]);
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
@@ -174,14 +167,16 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
           continue;
         }
 
-        const tempKey = crypto.randomUUID();
+        const clientId = crypto.randomUUID();
+        const tempKey = clientId;
         const localPreviewUrl = URL.createObjectURL(file);
 
         const tempImage: PresignedUploadedImage = {
           key: tempKey,
+          clientId,
           url: localPreviewUrl,
           downloadUrl: localPreviewUrl,
-          progress: 0,
+          progress: 5,
         };
 
         setImages((prev) => [...prev, tempImage]);
@@ -208,15 +203,26 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
             onUploadProgress: (event: AxiosProgressEvent) => {
               if (!event.total) return;
 
-              const percent = Math.round((event.loaded * 100) / event.total);
+              // Cap S3 upload at 90% so the bar stays visible during the
+              // server-side processing step that runs afterwards.
+              const ratio = event.loaded / event.total;
+              const percent = Math.min(90, Math.round(ratio * 90));
 
               setImages((prev) =>
                 prev.map((img) =>
-                  img.key === tempKey ? { ...img, progress: percent } : img,
+                  img.clientId === clientId ? { ...img, progress: percent } : img,
                 ),
               );
             },
           });
+
+          // Indicate the processing phase so the user sees the bar advance
+          // past the upload even when the upload itself was instant.
+          setImages((prev) =>
+            prev.map((img) =>
+              img.clientId === clientId ? { ...img, progress: 95 } : img,
+            ),
+          );
 
           const { data: processed } =
             await axios.post<ProcessProductImageResponse>(
@@ -234,18 +240,25 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
             originalDownloadUrl,
           } = processed.data;
 
+          // Preload the optimized thumbnail before swapping the src so the
+          // <img> doesn't briefly go blank while the new URL is fetched.
+          await preloadImage(thumbnailDownloadUrl);
+
           const uploadedImage: PresignedUploadedImage = {
             key: processedKey,
+            clientId,
             url: thumbnailDownloadUrl,
             downloadUrl: originalDownloadUrl,
             progress: 100,
           };
 
-          URL.revokeObjectURL(localPreviewUrl);
-
           setImages((prev) =>
-            prev.map((img) => (img.key === tempKey ? uploadedImage : img)),
+            prev.map((img) => (img.clientId === clientId ? uploadedImage : img)),
           );
+
+          // Revoke after the swap so the blob remains valid in case React
+          // paints the old src one more time during the transition.
+          URL.revokeObjectURL(localPreviewUrl);
 
           toast.success(t("uploaded", { name: file.name }));
         } catch (err) {
@@ -253,13 +266,13 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
 
           URL.revokeObjectURL(localPreviewUrl);
 
-          setImages((prev) => prev.filter((img) => img.key !== tempKey));
+          setImages((prev) => prev.filter((img) => img.clientId !== clientId));
 
           toast.error(t("uploadFailed", { name: file.name }));
         }
       }
     },
-    [images.length, t],
+    [images.length, t, setImages],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -344,7 +357,7 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
             <div className="mt-2 flex flex-wrap justify-center gap-2">
               {images.map((img) => (
                 <div
-                  key={`mini-${img.key}`}
+                  key={`mini-${img.clientId ?? img.key}`}
                   className="relative h-16 w-16 overflow-hidden rounded-lg border"
                 >
                   <Image
@@ -353,14 +366,12 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
                     width={64}
                     height={64}
                     className="h-full w-full object-cover"
-                    placeholder="blur"
-                    blurDataURL={img.url}
                   />
 
                   {img.progress !== undefined && img.progress < 100 && (
-                    <div className="absolute right-0 bottom-0 left-0 h-1 bg-muted">
+                    <div className="absolute right-0 bottom-0 left-0 h-1.5 bg-muted">
                       <div
-                        className="h-full bg-primary"
+                        className="h-full bg-primary transition-[width] duration-300 ease-out"
                         style={{ width: `${img.progress}%` }}
                       />
                     </div>
@@ -379,13 +390,13 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
           onDragEnd={handleDragEnd}
         >
           <SortableContext
-            items={images.map((img) => img.key)}
+            items={images.map((img) => img.clientId ?? img.key)}
             strategy={verticalListSortingStrategy}
           >
             <div className="mt-4 grid grid-cols-4 gap-4">
               {images.map((img) => (
                 <SortableItem
-                  key={img.key}
+                  key={img.clientId ?? img.key}
                   img={img}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -416,8 +427,6 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
               width={600}
               height={600}
               className="w-full rounded-md object-contain"
-              placeholder="blur"
-              blurDataURL={previewImage.downloadUrl ?? previewImage.url}
             />
 
             <DialogFooter>

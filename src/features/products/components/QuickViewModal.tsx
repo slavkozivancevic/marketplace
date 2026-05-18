@@ -68,7 +68,10 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
     queryKey: ["product", "quick-view", productId],
     queryFn: () => fetchProduct(productId!),
     enabled: productId != null,
-    staleTime: 1000 * 60 * 5,
+    // Always refetch when the popup opens so admin edits to variant-image
+    // links show up immediately instead of being served from cache.
+    staleTime: 0,
+    refetchOnMount: "always",
     retry: (failureCount, err) =>
       axios.isAxiosError(err) && err.response?.status === 404 ? false : failureCount < 3,
   });

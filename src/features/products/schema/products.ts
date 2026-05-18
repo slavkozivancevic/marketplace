@@ -7,9 +7,12 @@ export const productImageSchema = z.object({
   key: z.string().min(1, "Image key is required"),
 });
 
+// Locale-keyed translations map. Any locale supported by the app may appear
+// as a key. The default locale uses the canonical columns and never appears here.
 export const productTranslationsSchema = z
-  .object({
-    sr: z
+  .record(
+    z.string(),
+    z
       .object({
         title: z.string().optional(),
         description: z.string().optional(),
@@ -18,19 +21,22 @@ export const productTranslationsSchema = z
         metaDescription: z.string().optional(),
       })
       .optional(),
-  })
+  )
   .nullable()
   .optional();
 
 export const variantOptionTranslationsSchema = z
-  .object({
-    sr: z
+  .record(
+    z.string(),
+    z
       .object({
         name: z.string().optional(),
-        values: z.record(z.string(), z.string()).optional(),
+        // Individual entries are optional: an empty translation means "fall
+        // back to the canonical value", it must not block form submission.
+        values: z.record(z.string(), z.string().optional()).optional(),
       })
       .optional(),
-  })
+  )
   .nullable()
   .optional();
 

@@ -80,10 +80,12 @@ export function ProductTableRow({
   product,
   showActions = false,
   basePath = "/admin/products",
+  onBusyChange,
 }: {
   product: SerializedProductListItem;
   showActions?: boolean;
   basePath?: string;
+  onBusyChange?: (id: string, busy: boolean) => void;
 }) {
   const t = useTranslations("products");
   const tCommon = useTranslations("common");
@@ -144,6 +146,14 @@ export function ProductTableRow({
   const thumbnailUrl = product.images?.[0]?.url;
   const cols = showActions ? COLS_ACTIONS : COLS_BASE;
   const isBusy = isDeleting || isDuplicating || isNavigating;
+
+  // Report busy state up so the list can lock the whole table while any
+  // row has an action in flight (prevents racing navigations/mutations
+  // when the user clicks other rows mid-action).
+  useEffect(() => {
+    onBusyChange?.(product.id, isBusy);
+    return () => onBusyChange?.(product.id, false);
+  }, [isBusy, product.id, onBusyChange]);
 
   return (
     <div

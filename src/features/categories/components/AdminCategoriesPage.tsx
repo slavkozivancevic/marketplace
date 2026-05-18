@@ -137,7 +137,15 @@ export function AdminCategoriesPage({
           </AlertDescription>
         </Alert>
       ) : (
-        <div className="rounded-lg border flex-1 min-h-0 overflow-auto">
+        <div
+          className={cn(
+            "rounded-lg border flex-1 min-h-0 overflow-auto",
+            // Lock the whole table while any row's action is in flight, so
+            // the user can't start a second action on a different row.
+            (isPending || isNavigating) &&
+              "opacity-60 pointer-events-none transition-opacity duration-150",
+          )}
+        >
           {/* Header */}
           <div className="grid items-center gap-3 border-b p-3 text-xs font-medium text-muted-foreground bg-background sticky top-0 z-10"
             style={{ gridTemplateColumns: "1fr 140px 90px 70px 80px" }}>

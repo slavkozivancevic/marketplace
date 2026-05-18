@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
+import { cn } from "@/lib/utils";
 import { SearchInput } from "@/components/search/SearchInput";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -213,7 +214,16 @@ export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
           </AlertDescription>
         </Alert>
       ) : (
-        <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto">
+        <div
+          role="table"
+          className={cn(
+            "rounded-lg border flex-1 min-h-0 overflow-auto",
+            // Lock the whole table while any row's action is in flight, so
+            // the user can't start a second action on a different row.
+            (isPending || isNavigating) &&
+              "opacity-60 pointer-events-none transition-opacity duration-150",
+          )}
+        >
           <BrandTableHeader />
           {filtered.map((brand) => (
             <BrandTableRow

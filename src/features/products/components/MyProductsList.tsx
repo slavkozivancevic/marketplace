@@ -1,5 +1,6 @@
 "use client";
 import axios from "axios";
+import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { cn } from "@/lib/utils";
@@ -70,6 +71,21 @@ export function MyProductsList({
       refetchOnMount: "always",
     });
 
+  // Lock the whole table while any row has an action (edit nav / duplicate /
+  // delete) in flight, to prevent racing actions on other rows.
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+  const handleBusyChange = useCallback((id: string, busy: boolean) => {
+    setBusyIds((prev) => {
+      if (busy === prev.has(id)) return prev;
+      const next = new Set(prev);
+      if (busy) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+  const anyRowBusy = busyIds.size > 0;
+  const tableLocked = isPlaceholderData || anyRowBusy;
+
   if (query.status === "pending") {
     return (
       <div role="table" className="rounded-lg border">
@@ -111,7 +127,7 @@ export function MyProductsList({
         role="table"
         className={cn(
           "rounded-lg border flex-1 min-h-0 overflow-auto",
-          isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150",
+          tableLocked && "opacity-60 pointer-events-none transition-opacity duration-150",
         )}
       >
         <ProductTableHeader showActions={canWrite} />
@@ -121,6 +137,7 @@ export function MyProductsList({
             product={product}
             showActions={canWrite}
             basePath="/dashboard/my-products"
+            onBusyChange={handleBusyChange}
           />
         ))}
       </div>
@@ -133,7 +150,7 @@ export function MyProductsList({
       role="table"
       className={cn(
         "rounded-lg border flex-1 min-h-0 overflow-auto",
-        isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150",
+        tableLocked && "opacity-60 pointer-events-none transition-opacity duration-150",
       )}
       ref={parentRef}
     >
@@ -183,6 +200,7 @@ export function MyProductsList({
                 product={product}
                 showActions={canWrite}
                 basePath="/dashboard/my-products"
+                onBusyChange={handleBusyChange}
               />
             </div>
           );

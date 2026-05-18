@@ -42,7 +42,11 @@ import {
   ProductTranslationsInput,
   SerializedProductWithRelations,
   PresignedUploadedImage,
+  VariantOptionTranslations,
 } from "@/types/types";
+import { NON_DEFAULT_LOCALES, LOCALE_LABELS, DEFAULT_LOCALE, SUPPORTED_LOCALES, type Locale } from "@/i18n/config";
+
+type NonDefaultLocale = (typeof NON_DEFAULT_LOCALES)[number];
 import { X, Plus, RefreshCw, ImageOff, AlertCircle } from "lucide-react";
 import Image from "next/image";
 import { cn, slugify } from "@/lib/utils";
@@ -148,93 +152,150 @@ function PriceInput({
   );
 }
 
-type OptionTranslationsForm = {
-  sr?: { name?: string; values?: Record<string, string> };
-} | null;
+// ── Translation form shape ───────────────────────────────────────────────
+//
+// Form state always carries a slot for every non-default locale (even when
+// empty), so RHF field paths like `translations.sr.title` are statically
+// valid. The default locale lives in the canonical fields and is not
+// represented here.
 
-type ProductTranslationsForm = {
-  sr: {
-    title: string;
-    description: string;
-    shortDescription: string;
-    metaTitle: string;
-    metaDescription: string;
-  };
+type ProductTranslationsLocaleFields = {
+  title: string;
+  description: string;
+  shortDescription: string;
+  metaTitle: string;
+  metaDescription: string;
 };
 
-function normalizeProductTranslations(
-  raw: unknown,
-): ProductTranslationsForm {
-  const empty: ProductTranslationsForm = {
-    sr: { title: "", description: "", shortDescription: "", metaTitle: "", metaDescription: "" },
-  };
-  if (!raw || typeof raw !== "object") return empty;
-  const srRaw = (raw as { sr?: unknown }).sr;
-  if (!srRaw || typeof srRaw !== "object") return empty;
-  const sr = srRaw as Record<string, unknown>;
-  const pick = (k: string) => (typeof sr[k] === "string" ? (sr[k] as string) : "");
-  return {
-    sr: {
-      title: pick("title"),
-      description: pick("description"),
-      shortDescription: pick("shortDescription"),
-      metaTitle: pick("metaTitle"),
-      metaDescription: pick("metaDescription"),
-    },
-  };
+type ProductTranslationsForm = Record<NonDefaultLocale, ProductTranslationsLocaleFields>;
+
+type OptionTranslationsLocaleFields = {
+  name: string;
+  values: Record<string, string>;
+};
+
+type OptionTranslationsForm = Record<NonDefaultLocale, OptionTranslationsLocaleFields>;
+
+const PRODUCT_TRANSLATION_FIELDS = [
+  "title",
+  "description",
+  "shortDescription",
+  "metaTitle",
+  "metaDescription",
+] as const;
+
+function emptyProductLocaleFields(): ProductTranslationsLocaleFields {
+  return { title: "", description: "", shortDescription: "", metaTitle: "", metaDescription: "" };
+}
+
+function emptyProductTranslations(): ProductTranslationsForm {
+  return Object.fromEntries(
+    NON_DEFAULT_LOCALES.map((loc) => [loc, emptyProductLocaleFields()]),
+  ) as ProductTranslationsForm;
+}
+
+function emptyOptionLocaleFields(): OptionTranslationsLocaleFields {
+  return { name: "", values: {} };
+}
+
+function emptyOptionTranslations(): OptionTranslationsForm {
+  return Object.fromEntries(
+    NON_DEFAULT_LOCALES.map((loc) => [loc, emptyOptionLocaleFields()]),
+  ) as OptionTranslationsForm;
+}
+
+function normalizeProductTranslations(raw: unknown): ProductTranslationsForm {
+  const result = emptyProductTranslations();
+  if (!raw || typeof raw !== "object") return result;
+  const data = raw as Record<string, unknown>;
+  for (const loc of NON_DEFAULT_LOCALES) {
+    const localeData = data[loc];
+    if (!localeData || typeof localeData !== "object") continue;
+    const obj = localeData as Record<string, unknown>;
+    const slot = result[loc];
+    for (const field of PRODUCT_TRANSLATION_FIELDS) {
+      const v = obj[field];
+      if (typeof v === "string") slot[field] = v;
+    }
+  }
+  return result;
 }
 
 function buildProductTranslationsPayload(
   form: ProductTranslationsForm,
 ): ProductTranslationsInput | null {
-  const trim = (s: string) => s.trim();
-  const sr = {
-    title: trim(form.sr.title),
-    description: trim(form.sr.description),
-    shortDescription: trim(form.sr.shortDescription),
-    metaTitle: trim(form.sr.metaTitle),
-    metaDescription: trim(form.sr.metaDescription),
-  };
-  const hasAny = Object.values(sr).some((v) => v.length > 0);
-  if (!hasAny) return null;
-  const out: NonNullable<ProductTranslationsInput["sr"]> = {};
-  if (sr.title) out.title = sr.title;
-  if (sr.description) out.description = sr.description;
-  if (sr.shortDescription) out.shortDescription = sr.shortDescription;
-  if (sr.metaTitle) out.metaTitle = sr.metaTitle;
-  if (sr.metaDescription) out.metaDescription = sr.metaDescription;
-  return { sr: out };
+  const out: ProductTranslationsInput = {};
+  let hasAny = false;
+  for (const loc of NON_DEFAULT_LOCALES) {
+    const slot = form[loc];
+    const localeOut: NonNullable<ProductTranslationsInput[NonDefaultLocale]> = {};
+    let localeHasAny = false;
+    for (const field of PRODUCT_TRANSLATION_FIELDS) {
+      const trimmed = slot[field].trim();
+      if (trimmed) {
+        localeOut[field] = trimmed;
+        localeHasAny = true;
+      }
+    }
+    if (localeHasAny) {
+      out[loc] = localeOut;
+      hasAny = true;
+    }
+  }
+  return hasAny ? out : null;
+}
+
+function buildOptionTranslationsPayload(
+  form: OptionTranslationsForm,
+): VariantOptionTranslations | null {
+  const out: VariantOptionTranslations = {};
+  let hasAny = false;
+  for (const loc of NON_DEFAULT_LOCALES) {
+    const slot = form[loc];
+    const name = slot.name.trim();
+    const values: Record<string, string> = {};
+    for (const [k, v] of Object.entries(slot.values)) {
+      const trimmed = typeof v === "string" ? v.trim() : "";
+      if (trimmed) values[k] = trimmed;
+    }
+    const localeHasAny = name.length > 0 || Object.keys(values).length > 0;
+    if (localeHasAny) {
+      out[loc] = {
+        ...(name ? { name } : {}),
+        ...(Object.keys(values).length > 0 ? { values } : {}),
+      };
+      hasAny = true;
+    }
+  }
+  return hasAny ? out : null;
 }
 
 /**
- * Always returns the full translation shape with `sr.values` as a record.
- * Pre-initializing the object prevents RHF's `setValue` from creating an
- * array when a value key looks numeric (e.g. size "10").
+ * Always returns the full translation shape with each locale's `values` as a
+ * record. Pre-initializing prevents RHF's `setValue` from creating an array
+ * when a value key looks numeric (e.g. size "10").
  */
-function normalizeOptionTranslations(
-  raw: unknown,
-): NonNullable<OptionTranslationsForm> {
-  const empty = { sr: { name: "", values: {} as Record<string, string> } };
-  if (!raw || typeof raw !== "object") return empty;
-  const srRaw = (raw as { sr?: unknown }).sr;
-  if (!srRaw || typeof srRaw !== "object") return empty;
-  const sr = srRaw as { name?: unknown; values?: unknown };
-  const values: Record<string, string> = {};
-  if (Array.isArray(sr.values)) {
-    sr.values.forEach((v, i) => {
-      if (typeof v === "string") values[String(i)] = v;
-    });
-  } else if (sr.values && typeof sr.values === "object") {
-    for (const [k, v] of Object.entries(sr.values as Record<string, unknown>)) {
-      if (typeof v === "string") values[k] = v;
+function normalizeOptionTranslations(raw: unknown): OptionTranslationsForm {
+  const result = emptyOptionTranslations();
+  if (!raw || typeof raw !== "object") return result;
+  const data = raw as Record<string, unknown>;
+  for (const loc of NON_DEFAULT_LOCALES) {
+    const localeData = data[loc];
+    if (!localeData || typeof localeData !== "object") continue;
+    const obj = localeData as { name?: unknown; values?: unknown };
+    const slot = result[loc];
+    if (typeof obj.name === "string") slot.name = obj.name;
+    if (Array.isArray(obj.values)) {
+      obj.values.forEach((v, i) => {
+        if (typeof v === "string") slot.values[String(i)] = v;
+      });
+    } else if (obj.values && typeof obj.values === "object") {
+      for (const [k, v] of Object.entries(obj.values as Record<string, unknown>)) {
+        if (typeof v === "string") slot.values[k] = v;
+      }
     }
   }
-  return {
-    sr: {
-      name: typeof sr.name === "string" ? sr.name : "",
-      values,
-    },
-  };
+  return result;
 }
 
 type ProductFormData = {
@@ -452,9 +513,19 @@ export function ProductForm({
   redirectTo,
 }: ProductFormProps) {
   const t = useTranslations("productForm");
+  const locale = useLocale() as Locale;
   const { rates } = useCurrencyStore();
   const [isPending, startTransition] = useTransition();
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  const [previewLocale, setPreviewLocale] = useState<Locale>(locale);
+
+  // Mirror the SEO preview locale onto the app locale when the user switches
+  // the app language. The toggle starts on the app locale (initial state) and
+  // any manual change the user makes inside the form is preserved across tab
+  // switches; it only resets when the form is re-mounted.
+  useEffect(() => {
+    setPreviewLocale(locale);
+  }, [locale]);
 
   const [uploadedImages, setUploadedImages] = useState<PresignedUploadedImage[]>(
     product?.images.map((img) => ({ key: img.key, url: img.url })) ?? [],
@@ -677,11 +748,15 @@ export function ProductForm({
       current.filter((v) => v !== value),
       { shouldValidate: true },
     );
-    const srValues = form.getValues(`options.${optionIndex}.translations.sr.values`);
-    if (srValues && value in srValues) {
-      const next = { ...srValues };
-      delete next[value];
-      form.setValue(`options.${optionIndex}.translations.sr.values`, next, { shouldValidate: false });
+    // Also drop the per-locale value translation, if any.
+    for (const loc of NON_DEFAULT_LOCALES) {
+      const path = `options.${optionIndex}.translations.${loc}.values` as const;
+      const localizedValues = form.getValues(path);
+      if (localizedValues && value in localizedValues) {
+        const next = { ...localizedValues };
+        delete next[value];
+        form.setValue(path, next, { shouldValidate: false });
+      }
     }
   };
 
@@ -737,10 +812,13 @@ export function ProductForm({
     toast.success(t("generated", { count: combinations.length }));
   };
 
-  const handleImageUpload = (images: PresignedUploadedImage[]) => {
-    setUploadedImages(images);
-    form.setValue("images", images.map((img) => ({ key: img.key })));
-    const validKeys = new Set(images.map((img) => img.key));
+  // Mirror uploadedImages into the form value + prune any variant→image
+  // references that point at removed keys. Driven by an effect so the upload
+  // component can stay controlled (parent owns the state, which is what keeps
+  // the image alive across tab unmounts).
+  useEffect(() => {
+    form.setValue("images", uploadedImages.map((img) => ({ key: img.key })));
+    const validKeys = new Set(uploadedImages.map((img) => img.key));
     const currentVariants = form.getValues("variants") ?? [];
     currentVariants.forEach((variant, index) => {
       const current = variant.imageKeys ?? [];
@@ -749,7 +827,7 @@ export function ProductForm({
         form.setValue(`variants.${index}.imageKeys`, filtered, { shouldDirty: true });
       }
     });
-  };
+  }, [uploadedImages, form]);
 
   // Tab error indicators
   const errors = form.formState.errors;
@@ -764,6 +842,10 @@ export function ProductForm({
       let result;
 
       const translationsPayload = buildProductTranslationsPayload(data.translations);
+      const optionsPayload = data.options.map((opt) => ({
+        ...opt,
+        translations: buildOptionTranslationsPayload(opt.translations),
+      }));
 
       if (mode === "create") {
         const createData: CreateProductInput = {
@@ -792,7 +874,7 @@ export function ProductForm({
           brandId: data.brandId || undefined,
           categoryIds: data.categoryIds,
           images: data.images,
-          options: data.options,
+          options: optionsPayload,
           variants: data.variants,
         };
         result = await createProduct(createData, redirectTo);
@@ -800,6 +882,7 @@ export function ProductForm({
         const updateData: UpdateProductInput = {
           ...(data as UpdateProductInput),
           translations: translationsPayload,
+          options: optionsPayload,
         };
         result = await updateProduct(
           product!.id,
@@ -873,7 +956,7 @@ export function ProductForm({
             {/* English (default) */}
             <div className="rounded-md border border-border/60 p-4 space-y-4">
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                🇬🇧 {t("langEn")}
+                {LOCALE_LABELS[DEFAULT_LOCALE].emoji} {LOCALE_LABELS[DEFAULT_LOCALE].label}
               </p>
 
               <FormField
@@ -926,68 +1009,70 @@ export function ProductForm({
               />
             </div>
 
-            {/* Serbian translation */}
-            <div className="rounded-md border border-border/60 p-4 space-y-4">
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                🇷🇸 {t("langSr")}
-                <span className="ml-1.5 font-normal text-muted-foreground normal-case tracking-normal">— {t("optional")}</span>
-              </p>
+            {/* Translation sections — one per non-default locale */}
+            {NON_DEFAULT_LOCALES.map((loc) => (
+              <div key={loc} className="rounded-md border border-border/60 p-4 space-y-4">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  {LOCALE_LABELS[loc].emoji} {LOCALE_LABELS[loc].label}
+                  <span className="ml-1.5 font-normal text-muted-foreground normal-case tracking-normal">— {t("optional")}</span>
+                </p>
 
-              <FormField
-                control={form.control}
-                name="translations.sr.title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("titleField")}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={t("titleSrPlaceholder")}
-                        {...field}
-                        value={field.value ?? ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name={`translations.${loc}.title` as const}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("titleField")}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder={form.watch("title") || t("titlePlaceholder")}
+                          {...field}
+                          value={field.value ?? ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="translations.sr.shortDescription"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("shortDesc")}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={t("shortDescSrPlaceholder")}
-                        {...field}
-                        value={field.value ?? ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name={`translations.${loc}.shortDescription` as const}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("shortDesc")}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder={form.watch("shortDescription") || t("shortDescPlaceholder")}
+                          {...field}
+                          value={field.value ?? ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="translations.sr.description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("description")}</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder={t("descSrPlaceholder")}
-                        className="min-h-30"
-                        {...field}
-                        value={field.value ?? ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                <FormField
+                  control={form.control}
+                  name={`translations.${loc}.description` as const}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("description")}</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          className="min-h-30"
+                          placeholder={form.watch("description") || t("descPlaceholder")}
+                          {...field}
+                          value={field.value ?? ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            ))}
 
             <FormField
               control={form.control}
@@ -1079,8 +1164,8 @@ export function ProductForm({
             <div className="space-y-2">
               <FormLabel className="text-base font-semibold">{t("images")}</FormLabel>
               <ProductImageUpload
-                onUploadComplete={handleImageUpload}
-                initialImages={uploadedImages}
+                images={uploadedImages}
+                setImages={setUploadedImages}
               />
             </div>
           </TabsContent>
@@ -1411,7 +1496,7 @@ export function ProductForm({
             {/* English (default) */}
             <div className="rounded-md border border-border/60 p-4 space-y-4">
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                🇬🇧 {t("langEn")}
+                {LOCALE_LABELS[DEFAULT_LOCALE].emoji} {LOCALE_LABELS[DEFAULT_LOCALE].label}
               </p>
 
               <FormField
@@ -1463,73 +1548,111 @@ export function ProductForm({
               />
             </div>
 
-            {/* Serbian translation */}
-            <div className="rounded-md border border-border/60 p-4 space-y-4">
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                🇷🇸 {t("langSr")}
-                <span className="ml-1.5 font-normal text-muted-foreground normal-case tracking-normal">— {t("optional")}</span>
-              </p>
+            {/* Translation sections — one per non-default locale */}
+            {NON_DEFAULT_LOCALES.map((loc) => (
+              <div key={loc} className="rounded-md border border-border/60 p-4 space-y-4">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  {LOCALE_LABELS[loc].emoji} {LOCALE_LABELS[loc].label}
+                  <span className="ml-1.5 font-normal text-muted-foreground normal-case tracking-normal">— {t("optional")}</span>
+                </p>
 
-              <FormField
-                control={form.control}
-                name="translations.sr.metaTitle"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("metaTitle")}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={form.watch("translations.sr.title") || t("metaTitleSrPlaceholder")}
-                        maxLength={70}
-                        {...field}
-                        value={field.value ?? ""}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t("charsRecommended", { count: field.value?.length ?? 0, max: 70 })}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name={`translations.${loc}.metaTitle` as const}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("metaTitle")}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder={form.watch(`translations.${loc}.title` as const) || ""}
+                          maxLength={70}
+                          {...field}
+                          value={field.value ?? ""}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t("charsRecommended", { count: field.value?.length ?? 0, max: 70 })}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="translations.sr.metaDescription"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("metaDescription")}</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder={t("metaDescSrPlaceholder")}
-                        maxLength={160}
-                        {...field}
-                        value={field.value ?? ""}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t("charsRecommended", { count: field.value?.length ?? 0, max: 160 })}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                <FormField
+                  control={form.control}
+                  name={`translations.${loc}.metaDescription` as const}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("metaDescription")}</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder={form.watch(`translations.${loc}.shortDescription` as const) || t("metaDescPlaceholder")}
+                          maxLength={160}
+                          {...field}
+                          value={field.value ?? ""}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t("charsRecommended", { count: field.value?.length ?? 0, max: 160 })}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            ))}
 
             {/* Preview */}
-            {(form.watch("metaTitle") || form.watch("title")) && (
-              <div className="rounded-lg border p-4 space-y-1 bg-background dark:bg-input/30">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("searchPreview")}</p>
-                <p className="text-base text-blue-600 font-medium truncate">
-                  {form.watch("metaTitle") || form.watch("title")}
-                </p>
-                <p className="text-xs text-green-700">
-                  example.com/products/{form.watch("slug") || "product-slug"}
-                </p>
-                <p className="text-sm text-muted-foreground line-clamp-2">
-                  {form.watch("metaDescription") || form.watch("shortDescription") || form.watch("description") || t("noDescription")}
-                </p>
-              </div>
-            )}
+            {(() => {
+              const isDefault = previewLocale === DEFAULT_LOCALE;
+              const tr = (key: "title" | "metaTitle" | "metaDescription" | "shortDescription" | "description") =>
+                isDefault
+                  ? undefined
+                  : (form.watch(`translations.${previewLocale as NonDefaultLocale}.${key}` as const) as string | undefined);
+              const base = (key: "title" | "metaTitle" | "metaDescription" | "shortDescription" | "description") =>
+                form.watch(key) as string | undefined;
+
+              const previewTitle = tr("metaTitle") || tr("title") || base("metaTitle") || base("title") || "";
+              const previewDesc =
+                tr("metaDescription") || tr("shortDescription") || tr("description") ||
+                base("metaDescription") || base("shortDescription") || base("description") ||
+                t("noDescription");
+              const previewSlug = (form.watch("slug") as string | undefined) || "product-slug";
+
+              if (!previewTitle) return null;
+
+              return (
+                <div className="rounded-lg border p-4 space-y-3 bg-background dark:bg-input/30">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                      {t("searchPreview")}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {SUPPORTED_LOCALES.map((loc) => (
+                        <Button
+                          key={loc}
+                          type="button"
+                          size="sm"
+                          variant={previewLocale === loc ? "default" : "outline"}
+                          onClick={() => setPreviewLocale(loc)}
+                          className="h-7 px-2.5 text-xs"
+                        >
+                          <span className="mr-1">{LOCALE_LABELS[loc].emoji}</span>
+                          {LOCALE_LABELS[loc].label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-base text-blue-600 font-medium truncate">{previewTitle}</p>
+                    <p className="text-xs text-green-700">
+                      example.com/products/{previewSlug}
+                    </p>
+                    <p className="text-sm text-muted-foreground line-clamp-2">{previewDesc}</p>
+                  </div>
+                </div>
+              );
+            })()}
           </TabsContent>
 
           {/* ── OPTIONS & VARIANTS TAB ── */}
@@ -1548,7 +1671,7 @@ export function ProductForm({
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    appendOption({ name: "", values: [], translations: { sr: { name: "", values: {} } } });
+                    appendOption({ name: "", values: [], translations: emptyOptionTranslations() });
                     setOptionValueInputs((prev) => [...prev, ""]);
                   }}
                 >
@@ -1586,7 +1709,7 @@ export function ProductForm({
                     {/* English (default) */}
                     <div className="rounded-md border border-border/60 p-3 space-y-3">
                       <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                        🇬🇧 {t("langEn")}
+                        {LOCALE_LABELS[DEFAULT_LOCALE].emoji} {LOCALE_LABELS[DEFAULT_LOCALE].label}
                       </p>
 
                       <FormField
@@ -1652,62 +1775,64 @@ export function ProductForm({
                       </div>
                     </div>
 
-                    {/* Serbian translation */}
-                    <div className="rounded-md border border-border/60 p-3 space-y-3">
-                      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                        🇷🇸 {t("langSr")}
-                      </p>
+                    {/* Translation sections — one per non-default locale */}
+                    {NON_DEFAULT_LOCALES.map((loc) => (
+                      <div key={loc} className="rounded-md border border-border/60 p-3 space-y-3">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                          {LOCALE_LABELS[loc].emoji} {LOCALE_LABELS[loc].label}
+                        </p>
 
-                      <FormField
-                        control={form.control}
-                        name={`options.${optionIndex}.translations.sr.name`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs">{t("optionName")}</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder={t("optionNameSrPlaceholder")}
-                                {...field}
-                                value={field.value ?? ""}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                        <FormField
+                          control={form.control}
+                          name={`options.${optionIndex}.translations.${loc}.name` as const}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">{t("optionName")}</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder={watchedOptions?.[optionIndex]?.name || t("optionNamePlaceholder")}
+                                  {...field}
+                                  value={field.value ?? ""}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                      {uniqueValues.length > 0 && (
-                        <div className="space-y-2">
-                          <FormLabel className="text-xs text-muted-foreground">
-                            {t("valueTranslations")}
-                          </FormLabel>
-                          <div className="space-y-1.5">
-                            {uniqueValues.map((value: string) => (
-                              <FormField
-                                key={value}
-                                control={form.control}
-                                name={`options.${optionIndex}.translations.sr.values.${value}` as `options.${number}.translations.sr.values.${string}`}
-                                render={({ field }) => (
-                                  <FormItem className="flex items-center gap-2 space-y-0">
-                                    <span className="text-xs text-muted-foreground w-24 shrink-0 truncate">
-                                      {value}
-                                    </span>
-                                    <FormControl>
-                                      <Input
-                                        placeholder={value}
-                                        className="h-8 text-sm"
-                                        {...field}
-                                        value={(field.value as string | undefined) ?? ""}
-                                      />
-                                    </FormControl>
-                                  </FormItem>
-                                )}
-                              />
-                            ))}
+                        {uniqueValues.length > 0 && (
+                          <div className="space-y-2">
+                            <FormLabel className="text-xs text-muted-foreground">
+                              {t("valueTranslations")}
+                            </FormLabel>
+                            <div className="space-y-1.5">
+                              {uniqueValues.map((value: string) => (
+                                <FormField
+                                  key={value}
+                                  control={form.control}
+                                  name={`options.${optionIndex}.translations.${loc}.values.${value}` as `options.${number}.translations.${typeof loc}.values.${string}`}
+                                  render={({ field }) => (
+                                    <FormItem className="flex items-center gap-2 space-y-0">
+                                      <span className="text-xs text-muted-foreground w-24 shrink-0 truncate">
+                                        {value}
+                                      </span>
+                                      <FormControl>
+                                        <Input
+                                          placeholder={value}
+                                          className="h-8 text-sm"
+                                          {...field}
+                                          value={(field.value as string | undefined) ?? ""}
+                                        />
+                                      </FormControl>
+                                    </FormItem>
+                                  )}
+                                />
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 );
               })}

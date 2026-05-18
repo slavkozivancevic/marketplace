@@ -1,8 +1,10 @@
+import { LOCALE_LABELS, DEFAULT_LOCALE, isLocale } from "@/i18n/config";
+
 /**
- * Maps the app locale ("en" | "sr") to the BCP 47 locale tag used for
- * Intl / toLocaleString date formatting.
- * Serbian uses Latin script in this app, so "sr" → "sr-Latn".
+ * Maps the app locale to the BCP 47 locale tag used for Intl /
+ * `toLocaleString` date formatting. Pulled from the central locale config.
  */
 export function dateLocale(locale: string): string {
-  return locale === "sr" ? "sr-Latn" : "en-US";
+  const key = isLocale(locale) ? locale : DEFAULT_LOCALE;
+  return LOCALE_LABELS[key].bcp47;
 }

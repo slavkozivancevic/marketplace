@@ -460,7 +460,8 @@
     "outOfStock": "Out of stock",
     "selectAllOptions": "Select all options",
     "outOfStockBtn": "Out of Stock",
-    "addToCart": "Add to Cart - {price}"
+    "addToCart": "Add to Cart - {price}",
+    "addToCartShort": "Add to Cart"
   },
   "reviews": {
     "write": "Write a Review",
