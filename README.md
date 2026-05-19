@@ -172,6 +172,16 @@ Open [http://localhost:3000](http://localhost:3000).
 | `npm run db:reset` | Drop and recreate the DB (destructive) |
 | `npm run db:seed` | Run `prisma/seed.ts` |
 
+### S3 Bucket Setup
+
+Product images are uploaded directly from the browser to S3 via presigned URLs. Each freshly uploaded object is tagged `lifecycle=pending`; the tag is stripped when the corresponding product is saved. A bucket-level lifecycle rule sweeps any object still tagged after 24h, so abandoned form uploads never become long-term orphans.
+
+Apply the rule once per bucket (idempotent):
+
+```bash
+npx tsx scripts/apply-s3-lifecycle-rule.ts
+```
+
 ### Webhooks
 
 External services hit the following routes — expose them via a tunnel (e.g. `ngrok`, `stripe listen`) during local dev:

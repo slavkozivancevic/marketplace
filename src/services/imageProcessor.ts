@@ -4,6 +4,11 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import sharp from "sharp";
 import { ImageInput, ImageProcessingResult } from "@/types/types";
 import { ImageProcessorError } from "@/features/common/errors/domainErrors";
+import {
+  PENDING_TAG_KEY,
+  PENDING_TAG_VALUE,
+  tagS3ObjectPending,
+} from "./s3Tagging";
 
 export async function processImage({
   key,
@@ -35,8 +40,14 @@ export async function processImage({
         Key: thumbKey,
         Body: thumbBuffer,
         ContentType: "image/webp",
+        Tagging: `${PENDING_TAG_KEY}=${PENDING_TAG_VALUE}`,
       }),
     );
+
+    // The original was uploaded by the client via a presigned PUT, so we tag
+    // it here. The lifecycle rule will sweep both this and the thumbnail
+    // after 24h unless commitProductImage runs first (on form save).
+    await tagS3ObjectPending(key);
 
     const originalGetCommand = new GetObjectCommand({
       Bucket: S3_BUCKET,

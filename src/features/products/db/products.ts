@@ -25,6 +25,7 @@ import {
 import { emitProductEvent } from "@/features/webhooks/productEvents";
 import { deleteS3Object } from "@/services/s3Delete";
 import { copyProductImage } from "@/services/s3Copy";
+import { commitProductImage } from "@/services/s3Tagging";
 import { env } from "@/env/server";
 import { NON_DEFAULT_LOCALES } from "@/i18n/config";
 
@@ -69,6 +70,14 @@ async function syncProductImages(
         order: index,
       })),
     });
+
+    // Newly uploaded images carry a `lifecycle=pending` tag — strip it so the
+    // bucket lifecycle rule no longer marks them for deletion. Best-effort:
+    // if S3 is briefly unavailable the next save (or the rule's 24h grace
+    // period) will resolve it.
+    await Promise.all(
+      toInsert.map((img) => commitProductImage(img.key).catch(() => {})),
+    );
   }
 
   const reorderOperations = images
