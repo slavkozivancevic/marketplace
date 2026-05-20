@@ -1,6 +1,6 @@
 # Marketplace Platform
 
-A production-grade, multi-tenant e-commerce platform built as a monorepo of three tightly-integrated services. The core storefront is a full-stack Next.js application; real-time chat and conversation search are deployed as independent serverless microservices on AWS, communicating over an event-driven backbone (SNS → SQS → Lambda).
+A production-grade, multi-tenant e-commerce platform built as a monorepo of four tightly-integrated services. The core storefront is a full-stack Next.js application; real-time chat, conversation search, and transactional notifications are deployed as independent serverless microservices on AWS, communicating over an event-driven backbone (SNS → SQS → Lambda).
 
 ---
 
@@ -11,12 +11,13 @@ A production-grade, multi-tenant e-commerce platform built as a monorepo of thre
 | **marketplace** | Full-stack storefront & seller dashboard | Next.js 16, React 19, PostgreSQL, Redis |
 | **marketplace-messaging** | Real-time chat with WebSocket, reactions & file attachments | AWS Lambda, API Gateway WebSocket, DynamoDB |
 | **marketplace-conversation-search** | Conversation search index, event-driven via SNS/SQS | AWS Lambda, DynamoDB, SNS, SQS |
+| **marketplace-notifications** | Transactional email service (orders, invites, role changes) + weekly currency-rate cron | AWS Lambda, SES, DynamoDB, SNS/SQS, EventBridge |
 
 ---
 
 ## marketplace — Core Platform
 
-Multi-tenant e-commerce storefront. Organizations (sellers) manage products with variants, images, and stock; customers browse, add to cart, and check out via Stripe. Includes a full admin panel and seller dashboard.
+Multi-tenant e-commerce storefront. Organizations (sellers) manage products with variants, images, categories, brands, tags, and stock; customers browse, search, wishlist, review, and check out via Stripe or Cash-on-Delivery (COD). Includes a full admin panel, seller dashboard, related-products carousel, multi-currency pricing (EUR/RSD with daily-refreshed FX rates), and full i18n across **English, Serbian, German, and Spanish**.
 
 ### Tech Stack
 
@@ -24,12 +25,15 @@ Multi-tenant e-commerce storefront. Organizations (sellers) manage products with
 - **Language:** TypeScript 5 (strict)
 - **Database:** PostgreSQL 17 via **Prisma 7** with the native `@prisma/adapter-pg` driver adapter
 - **Auth:** **Clerk** (`@clerk/nextjs` v6) with Svix-verified webhooks for real-time user sync
-- **Payments:** Stripe Checkout + webhook-driven order fulfillment
-- **Storage:** AWS S3 with presigned upload URLs (browser → S3 direct) and `sharp` for server-side image processing
-- **Email:** AWS SES
+- **Payments:** Stripe Checkout + webhook-driven order fulfillment, plus **Cash-on-Delivery (COD)** with seller-driven fulfillment / cancellation flows
+- **i18n:** **next-intl v4** with a cookie-based locale (`NEXT_LOCALE`), four supported locales (`en`, `sr`, `de`, `es`), per-product translation tables, and a search-text blob backfilled across locales for cross-language full-text search
+- **Currencies:** Multi-currency display (EUR / RSD) backed by a `CurrencyRate` table refreshed weekly by the notifications service (see below)
+- **Storage:** AWS S3 with presigned upload URLs (browser → S3 direct), `sharp` for server-side image processing, and bucket-level **lifecycle rules** that sweep abandoned uploads tagged `lifecycle=pending` after 24h
+- **Email:** AWS SES — invoked exclusively by the **marketplace-notifications** service; the marketplace itself publishes events to SNS and never calls SES directly
+- **Outbound events:** AWS **SNS** publishes domain events (`order.completed`, `order.refunded`, `order.cod_*`, `invite.sent`, `member.role_changed`, `user.role_changed`) consumed by the notifications service
 - **Cache / Queues:** Redis via `ioredis`
-- **UI:** **Tailwind CSS 4** (native CSS cascade layers), Radix UI primitives, **shadcn/ui** component library, `lucide-react`, `next-themes`
-- **Carousel:** Embla Carousel with autoplay
+- **UI:** **Tailwind CSS 4** (native CSS cascade layers, polished light/dark themes), Radix UI primitives, **shadcn/ui** component library, `lucide-react`, `next-themes`
+- **Carousel:** Embla Carousel with autoplay (related products on PDP)
 - **Drag & Drop:** `@dnd-kit` (image ordering, variant management)
 - **Forms & Validation:** `react-hook-form` + **Zod 4** + `@hookform/resolvers`
 - **Server State:** **TanStack Query v5** (with DevTools)
@@ -70,14 +74,18 @@ prisma/
 
 Defined in [prisma/schema.prisma](prisma/schema.prisma):
 
-- **User** — synced from Clerk (`clerkUserId`), with `UserRole` (`USER` / `ADMIN` / `SELLER`) and an `activeOrgId`.
-- **Organization / Membership / Invite** — multi-tenant sellers. Members have a `MembershipRole` (`OWNER` / `ADMIN` / `MEMBER`). Invites are token-based with expiry and `InviteStatus`.
-- **Product** — belongs to an `Organization`, has `ProductStatus` (`DRAFT` / `PUBLISHED` / `ARCHIVED`), optional stock, versioning, soft-delete (`deletedAt`), and audit fields (`createdById`, `updatedById`).
+- **User** — synced from Clerk (`clerkUserId`), with `UserRole` (`USER` / `ADMIN` / `SELLER`), `activeOrgId`, and a preferred `locale`.
+- **Organization / Membership / Invite** — multi-tenant sellers. Members have a `MembershipRole` (`OWNER` / `ADMIN` / `MEMBER`). Invites are token-based with expiry and `InviteStatus`; invitation emails are dispatched by the notifications service.
+- **Product** — belongs to an `Organization`, has `ProductStatus` (`DRAFT` / `PUBLISHED` / `ARCHIVED`), optional stock, versioning, soft-delete (`deletedAt`), audit fields (`createdById`, `updatedById`), per-locale translations, and a denormalized **search-text blob** for fast cross-language search.
 - **ProductHistory** — snapshot per version for audit.
-- **ProductVariant / VariantOption / VariantOptionValue** — flexible variant matrix (e.g. size × color) with per-variant SKU, price, and stock.
+- **ProductVariant / ProductVariantImage / VariantOption / VariantOptionValue** — flexible variant matrix (e.g. size × color) with per-variant SKU, price, stock, and dedicated variant images.
 - **ProductImage** — S3-backed (`url`, `key`) with ordering.
-- **Order / OrderItem** — linked to Stripe session (`stripeSessionId`), with `OrderStatus` (`PENDING` / `COMPLETED` / `CANCELLED` / `REFUNDED`).
-- **WebhookEvent** — idempotency tracking for external webhooks.
+- **Brand / Category / ProductCategory / Tag / ProductTag** — taxonomy. Categories form a tree (parent/child) used by the storefront's category browser and the related-products engine.
+- **Wishlist** — per-user saved products.
+- **ProductReview** — buyer reviews with ratings.
+- **Order / OrderItem** — linked to a Stripe session (`stripeSessionId`) **or** flagged as COD, with `OrderStatus` (`PENDING` / `COMPLETED` / `CANCELLED` / `REFUNDED`) and a denormalized **shipping address** snapshot captured at checkout.
+- **CurrencyRate** — single-row-per-currency rate table (relative to USD) upserted weekly by the notifications service's currency-refresh cron.
+- **WebhookEvent** — idempotency tracking for external webhooks (Stripe / Clerk).
 
 ### Prerequisites
 
@@ -122,11 +130,18 @@ AWS_SECRET_ACCESS_KEY=
 S3_BUCKET_NAME=
 S3_PUBLIC_URL=
 
-SES_FROM_EMAIL=
 APP_URL="http://localhost:3000"
 
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
+
+# SNS topic ARN of the marketplace-notifications service.
+# Resolved at runtime from SSM in production; can be set directly in dev.
+NOTIFICATIONS_SNS_TOPIC_ARN=
+
+# Internal API key used by marketplace-notifications to call
+# /api/internal/order-details and /api/internal/currency-rates.
+MARKETPLACE_INTERNAL_API_KEY=
 ```
 
 **Client (`NEXT_PUBLIC_*`):**
@@ -197,7 +212,9 @@ External services hit the following routes — expose them via a tunnel (e.g. `n
 - `admin/` — admin panel for managing organizations, products, and users
 - `invite/` — accept organization invites
 - `api/uploads` — presigned S3 upload endpoints
-- `api/admin`, `api/clerk`, `api/webhooks`, `api/test` — internal and integration endpoints
+- `api/admin`, `api/clerk`, `api/webhooks` — internal and integration endpoints
+- `api/internal/order-details` — internal endpoint consumed by marketplace-notifications to render order emails (`x-api-key`-protected)
+- `api/internal/currency-rates` — internal endpoint upserted by the notifications weekly cron with fresh USD→{EUR,RSD} rates
 
 ---
 
@@ -375,6 +392,129 @@ npm run deploy:prod    # production stage
 
 ---
 
+## marketplace-notifications — Transactional Email & Currency Service
+
+> Located at `../marketplace-notifications`
+
+A serverless, event-driven service that owns **all transactional email** for the platform and runs scheduled background jobs. The marketplace publishes domain events to SNS; this service consumes them via SQS, hydrates them with order/recipient data via an internal HTTP callback, and dispatches localized emails through SES. It also hosts the weekly **currency-rate refresh cron** that keeps the marketplace's `CurrencyRate` table up to date.
+
+### Architecture
+
+```
+marketplace (Next.js)
+  │
+  │  publish (order.completed, order.refunded, order.cod_placed,
+  │           order.cod_fulfilled, order.cod_cancelled, invite.sent,
+  │           member.role_changed, user.role_changed)
+  ▼
+SNS Topic (NotificationEventsTopic)
+  │
+  ▼
+SQS Queue (retry=3, partial-batch failures)
+  │                                   └── DLQ on exhausted retries
+  ▼
+Lambda: processEvent
+  ├── Unwrap SNS envelope
+  ├── Idempotency claim — DynamoDB conditional PutItem on `NOTIF#{eventId}` (TTL 30d)
+  ├── For order.* events: GET marketplace /api/internal/order-details
+  │     (returns buyer, items, shipping, sellers[] with member emails)
+  ├── Render localized HTML template (en / sr / de / es)
+  └── SES SendEmail
+        ├── Buyer confirmation / refund / COD fulfilled / COD cancelled
+        ├── Seller (org member) new-order / refund — one email per seller org
+        ├── Invite emails (with accept-link)
+        └── Role-change notifications (member-in-org + site-wide user role)
+
+EventBridge Cron — every Mon 06:00 UTC
+  │
+  ▼
+Lambda: refreshCurrencyRates
+  ├── Fetch USD-base rates from fawazahmed0/exchange-api (free, CDN-hosted)
+  ├── Pick EUR + RSD
+  └── POST marketplace /api/internal/currency-rates → upserts CurrencyRate table
+```
+
+### Tech Stack
+
+- **IaC / Deploy:** **SST v4 (Ion)** — multi-stage (`dev` / `production`), production resources `retain`-protected
+- **Runtime:** AWS Lambda — TypeScript 6, ESM, `aws-lambda` types
+- **Message broker:** **AWS SNS → SQS** with a Dead-Letter Queue after 3 failed retries; SQS configured for **partial-batch responses** so only the failing record is re-queued, not the whole batch
+- **Database:** **AWS DynamoDB** — single-table idempotency / audit log. `PK = NOTIF#{eventId}`, `SK = SENT`, with a `TTL` attribute auto-purging records after 30 days. Conditional `PutItem` (`attribute_not_exists(PK)`) guarantees exactly-once email delivery even under SQS at-least-once semantics.
+- **Email:** **AWS SES** — `SendEmail` / `SendRawEmail`; HTML templates rendered in-process per locale
+- **Scheduler:** **EventBridge CronV2** (`cron(0 6 ? * MON *)`) for the weekly currency-rate refresh
+- **Secrets / Service discovery:** AWS SSM Parameter Store (SecureString) — `SES_FROM_EMAIL`, `MARKETPLACE_API_URL`, `MARKETPLACE_API_KEY`, `APP_URL`; the service also publishes its **SNS topic ARN** to SSM (`/marketplace-notifications/{stage}/SNS_TOPIC_ARN`) so the marketplace can discover it at runtime without a hardcoded ARN.
+- **Auth back to marketplace:** internal `x-api-key` header (the key lives in SSM)
+
+### Event Catalogue
+
+| Event | Trigger in marketplace | Recipient(s) |
+|---|---|---|
+| `order.completed` | Stripe webhook on `checkout.session.completed` | Buyer + each seller org |
+| `order.refunded` | Stripe refund webhook | Buyer + each seller org |
+| `order.cod_placed` | COD checkout completion | Buyer + each seller org |
+| `order.cod_fulfilled` | Seller marks COD order fulfilled | Buyer |
+| `order.cod_cancelled` | Seller / buyer cancels a COD order | Buyer |
+| `invite.sent` | Org owner sends a membership invite | Invited email |
+| `member.role_changed` | Owner promotes/demotes a member | Affected member |
+| `user.role_changed` | Admin changes a site-wide user role (`USER`/`SELLER`/`ADMIN`) | Affected user |
+
+All events carry an `eventId` (used for idempotency) and a `locale` so emails are rendered in the recipient's language.
+
+### Key Engineering Decisions
+
+- **Dedicated service, not in-process SES** — moving email out of the Next.js request path eliminates SES from the critical path of Stripe webhooks, COD checkout, invites, and role changes. The marketplace publishes-and-forgets; failures are absorbed by SQS retries and the DLQ.
+- **Idempotency at the consumer** — even though SNS-to-SQS is at-least-once, the DynamoDB conditional write makes email sending exactly-once per `eventId`. Duplicate SQS deliveries are silently skipped.
+- **Partial-batch responses** — `batch.size = 1` with `partialResponses: true` means an individual poison message can fail and be redriven to the DLQ without holding up healthy events.
+- **Co-locating the currency cron** — the currency-rate refresher is operationally cheap and shares the same SSM / internal-API plumbing already needed for emails, so a single Lambda project hosts both. No new infra surface to maintain.
+- **Localized templates over user attributes in payloads** — events carry a `locale`, not pre-rendered subject/body text, so all email copy lives in the service and can be tweaked / re-rendered without redeploying the marketplace.
+
+### Project Structure
+
+```
+marketplace-notifications/
+├── sst.config.ts                 Infrastructure (DynamoDB, SNS, SQS+DLQ, Lambda, Cron, SSM)
+├── scripts/
+│   └── setup-ssm.mjs             Bootstrap SSM secrets for a new stage
+└── functions/
+    ├── processEvent.ts           SQS consumer — dispatches all email events
+    ├── refreshCurrencyRates.ts   Weekly cron — fetch FX rates + upsert via marketplace API
+    ├── types.ts                  NotificationEvent union + OrderDetails / SellerGroup shapes
+    └── lib/
+        ├── db.ts                 DynamoDB DocumentClient + idempotency helpers
+        ├── ses.ts                SES SendEmail wrapper
+        ├── ssm.ts                Cached SSM parameter reads
+        └── templates/            Localized HTML email templates (en / sr / de / es)
+            ├── base.ts           Shared layout + i18n helpers
+            ├── i18n.ts           Translation lookup
+            ├── buyerOrderConfirmed.ts
+            ├── buyerOrderRefunded.ts
+            ├── buyerCodOrderPlaced.ts
+            ├── buyerCodOrderFulfilled.ts
+            ├── buyerCodOrderCancelled.ts
+            ├── sellerNewOrder.ts
+            ├── sellerCodNewOrder.ts
+            ├── sellerOrderRefunded.ts
+            ├── inviteSent.ts
+            ├── memberRoleChanged.ts
+            └── userRoleChanged.ts
+```
+
+### Deployment
+
+```bash
+# Bootstrap SSM secrets (run once per stage)
+npm run setup
+
+# Local dev (SST live Lambda)
+npm run dev
+
+# Deploy
+npm run deploy         # dev stage
+npm run deploy:prod    # production stage
+```
+
+---
+
 ## System Architecture Overview
 
 ```
@@ -385,22 +525,32 @@ npm run deploy:prod    # production stage
              │                     │                     │
              ▼                     ▼                     ▼
 ┌────────────────────┐  ┌──────────────────────┐  ┌─────────────────────────┐
-│   marketplace      │  │ marketplace-messaging │  │marketplace-conversation │
-│  (Next.js 16)      │  │  (AWS Serverless)     │  │       -search           │
-│                    │  │                       │  │   (AWS Serverless)      │
-│  • App Router      │  │  • WS API Gateway     │  │                         │
-│  • Prisma 7 / PG   │  │  • HTTP API Gateway   │  │  • HTTP API Gateway     │
-│  • Clerk auth      │  │  • DynamoDB (STD)     │  │  • DynamoDB             │
-│  • Stripe          │  │  • S3 attachments     │  │  • SNS/SQS consumer     │
-│  • Redis cache     │  │  • SNS publish        │◄─┤  • DLQ                  │
-│  • AWS S3 / SES    │  │  • SSM secrets        │  │  • SSM secrets          │
-└────────────────────┘  └──────────────────────┘  └─────────────────────────┘
-         │                        │                          ▲
-         │                        │   SNS → SQS              │
-         │                        └──────────────────────────┘
-         │
-         ▼
-  PostgreSQL 17  ·  Redis  ·  Clerk  ·  Stripe  ·  AWS S3  ·  AWS SES
+│   marketplace      │  │ marketplace-messaging│  │marketplace-conversation │
+│  (Next.js 16)      │  │  (AWS Serverless)    │  │       -search           │
+│                    │  │                      │  │   (AWS Serverless)      │
+│  • App Router      │  │  • WS API Gateway    │  │                         │
+│  • Prisma 7 / PG   │  │  • HTTP API Gateway  │  │  • HTTP API Gateway     │
+│  • Clerk auth      │  │  • DynamoDB (STD)    │  │  • DynamoDB             │
+│  • Stripe + COD    │  │  • S3 attachments    │  │  • SNS/SQS consumer     │
+│  • next-intl x4    │  │  • SNS publish       │◄─┤  • DLQ                  │
+│  • Redis cache     │  │  • SSM secrets       │  │  • SSM secrets          │
+│  • AWS S3 / SNS    │  └──────────────────────┘  └─────────────────────────┘
+│  • /api/internal/* │                  │                       ▲
+└──────┬─────────────┘                  │  SNS → SQS            │
+       │ SNS publish                    └───────────────────────┘
+       │ (order.*, invite.*, role_changed)
+       ▼
+┌─────────────────────────────────────────┐
+│  marketplace-notifications              │
+│  (AWS Serverless)                       │
+│  • SNS → SQS → Lambda (+ DLQ)           │
+│  • DynamoDB idempotency (TTL 30d)       │
+│  • SES localized email templates        │
+│  • EventBridge cron → currency refresh  │──► POST /api/internal/currency-rates
+│  • SSM secrets                          │──► GET  /api/internal/order-details
+└─────────────────────────────────────────┘
+
+  PostgreSQL 17  ·  Redis  ·  Clerk  ·  Stripe  ·  AWS S3  ·  AWS SES  ·  AWS SNS/SQS
 ```
 
 ### Cross-Cutting Concerns

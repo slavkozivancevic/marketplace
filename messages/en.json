@@ -810,6 +810,7 @@
     "dropActive": "Drop files here...",
     "maxReached": "Maximum {count} images reached",
     "dropHint": "Drag & drop images here, or click to select",
+    "counter": "{remaining, plural, one {You can add # more image} other {You can add # more images}}",
     "imagePreview": "Image Preview",
     "close": "Close",
     "tooManyFiles": "You can only upload up to {max} images.",

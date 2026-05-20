@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { MessageCircle, ArrowLeft, Trash2, Loader2, X } from "lucide-react";
 import { SearchInput } from "@/components/search/SearchInput";
@@ -90,8 +90,17 @@ function ChatDrawerRootInner() {
     [convsData?.conversations]
   );
 
+  // Bootstrap unread badges from the initial conversations load — surfaces
+  // messages that arrived while the user was offline. MUST run only once
+  // per signed-in user: otherwise every WebSocket-driven conversations
+  // cache update (e.g., a NEW_MESSAGE arriving) re-runs the loop and
+  // increments unread for conversations the user is actively viewing.
+  // Real-time unread is handled by the NEW_MESSAGE handler in useChatSocket.
+  const bootstrappedForUserRef = useRef<string | null>(null);
   useEffect(() => {
     if (!currentUserId || !bootstrapConvs.length) return;
+    if (bootstrappedForUserRef.current === currentUserId) return;
+    bootstrappedForUserRef.current = currentUserId;
     for (const conv of bootstrapConvs) {
       if (conv.lastMessageSenderId && conv.lastMessageSenderId !== currentUserId && conv.lastMessageAt) {
         bootstrapUnread(conv.conversationId, conv.lastMessageAt);

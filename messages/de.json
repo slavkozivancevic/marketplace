@@ -810,6 +810,7 @@
     "dropActive": "Dateien hier ablegen...",
     "maxReached": "Maximum von {count} Bildern erreicht",
     "dropHint": "Bilder hierher ziehen oder klicken zum Auswählen",
+    "counter": "{remaining, plural, one {Sie können noch # Bild hinzufügen} other {Sie können noch # Bilder hinzufügen}}",
     "imagePreview": "Bildvorschau",
     "close": "Schließen",
     "tooManyFiles": "Sie können nur bis zu {max} Bilder hochladen.",

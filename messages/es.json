@@ -810,6 +810,7 @@
     "dropActive": "Suelta los archivos aquí...",
     "maxReached": "Máximo de {count} imágenes alcanzado",
     "dropHint": "Arrastra y suelta imágenes aquí, o haz clic para seleccionar",
+    "counter": "{remaining, plural, one {Puedes añadir # imagen más} other {Puedes añadir # imágenes más}}",
     "imagePreview": "Vista previa de imagen",
     "close": "Cerrar",
     "tooManyFiles": "Solo puedes subir hasta {max} imágenes.",

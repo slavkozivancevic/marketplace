@@ -36,6 +36,17 @@ type Attachment = {
   size?: number;
 };
 
+type PendingAttachment = {
+  id: string;
+  file: File;
+  key?: string;
+  width?: number;
+  height?: number;
+  progress: number;
+  status: "uploading" | "done" | "error";
+  abort?: AbortController;
+};
+
 const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "😡"];
 
 interface Props {
@@ -618,7 +629,17 @@ function InlineAttachmentDisplay({ attachment }: { attachment: Attachment }) {
 
 // ── File preview chip ─────────────────────────────────────────────────────────
 
-function FileChip({ file, onRemove }: { file: File; onRemove: () => void }) {
+function FileChip({
+  file,
+  progress,
+  status,
+  onRemove,
+}: {
+  file: File;
+  progress: number;
+  status: "uploading" | "done" | "error";
+  onRemove: () => void;
+}) {
   const isImage = file.type.startsWith("image/");
   const isVideo = file.type.startsWith("video/");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -637,45 +658,67 @@ function FileChip({ file, onRemove }: { file: File; onRemove: () => void }) {
 
   return (
     <div className="relative shrink-0 group">
-      {previewUrl && isImage ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={previewUrl}
-          alt={file.name}
-          className="size-14 rounded-lg object-cover border border-border"
-        />
-      ) : previewUrl && isVideo ? (
-        <div className="size-14 rounded-lg overflow-hidden border border-border relative bg-black">
-          <video
-            ref={videoThumbRef}
+      <div
+        className={cn(
+          "relative size-14 rounded-lg overflow-hidden",
+          status === "error" && "ring-1 ring-destructive",
+        )}
+      >
+        {previewUrl && isImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={previewUrl}
-            muted
-            playsInline
-            className="size-14 object-cover"
-            onLoadedMetadata={() => {
-              if (videoThumbRef.current) videoThumbRef.current.currentTime = 0.01;
-            }}
+            alt={file.name}
+            className="size-14 rounded-lg object-cover border border-border"
           />
-          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-            <Play className="size-4 text-white fill-white drop-shadow" />
+        ) : previewUrl && isVideo ? (
+          <div className="size-14 rounded-lg overflow-hidden border border-border relative bg-black">
+            <video
+              ref={videoThumbRef}
+              src={previewUrl}
+              muted
+              playsInline
+              className="size-14 object-cover"
+              onLoadedMetadata={() => {
+                if (videoThumbRef.current) videoThumbRef.current.currentTime = 0.01;
+              }}
+            />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+              <Play className="size-4 text-white fill-white drop-shadow" />
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="size-14 rounded-lg border border-border bg-muted flex flex-col justify-center gap-0.5 px-1.5 py-1.5">
-          <div className="flex items-center gap-1">
-            <FileText className="size-3.5 text-muted-foreground shrink-0" />
-            <span className="text-[9px] font-semibold text-muted-foreground leading-tight">
-              {file.name.split(".").pop()?.toUpperCase()}
+        ) : (
+          <div className="size-14 rounded-lg border border-border bg-muted flex flex-col justify-center gap-0.5 px-1.5 py-1.5">
+            <div className="flex items-center gap-1">
+              <FileText className="size-3.5 text-muted-foreground shrink-0" />
+              <span className="text-[9px] font-semibold text-muted-foreground leading-tight">
+                {file.name.split(".").pop()?.toUpperCase()}
+              </span>
+            </div>
+            <span
+              className="text-[8px] text-muted-foreground leading-tight break-all"
+              style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+            >
+              {file.name}
             </span>
           </div>
-          <span
-            className="text-[8px] text-muted-foreground leading-tight break-all"
-            style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
-          >
-            {file.name}
-          </span>
-        </div>
-      )}
+        )}
+
+        {status === "uploading" && (
+          <div className="absolute right-0 bottom-0 left-0 h-1.5 bg-muted">
+            <div
+              className="h-full bg-primary transition-[width] duration-300 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        )}
+
+        {status === "error" && (
+          <div className="absolute inset-0 flex items-center justify-center bg-destructive/20">
+            <X className="size-4 text-destructive" />
+          </div>
+        )}
+      </div>
       <button
         type="button"
         onClick={onRemove}
@@ -713,30 +756,37 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-async function uploadFiles(files: File[]): Promise<Attachment[]> {
-  return Promise.all(
-    files.map(async (file) => {
-      const [{ data }, dims] = await Promise.all([
-        axios.post<{ key: string; url: string }>(
-          "/api/chat/attachments/upload-url",
-          { contentType: file.type, size: file.size },
-        ),
-        file.type.startsWith("image/")
-          ? readImageDimensions(file).catch(() => undefined)
-          : Promise.resolve(undefined),
-      ]);
-      await axios.put(data.url, file, {
-        headers: { "Content-Type": file.type },
-      });
-      return {
-        key: data.key,
-        type: file.type,
-        filename: file.name,
-        size: file.size,
-        ...dims,
-      };
-    }),
-  );
+async function uploadOne(
+  file: File,
+  signal: AbortSignal,
+  onProgress: (percent: number) => void,
+): Promise<{ key: string; dims?: { width: number; height: number } }> {
+  const [{ data }, dims] = await Promise.all([
+    axios.post<{ key: string; url: string }>(
+      "/api/chat/attachments/upload-url",
+      { contentType: file.type, size: file.size },
+      { signal },
+    ),
+    file.type.startsWith("image/")
+      ? readImageDimensions(file).catch(() => undefined)
+      : Promise.resolve(undefined),
+  ]);
+  // Tagging is encoded into the presigned URL as an `x-amz-tagging` query
+  // parameter (hoisted by the SDK, not a signed header) — we must NOT also
+  // send it as an HTTP header or S3 rejects the signature.
+  await axios.put(data.url, file, {
+    headers: { "Content-Type": file.type },
+    signal,
+    onUploadProgress: (e) => {
+      if (!e.total) return;
+      // Cap S3 progress at 90 so the bar always has a final jump to 100
+      // when the PUT resolves — keeps motion perceivable even on tiny
+      // uploads where onUploadProgress fires only once or twice.
+      const ratio = e.loaded / e.total;
+      onProgress(Math.min(90, Math.round(ratio * 90)));
+    },
+  });
+  return { key: data.key, dims };
 }
 
 export function MessageThread({
@@ -749,9 +799,17 @@ export function MessageThread({
   onMarkRead,
 }: Props) {
   const [text, setText] = useState("");
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<
+    PendingAttachment[]
+  >([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Keep a ref in sync so handleFileChange can read the current length
+  // without recreating itself on every state change.
+  const pendingRef = useRef<PendingAttachment[]>([]);
+  useEffect(() => {
+    pendingRef.current = pendingAttachments;
+  }, [pendingAttachments]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -838,54 +896,93 @@ export function MessageThread({
       e.target.value = "";
       setUploadError(null);
 
-      const invalid = selected.find((f) => !ALLOWED_TYPES.includes(f.type));
-      if (invalid) {
+      if (selected.some((f) => !ALLOWED_TYPES.includes(f.type))) {
         setUploadError("Unsupported file type.");
         return;
       }
-
-      const oversized = selected.find((f) => f.size > MAX_SIZE);
-      if (oversized) {
+      if (selected.some((f) => f.size > MAX_SIZE)) {
         setUploadError("Each file must be under 20 MB.");
         return;
       }
+      if (pendingRef.current.length + selected.length > MAX_FILES) {
+        setUploadError(`Max ${MAX_FILES} files per message.`);
+        return;
+      }
 
-      setPendingFiles((prev) => {
-        const next = [...prev, ...selected];
-        if (next.length > MAX_FILES) {
-          setUploadError(`Max ${MAX_FILES} files per message.`);
-          return prev;
-        }
-        return next;
+      const newItems: PendingAttachment[] = selected.map((file) => ({
+        id: crypto.randomUUID(),
+        file,
+        progress: 5,
+        status: "uploading",
+        abort: new AbortController(),
+      }));
+      setPendingAttachments((prev) => [...prev, ...newItems]);
+
+      // Fire off each upload independently — they share no order requirement
+      // and S3 handles parallel PUTs fine. Per-item state updates keep
+      // progress, completion, and errors local to each chip.
+      newItems.forEach((item) => {
+        const signal = item.abort!.signal;
+        void uploadOne(item.file, signal, (percent) => {
+          setPendingAttachments((prev) =>
+            prev.map((a) => (a.id === item.id ? { ...a, progress: percent } : a)),
+          );
+        })
+          .then(({ key, dims }) => {
+            setPendingAttachments((prev) =>
+              prev.map((a) =>
+                a.id === item.id
+                  ? { ...a, key, ...dims, progress: 100, status: "done" }
+                  : a,
+              ),
+            );
+          })
+          .catch((err) => {
+            // Cancellation is a normal flow (user removed before completion).
+            if (signal.aborted || err?.name === "CanceledError") return;
+            console.error("[chat upload]", err);
+            setPendingAttachments((prev) =>
+              prev.map((a) =>
+                a.id === item.id ? { ...a, status: "error" } : a,
+              ),
+            );
+          });
       });
     },
     [],
   );
 
-  const removeFile = useCallback((index: number) => {
-    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
+  const removeFile = useCallback((id: string) => {
+    setPendingAttachments((prev) => {
+      const item = prev.find((a) => a.id === id);
+      if (item?.status === "uploading") item.abort?.abort();
+      // For already-uploaded items we rely on the bucket lifecycle rule to
+      // sweep the orphan after 24h — explicit S3 delete would need an extra
+      // server endpoint and a round-trip per removal.
+      return prev.filter((a) => a.id !== id);
+    });
     setUploadError(null);
   }, []);
 
-  const handleSend = useCallback(async () => {
+  const handleSend = useCallback(() => {
     const trimmed = applyEmojiShortcodes(text.trim());
-    if (!trimmed && pendingFiles.length === 0) return;
+    const done = pendingAttachments.filter((a) => a.status === "done");
+    if (!trimmed && done.length === 0) return;
 
-    setIsUploading(true);
+    const attachments: Attachment[] = done.map((a) => ({
+      key: a.key!,
+      type: a.file.type,
+      filename: a.file.name,
+      size: a.file.size,
+      width: a.width,
+      height: a.height,
+    }));
+    onSend(trimmed, attachments);
+    playSendSound();
+    setText("");
+    setPendingAttachments([]);
     setUploadError(null);
-    try {
-      const attachments =
-        pendingFiles.length > 0 ? await uploadFiles(pendingFiles) : [];
-      onSend(trimmed, attachments);
-      playSendSound();
-      setText("");
-      setPendingFiles([]);
-    } catch {
-      setUploadError("Upload failed. Please try again.");
-    } finally {
-      setIsUploading(false);
-    }
-  }, [text, pendingFiles, onSend]);
+  }, [text, pendingAttachments, onSend]);
 
   const handleTextChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -917,8 +1014,10 @@ export function MessageThread({
     }
   };
 
+  const hasUploading = pendingAttachments.some((a) => a.status === "uploading");
+  const hasDone = pendingAttachments.some((a) => a.status === "done");
   const canSend =
-    (text.trim().length > 0 || pendingFiles.length > 0) && !isUploading;
+    !hasUploading && (text.trim().length > 0 || hasDone);
 
   if (isLoading) {
     return (
@@ -945,7 +1044,7 @@ export function MessageThread({
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="h-full overflow-y-auto p-4 flex flex-col gap-2 chat-message-bg"
+          className="h-full overflow-y-auto overflow-x-hidden p-4 flex flex-col gap-2 chat-message-bg"
         >
           {/* Floating date badge */}
           <div className="sticky top-3 z-10 h-0 overflow-visible flex items-start justify-center pointer-events-none">
@@ -1037,7 +1136,7 @@ export function MessageThread({
                         ) : (
                           <div
                             className={cn(
-                              "px-3 py-2 rounded-2xl text-sm leading-snug",
+                              "px-3 py-2 rounded-2xl text-sm leading-snug wrap-break-word",
                               isMine
                                 ? "bg-primary text-primary-foreground rounded-br-sm"
                                 : "bg-muted text-foreground rounded-bl-sm",
@@ -1096,13 +1195,37 @@ export function MessageThread({
                             <Smile className="size-3.5" />
                           </button>
 
-                          {/* Emoji picker popover */}
+                          {/* Emoji picker popover — JS-clamped to stay
+                              inside the chat scroll container regardless of
+                              where the message bubble sits. Without this,
+                              wide bubbles push the picker past the drawer
+                              edge and trigger horizontal scroll. */}
                           {pickerOpenFor === msg.messageId && (
                             <div
-                              className={cn(
-                                "absolute bottom-full mb-1 z-20 flex gap-1 bg-background border border-border rounded-full px-2 py-1.5 shadow-lg",
-                                isMine ? "right-0" : "left-0",
-                              )}
+                              ref={(el) => {
+                                if (!el || !scrollRef.current) return;
+                                const parent = el.parentElement;
+                                if (!parent) return;
+                                const parentRect =
+                                  parent.getBoundingClientRect();
+                                const scrollRect =
+                                  scrollRef.current.getBoundingClientRect();
+                                const popupWidth = el.offsetWidth;
+                                const PAD = 8;
+                                const buttonCenter =
+                                  parentRect.left + parentRect.width / 2;
+                                let desiredLeft =
+                                  buttonCenter - popupWidth / 2;
+                                desiredLeft = Math.max(
+                                  scrollRect.left + PAD,
+                                  Math.min(
+                                    desiredLeft,
+                                    scrollRect.right - popupWidth - PAD,
+                                  ),
+                                );
+                                el.style.left = `${desiredLeft - parentRect.left}px`;
+                              }}
+                              className="absolute bottom-full mb-1 z-20 flex gap-1 bg-background border border-border rounded-full px-2 py-1.5 shadow-lg"
                             >
                               {REACTION_EMOJIS.map((emoji) => {
                                 const iReacted = (msgReactions[emoji] ?? []).includes(currentUserId);
@@ -1174,13 +1297,19 @@ export function MessageThread({
         <div
           className={cn(
             "absolute bottom-full inset-x-2 bg-background border border-border rounded-t-xl shadow-md px-3 pt-3 pb-2 flex gap-2 flex-wrap transition-all duration-200 ease-out",
-            pendingFiles.length > 0
+            pendingAttachments.length > 0
               ? "opacity-100 translate-y-0 pointer-events-auto"
               : "opacity-0 translate-y-1 pointer-events-none",
           )}
         >
-          {pendingFiles.map((file, i) => (
-            <FileChip key={i} file={file} onRemove={() => removeFile(i)} />
+          {pendingAttachments.map((att) => (
+            <FileChip
+              key={att.id}
+              file={att.file}
+              progress={att.progress}
+              status={att.status}
+              onRemove={() => removeFile(att.id)}
+            />
           ))}
         </div>
 
@@ -1204,7 +1333,7 @@ export function MessageThread({
             size="icon"
             className="shrink-0 text-muted-foreground hover:text-foreground"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading || pendingFiles.length >= MAX_FILES}
+            disabled={pendingAttachments.length >= MAX_FILES}
           >
             <Paperclip className="size-4" />
           </Button>
@@ -1216,16 +1345,15 @@ export function MessageThread({
             placeholder="Message…"
             className="min-h-9 max-h-32 resize-none text-sm"
             rows={1}
-            disabled={isUploading}
           />
 
           <Button
             size="icon"
-            onClick={() => void handleSend()}
+            onClick={() => handleSend()}
             disabled={!canSend}
             className="shrink-0"
           >
-            {isUploading ? (
+            {hasUploading ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (
               <Send className="size-4" />

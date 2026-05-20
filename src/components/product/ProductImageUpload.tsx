@@ -352,33 +352,10 @@ export const ProductImageUpload: React.FC<ProductImageUploadProps> = ({
             <p>{t("dropHint")}</p>
           )}
 
-          {/* Mini preview thumbnails unutar dropzone */}
-          {images.length > 0 && (
-            <div className="mt-2 flex flex-wrap justify-center gap-2">
-              {images.map((img) => (
-                <div
-                  key={`mini-${img.clientId ?? img.key}`}
-                  className="relative h-16 w-16 overflow-hidden rounded-lg border"
-                >
-                  <Image
-                    src={img.url}
-                    alt="Preview"
-                    width={64}
-                    height={64}
-                    className="h-full w-full object-cover"
-                  />
-
-                  {img.progress !== undefined && img.progress < 100 && (
-                    <div className="absolute right-0 bottom-0 left-0 h-1.5 bg-muted">
-                      <div
-                        className="h-full bg-primary transition-[width] duration-300 ease-out"
-                        style={{ width: `${img.progress}%` }}
-                      />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+          {images.length > 0 && images.length < MAX_FILES && (
+            <p className="text-muted-foreground mt-2 text-xs">
+              {t("counter", { remaining: MAX_FILES - images.length })}
+            </p>
           )}
         </div>
 

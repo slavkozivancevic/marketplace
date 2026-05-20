@@ -810,6 +810,7 @@
     "dropActive": "Prevucite fajlove ovde...",
     "maxReached": "Dostignut maksimum od {count} slika",
     "dropHint": "Prevucite slike ovde ili kliknite da odaberete",
+    "counter": "{remaining, plural, one {Možete dodati još # sliku} few {Možete dodati još # slike} other {Možete dodati još # slika}}",
     "imagePreview": "Pregled slike",
     "close": "Zatvori",
     "tooManyFiles": "Možete otpremiti najviše {max} slika.",
