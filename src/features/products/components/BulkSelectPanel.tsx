@@ -293,7 +293,8 @@ export function BulkSelectPanel() {
             <>
               {allItems.map((product) => {
                 const checked = selectedIds.has(product.id);
-                const thumb = product.images?.[0]?.url;
+                const firstMedia = product.media?.[0];
+                const thumb = firstMedia?.thumbUrl ?? firstMedia?.url;
                 return (
                   <div
                     key={product.id}

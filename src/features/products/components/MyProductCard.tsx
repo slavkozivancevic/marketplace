@@ -6,7 +6,7 @@ import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
-import { Copy, ImageOff, Pencil, Trash2 } from "lucide-react";
+import { Copy, ImageOff, Pencil, Trash2, Video as VideoIcon } from "lucide-react";
 import { HoverImageCycler } from "@/components/product/HoverImageCycler";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ interface MyProductCardProps {
     compareAtPrice: number | null;
     status: string;
     imageUrls: string[];
+    hasVideo?: boolean;
     brand?: { name: string; logoUrl: string | null } | null;
   };
 }
@@ -89,11 +90,19 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
       onClick={() => router.push(`/dashboard/my-products/${product.id}`)}>
       <div className="relative">
         {product.imageUrls.length > 0 ? (
-          <HoverImageCycler
-            images={product.imageUrls}
-            alt={localTitle}
-            className="w-full h-48"
-          />
+          <>
+            <HoverImageCycler
+              images={product.imageUrls}
+              alt={localTitle}
+              className="w-full h-48"
+            />
+            {product.hasVideo && (
+              <div className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-white shadow">
+                <VideoIcon className="h-3 w-3" />
+                Video
+              </div>
+            )}
+          </>
         ) : (
           <div className="w-full h-48 flex flex-col items-center justify-center gap-2 bg-muted/50">
             <ImageOff className="h-8 w-8 text-muted-foreground/40" />

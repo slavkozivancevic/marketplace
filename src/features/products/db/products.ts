@@ -3,7 +3,7 @@ import { tenantPrisma } from "@/core/db/tenantPrisma";
 import { revalidateProductCache, revalidateProductHistoryCache } from "./cache";
 import type { BulkFilter, BulkUpdateFields } from "../types/bulk";
 import {
-  ImageInput,
+  MediaInput,
   ProductListItem,
   ProductTranslationsInput,
   ProductVariantInput,
@@ -24,89 +24,104 @@ import {
 } from "@/features/common/errors/domainErrors";
 import { emitProductEvent } from "@/features/webhooks/productEvents";
 import { deleteS3Object } from "@/services/s3Delete";
-import { copyProductImage } from "@/services/s3Copy";
-import { commitProductImage } from "@/services/s3Tagging";
+import { copyProductImage, toThumbKey } from "@/services/s3Copy";
+import { commitProductMedia } from "@/services/s3Tagging";
 import { env } from "@/env/server";
 import { NON_DEFAULT_LOCALES } from "@/i18n/config";
 
-async function syncProductImages(
+async function syncProductMedia(
   tx: Prisma.TransactionClient,
   productId: string,
-  images: ImageInput[],
+  media: MediaInput[],
 ): Promise<Map<string, string>> {
-  const existing = await tx.productImage.findMany({
+  const existing = await tx.productMedia.findMany({
     where: { productId },
     orderBy: { order: "asc" },
   });
 
   const existingMap = new Map<string, (typeof existing)[number]>(
-    existing.map((img) => [img.key, img]),
+    existing.map((m) => [m.key, m]),
   );
 
-  const incomingKeys = new Set(images.map((img) => img.key));
+  const incomingKeys = new Set(media.map((m) => m.key));
 
-  const toDelete = existing.filter((img) => !incomingKeys.has(img.key));
+  const toDelete = existing.filter((m) => !incomingKeys.has(m.key));
   if (toDelete.length > 0) {
-    await tx.productImage.deleteMany({
+    await tx.productMedia.deleteMany({
       where: {
         productId,
-        key: { in: toDelete.map((img) => img.key) },
+        key: { in: toDelete.map((m) => m.key) },
       },
     });
 
     await Promise.all(
-      toDelete.map((img) => deleteS3Object(img.key).catch(() => {})),
+      toDelete.flatMap((m) => {
+        const thumbKey = m.thumbKey ?? toThumbKey(m.key);
+        return [
+          deleteS3Object(m.key).catch(() => {}),
+          deleteS3Object(thumbKey).catch(() => {}),
+        ];
+      }),
     );
   }
 
-  const toInsert = images.filter((img) => !existingMap.has(img.key));
+  const toInsert = media.filter((m) => !existingMap.has(m.key));
 
   if (toInsert.length > 0) {
-    await tx.productImage.createMany({
-      data: toInsert.map((img, index) => ({
+    await tx.productMedia.createMany({
+      data: toInsert.map((m, index) => ({
         productId,
-        key: img.key,
-        url: `${env.S3_PUBLIC_URL}/${img.key}`,
+        key: m.key,
+        url: `${env.S3_PUBLIC_URL}/${m.key}`,
+        mediaType: m.mediaType,
+        thumbKey: m.thumbKey ?? toThumbKey(m.key),
+        thumbUrl: `${env.S3_PUBLIC_URL}/${m.thumbKey ?? toThumbKey(m.key)}`,
+        mimeType: m.mimeType ?? null,
+        durationMs: m.durationMs ?? null,
+        width: m.width ?? null,
+        height: m.height ?? null,
         order: index,
       })),
     });
 
-    // Newly uploaded images carry a `lifecycle=pending` tag — strip it so the
-    // bucket lifecycle rule no longer marks them for deletion. Best-effort:
-    // if S3 is briefly unavailable the next save (or the rule's 24h grace
-    // period) will resolve it.
+    // Newly uploaded media (original + poster/thumb) carries a
+    // `lifecycle=pending` tag — strip it so the bucket lifecycle rule no
+    // longer marks the objects for deletion. Best-effort: if S3 is briefly
+    // unavailable the next save (or the rule's 24h grace) resolves it.
     await Promise.all(
-      toInsert.map((img) => commitProductImage(img.key).catch(() => {})),
+      toInsert.map((m) =>
+        commitProductMedia(m.key, m.thumbKey ?? null).catch(() => {}),
+      ),
     );
   }
 
-  const reorderOperations = images
-    .map((img, index) => {
-      const existingImg = existingMap.get(img.key);
+  const reorderOperations = media
+    .map((m, index) => {
+      const existingMedia = existingMap.get(m.key);
 
-      if (!existingImg || existingImg.order === index) {
+      if (!existingMedia || existingMedia.order === index) {
         return null;
       }
 
-      return tx.productImage.updateMany({
-        where: { productId, key: img.key },
+      return tx.productMedia.updateMany({
+        where: { productId, key: m.key },
         data: { order: index },
       });
     })
     .filter(
-      (op): op is ReturnType<typeof tx.productImage.updateMany> => op !== null,
+      (op): op is ReturnType<typeof tx.productMedia.updateMany> => op !== null,
     );
 
   if (reorderOperations.length > 0) {
     await Promise.all(reorderOperations);
   }
 
-  const allImages = await tx.productImage.findMany({
+  const allMedia = await tx.productMedia.findMany({
     where: { productId },
     select: { id: true, key: true },
   });
 
-  return new Map(allImages.map((img) => [img.key, img.id]));
+  return new Map(allMedia.map((m) => [m.key, m.id]));
 }
 
 /**
@@ -133,7 +148,7 @@ async function syncVariants(
   tx: Prisma.TransactionClient,
   productId: string,
   variants: ProductVariantInput[],
-  imageIdByKey: Map<string, string>,
+  mediaIdByKey: Map<string, string>,
 ) {
   const existing = await tx.productVariant.findMany({
     where: { productId },
@@ -237,21 +252,21 @@ async function syncVariants(
       variant.id = created.id;
     }
 
-    await tx.productVariantImage.deleteMany({
+    await tx.productVariantMedia.deleteMany({
       where: { variantId: variant.id },
     });
 
-    const incomingKeys = variant.imageKeys ?? [];
-    const rows: { variantId: string; imageId: string; order: number }[] = [];
-    const seenImageIds = new Set<string>();
-    for (const [imgIndex, key] of incomingKeys.entries()) {
-      const imageId = imageIdByKey.get(key);
-      if (!imageId || seenImageIds.has(imageId)) continue;
-      seenImageIds.add(imageId);
-      rows.push({ variantId: variant.id, imageId, order: imgIndex });
+    const incomingKeys = variant.mediaKeys ?? [];
+    const rows: { variantId: string; mediaId: string; order: number }[] = [];
+    const seenMediaIds = new Set<string>();
+    for (const [mIndex, key] of incomingKeys.entries()) {
+      const mediaId = mediaIdByKey.get(key);
+      if (!mediaId || seenMediaIds.has(mediaId)) continue;
+      seenMediaIds.add(mediaId);
+      rows.push({ variantId: variant.id, mediaId, order: mIndex });
     }
     if (rows.length > 0) {
-      await tx.productVariantImage.createMany({ data: rows });
+      await tx.productVariantMedia.createMany({ data: rows });
     }
   }
 }
@@ -446,7 +461,7 @@ export function productRepository(
           deletedAt: null,
         },
         include: {
-          images: { orderBy: { order: "asc" } },
+          media: { orderBy: { order: "asc" } },
           brand: { select: { id: true, name: true, logoUrl: true } },
           variants: {
             orderBy: { order: "asc" },
@@ -454,7 +469,10 @@ export function productRepository(
               optionValues: {
                 orderBy: [{ option: { order: "asc" } }, { order: "asc" }],
               },
-              images: { orderBy: { order: "asc" } },
+              media: {
+                orderBy: { order: "asc" },
+                include: { media: true },
+              },
             },
           },
           options: {
@@ -524,7 +542,7 @@ export function productRepository(
         cursor: cursor ? { id: cursor } : undefined,
         skip: cursor ? 1 : 0,
         include: {
-          images: {
+          media: {
             take: 5,
             orderBy: { order: "asc" },
           },
@@ -610,7 +628,7 @@ export function productRepository(
       translations?: ProductTranslationsInput | null;
       brandId?: string;
       categoryIds?: string[];
-      images?: ImageInput[];
+      media?: MediaInput[];
       variants?: ProductVariantInput[];
       options?: VariantOptionInput[];
     }): Promise<ProductWithRelations> {
@@ -648,12 +666,12 @@ export function productRepository(
           },
         });
 
-        const imageIdByKey = data?.images?.length
-          ? await syncProductImages(tx, created.id, data.images)
+        const mediaIdByKey = data?.media?.length
+          ? await syncProductMedia(tx, created.id, data.media)
           : new Map<string, string>();
 
         if (data?.variants?.length) {
-          await syncVariants(tx, created.id, data.variants, imageIdByKey);
+          await syncVariants(tx, created.id, data.variants, mediaIdByKey);
         }
 
         if (data?.options?.length) {
@@ -690,7 +708,7 @@ export function productRepository(
             deletedAt: null,
           },
           include: {
-            images: { orderBy: { order: "asc" } },
+            media: { orderBy: { order: "asc" } },
             brand: { select: { id: true, name: true, logoUrl: true } },
             variants: {
               orderBy: { order: "asc" },
@@ -698,7 +716,10 @@ export function productRepository(
                 optionValues: {
                   orderBy: [{ option: { order: "asc" } }, { order: "asc" }],
                 },
-                images: { orderBy: { order: "asc" } },
+                media: {
+                  orderBy: { order: "asc" },
+                  include: { media: true },
+                },
               },
             },
             options: {
@@ -755,7 +776,7 @@ export function productRepository(
         translations?: ProductTranslationsInput | null;
         brandId?: string;
         categoryIds?: string[];
-        images?: ImageInput[];
+        media?: MediaInput[];
         status?: ProductStatus;
         variants?: ProductVariantInput[];
         options?: VariantOptionInput[];
@@ -766,7 +787,7 @@ export function productRepository(
           throw new VersionRequiredError();
         }
 
-        const { images, variants, options, weightUnit, dimensionUnit, categoryIds, translations, ...productData } = data;
+        const { media, variants, options, weightUnit, dimensionUnit, categoryIds, translations, ...productData } = data;
 
         const result = await tx.product.updateMany({
           where: {
@@ -794,21 +815,21 @@ export function productRepository(
           throw new ConcurrencyConflictError();
         }
 
-        let imageIdByKey: Map<string, string>;
-        if (images !== undefined) {
-          imageIdByKey = await syncProductImages(tx, id, images);
+        let mediaIdByKey: Map<string, string>;
+        if (media !== undefined) {
+          mediaIdByKey = await syncProductMedia(tx, id, media);
         } else {
-          const existingImages = await tx.productImage.findMany({
+          const existingMedia = await tx.productMedia.findMany({
             where: { productId: id },
             select: { id: true, key: true },
           });
-          imageIdByKey = new Map(
-            existingImages.map((img) => [img.key, img.id]),
+          mediaIdByKey = new Map(
+            existingMedia.map((m) => [m.key, m.id]),
           );
         }
 
         if (variants !== undefined) {
-          await syncVariants(tx, id, variants, imageIdByKey);
+          await syncVariants(tx, id, variants, mediaIdByKey);
         }
 
         if (options !== undefined) {
@@ -835,7 +856,7 @@ export function productRepository(
             version: version + 1,
           },
           include: {
-            images: { orderBy: { order: "asc" } },
+            media: { orderBy: { order: "asc" } },
             brand: { select: { id: true, name: true, logoUrl: true } },
             variants: {
               orderBy: { order: "asc" },
@@ -843,7 +864,10 @@ export function productRepository(
                 optionValues: {
                   orderBy: [{ option: { order: "asc" } }, { order: "asc" }],
                 },
-                images: { orderBy: { order: "asc" } },
+                media: {
+                  orderBy: { order: "asc" },
+                  include: { media: true },
+                },
               },
             },
             options: {
@@ -894,9 +918,10 @@ export function productRepository(
         },
         select: {
           id: true,
-          images: {
+          media: {
             select: {
               key: true,
+              thumbKey: true,
             },
           },
         },
@@ -919,8 +944,8 @@ export function productRepository(
           },
         });
 
-        if (product.images.length > 0) {
-          await tx.productImage.deleteMany({
+        if (product.media.length > 0) {
+          await tx.productMedia.deleteMany({
             where: {
               productId: id,
             },
@@ -930,9 +955,12 @@ export function productRepository(
 
       await emitProductEvent(db.prisma, "product.deleted");
 
-      if (product.images.length > 0) {
+      if (product.media.length > 0) {
         await Promise.all(
-          product.images.map((img) => deleteS3Object(img.key).catch(() => {})),
+          product.media.flatMap((m) => [
+            deleteS3Object(m.key).catch(() => {}),
+            deleteS3Object(m.thumbKey ?? toThumbKey(m.key)).catch(() => {}),
+          ]),
         );
       }
 
@@ -1044,16 +1072,16 @@ export function productRepository(
       const source = await db.prisma.product.findFirst({
         where: { id, organizationId: ctx.organizationId, deletedAt: null },
         include: {
-          images: { orderBy: { order: "asc" } },
+          media: { orderBy: { order: "asc" } },
           variants: {
             orderBy: { order: "asc" },
             include: {
               optionValues: {
                 include: { option: { select: { name: true } } },
               },
-              images: {
+              media: {
                 orderBy: { order: "asc" },
-                include: { image: { select: { key: true } } },
+                include: { media: { select: { key: true } } },
               },
             },
           },
@@ -1068,18 +1096,20 @@ export function productRepository(
         throw new NotFoundError(`Product ${id} not found`);
       }
 
-      // 2. Copy S3 images server-side (pure S3 CopyObject — no re-upload).
-      //    Build oldKey → newKey mapping so variant image references can be updated.
+      // 2. Copy S3 media server-side (pure S3 CopyObject — no re-upload).
+      //    Build oldKey → newKey mapping so variant media references can be updated.
+      //    copyProductImage handles thumb/poster copy as well — works for both
+      //    image and video media (they share the /products/thumbs/ thumb path).
       const keyMap = new Map<string, string>();
       const copiedKeys: string[] = [];
 
       try {
         await Promise.all(
-          source.images.map(async (img) => {
+          source.media.map(async (m) => {
             // Replace the final UUID segment with a fresh one.
-            const newKey = img.key.replace(/[^/]+$/, randomUUID());
-            await copyProductImage(img.key, newKey);
-            keyMap.set(img.key, newKey);
+            const newKey = m.key.replace(/[^/]+$/, randomUUID());
+            await copyProductImage(m.key, newKey);
+            keyMap.set(m.key, newKey);
             copiedKeys.push(newKey);
           }),
         );
@@ -1092,8 +1122,13 @@ export function productRepository(
       // 3. Convert DB relations into the create() input format.
       const suffix = Date.now().toString(36);
 
-      const images: ImageInput[] = source.images.map((img) => ({
-        key: keyMap.get(img.key)!,
+      const media: MediaInput[] = source.media.map((m) => ({
+        key: keyMap.get(m.key)!,
+        mediaType: m.mediaType,
+        mimeType: m.mimeType,
+        durationMs: m.durationMs,
+        width: m.width,
+        height: m.height,
       }));
 
       const options = source.options.map((opt) => ({
@@ -1111,8 +1146,8 @@ export function productRepository(
         barcode: v.barcode ?? undefined,
         weight: v.weight ?? undefined,
         weightUnit: v.weightUnit ?? undefined,
-        imageKeys: v.images
-          .map((vi) => keyMap.get(vi.image.key))
+        mediaKeys: v.media
+          .map((vm) => keyMap.get(vm.media.key))
           .filter((k): k is string => k !== undefined),
         options: v.optionValues.map((ov) => ({
           name: ov.option.name,
@@ -1145,7 +1180,7 @@ export function productRepository(
           metaDescription: source.metaDescription ?? undefined,
           translations: (source.translations as ProductTranslationsInput | null) ?? null,
           brandId: source.brandId ?? undefined,
-          images: images.length > 0 ? images : undefined,
+          media: media.length > 0 ? media : undefined,
           variants: variants.length > 0 ? variants : undefined,
           options: options.length > 0 ? options : undefined,
         });
@@ -1205,14 +1240,16 @@ export function productRepository(
         where,
         select: {
           id: true,
-          images: { select: { key: true } },
+          media: { select: { key: true, thumbKey: true } },
         },
       });
 
       if (products.length === 0) return { count: 0 };
 
       const ids = products.map((p) => p.id);
-      const imageKeys = products.flatMap((p) => p.images.map((img) => img.key));
+      const mediaKeys = products.flatMap((p) =>
+        p.media.flatMap((m) => [m.key, m.thumbKey ?? toThumbKey(m.key)]),
+      );
 
       await db.prisma.$transaction(async (tx) => {
         await tx.product.updateMany({
@@ -1220,14 +1257,14 @@ export function productRepository(
           data: { deletedAt: new Date(), updatedById: ctx.userId },
         });
         if (ids.length > 0) {
-          await tx.productImage.deleteMany({ where: { productId: { in: ids } } });
+          await tx.productMedia.deleteMany({ where: { productId: { in: ids } } });
         }
       });
 
       await emitProductEvent(db.prisma, "product.deleted");
 
-      if (imageKeys.length > 0) {
-        await Promise.all(imageKeys.map((key) => deleteS3Object(key).catch(() => {})));
+      if (mediaKeys.length > 0) {
+        await Promise.all(mediaKeys.map((key) => deleteS3Object(key).catch(() => {})));
       }
 
       for (const id of ids) {
@@ -1323,9 +1360,10 @@ export function productRepository(
         },
         select: {
           id: true,
-          images: {
+          media: {
             select: {
               key: true,
+              thumbKey: true,
             },
           },
         },
@@ -1336,8 +1374,8 @@ export function productRepository(
       }
 
       const validProductIds = products.map((product) => product.id);
-      const imageKeys = products.flatMap((product) =>
-        product.images.map((img) => img.key),
+      const mediaKeys = products.flatMap((product) =>
+        product.media.flatMap((m) => [m.key, m.thumbKey ?? toThumbKey(m.key)]),
       );
 
       await db.prisma.$transaction(async (tx) => {
@@ -1354,7 +1392,7 @@ export function productRepository(
         });
 
         if (validProductIds.length > 0) {
-          await tx.productImage.deleteMany({
+          await tx.productMedia.deleteMany({
             where: {
               productId: {
                 in: validProductIds,
@@ -1366,9 +1404,9 @@ export function productRepository(
 
       await emitProductEvent(db.prisma, "product.deleted");
 
-      if (imageKeys.length > 0) {
+      if (mediaKeys.length > 0) {
         await Promise.all(
-          imageKeys.map((key) => deleteS3Object(key).catch(() => {})),
+          mediaKeys.map((key) => deleteS3Object(key).catch(() => {})),
         );
       }
 
@@ -1430,7 +1468,7 @@ export type ProductRepo = {
     metaDescription?: string;
     translations?: ProductTranslationsInput | null;
     brandId?: string;
-    images?: ImageInput[];
+    media?: MediaInput[];
     variants?: ProductVariantInput[];
     options?: VariantOptionInput[];
   }): Promise<ProductWithRelations>;
@@ -1462,7 +1500,7 @@ export type ProductRepo = {
       metaDescription?: string;
       translations?: ProductTranslationsInput | null;
       brandId?: string;
-      images?: ImageInput[];
+      media?: MediaInput[];
       status?: ProductStatus;
       variants?: ProductVariantInput[];
       options?: VariantOptionInput[];

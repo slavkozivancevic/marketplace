@@ -21,6 +21,20 @@ export type Permission =
   | "order:read"
   | "order:manage";
 
+import type { MediaType } from "@/generated/prisma/client";
+
+export type MediaInput = {
+  key: string;
+  mediaType: MediaType;
+  thumbKey?: string | null;
+  mimeType?: string | null;
+  durationMs?: number | null;
+  width?: number | null;
+  height?: number | null;
+};
+
+// Single-field input used by the synchronous image/video processor pipelines —
+// they only need the S3 key to fetch the original object back.
 export type ImageInput = {
   key: string;
 };
@@ -40,7 +54,7 @@ export type ProductVariantInput = {
   weight?: number | null;
   weightUnit?: string | null;
   id?: string;
-  imageKeys?: string[];
+  mediaKeys?: string[];
   options?: VariantOptionValueInput[];
 };
 
@@ -72,25 +86,53 @@ export type ImageProcessingResult = {
   thumbKey: string;
   originalDownloadUrl: string;
   thumbnailDownloadUrl: string;
+  width?: number;
+  height?: number;
   error?: boolean;
 };
 
-export type PresignedUploadedImage = {
+export type VideoProcessingResult = {
+  key: string;
+  thumbKey: string;
+  videoDownloadUrl: string;
+  posterDownloadUrl: string;
+  mimeType: string;
+  durationMs: number;
+  width: number;
+  height: number;
+  error?: boolean;
+};
+
+export type PresignedUploadedMedia = {
   key: string;
   url: string;
 
+  mediaType: MediaType;
+  mimeType?: string;
+
   // Stable client-side identifier used as React key and dnd-kit id.
-  // Survives the temp→processed key swap so the DOM <img> isn't remounted
-  // (prevents the brief flash when the blob URL is replaced with the S3 URL).
+  // Survives the temp→processed key swap so the DOM element isn't remounted
+  // when the blob URL is replaced with the S3 URL.
   clientId?: string;
 
+  // Image: full-resolution download URL. Video: same as url (source video URL).
   downloadUrl?: string;
+
+  // Video only: server-extracted poster frame (used as thumbnail in grids).
+  posterUrl?: string;
+  thumbKey?: string;
+  durationMs?: number;
+  width?: number;
+  height?: number;
 
   progress?: number;
   error?: boolean;
 };
 
-export type CreateProductImageUploadResponse = {
+// Back-compat alias for code still typing against the old shape.
+export type PresignedUploadedImage = PresignedUploadedMedia;
+
+export type CreateProductMediaUploadResponse = {
   error: boolean;
   message?: string;
   data: {
@@ -105,6 +147,15 @@ export type ProcessProductImageResponse = {
   data: ImageProcessingResult;
 };
 
+export type ProcessProductVideoResponse = {
+  error: boolean;
+  message?: string;
+  data: VideoProcessingResult;
+};
+
+// Back-compat alias
+export type CreateProductImageUploadResponse = CreateProductMediaUploadResponse;
+
 export type ActionErrorResult = {
   error: boolean;
   message: string;
@@ -112,12 +163,12 @@ export type ActionErrorResult = {
 
 export type ProductWithRelations = Prisma.ProductGetPayload<{
   include: {
-    images: true;
+    media: true;
     brand: { select: { id: true; name: true; logoUrl: true } };
     variants: {
       include: {
         optionValues: true;
-        images: true;
+        media: { include: { media: true } };
       };
     };
     options: {
@@ -135,7 +186,7 @@ export type ProductWithRelations = Prisma.ProductGetPayload<{
 
 export type ProductListItem = Prisma.ProductGetPayload<{
   include: {
-    images: true;
+    media: true;
     brand: { select: { id: true; name: true; logoUrl: true } };
   };
 }>;
@@ -174,8 +225,8 @@ export type SerializedProductHistory = Omit<ProductHistory, "price"> & {
 
 export type PublicProduct = Prisma.ProductGetPayload<{
   include: {
-    images: true;
-    variants: { include: { optionValues: true; images: true } };
+    media: true;
+    variants: { include: { optionValues: true; media: { include: { media: true } } } };
     options: { include: { values: true } };
     brand: { select: { id: true; name: true; logoUrl: true } };
   };

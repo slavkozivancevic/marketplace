@@ -143,7 +143,10 @@ export function ProductTableRow({
     });
   };
 
-  const thumbnailUrl = product.images?.[0]?.url;
+  // Table row thumbnail prefers the server thumb (image thumbnail OR video
+  // poster), falling back to the original URL for legacy rows.
+  const firstMedia = product.media?.[0];
+  const thumbnailUrl = firstMedia?.thumbUrl ?? firstMedia?.url;
   const cols = showActions ? COLS_ACTIONS : COLS_BASE;
   const isBusy = isDeleting || isDuplicating || isNavigating;
 

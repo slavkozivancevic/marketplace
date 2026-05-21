@@ -228,12 +228,22 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
   }
 
   function handleAdd() {
-    const variantFirstImageId = activeVariant?.images[0]?.imageId;
-    const variantFirstImageUrl = variantFirstImageId
-      ? (product.images.find((img) => img.id === variantFirstImageId)?.url ??
-        null)
+    // Cart thumbnails are still images — pick the first IMAGE-type media on
+    // the variant, then fall back to the product's first image-type media.
+    const variantImageRef = activeVariant?.media.find(
+      (vm) => vm.media.mediaType === "IMAGE",
+    );
+    const variantFirstImageUrl = variantImageRef
+      ? (variantImageRef.media.thumbUrl ?? variantImageRef.media.url)
       : null;
-    const firstImage = variantFirstImageUrl ?? product.images[0]?.url ?? null;
+    const firstProductImage = product.media.find(
+      (m) => m.mediaType === "IMAGE",
+    );
+    const firstImage =
+      variantFirstImageUrl ??
+      (firstProductImage
+        ? (firstProductImage.thumbUrl ?? firstProductImage.url)
+        : null);
     const optionLabel = activeVariant?.optionValues
       .map((ov) => ov.value)
       .join(" / ");

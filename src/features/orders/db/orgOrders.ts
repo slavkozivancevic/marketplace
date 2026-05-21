@@ -115,17 +115,21 @@ export async function getOrgOrderById(orderId: string, organizationId: string) {
             select: {
               id: true,
               title: true,
-              images: { orderBy: { order: "asc" }, take: 1 },
+              media: {
+                orderBy: { order: "asc" },
+                take: 1,
+                where: { mediaType: "IMAGE" },
+              },
             },
           },
           variant: {
             select: {
               sku: true,
               optionValues: true,
-              images: {
+              media: {
                 orderBy: { order: "asc" },
                 take: 1,
-                select: { image: { select: { url: true } } },
+                select: { media: { select: { url: true, thumbUrl: true, mediaType: true } } },
               },
             },
           },

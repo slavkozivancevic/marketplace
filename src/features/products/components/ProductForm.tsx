@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ProductImageUpload } from "@/components/product/ProductImageUpload";
+import { ProductMediaUpload } from "@/components/product/ProductMediaUpload";
 import {
   createProductSchema,
   updateProductSchema,
@@ -41,7 +41,7 @@ import { createProduct, updateProduct } from "../actions/products";
 import {
   ProductTranslationsInput,
   SerializedProductWithRelations,
-  PresignedUploadedImage,
+  PresignedUploadedMedia,
   VariantOptionTranslations,
 } from "@/types/types";
 import { NON_DEFAULT_LOCALES, LOCALE_LABELS, DEFAULT_LOCALE, SUPPORTED_LOCALES, type Locale } from "@/i18n/config";
@@ -323,7 +323,15 @@ type ProductFormData = {
   translations: ProductTranslationsForm;
   brandId: string | undefined;
   categoryIds: string[];
-  images: { key: string }[];
+  media: {
+    key: string;
+    mediaType: "IMAGE" | "VIDEO";
+    thumbKey?: string | null;
+    mimeType?: string | null;
+    durationMs?: number | null;
+    width?: number | null;
+    height?: number | null;
+  }[];
   options: { name: string; values: string[]; translations: OptionTranslationsForm }[];
   variants: {
     sku: string;
@@ -334,7 +342,7 @@ type ProductFormData = {
     barcode: string;
     weight: number | null;
     weightUnit: "G" | "KG" | "LB" | "OZ" | null;
-    imageKeys: string[];
+    mediaKeys: string[];
     options: { name: string; value: string }[];
   }[];
   version: number;
@@ -527,8 +535,18 @@ export function ProductForm({
     setPreviewLocale(locale);
   }, [locale]);
 
-  const [uploadedImages, setUploadedImages] = useState<PresignedUploadedImage[]>(
-    product?.images.map((img) => ({ key: img.key, url: img.url })) ?? [],
+  const [uploadedMedia, setUploadedMedia] = useState<PresignedUploadedMedia[]>(
+    product?.media.map((m) => ({
+      key: m.key,
+      url: m.url,
+      mediaType: m.mediaType,
+      mimeType: m.mimeType ?? undefined,
+      thumbKey: m.thumbKey ?? undefined,
+      posterUrl: m.thumbUrl ?? undefined,
+      durationMs: m.durationMs ?? undefined,
+      width: m.width ?? undefined,
+      height: m.height ?? undefined,
+    })) ?? [],
   );
 
   const [optionValueInputs, setOptionValueInputs] = useState<string[]>(
@@ -574,14 +592,14 @@ export function ProductForm({
         translations: normalizeProductTranslations(null),
         brandId: undefined,
         categoryIds: [],
-        images: [],
+        media: [],
         options: [],
         variants: [],
         version: 1,
       };
     }
     const optionById = new Map(product.options.map((o) => [o.id, o.name]));
-    const imageKeyById = new Map(product.images.map((img) => [img.id, img.key]));
+    const mediaKeyById = new Map(product.media.map((m) => [m.id, m.key]));
     return {
       title: product.title,
       slug: product.slug ?? "",
@@ -607,7 +625,15 @@ export function ProductForm({
       translations: normalizeProductTranslations(product.translations),
       brandId: product.brandId ?? undefined,
       categoryIds: product.categories.map((c) => c.categoryId),
-      images: product.images.map((img) => ({ key: img.key })),
+      media: product.media.map((m) => ({
+        key: m.key,
+        mediaType: m.mediaType,
+        thumbKey: m.thumbKey,
+        mimeType: m.mimeType,
+        durationMs: m.durationMs,
+        width: m.width,
+        height: m.height,
+      })),
       options: product.options.map((opt) => ({
         name: opt.name,
         values: Array.from(new Set(opt.values.map((v) => v.value))),
@@ -622,8 +648,8 @@ export function ProductForm({
           seenOptionNames.add(name);
           dedupedOptions.push({ name, value: ov.value });
         }
-        const imageKeys = v.images
-          .map((vi) => imageKeyById.get(vi.imageId))
+        const mediaKeys = v.media
+          .map((vm) => mediaKeyById.get(vm.mediaId))
           .filter((k): k is string => Boolean(k));
         return {
           sku: v.sku,
@@ -634,7 +660,7 @@ export function ProductForm({
           barcode: v.barcode ?? "",
           weight: v.weight ?? null,
           weightUnit: (v.weightUnit ?? null) as ProductFormData["weightUnit"],
-          imageKeys,
+          mediaKeys,
           options: dedupedOptions,
         };
       }),
@@ -718,7 +744,19 @@ export function ProductForm({
     if (!product) return;
     setSlugManuallyEdited(false);
     prevTitleRef.current = product.title;
-    setUploadedImages(product.images.map((img) => ({ key: img.key, url: img.url })));
+    setUploadedMedia(
+      product.media.map((m) => ({
+        key: m.key,
+        url: m.url,
+        mediaType: m.mediaType,
+        mimeType: m.mimeType ?? undefined,
+        thumbKey: m.thumbKey ?? undefined,
+        posterUrl: m.thumbUrl ?? undefined,
+        durationMs: m.durationMs ?? undefined,
+        width: m.width ?? undefined,
+        height: m.height ?? undefined,
+      })),
+    );
     setOptionValueInputs(product.options.map(() => ""));
     setSyncedOptionsSnapshot(
       snapshotOptions(
@@ -803,7 +841,7 @@ export function ProductForm({
           barcode: previous?.barcode ?? "",
           weight: previous?.weight ?? null,
           weightUnit: previous?.weightUnit ?? null,
-          imageKeys: previous?.imageKeys ?? [],
+          mediaKeys: previous?.mediaKeys ?? [],
           options: combo,
         };
       }),
@@ -812,22 +850,35 @@ export function ProductForm({
     toast.success(t("generated", { count: combinations.length }));
   };
 
-  // Mirror uploadedImages into the form value + prune any variant→image
+  // Mirror uploadedMedia into the form value + prune any variant→media
   // references that point at removed keys. Driven by an effect so the upload
   // component can stay controlled (parent owns the state, which is what keeps
-  // the image alive across tab unmounts).
+  // the media alive across tab unmounts).
   useEffect(() => {
-    form.setValue("images", uploadedImages.map((img) => ({ key: img.key })));
-    const validKeys = new Set(uploadedImages.map((img) => img.key));
+    form.setValue(
+      "media",
+      uploadedMedia.map((m) => ({
+        key: m.key,
+        mediaType: m.mediaType,
+        thumbKey: m.thumbKey,
+        mimeType: m.mimeType,
+        durationMs: m.durationMs,
+        width: m.width,
+        height: m.height,
+      })),
+    );
+    const validKeys = new Set(uploadedMedia.map((m) => m.key));
     const currentVariants = form.getValues("variants") ?? [];
     currentVariants.forEach((variant, index) => {
-      const current = variant.imageKeys ?? [];
+      const current = variant.mediaKeys ?? [];
       const filtered = current.filter((k) => validKeys.has(k));
       if (filtered.length !== current.length) {
-        form.setValue(`variants.${index}.imageKeys`, filtered, { shouldDirty: true });
+        form.setValue(`variants.${index}.mediaKeys`, filtered, {
+          shouldDirty: true,
+        });
       }
     });
-  }, [uploadedImages, form]);
+  }, [uploadedMedia, form]);
 
   // Tab error indicators
   const errors = form.formState.errors;
@@ -873,7 +924,7 @@ export function ProductForm({
           translations: translationsPayload,
           brandId: data.brandId || undefined,
           categoryIds: data.categoryIds,
-          images: data.images,
+          media: data.media,
           options: optionsPayload,
           variants: data.variants,
         };
@@ -1162,10 +1213,10 @@ export function ProductForm({
             <Separator />
 
             <div className="space-y-2">
-              <FormLabel className="text-base font-semibold">{t("images")}</FormLabel>
-              <ProductImageUpload
-                images={uploadedImages}
-                setImages={setUploadedImages}
+              <FormLabel className="text-base font-semibold">{t("media")}</FormLabel>
+              <ProductMediaUpload
+                media={uploadedMedia}
+                setMedia={setUploadedMedia}
               />
             </div>
           </TabsContent>
@@ -1874,7 +1925,7 @@ export function ProductForm({
                         barcode: "",
                         weight: null,
                         weightUnit: null,
-                        imageKeys: [],
+                        mediaKeys: [],
                         options: [],
                       })
                     }
@@ -1903,7 +1954,7 @@ export function ProductForm({
 
               {variantFields.map((variantField, variantIndex) => {
                 const variantOptions = watchedVariants?.[variantIndex]?.options ?? [];
-                const selectedImageKeys = watchedVariants?.[variantIndex]?.imageKeys ?? [];
+                const selectedMediaKeys = watchedVariants?.[variantIndex]?.mediaKeys ?? [];
 
                 return (
                   <div key={variantField.id} className="border rounded-md p-4 space-y-3 bg-background dark:bg-input/30">
@@ -2073,29 +2124,31 @@ export function ProductForm({
                       </div>
                     </div>
 
-                    {/* Variant images */}
+                    {/* Variant media */}
                     <div className="space-y-2">
                       <FormLabel className="text-xs text-muted-foreground">
-                        {t("variantImages")}
+                        {t("variantMedia")}
                       </FormLabel>
-                      {uploadedImages.length === 0 ? (
+                      {uploadedMedia.length === 0 ? (
                         <div className="flex items-center gap-2 rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
                           <ImageOff className="w-3.5 h-3.5" />
                           {t("uploadFirst")}
                         </div>
                       ) : (
                         <div className="flex flex-wrap gap-2">
-                          {uploadedImages.map((img) => {
-                            const isSelected = selectedImageKeys.includes(img.key);
+                          {uploadedMedia.map((m) => {
+                            const isSelected = selectedMediaKeys.includes(m.key);
+                            const isVideo = m.mediaType === "VIDEO";
+                            const thumbSrc = isVideo ? (m.posterUrl ?? m.url) : m.url;
                             return (
                               <button
                                 type="button"
-                                key={img.key}
+                                key={m.key}
                                 onClick={() => {
                                   const next = isSelected
-                                    ? selectedImageKeys.filter((k) => k !== img.key)
-                                    : [...selectedImageKeys, img.key];
-                                  form.setValue(`variants.${variantIndex}.imageKeys`, next, { shouldDirty: true });
+                                    ? selectedMediaKeys.filter((k) => k !== m.key)
+                                    : [...selectedMediaKeys, m.key];
+                                  form.setValue(`variants.${variantIndex}.mediaKeys`, next, { shouldDirty: true });
                                 }}
                                 className={cn(
                                   "relative w-16 h-16 rounded border-2 overflow-hidden shrink-0 transition-all cursor-pointer",
@@ -2104,7 +2157,16 @@ export function ProductForm({
                                     : "border-transparent opacity-60 hover:opacity-100",
                                 )}
                               >
-                                <Image src={img.url} alt="Variant image" fill className="object-cover" />
+                                {isVideo && !m.posterUrl ? (
+                                  <video src={thumbSrc} className="absolute inset-0 w-full h-full object-cover" muted playsInline preload="metadata" />
+                                ) : (
+                                  <Image src={thumbSrc} alt="Variant media" fill className="object-cover" unoptimized={thumbSrc.startsWith("blob:")} />
+                                )}
+                                {isVideo && (
+                                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20">
+                                    <span className="text-white text-[10px] font-semibold">VIDEO</span>
+                                  </div>
+                                )}
                               </button>
                             );
                           })}

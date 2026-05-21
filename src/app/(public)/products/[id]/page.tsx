@@ -87,14 +87,17 @@ async function fetchPublicProduct(
   const product = await prisma.product.findFirst({
     where: { id, status: "PUBLISHED", deletedAt: null },
     include: {
-      images: { orderBy: { order: "asc" } },
+      media: { orderBy: { order: "asc" } },
       variants: {
         orderBy: { order: "asc" },
         include: {
           optionValues: {
             orderBy: [{ option: { order: "asc" } }, { order: "asc" }],
           },
-          images: { orderBy: { order: "asc" } },
+          media: {
+            orderBy: { order: "asc" },
+            include: { media: true },
+          },
         },
       },
       options: {
@@ -164,10 +167,10 @@ async function fetchRelatedProducts(productId: string): Promise<RelatedProduct[]
       translations: true,
       price: true,
       compareAtPrice: true,
-      images: {
+      media: {
         orderBy: { order: "asc" },
         take: 1,
-        select: { url: true },
+        select: { url: true, thumbUrl: true, mediaType: true },
       },
       brand: { select: { name: true, logoUrl: true } },
     },

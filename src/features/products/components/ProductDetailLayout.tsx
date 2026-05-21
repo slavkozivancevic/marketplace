@@ -29,8 +29,8 @@ export function ProductDetailLayout({ product }: ProductDetailLayoutProps) {
   });
   const [jumpTicket, setJumpTicket] = useState<{
     ticket: number;
-    imageId: string | null;
-  }>({ ticket: 0, imageId: null });
+    mediaId: string | null;
+  }>({ ticket: 0, mediaId: null });
 
   const handleActiveVariantChange = (variantId: string | null) => {
     setActiveVariantId(variantId);
@@ -38,12 +38,12 @@ export function ProductDetailLayout({ product }: ProductDetailLayoutProps) {
     const variant = variantId
       ? product.variants.find((v) => v.id === variantId)
       : undefined;
-    const firstImageId = variant?.images[0]?.imageId ?? null;
-    if (!firstImageId) return;
+    const firstMediaId = variant?.media[0]?.mediaId ?? null;
+    if (!firstMediaId) return;
 
     setJumpTicket((prev) => ({
       ticket: prev.ticket + 1,
-      imageId: firstImageId,
+      mediaId: firstMediaId,
     }));
   };
 
@@ -51,9 +51,9 @@ export function ProductDetailLayout({ product }: ProductDetailLayoutProps) {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       <div className="space-y-4">
         <ProductImageCarousel
-          images={product.images}
+          media={product.media}
           title={localTitle}
-          jumpToImageId={jumpTicket.imageId}
+          jumpToMediaId={jumpTicket.mediaId}
           jumpTicket={jumpTicket.ticket}
         />
       </div>

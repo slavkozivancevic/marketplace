@@ -230,7 +230,7 @@ model Product {
   createdBy    User?         @relation("ProductCreatedBy", fields: [createdById], references: [id])
   updatedBy    User?         @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
 
-  images   ProductImage[]
+  media    ProductMedia[]
   variants ProductVariant[]
   options  VariantOption[]
 
@@ -286,7 +286,7 @@ model ProductVariant {
   updatedAt      DateTime    @updatedAt
 
   product      Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
-  images       ProductVariantImage[]
+  media        ProductVariantMedia[]
   optionValues VariantOptionValue[]
   orderItems   OrderItem[]
 
@@ -294,16 +294,16 @@ model ProductVariant {
   @@index([productId])
 }
 
-model ProductVariantImage {
+model ProductVariantMedia {
   variantId String
-  imageId   String
+  mediaId   String
   order     Int @default(0)
   createdAt DateTime @default(now())
   variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
-  image   ProductImage   @relation(fields: [imageId], references: [id], onDelete: Cascade)
-  @@id([variantId, imageId])
+  media   ProductMedia   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  @@id([variantId, mediaId])
   @@index([variantId])
-  @@index([imageId])
+  @@index([mediaId])
 }
 
 model VariantOption {
@@ -330,20 +330,40 @@ model VariantOptionValue {
   @@index([optionId])
 }
 
-model ProductImage {
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+model ProductMedia {
   id String @id @default(uuid())
 
   productId String
 
+  mediaType MediaType @default(IMAGE)
+
+  // Original asset
   url String
   key String
+
+  // Thumbnail (IMAGE: 300x300 webp) or poster frame (VIDEO: extracted at 1s).
+  // Nullable so legacy IMAGE rows migrated from ProductImage stay valid without
+  // a backfill pass — the existing thumb pipeline still derives keys from `key`.
+  thumbUrl String?
+  thumbKey String?
+
+  // Optional metadata, populated by the processor (mostly for VIDEO).
+  mimeType   String?
+  durationMs Int?
+  width      Int?
+  height     Int?
 
   order Int @default(0)
 
   createdAt DateTime @default(now())
 
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  variantImages ProductVariantImage[]
+  product       Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantMedia  ProductVariantMedia[]
 
   @@index([productId, order])
   @@unique([productId, key])

@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TruncatedTooltip } from "@/components/TruncatedTooltip";
-import { Heart, ImageOff } from "lucide-react";
+import { Heart, ImageOff, Video as VideoIcon } from "lucide-react";
 import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
 import { HoverImageCycler } from "@/components/product/HoverImageCycler";
 import { StarRating } from "@/features/reviews/components/StarRating";
@@ -128,12 +128,36 @@ function WishlistProductCard({
       <Link href={`/products/${product.id}`} className="block h-full">
         <Card className="h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 border-border/50 pt-0 pb-0 gap-0 flex flex-col">
           <CardHeader className="p-0 relative">
-            {product.images.length > 0 ? (
-              <HoverImageCycler
-                images={product.images.map((img) => img.url)}
-                alt={localTitle}
-                className="w-full h-48 rounded-t"
-              />
+            {product.media.length > 0 ? (
+              (() => {
+                const hoverUrls: string[] = [];
+                const videoIndexes = new Set<number>();
+                product.media.forEach((m) => {
+                  if (m.mediaType === "VIDEO") {
+                    videoIndexes.add(hoverUrls.length);
+                    hoverUrls.push(m.thumbUrl ?? m.url);
+                  } else {
+                    hoverUrls.push(m.url);
+                  }
+                });
+                const hasVideo = videoIndexes.size > 0;
+                return (
+                  <div className="relative w-full h-48">
+                    <HoverImageCycler
+                      images={hoverUrls}
+                      videoIndexes={videoIndexes}
+                      alt={localTitle}
+                      className="w-full h-48 rounded-t"
+                    />
+                    {hasVideo && (
+                      <div className="pointer-events-none absolute bottom-2 left-2 flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-white shadow">
+                        <VideoIcon className="h-3 w-3" />
+                        Video
+                      </div>
+                    )}
+                  </div>
+                );
+              })()
             ) : (
               <div className="w-full h-48 rounded-t flex flex-col items-center justify-center gap-2 bg-muted/50">
                 <ImageOff className="h-8 w-8 text-muted-foreground/40" />

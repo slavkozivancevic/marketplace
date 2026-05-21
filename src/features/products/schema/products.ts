@@ -3,9 +3,20 @@ import { z } from "zod";
 export const weightUnitSchema = z.enum(["G", "KG", "LB", "OZ"]);
 export const dimensionUnitSchema = z.enum(["CM", "IN"]);
 
-export const productImageSchema = z.object({
-  key: z.string().min(1, "Image key is required"),
+export const mediaTypeSchema = z.enum(["IMAGE", "VIDEO"]);
+
+export const productMediaSchema = z.object({
+  key: z.string().min(1, "Media key is required"),
+  mediaType: mediaTypeSchema.default("IMAGE"),
+  thumbKey: z.string().min(1).nullable().optional(),
+  mimeType: z.string().nullable().optional(),
+  durationMs: z.number().int().nonnegative().nullable().optional(),
+  width: z.number().int().nonnegative().nullable().optional(),
+  height: z.number().int().nonnegative().nullable().optional(),
 });
+
+// Kept for back-compat with any external code still importing the old name.
+export const productImageSchema = productMediaSchema;
 
 // Locale-keyed translations map. Any locale supported by the app may appear
 // as a key. The default locale uses the canonical columns and never appears here.
@@ -72,7 +83,10 @@ export const productVariantSchema = z
       z.number().positive("Weight must be greater than 0").nullable(),
     ).default(null),
     weightUnit: weightUnitSchema.nullable().default(null),
-    imageKeys: z.array(z.string().min(1)).default([]),
+    // S3 keys into ProductMedia (image OR video). The server resolves keys to
+    // ProductMedia.id when writing the ProductVariantMedia join. Variants are
+    // media-agnostic so a video can be showcased on a specific variant.
+    mediaKeys: z.array(z.string().min(1)).default([]),
     options: z.array(productVariantOptionSchema).default([]),
   })
   .superRefine((variant, ctx) => {
@@ -161,7 +175,7 @@ export const createProductSchema = z
     brandId: z.string().optional(),
     categoryIds: z.array(z.string()).default([]),
 
-    images: z.array(productImageSchema).default([]),
+    media: z.array(productMediaSchema).default([]),
     options: z.array(productOptionSchema).default([]),
     variants: z.array(productVariantSchema).default([]),
   })

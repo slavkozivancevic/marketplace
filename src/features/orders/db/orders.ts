@@ -145,17 +145,23 @@ export async function getOrderById(id: string, userId: string) {
             select: {
               id: true,
               title: true,
-              images: { orderBy: { order: "asc" }, take: 1 },
+              media: {
+                orderBy: { order: "asc" },
+                take: 1,
+                // Order line items show a still thumbnail — keep videos out
+                // so the order page doesn't try to play a video inline.
+                where: { mediaType: "IMAGE" },
+              },
             },
           },
           variant: {
             select: {
               sku: true,
               optionValues: true,
-              images: {
+              media: {
                 orderBy: { order: "asc" },
                 take: 1,
-                select: { image: { select: { url: true } } },
+                select: { media: { select: { url: true, thumbUrl: true, mediaType: true } } },
               },
             },
           },

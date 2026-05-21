@@ -133,8 +133,15 @@ export default async function OrgOrderDetailPage({ params }: Props) {
             </CardHeader>
             <CardContent className="space-y-0">
               {order.items.map((item, index) => {
-                const variantImageUrl = item.variant?.images[0]?.image.url ?? null;
-                const imageUrl = variantImageUrl ?? item.product.images[0]?.url ?? null;
+                const variantMedia = item.variant?.media[0]?.media ?? null;
+                const variantImageUrl =
+                  variantMedia?.thumbUrl ?? variantMedia?.url ?? null;
+                const productMedia = item.product.media[0] ?? null;
+                const imageUrl =
+                  variantImageUrl ??
+                  productMedia?.thumbUrl ??
+                  productMedia?.url ??
+                  null;
                 const variantLabel = item.variant?.optionValues.map((ov) => ov.value).join(" / ");
 
                 return (

@@ -65,13 +65,19 @@ export async function createCheckoutSession(
       const product = await prisma.product.findFirst({
         where: { id: item.productId, status: "PUBLISHED", deletedAt: null },
         include: {
-          images: { orderBy: { order: "asc" }, take: 1 },
+          // Stripe checkout shows a still preview — keep image-only so a
+          // video poster isn't sent as a "product image".
+          media: {
+            orderBy: { order: "asc" },
+            take: 1,
+            where: { mediaType: "IMAGE" },
+          },
           variants: {
             include: {
-              images: {
+              media: {
                 orderBy: { order: "asc" },
                 take: 1,
-                include: { image: true },
+                include: { media: true },
               },
             },
           },
@@ -112,10 +118,14 @@ export async function createCheckoutSession(
       // Convert from USD cents to target currency's smallest unit
       const unitAmountInCurrency = convertCents(unitPriceUsdCents, currency, exchangeRate);
 
-      const variantImageUrl = item.variantId
-        ? product.variants.find((v) => v.id === item.variantId)?.images[0]?.image.url
+      const variantMedia = item.variantId
+        ? product.variants.find((v) => v.id === item.variantId)?.media[0]?.media
         : undefined;
-      const imageUrl = variantImageUrl ?? product.images[0]?.url;
+      const variantImageUrl =
+        variantMedia && variantMedia.mediaType === "IMAGE"
+          ? (variantMedia.thumbUrl ?? variantMedia.url)
+          : undefined;
+      const imageUrl = variantImageUrl ?? product.media[0]?.url;
 
       lineItems.push({
         price_data: {

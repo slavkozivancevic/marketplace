@@ -88,7 +88,7 @@ export async function getPublicProductsPage({
     cursor: cursor ? { id: cursor } : undefined,
     skip: cursor ? 1 : 0,
     include: {
-      images: { orderBy: { order: "asc" }, take: 5 },
+      media: { orderBy: { order: "asc" }, take: 5 },
       brand: { select: { id: true, name: true, logoUrl: true } },
     },
   });

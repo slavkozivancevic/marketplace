@@ -3,7 +3,8 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ImageOff } from "lucide-react";
+import { ImageOff, PlayCircle } from "lucide-react";
+import type { MediaType } from "@/generated/prisma/client";
 import Autoplay from "embla-carousel-autoplay";
 import { useTranslations, useLocale } from "next-intl";
 import { useCurrencyStore } from "@/store/currency";
@@ -26,7 +27,11 @@ export type RelatedProduct = {
   translations: unknown;
   price: number;
   compareAtPrice: number | null;
-  images: { url: string }[];
+  media: {
+    url: string;
+    thumbUrl: string | null;
+    mediaType: MediaType;
+  }[];
   brand: { name: string; logoUrl: string | null } | null;
 };
 
@@ -49,24 +54,35 @@ function RelatedProductCard({ product }: { product: RelatedProduct }) {
           100,
       )
     : 0;
-  const imageUrl = product.images[0]?.url ?? null;
+  const firstMedia = product.media[0] ?? null;
+  // Carousel tiles always show a still — for video, that's the server-generated
+  // poster. Falling back to the source URL keeps legacy rows working.
+  const thumbUrl =
+    firstMedia?.thumbUrl ??
+    (firstMedia?.mediaType === "IMAGE" ? firstMedia.url : null);
+  const isVideo = firstMedia?.mediaType === "VIDEO";
 
   return (
     <Link href={`/products/${product.id}`} className="block group">
       <div className="rounded-xl overflow-hidden border border-border/40 bg-card transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-xl group-hover:shadow-primary/10 group-hover:border-border/80">
-        {/* Image */}
+        {/* Media preview */}
         <div className="relative aspect-4/3 overflow-hidden bg-muted/30">
-          {imageUrl ? (
+          {thumbUrl ? (
             <>
               {!imgLoaded && <div className="absolute inset-0 z-10 skeleton-shimmer" />}
               <Image
-                src={imageUrl}
+                src={thumbUrl}
                 alt={localTitle}
                 fill
                 sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
                 className="object-cover transition-transform duration-500 group-hover:scale-105"
                 onLoad={() => setImgLoaded(true)}
               />
+              {isVideo && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/15">
+                  <PlayCircle className="text-white drop-shadow" size={36} />
+                </div>
+              )}
             </>
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2">

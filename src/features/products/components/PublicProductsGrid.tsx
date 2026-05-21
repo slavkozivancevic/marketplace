@@ -4,7 +4,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
 
 import { cn } from "@/lib/utils";
-import { ImageOff, ShoppingCart, ChevronDown, X } from "lucide-react";
+import { ImageOff, ShoppingCart, ChevronDown, X, Video as VideoIcon } from "lucide-react";
 
 import React, { useRef, useState } from "react";
 import Link from "next/link";
@@ -218,18 +218,52 @@ function ProductCard({
       <Link href={`/products/${product.id}`} className="block h-full">
         <Card className="h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 border-border/50 pt-0 pb-0 gap-0 flex flex-col">
           <CardHeader className="p-0 relative">
-            {product.images.length > 0 ? (
-              <HoverImageCycler
-                images={product.images.map((img: { url: string }) => img.url)}
-                alt={localTitle}
-                className="w-full h-48 rounded-t"
-              />
-            ) : (
-              <div className="w-full h-48 rounded-t flex flex-col items-center justify-center gap-2 bg-muted/50">
-                <ImageOff className="h-8 w-8 text-muted-foreground/40" />
-                <span className="text-xs text-muted-foreground/40">No image</span>
-              </div>
-            )}
+            {(() => {
+              // Card hero cycles through every media item: images use their
+              // url, videos use their poster (thumbUrl). Slots backed by a
+              // video are tracked so the cycler can overlay a play icon when
+              // the cycle lands on them — making the video discoverable on
+              // hover without auto-playing on every tile.
+              const hoverUrls: string[] = [];
+              const videoIndexes = new Set<number>();
+              product.media.forEach(
+                (m: { url: string; thumbUrl: string | null; mediaType: "IMAGE" | "VIDEO" }) => {
+                  if (m.mediaType === "VIDEO") {
+                    const poster = m.thumbUrl ?? m.url;
+                    videoIndexes.add(hoverUrls.length);
+                    hoverUrls.push(poster);
+                  } else {
+                    hoverUrls.push(m.url);
+                  }
+                },
+              );
+              const hasVideo = videoIndexes.size > 0;
+
+              if (hoverUrls.length === 0) {
+                return (
+                  <div className="w-full h-48 rounded-t flex flex-col items-center justify-center gap-2 bg-muted/50">
+                    <ImageOff className="h-8 w-8 text-muted-foreground/40" />
+                    <span className="text-xs text-muted-foreground/40">No image</span>
+                  </div>
+                );
+              }
+              return (
+                <div className="relative w-full h-48">
+                  <HoverImageCycler
+                    images={hoverUrls}
+                    videoIndexes={videoIndexes}
+                    alt={localTitle}
+                    className="w-full h-48 rounded-t"
+                  />
+                  {hasVideo && (
+                    <div className="pointer-events-none absolute bottom-2 left-2 flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-white shadow">
+                      <VideoIcon className="h-3 w-3" />
+                      Video
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             {isOnSale && (
               <div className="absolute top-3 left-0 flex flex-col items-start gap-1 pointer-events-none">
                 <span className="bg-linear-to-r from-red-500 to-rose-600 text-white text-sm font-black px-4 py-1.5 rounded-r-full shadow-lg shadow-red-500/50 tracking-wider uppercase">

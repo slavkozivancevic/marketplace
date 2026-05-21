@@ -13,12 +13,12 @@ export async function GET(
   const product = await prisma.product.findFirst({
     where: { id, status: "PUBLISHED", deletedAt: null },
     include: {
-      images: { orderBy: { order: "asc" } },
+      media: { orderBy: { order: "asc" } },
       variants: {
         orderBy: { order: "asc" },
         include: {
           optionValues: true,
-          images: true,
+          media: { include: { media: true }, orderBy: { order: "asc" } },
         },
       },
       options: {

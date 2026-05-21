@@ -123,14 +123,14 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
 
       <Separator />
 
-      {/* ── IMAGES ── */}
+      {/* ── MEDIA ── */}
       <Card>
         <CardHeader>
-          <CardTitle>{t("images")}</CardTitle>
+          <CardTitle>{t("media")}</CardTitle>
         </CardHeader>
         <CardContent>
           <ProductImageCarousel
-            images={product.images ?? []}
+            media={product.media ?? []}
             title={product.title}
           />
         </CardContent>

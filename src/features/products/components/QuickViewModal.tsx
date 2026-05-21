@@ -79,7 +79,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
   const isGone =
     axios.isAxiosError(error) && error.response?.status === 404;
 
-  const images = product?.images ?? [];
+  const media = product?.media ?? [];
   const activeVariant = product?.variants.find((v) => v.id === activeVariantId);
   const localTitle = product
     ? getProductTitle(
@@ -101,12 +101,12 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
     api.on("select", () => setCurrentSlide(api.selectedScrollSnap()));
   }, []);
 
-  // Jump to this variant's first image when selection changes
+  // Jump to this variant's first media item when selection changes.
   useEffect(() => {
-    if (!carouselApi || !activeVariant || images.length === 0) return;
-    const variantImageId = activeVariant.images?.[0]?.imageId;
-    if (!variantImageId) return;
-    const idx = images.findIndex((img) => img.id === variantImageId);
+    if (!carouselApi || !activeVariant || media.length === 0) return;
+    const variantMediaId = activeVariant.media?.[0]?.mediaId;
+    if (!variantMediaId) return;
+    const idx = media.findIndex((m) => m.id === variantMediaId);
     if (idx !== -1) carouselApi.scrollTo(idx);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeVariantId, carouselApi]);
@@ -130,11 +130,19 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
 
   function handleAdd() {
     if (!product) return;
-    const variantFirstImageId = activeVariant?.images[0]?.imageId;
-    const variantFirstImageUrl = variantFirstImageId
-      ? (images.find((img) => img.id === variantFirstImageId)?.url ?? null)
+    // Cart preview is a still — pick the first IMAGE-type media from variant
+    // → fall back to product's first IMAGE-type media. Videos are skipped
+    // since the cart drawer doesn't play them.
+    const variantImageRef = activeVariant?.media.find((vm) => {
+      const m = media.find((mm) => mm.id === vm.mediaId);
+      return m?.mediaType === "IMAGE";
+    });
+    const variantFirstImageUrl = variantImageRef
+      ? (media.find((m) => m.id === variantImageRef.mediaId)?.url ?? null)
       : null;
-    const firstImage = variantFirstImageUrl ?? images[0]?.url ?? null;
+    const firstProductImage = media.find((m) => m.mediaType === "IMAGE");
+    const firstImage =
+      variantFirstImageUrl ?? (firstProductImage?.url ?? null);
     const optionLabel = activeVariant?.optionValues.map((ov) => ov.value).join(" / ");
     const variantLabel = optionLabel || activeVariant?.sku || null;
     const price = activeVariant ? activeVariant.price : product.price;
@@ -222,30 +230,41 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
             {/* Embla carousel */}
             {isLoading ? (
               <Skeleton className="w-full h-44 sm:h-52 rounded-none shrink-0" />
-            ) : images.length > 0 ? (
+            ) : media.length > 0 ? (
               <div className="shrink-0">
                 <Carousel
                   setApi={handleSetApi}
                   className="w-full"
-                  opts={{ loop: images.length > 1 }}
+                  opts={{ loop: media.length > 1 }}
                 >
                   <CarouselContent className="ml-0">
-                    {images.map((img, idx) => (
-                      <CarouselItem key={img.id} className="pl-0">
+                    {media.map((m, idx) => (
+                      <CarouselItem key={m.id} className="pl-0">
                         <div className="relative w-full h-44 sm:h-52 bg-muted/10">
-                          <Image
-                            src={img.url}
-                            alt={`${localTitle} ${idx + 1}`}
-                            fill
-                            sizes="(max-width:640px) calc(100vw-2rem), 44vw"
-                            className="object-contain"
-                            priority={idx === 0}
-                          />
+                          {m.mediaType === "VIDEO" ? (
+                            <video
+                              src={m.url}
+                              poster={m.thumbUrl ?? undefined}
+                              controls
+                              playsInline
+                              preload="metadata"
+                              className="absolute inset-0 w-full h-full bg-black object-contain"
+                            />
+                          ) : (
+                            <Image
+                              src={m.url}
+                              alt={`${localTitle} ${idx + 1}`}
+                              fill
+                              sizes="(max-width:640px) calc(100vw-2rem), 44vw"
+                              className="object-contain"
+                              priority={idx === 0}
+                            />
+                          )}
                         </div>
                       </CarouselItem>
                     ))}
                   </CarouselContent>
-                  {images.length > 1 && (
+                  {media.length > 1 && (
                     <>
                       <CarouselPrevious className="left-2 h-7 w-7 active:translate-y-[calc(-50%+1px)] disabled:pointer-events-auto disabled:cursor-default" />
                       <CarouselNext className="right-2 h-7 w-7 active:translate-y-[calc(-50%+1px)] disabled:pointer-events-auto disabled:cursor-default" />
@@ -259,21 +278,29 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
               </div>
             )}
 
-            {/* Thumbnail strip */}
-            {!isLoading && images.length > 1 && (
+            {/* Thumbnail strip — uses image thumb or video poster URL. */}
+            {!isLoading && media.length > 1 && (
               <div className="flex gap-1 px-1.5 py-1 overflow-x-auto shrink-0 border-t border-border/50">
-                {images.map((img, i) => (
-                  <button
-                    key={img.id}
-                    onClick={() => carouselApi?.scrollTo(i)}
-                    className={cn(
-                      "relative h-9 w-9 shrink-0 overflow-hidden rounded border-2 transition-all cursor-pointer",
-                      i === currentSlide ? "border-primary" : "border-transparent hover:border-border",
-                    )}
-                  >
-                    <Image src={img.url} alt={`${localTitle} ${i + 1}`} fill sizes="36px" className="object-cover" />
-                  </button>
-                ))}
+                {media.map((m, i) => {
+                  const thumbSrc = m.thumbUrl ?? m.url;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => carouselApi?.scrollTo(i)}
+                      className={cn(
+                        "relative h-9 w-9 shrink-0 overflow-hidden rounded border-2 transition-all cursor-pointer",
+                        i === currentSlide ? "border-primary" : "border-transparent hover:border-border",
+                      )}
+                    >
+                      <Image src={thumbSrc} alt={`${localTitle} ${i + 1}`} fill sizes="36px" className="object-cover" />
+                      {m.mediaType === "VIDEO" && (
+                        <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/25 text-white text-[8px] font-bold">
+                          ▶
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
 

@@ -4,11 +4,8 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import sharp from "sharp";
 import { ImageInput, ImageProcessingResult } from "@/types/types";
 import { ImageProcessorError } from "@/features/common/errors/domainErrors";
-import {
-  PENDING_TAG_KEY,
-  PENDING_TAG_VALUE,
-  tagS3ObjectPending,
-} from "./s3Tagging";
+import { tagS3ObjectPending } from "./s3Tagging";
+import { PENDING_TAG_HEADER_VALUE } from "@/constants/constants";
 
 export async function processImage({
   key,
@@ -16,6 +13,12 @@ export async function processImage({
   if (!key) throw new ImageProcessorError("Missing key for image processing");
 
   try {
+    // Defense-in-depth: the presigned PUT already tagged the original with
+    // x-amz-tagging on upload, but we re-apply here in case that header was
+    // ever stripped (proxy, misconfigured client) or the tag was somehow
+    // cleared between upload and process. Idempotent — same tag value.
+    await tagS3ObjectPending(key);
+
     const object = await s3.send(
       new GetObjectCommand({ Bucket: S3_BUCKET, Key: key }),
     );
@@ -40,14 +43,9 @@ export async function processImage({
         Key: thumbKey,
         Body: thumbBuffer,
         ContentType: "image/webp",
-        Tagging: `${PENDING_TAG_KEY}=${PENDING_TAG_VALUE}`,
+        Tagging: PENDING_TAG_HEADER_VALUE,
       }),
     );
-
-    // The original was uploaded by the client via a presigned PUT, so we tag
-    // it here. The lifecycle rule will sweep both this and the thumbnail
-    // after 24h unless commitProductImage runs first (on form save).
-    await tagS3ObjectPending(key);
 
     const originalGetCommand = new GetObjectCommand({
       Bucket: S3_BUCKET,

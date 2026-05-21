@@ -106,10 +106,15 @@ export default async function OrderDetailPage({
           </CardHeader>
           <CardContent className="space-y-0">
             {order.items.map((item, index) => {
+              const variantMedia = item.variant?.media[0]?.media ?? null;
               const variantImageUrl =
-                item.variant?.images[0]?.image.url ?? null;
+                variantMedia?.thumbUrl ?? variantMedia?.url ?? null;
+              const productMedia = item.product.media[0] ?? null;
               const imageUrl =
-                variantImageUrl ?? item.product.images[0]?.url ?? null;
+                variantImageUrl ??
+                productMedia?.thumbUrl ??
+                productMedia?.url ??
+                null;
               const variantLabel = item.variant?.optionValues
                 .map((ov) => ov.value)
                 .join(" / ");

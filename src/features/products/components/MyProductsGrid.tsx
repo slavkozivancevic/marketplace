@@ -47,7 +47,22 @@ function renderCard(
         price: product.price,
         compareAtPrice: product.compareAtPrice != null ? Number(product.compareAtPrice) : null,
         status: product.status,
-        imageUrls: product.images?.map((img: { url: string }) => img.url) ?? [],
+        // MyProductCard cycles still thumbnails on hover — for videos we use
+        // the poster (thumbUrl), so a video tile still shows a frame instead
+        // of a black <video> placeholder.
+        imageUrls:
+          product.media?.map(
+            (m: {
+              url: string;
+              thumbUrl: string | null;
+              mediaType: "IMAGE" | "VIDEO";
+            }) =>
+              m.mediaType === "VIDEO" ? (m.thumbUrl ?? m.url) : m.url,
+          ) ?? [],
+        hasVideo:
+          product.media?.some(
+            (m: { mediaType: "IMAGE" | "VIDEO" }) => m.mediaType === "VIDEO",
+          ) ?? false,
         brand: product.brand ?? null,
       }}
     />

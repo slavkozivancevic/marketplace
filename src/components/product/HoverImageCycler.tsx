@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface HoverImageCyclerProps {
@@ -10,6 +11,10 @@ interface HoverImageCyclerProps {
   className?: string;
   intervalMs?: number;
   sizes?: string;
+  // Indexes in `images` whose URL is a video poster (not a still image).
+  // When the cycle lands on one, a play icon overlays the frame so the user
+  // can tell at a glance that this slot is a video on the detail page.
+  videoIndexes?: Set<number>;
 }
 
 export function HoverImageCycler({
@@ -18,6 +23,7 @@ export function HoverImageCycler({
   className,
   intervalMs = 900,
   sizes = "(max-width: 768px) 100vw, 33vw",
+  videoIndexes,
 }: HoverImageCyclerProps) {
   const [index, setIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
@@ -78,6 +84,11 @@ export function HoverImageCycler({
           onLoad={i === 0 ? () => setLoaded(true) : undefined}
         />
       ))}
+      {videoIndexes?.has(index) && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <PlayCircle className="text-white drop-shadow-lg" size={48} strokeWidth={1.5} />
+        </div>
+      )}
       <div
         className={cn(
           "pointer-events-none absolute inset-0",

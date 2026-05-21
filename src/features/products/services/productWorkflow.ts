@@ -11,7 +11,7 @@ function assertCanPublish(product: {
   title: string;
   description: string;
   price: unknown;
-  images: { key: string }[];
+  media: { key: string }[];
 }) {
   if (!product.title.trim()) {
     throw new ForbiddenError("Product title is required before publishing");
@@ -29,9 +29,9 @@ function assertCanPublish(product: {
     );
   }
 
-  if (product.images.length === 0) {
+  if (product.media.length === 0) {
     throw new ForbiddenError(
-      "At least one product image is required before publishing",
+      "At least one product image or video is required before publishing",
     );
   }
 }

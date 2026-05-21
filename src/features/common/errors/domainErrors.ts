@@ -56,6 +56,13 @@ export class ImageProcessorError extends Error {
   }
 }
 
+export class VideoProcessorError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "VideoProcessorError";
+  }
+}
+
 export function handleActionError(error: unknown): ActionErrorResult {
   if (error instanceof ForbiddenError) {
     return { error: true, message: error.message };
@@ -86,6 +93,10 @@ export function handleActionError(error: unknown): ActionErrorResult {
   }
 
   if (error instanceof ImageProcessorError) {
+    return { error: true, message: error.message };
+  }
+
+  if (error instanceof VideoProcessorError) {
     return { error: true, message: error.message };
   }
 

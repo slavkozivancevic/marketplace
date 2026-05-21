@@ -149,13 +149,24 @@ export async function getFeaturedDepartmentsWithImages(): Promise<DepartmentWith
           categories: { some: { categoryId: { in: allCategoryIds } } },
         },
         select: {
-          images: { take: 1, orderBy: { order: "asc" }, select: { url: true } },
+          media: {
+            take: 1,
+            orderBy: { order: "asc" },
+            // Department thumb is an image preview — skip videos so the
+            // department tile doesn't show a black <video> poster placeholder.
+            where: { mediaType: "IMAGE" },
+            select: { url: true, thumbUrl: true },
+          },
         },
         take: 12,
       });
 
       const productImages = products
-        .flatMap((p) => p.images.map((img: { url: string }) => img.url))
+        .flatMap((p) =>
+          p.media.map((m: { url: string; thumbUrl: string | null }) =>
+            m.thumbUrl ?? m.url,
+          ),
+        )
         .slice(0, 4);
 
       // Fall back to the category's own imageUrl when no product images exist
