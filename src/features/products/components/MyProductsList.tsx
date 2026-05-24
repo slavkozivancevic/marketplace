@@ -120,7 +120,7 @@ export function MyProductsList({
     );
   }
 
-  // Small dataset — render rows directly without virtualization.
+  // Small dataset - render rows directly without virtualization.
   if (!query.hasNextPage) {
     return (
       <div
@@ -144,7 +144,7 @@ export function MyProductsList({
     );
   }
 
-  // Large dataset — virtualized scroll container.
+  // Large dataset - virtualized scroll container.
   return (
     <div
       role="table"

@@ -15,7 +15,7 @@ export default function NotFoundPage() {
         />
 
         <Alert>
-          <AlertTitle>404 — Not Found</AlertTitle>
+          <AlertTitle>404 - Not Found</AlertTitle>
           <AlertDescription className="space-y-4">
             <p>The URL you entered does not match any page on this site.</p>
             <Button asChild>

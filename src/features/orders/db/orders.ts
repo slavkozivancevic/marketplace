@@ -42,7 +42,7 @@ export type UserOrderListItem = Awaited<
 /**
  * Cursor-paginated variant of {@link getUserOrders}.
  *
- * Not cached via "use cache" — TanStack Query owns the client cache,
+ * Not cached via "use cache" - TanStack Query owns the client cache,
  * and Next.js cache for paginated endpoints causes unbounded growth.
  */
 export async function getUserOrdersPage({
@@ -148,7 +148,7 @@ export async function getOrderById(id: string, userId: string) {
               media: {
                 orderBy: { order: "asc" },
                 take: 1,
-                // Order line items show a still thumbnail — keep videos out
+                // Order line items show a still thumbnail - keep videos out
                 // so the order page doesn't try to play a video inline.
                 where: { mediaType: "IMAGE" },
               },
@@ -229,7 +229,7 @@ export async function fulfillOrder({
     return existing;
   }
 
-  // Batch-fetch all prices upfront — avoids N+1 queries inside the transaction
+  // Batch-fetch all prices upfront - avoids N+1 queries inside the transaction
   const variantIds = items.filter((i) => i.variantId).map((i) => i.variantId!);
   const productOnlyIds = items.filter((i) => !i.variantId).map((i) => i.productId);
 
@@ -265,7 +265,7 @@ export async function fulfillOrder({
   });
 
   const order = await prisma.$transaction(async (tx) => {
-    // Atomic stock decrement — raw SQL WHERE stock >= quantity prevents overselling.
+    // Atomic stock decrement - raw SQL WHERE stock >= quantity prevents overselling.
     // If affected rows = 0, another concurrent transaction already took the last unit.
     for (const item of itemsWithPrice) {
       if (item.variantId) {

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useRef, useState } from "react";
 import Link from "next/link";
@@ -55,7 +55,7 @@ function RelatedProductCard({ product }: { product: RelatedProduct }) {
       )
     : 0;
   const firstMedia = product.media[0] ?? null;
-  // Carousel tiles always show a still — for video, that's the server-generated
+  // Carousel tiles always show a still - for video, that's the server-generated
   // poster. Falling back to the source URL keeps legacy rows working.
   const thumbUrl =
     firstMedia?.thumbUrl ??
@@ -63,8 +63,8 @@ function RelatedProductCard({ product }: { product: RelatedProduct }) {
   const isVideo = firstMedia?.mediaType === "VIDEO";
 
   return (
-    <Link href={`/products/${product.id}`} className="block group">
-      <div className="rounded-xl overflow-hidden border border-border/40 bg-card transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-xl group-hover:shadow-primary/10 group-hover:border-border/80">
+    <Link href={`/products/${product.id}`} className="block group h-full">
+      <div className="h-full flex flex-col rounded-xl overflow-hidden border border-border/40 bg-card transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-xl group-hover:shadow-primary/10 group-hover:border-border/80">
         {/* Media preview */}
         <div className="relative aspect-4/3 overflow-hidden bg-muted/30">
           {thumbUrl ? (
@@ -106,7 +106,7 @@ function RelatedProductCard({ product }: { product: RelatedProduct }) {
           {product.brand && (
             <div className="absolute top-2 right-2 pointer-events-none">
               {product.brand.logoUrl ? (
-                <div className="flex items-center gap-1.5 bg-background/80 backdrop-blur-sm border border-border/50 rounded-full px-2 py-1 shadow-sm">
+                <div className="flex items-center gap-1.5 bg-background/80 backdrop-blur-xs border border-border/50 rounded-full px-2 py-1 shadow-sm">
                   <div className="relative h-4 w-4 shrink-0 overflow-hidden rounded-full bg-white">
                     <Image
                       src={product.brand.logoUrl}
@@ -121,7 +121,7 @@ function RelatedProductCard({ product }: { product: RelatedProduct }) {
                   </span>
                 </div>
               ) : (
-                <div className="bg-background/80 backdrop-blur-sm border border-border/50 rounded-full px-2 py-1 shadow-sm">
+                <div className="bg-background/80 backdrop-blur-xs border border-border/50 rounded-full px-2 py-1 shadow-sm">
                   <span className="text-xs font-semibold leading-none">
                     {product.brand.name}
                   </span>
@@ -132,8 +132,8 @@ function RelatedProductCard({ product }: { product: RelatedProduct }) {
         </div>
 
         {/* Info */}
-        <div className="p-4 space-y-1.5">
-          <p className="font-semibold text-sm leading-snug line-clamp-2 group-hover:text-primary transition-colors duration-200">
+        <div className="p-4 space-y-1.5 flex-1 flex flex-col">
+          <p className="font-semibold text-sm leading-snug line-clamp-2 min-h-10 group-hover:text-primary transition-colors duration-200">
             {localTitle}
           </p>
           {isOnSale ? (

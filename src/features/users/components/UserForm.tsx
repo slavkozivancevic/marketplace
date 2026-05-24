@@ -46,7 +46,7 @@ export function UserForm({ userId, currentRole, onSuccess }: UserFormProps) {
     defaultValues: { role: currentRole },
   });
 
-  // Reset on every navigation — the admin users list is a long-lived page that
+  // Reset on every navigation - the admin users list is a long-lived page that
   // Next.js can keep in memory via the Router Cache, so a Select change that
   // wasn't submitted would otherwise persist when the user leaves and returns.
   // RHF's `values` prop only reacts to value changes, not to navigation itself,

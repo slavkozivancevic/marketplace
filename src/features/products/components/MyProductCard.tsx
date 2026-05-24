@@ -119,7 +119,7 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
         {product.brand && (
           <div className="absolute top-2 right-2 pointer-events-none">
             {product.brand.logoUrl ? (
-              <div className="flex items-center gap-2 bg-background/85 backdrop-blur-sm border border-border/60 rounded-full px-2.5 py-1.5 shadow-sm">
+              <div className="flex items-center gap-2 bg-background/85 backdrop-blur-xs border border-border/60 rounded-full px-2.5 py-1.5 shadow-sm">
                 <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded-full border border-border/40 bg-white">
                   <Image
                     src={product.brand.logoUrl}
@@ -132,7 +132,7 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
                 <span className="text-xs font-semibold leading-none">{product.brand.name}</span>
               </div>
             ) : (
-              <div className="bg-background/85 backdrop-blur-sm border border-border/60 rounded-full px-2.5 py-1.5 shadow-sm">
+              <div className="bg-background/85 backdrop-blur-xs border border-border/60 rounded-full px-2.5 py-1.5 shadow-sm">
                 <span className="text-xs font-semibold leading-none">{product.brand.name}</span>
               </div>
             )}

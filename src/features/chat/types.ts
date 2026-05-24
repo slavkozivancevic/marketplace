@@ -9,7 +9,7 @@ export interface ChatMessage {
   attachments: { key: string; type: string; width?: number; height?: number; filename?: string; size?: number }[];
   readBy: string[];
   createdAt: string;
-  // SK in DynamoDB — needed for markRead
+  // SK in DynamoDB - needed for markRead
   sk?: string;
 }
 

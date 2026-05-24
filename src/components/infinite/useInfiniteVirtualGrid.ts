@@ -110,7 +110,7 @@ export function useInfiniteVirtualGrid<TItem>({
       });
       observer.observe(el);
       // React calls this callback with null on unmount, which disconnects the
-      // observer via the closure — no explicit cleanup needed here.
+      // observer via the closure - no explicit cleanup needed here.
     },
     [minCardWidth, gap],
   );

@@ -348,7 +348,7 @@ model ProductMedia {
 
   // Thumbnail (IMAGE: 300x300 webp) or poster frame (VIDEO: extracted at 1s).
   // Nullable so legacy IMAGE rows migrated from ProductImage stay valid without
-  // a backfill pass — the existing thumb pipeline still derives keys from `key`.
+  // a backfill pass - the existing thumb pipeline still derives keys from `key`.
   thumbUrl String?
   thumbKey String?
 
@@ -421,9 +421,9 @@ model Order {
   items           OrderItem[]
   reviews         ProductReview[]
 
-  // Locale the buyer was using at checkout time — drives email language
+  // Locale the buyer was using at checkout time - drives email language
   locale          String      @default("en")
-  // Currency the buyer selected at checkout time — drives Stripe charge + email formatting
+  // Currency the buyer selected at checkout time - drives Stripe charge + email formatting
   currency        String      @default("usd")
   // Exchange rate used at checkout (1 USD = X of currency). Always 1 for USD orders.
   exchangeRate    Decimal     @default(1) @db.Decimal(12, 6)

@@ -62,7 +62,7 @@ import type { Currency } from "@/lib/currency-config";
 /**
  * Price input with inline currency selector.
  * The form field always stores USD decimal (e.g. 18.43).
- * Seller can switch to any supported currency and type in that currency —
+ * Seller can switch to any supported currency and type in that currency -
  * the value is auto-converted to USD for the form field.
  */
 function PriceInput({
@@ -526,6 +526,7 @@ export function ProductForm({
   const [isPending, startTransition] = useTransition();
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [previewLocale, setPreviewLocale] = useState<Locale>(locale);
+  const [activeTab, setActiveTab] = useState("details");
 
   // Mirror the SEO preview locale onto the app locale when the user switches
   // the app language. The toggle starts on the app locale (initial state) and
@@ -672,7 +673,7 @@ export function ProductForm({
     resolver: zodResolver(schema) as unknown as Resolver<ProductFormData, unknown, ProductFormData>,
     defaultValues: derivedValues,
     // In update mode, re-sync the form when the underlying product changes
-    // (e.g., user navigates away and returns — Next.js can preserve the React
+    // (e.g., user navigates away and returns - Next.js can preserve the React
     // tree and form state in memory, so without this the unsaved edits would
     // persist).
     values: mode === "update" ? derivedValues : undefined,
@@ -734,7 +735,7 @@ export function ProductForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id]);
 
-  // Re-sync local UI state (not in RHF) when the product reference changes —
+  // Re-sync local UI state (not in RHF) when the product reference changes -
   // happens on navigation back to the edit page. Skips the initial mount to
   // avoid redundant state writes.
   const productRef = useRef(product);
@@ -809,7 +810,16 @@ export function ProductForm({
     const options = form.getValues("options");
     const combinations = cartesianProduct(options);
     if (combinations.length === 0) {
-      toast.error(t("addOptionFirst"));
+      // No options to expand. If the snapshot also has nothing, the user
+      // hasn't added options yet - nudge them. Otherwise the user just
+      // removed every option, so clear the now-orphaned generated variants.
+      if (syncedOptionsSnapshot.length === 0) {
+        toast.error(t("addOptionFirst"));
+        return;
+      }
+      replaceVariants([]);
+      setSyncedOptionsSnapshot([]);
+      toast.success(t("generated", { count: 0 }));
       return;
     }
     const previousVariants = form.getValues("variants") ?? [];
@@ -983,7 +993,7 @@ export function ProductForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit, onSubmitInvalid)} className="flex-1 flex flex-col min-h-0">
-        <Tabs defaultValue="details" className="flex-1 min-h-0">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0">
           <TabsList className="w-full justify-start flex-wrap h-auto gap-1 shrink-0">
             <TabsTrigger value="details">
               <TabLabel label={t("tabDetails")} hasError={detailsHasError} />
@@ -1031,7 +1041,7 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>
                       {t("shortDesc")}
-                      <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
+                      <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
                     </FormLabel>
                     <FormControl>
                       <Input placeholder={t("shortDescPlaceholder")} {...field} />
@@ -1060,12 +1070,12 @@ export function ProductForm({
               />
             </div>
 
-            {/* Translation sections — one per non-default locale */}
+            {/* Translation sections - one per non-default locale */}
             {NON_DEFAULT_LOCALES.map((loc) => (
               <div key={loc} className="rounded-md border border-border/60 p-4 space-y-4">
                 <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                   {LOCALE_LABELS[loc].emoji} {LOCALE_LABELS[loc].label}
-                  <span className="ml-1.5 font-normal text-muted-foreground normal-case tracking-normal">— {t("optional")}</span>
+                  <span className="ml-1.5 font-normal text-muted-foreground normal-case tracking-normal">- {t("optional")}</span>
                 </p>
 
                 <FormField
@@ -1172,7 +1182,7 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>
                       {t("categories")}
-                      <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
+                      <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
                     </FormLabel>
                     <FormControl>
                       <CategoryPicker
@@ -1195,7 +1205,7 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>
                       {t("brand")}
-                      <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
+                      <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
                     </FormLabel>
                     <FormControl>
                       <BrandSelect
@@ -1246,7 +1256,7 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>
                       {t("compareAtPrice")}
-                      <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
+                      <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
                     </FormLabel>
                     <FormControl>
                       <PriceInput value={field.value ?? 0} onChange={(v) => field.onChange(v || null)} rates={rates} />
@@ -1264,7 +1274,7 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>
                       {t("costPrice")}
-                      <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
+                      <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
                     </FormLabel>
                     <FormControl>
                       <PriceInput value={field.value ?? 0} onChange={(v) => field.onChange(v || null)} rates={rates} />
@@ -1278,7 +1288,7 @@ export function ProductForm({
 
             <Separator />
 
-            {watchedVariants?.length === 0 && (
+            {watchedVariants?.length === 0 ? (
               <FormField
                 control={form.control}
                 name="stock"
@@ -1286,7 +1296,7 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>
                       {t("stock")}
-                      <span className="ml-1.5 font-normal text-muted-foreground">— {t("unlimitedHint")}</span>
+                      <span className="ml-1.5 font-normal text-muted-foreground">- {t("unlimitedHint")}</span>
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -1302,6 +1312,28 @@ export function ProductForm({
                   </FormItem>
                 )}
               />
+            ) : (
+              // Variant products track stock per ProductVariant.stock - showing a
+              // top-level stock input here would mislead users into editing a value
+              // that checkout/PDP never reads.
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>{t("stockManagedByVariants")}</AlertTitle>
+                <AlertDescription className="flex flex-col gap-2">
+                  <span>
+                    {t("stockManagedByVariantsDesc", { count: watchedVariants?.length ?? 0 })}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-fit"
+                    onClick={() => setActiveTab("variants")}
+                  >
+                    {t("goToVariants")}
+                  </Button>
+                </AlertDescription>
+              </Alert>
             )}
 
             <FormField
@@ -1311,7 +1343,7 @@ export function ProductForm({
                 <FormItem>
                   <FormLabel>
                     {t("barcode")}
-                    <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
+                    <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
                   </FormLabel>
                   <FormControl>
                     <Input placeholder={t("barcodePlaceholder")} {...field} />
@@ -1351,7 +1383,7 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>
                       {t("taxCode")}
-                      <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
+                      <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
                     </FormLabel>
                     <FormControl>
                       <Input placeholder={t("taxCodePlaceholder")} {...field} />
@@ -1455,8 +1487,8 @@ export function ProductForm({
                             <FormControl>
                               <SelectTrigger>
                                 {/* Explicit label so it shows pre-hydration. */}
-                                <SelectValue placeholder="—">
-                                  {WEIGHT_UNITS.find((u) => u.value === field.value)?.label ?? "—"}
+                                <SelectValue placeholder="-">
+                                  {WEIGHT_UNITS.find((u) => u.value === field.value)?.label ?? "-"}
                                 </SelectValue>
                               </SelectTrigger>
                             </FormControl>
@@ -1515,8 +1547,8 @@ export function ProductForm({
                             <FormControl>
                               <SelectTrigger>
                                 {/* Explicit label so it shows pre-hydration. */}
-                                <SelectValue placeholder="—">
-                                  {DIMENSION_UNITS.find((u) => u.value === field.value)?.label ?? "—"}
+                                <SelectValue placeholder="-">
+                                  {DIMENSION_UNITS.find((u) => u.value === field.value)?.label ?? "-"}
                                 </SelectValue>
                               </SelectTrigger>
                             </FormControl>
@@ -1557,7 +1589,7 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>
                       {t("metaTitle")}
-                      <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
+                      <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -1581,7 +1613,7 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>
                       {t("metaDescription")}
-                      <span className="ml-1.5 font-normal text-muted-foreground">— {t("optional")}</span>
+                      <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
                     </FormLabel>
                     <FormControl>
                       <Textarea
@@ -1599,12 +1631,12 @@ export function ProductForm({
               />
             </div>
 
-            {/* Translation sections — one per non-default locale */}
+            {/* Translation sections - one per non-default locale */}
             {NON_DEFAULT_LOCALES.map((loc) => (
               <div key={loc} className="rounded-md border border-border/60 p-4 space-y-4">
                 <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                   {LOCALE_LABELS[loc].emoji} {LOCALE_LABELS[loc].label}
-                  <span className="ml-1.5 font-normal text-muted-foreground normal-case tracking-normal">— {t("optional")}</span>
+                  <span className="ml-1.5 font-normal text-muted-foreground normal-case tracking-normal">- {t("optional")}</span>
                 </p>
 
                 <FormField
@@ -1826,7 +1858,7 @@ export function ProductForm({
                       </div>
                     </div>
 
-                    {/* Translation sections — one per non-default locale */}
+                    {/* Translation sections - one per non-default locale */}
                     {NON_DEFAULT_LOCALES.map((loc) => (
                       <div key={loc} className="rounded-md border border-border/60 p-3 space-y-3">
                         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -1899,7 +1931,7 @@ export function ProductForm({
                   <p className="text-sm text-muted-foreground">{t("variantsDesc")}</p>
                 </div>
                 <div className="flex gap-2">
-                  {optionFields.length > 0 && (
+                  {(optionFields.length > 0 || optionsChanged) && (
                     <Button
                       type="button"
                       variant={optionsChanged ? "default" : "outline"}
@@ -2063,7 +2095,7 @@ export function ProductForm({
                           <FormItem>
                             <FormLabel className="text-xs">{t("barcodeShort")}</FormLabel>
                             <FormControl>
-                              <Input placeholder="—" {...field} />
+                              <Input placeholder="-" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -2080,7 +2112,7 @@ export function ProductForm({
                                 <Input
                                   type="number"
                                   step="0.01"
-                                  placeholder="—"
+                                  placeholder="-"
                                   value={field.value ?? ""}
                                   onChange={(e) =>
                                     field.onChange(e.target.value === "" ? null : parseFloat(e.target.value))
@@ -2104,8 +2136,8 @@ export function ProductForm({
                                 <FormControl>
                                   <SelectTrigger>
                                     {/* Explicit label so it shows pre-hydration. */}
-                                    <SelectValue placeholder="—">
-                                      {WEIGHT_UNITS.find((u) => u.value === field.value)?.label ?? "—"}
+                                    <SelectValue placeholder="-">
+                                      {WEIGHT_UNITS.find((u) => u.value === field.value)?.label ?? "-"}
                                     </SelectValue>
                                   </SelectTrigger>
                                 </FormControl>

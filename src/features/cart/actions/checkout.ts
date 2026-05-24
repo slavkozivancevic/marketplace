@@ -49,7 +49,7 @@ export async function createCheckoutSession(
     // Fetch exchange rate once for the entire session
     const exchangeRate = await getCurrencyRate(currency);
 
-    // Validate and fetch each item from DB — never trust client prices
+    // Validate and fetch each item from DB - never trust client prices
     const lineItems: {
       price_data: {
         currency: string;
@@ -65,7 +65,7 @@ export async function createCheckoutSession(
       const product = await prisma.product.findFirst({
         where: { id: item.productId, status: "PUBLISHED", deletedAt: null },
         include: {
-          // Stripe checkout shows a still preview — keep image-only so a
+          // Stripe checkout shows a still preview - keep image-only so a
           // video poster isn't sent as a "product image".
           media: {
             orderBy: { order: "asc" },

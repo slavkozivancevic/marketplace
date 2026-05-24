@@ -34,7 +34,7 @@ function CategoryDrawer({
   onChange: (ids: string[]) => void;
 }) {
   const t = useTranslations("categories");
-  // stack of { label, items } — root is always items[0]
+  // stack of { label, items } - root is always items[0]
   const [stack, setStack] = useState<{ label: string; items: CategoryTreeItem[] }[]>([]);
 
   const currentLevel = stack.length > 0 ? stack[stack.length - 1] : null;

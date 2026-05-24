@@ -12,7 +12,7 @@ export const ALLOWED_MEDIA_TYPES = new Set([
   ...ALLOWED_VIDEO_TYPES,
 ]);
 
-// Back-compat alias for any remaining `ALLOWED_TYPES` callers — points at the
+// Back-compat alias for any remaining `ALLOWED_TYPES` callers - points at the
 // image set only, since those callers were image-specific.
 export const ALLOWED_TYPES = ALLOWED_IMAGE_TYPES;
 

@@ -9,8 +9,15 @@ import { CsvImportPanel } from "./CsvImportPanel";
 import { ConditionalBulkPanel } from "./ConditionalBulkPanel";
 
 type BrandOption = { id: string; name: string };
+type CategoryOption = { id: string; name: string; pathName: string };
 
-export function BulkProductsManager({ brands }: { brands: BrandOption[] }) {
+export function BulkProductsManager({
+  brands,
+  categories,
+}: {
+  brands: BrandOption[];
+  categories: CategoryOption[];
+}) {
   const t = useTranslations();
   const pathname = usePathname();
   const [resetKey, setResetKey] = useState(0);
@@ -36,7 +43,7 @@ export function BulkProductsManager({ brands }: { brands: BrandOption[] }) {
       </TabsList>
 
       <TabsContent forceMount value="conditional" className="flex-1 min-h-0 mt-3 overflow-y-auto rounded-lg border bg-card p-6 data-[state=inactive]:hidden">
-        <ConditionalBulkPanel key={resetKey} brands={brands} />
+        <ConditionalBulkPanel key={resetKey} brands={brands} categories={categories} />
       </TabsContent>
 
       <TabsContent forceMount value="manage" className="flex-1 min-h-0 mt-3 rounded-lg border bg-card p-6 data-[state=inactive]:hidden flex flex-col">

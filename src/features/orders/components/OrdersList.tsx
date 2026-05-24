@@ -110,7 +110,7 @@ export function OrdersList({ filters }: { filters?: OrderFilters }) {
     );
   }
 
-  // Small dataset — render rows directly without virtualization.
+  // Small dataset - render rows directly without virtualization.
   if (!query.hasNextPage) {
     return (
       <div
@@ -125,7 +125,7 @@ export function OrdersList({ filters }: { filters?: OrderFilters }) {
     );
   }
 
-  // Large dataset — virtualized scroll container.
+  // Large dataset - virtualized scroll container.
   return (
     <div
       role="table"

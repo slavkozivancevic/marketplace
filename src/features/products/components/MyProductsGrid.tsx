@@ -47,7 +47,7 @@ function renderCard(
         price: product.price,
         compareAtPrice: product.compareAtPrice != null ? Number(product.compareAtPrice) : null,
         status: product.status,
-        // MyProductCard cycles still thumbnails on hover — for videos we use
+        // MyProductCard cycles still thumbnails on hover - for videos we use
         // the poster (thumbUrl), so a video tile still shows a frame instead
         // of a black <video> placeholder.
         imageUrls:
@@ -149,7 +149,7 @@ export function MyProductsGrid({
     );
   }
 
-  // Small dataset — plain CSS grid, no virtualization overhead or blank space.
+  // Small dataset - plain CSS grid, no virtualization overhead or blank space.
   if (!query.hasNextPage) {
     return (
       <div ref={parentRef} className={cn("@container flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}>
@@ -172,7 +172,7 @@ export function MyProductsGrid({
     );
   }
 
-  // Large dataset — virtualized scroll container.
+  // Large dataset - virtualized scroll container.
   return (
     <div
       ref={parentRef}

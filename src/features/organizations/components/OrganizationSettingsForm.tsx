@@ -37,7 +37,7 @@ export function OrganizationSettingsForm({
   const form = useForm<UpdateOrganizationNameInput>({
     resolver: zodResolver(updateOrganizationNameSchema),
     defaultValues: { name: currentName },
-    // Re-sync when the server-supplied name changes — Next.js can preserve the
+    // Re-sync when the server-supplied name changes - Next.js can preserve the
     // React tree across navigations, so without this the unsaved edits would
     // persist when the user leaves the page and returns.
     values: { name: currentName },

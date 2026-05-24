@@ -55,7 +55,7 @@ export async function sendInviteAction(
 
     const inviteUrl = `${env.APP_URL}/invite/${invite.token}`;
 
-    // Fire-and-forget — notification failure must not block the invite creation
+    // Fire-and-forget - notification failure must not block the invite creation
     publishInviteSent({
       token: invite.token,
       email: parsed.data.email,

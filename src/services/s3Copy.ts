@@ -3,7 +3,7 @@ import { s3, S3_BUCKET } from "./s3";
 
 /**
  * Copies an S3 object from sourceKey to destinationKey within the same bucket.
- * This is a pure server-side copy — no bytes leave AWS, no re-upload.
+ * This is a pure server-side copy - no bytes leave AWS, no re-upload.
  */
 export async function copyS3Object(
   sourceKey: string,
@@ -29,7 +29,7 @@ export function toThumbKey(originalKey: string): string {
 
 /**
  * Copies both the original image and its thumbnail to new keys.
- * Thumbnail copy errors are silently swallowed — the original is authoritative.
+ * Thumbnail copy errors are silently swallowed - the original is authoritative.
  *
  * @returns The new original key.
  */
@@ -42,6 +42,6 @@ export async function copyProductImage(
   const sourceThumbKey = toThumbKey(sourceKey);
   const destThumbKey = toThumbKey(destinationKey);
 
-  // Thumbnail may not exist for older products — swallow the error.
+  // Thumbnail may not exist for older products - swallow the error.
   await copyS3Object(sourceThumbKey, destThumbKey).catch(() => {});
 }

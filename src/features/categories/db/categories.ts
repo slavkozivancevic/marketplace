@@ -152,7 +152,7 @@ export async function getFeaturedDepartmentsWithImages(): Promise<DepartmentWith
           media: {
             take: 1,
             orderBy: { order: "asc" },
-            // Department thumb is an image preview — skip videos so the
+            // Department thumb is an image preview - skip videos so the
             // department tile doesn't show a black <video> poster placeholder.
             where: { mediaType: "IMAGE" },
             select: { url: true, thumbUrl: true },

@@ -42,7 +42,7 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
 
     function connect() {
       if (closed) return;
-      // Don't retry with an expired token — wait for useChatToken to provide a fresh one
+      // Don't retry with an expired token - wait for useChatToken to provide a fresh one
       if (!token || isTokenExpired(token)) return;
 
       const wsUrl = `${env.NEXT_PUBLIC_CHAT_WS_URL}?token=${token}`;
@@ -63,7 +63,7 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
 
         if (data.type === "NEW_MESSAGE") {
           const msg = data.message;
-          // Ensure readBy is always an array — older Lambda versions may omit it
+          // Ensure readBy is always an array - older Lambda versions may omit it
           const safeMsg: ChatMessage = { ...msg, readBy: msg.readBy ?? [] };
 
           // Inject into messages cache only if the conversation is already cached.
@@ -80,7 +80,7 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
             }
           );
 
-          // Update conversations cache — add the conversation if it's new
+          // Update conversations cache - add the conversation if it's new
           const { lastAttachmentType: wsAttachType, attachmentPreview: wsAttachPreview } =
             attachmentMeta(msg.attachments ?? []);
           const wsPreview = msg.text || wsAttachPreview;
@@ -89,7 +89,7 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
             ["chat-conversations"],
             (old) => {
               if (!old) {
-                // Nothing cached yet — invalidate so inbox refetches
+                // Nothing cached yet - invalidate so inbox refetches
                 void queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
                 return old;
               }
@@ -97,7 +97,7 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
                 (c) => c.conversationId === msg.conversationId
               );
               if (!exists) {
-                // First message in a brand-new conversation — prepend it
+                // First message in a brand-new conversation - prepend it
                 const newConv: Conversation = {
                   conversationId: msg.conversationId,
                   participants: [msg.senderId, currentUserId].sort(),
@@ -200,7 +200,7 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
             (old) => {
               if (!old) return old;
               if (!hasReactions) {
-                // All reactions removed — revert to last message preview
+                // All reactions removed - revert to last message preview
                 return {
                   conversations: old.conversations.map((c) =>
                     c.conversationId === data.conversationId
@@ -288,7 +288,7 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
   ) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
-    // Optimistic update — show the message immediately on sender's side
+    // Optimistic update - show the message immediately on sender's side
     const tempMsg: ChatMessage = {
       messageId: `temp-${Date.now()}`,
       conversationId,
@@ -333,7 +333,7 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
       }
     );
 
-    // Track read status in the store — sender has read their own message
+    // Track read status in the store - sender has read their own message
     useChatStore.getState().setReadStatus(conversationId, [currentUserId]);
 
     wsRef.current.send(

@@ -13,7 +13,7 @@ export default function ProductsNotFoundPage() {
           description="The page you are looking for does not exist."
         />
         <Alert>
-          <AlertTitle>404 — Not Found</AlertTitle>
+          <AlertTitle>404 - Not Found</AlertTitle>
           <AlertDescription className="space-y-4">
             <p>The products page or resource you requested does not exist.</p>
             <Button asChild>

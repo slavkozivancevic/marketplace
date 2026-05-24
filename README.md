@@ -15,13 +15,13 @@ A production-grade, multi-tenant e-commerce platform built as a monorepo of four
 
 ---
 
-## marketplace — Core Platform
+## marketplace - Core Platform
 
 Multi-tenant e-commerce storefront. Organizations (sellers) manage products with variants, images, categories, brands, tags, and stock; customers browse, search, wishlist, review, and check out via Stripe or Cash-on-Delivery (COD). Includes a full admin panel, seller dashboard, related-products carousel, multi-currency pricing (EUR/RSD with daily-refreshed FX rates), and full i18n across **English, Serbian, German, and Spanish**.
 
 ### Tech Stack
 
-- **Framework:** Next.js 16 (App Router) with **React 19** and the experimental **React Compiler** (automatic memoization — no manual `useMemo`/`useCallback`)
+- **Framework:** Next.js 16 (App Router) with **React 19** and the experimental **React Compiler** (automatic memoization - no manual `useMemo`/`useCallback`)
 - **Language:** TypeScript 5 (strict)
 - **Database:** PostgreSQL 17 via **Prisma 7** with the native `@prisma/adapter-pg` driver adapter
 - **Auth:** **Clerk** (`@clerk/nextjs` v6) with Svix-verified webhooks for real-time user sync
@@ -29,7 +29,7 @@ Multi-tenant e-commerce storefront. Organizations (sellers) manage products with
 - **i18n:** **next-intl v4** with a cookie-based locale (`NEXT_LOCALE`), four supported locales (`en`, `sr`, `de`, `es`), per-product translation tables, and a search-text blob backfilled across locales for cross-language full-text search
 - **Currencies:** Multi-currency display (EUR / RSD) backed by a `CurrencyRate` table refreshed weekly by the notifications service (see below)
 - **Storage:** AWS S3 with presigned upload URLs (browser → S3 direct), `sharp` for server-side image processing, and bucket-level **lifecycle rules** that sweep abandoned uploads tagged `lifecycle=pending` after 24h
-- **Email:** AWS SES — invoked exclusively by the **marketplace-notifications** service; the marketplace itself publishes events to SNS and never calls SES directly
+- **Email:** AWS SES - invoked exclusively by the **marketplace-notifications** service; the marketplace itself publishes events to SNS and never calls SES directly
 - **Outbound events:** AWS **SNS** publishes domain events (`order.completed`, `order.refunded`, `order.cod_*`, `invite.sent`, `member.role_changed`, `user.role_changed`) consumed by the notifications service
 - **Cache / Queues:** Redis via `ioredis`
 - **UI:** **Tailwind CSS 4** (native CSS cascade layers, polished light/dark themes), Radix UI primitives, **shadcn/ui** component library, `lucide-react`, `next-themes`
@@ -74,18 +74,18 @@ prisma/
 
 Defined in [prisma/schema.prisma](prisma/schema.prisma):
 
-- **User** — synced from Clerk (`clerkUserId`), with `UserRole` (`USER` / `ADMIN` / `SELLER`), `activeOrgId`, and a preferred `locale`.
-- **Organization / Membership / Invite** — multi-tenant sellers. Members have a `MembershipRole` (`OWNER` / `ADMIN` / `MEMBER`). Invites are token-based with expiry and `InviteStatus`; invitation emails are dispatched by the notifications service.
-- **Product** — belongs to an `Organization`, has `ProductStatus` (`DRAFT` / `PUBLISHED` / `ARCHIVED`), optional stock, versioning, soft-delete (`deletedAt`), audit fields (`createdById`, `updatedById`), per-locale translations, and a denormalized **search-text blob** for fast cross-language search.
-- **ProductHistory** — snapshot per version for audit.
-- **ProductVariant / ProductVariantImage / VariantOption / VariantOptionValue** — flexible variant matrix (e.g. size × color) with per-variant SKU, price, stock, and dedicated variant images.
-- **ProductImage** — S3-backed (`url`, `key`) with ordering.
-- **Brand / Category / ProductCategory / Tag / ProductTag** — taxonomy. Categories form a tree (parent/child) used by the storefront's category browser and the related-products engine.
-- **Wishlist** — per-user saved products.
-- **ProductReview** — buyer reviews with ratings.
-- **Order / OrderItem** — linked to a Stripe session (`stripeSessionId`) **or** flagged as COD, with `OrderStatus` (`PENDING` / `COMPLETED` / `CANCELLED` / `REFUNDED`) and a denormalized **shipping address** snapshot captured at checkout.
-- **CurrencyRate** — single-row-per-currency rate table (relative to USD) upserted weekly by the notifications service's currency-refresh cron.
-- **WebhookEvent** — idempotency tracking for external webhooks (Stripe / Clerk).
+- **User** - synced from Clerk (`clerkUserId`), with `UserRole` (`USER` / `ADMIN` / `SELLER`), `activeOrgId`, and a preferred `locale`.
+- **Organization / Membership / Invite** - multi-tenant sellers. Members have a `MembershipRole` (`OWNER` / `ADMIN` / `MEMBER`). Invites are token-based with expiry and `InviteStatus`; invitation emails are dispatched by the notifications service.
+- **Product** - belongs to an `Organization`, has `ProductStatus` (`DRAFT` / `PUBLISHED` / `ARCHIVED`), optional stock, versioning, soft-delete (`deletedAt`), audit fields (`createdById`, `updatedById`), per-locale translations, and a denormalized **search-text blob** for fast cross-language search.
+- **ProductHistory** - snapshot per version for audit.
+- **ProductVariant / ProductVariantImage / VariantOption / VariantOptionValue** - flexible variant matrix (e.g. size × color) with per-variant SKU, price, stock, and dedicated variant images.
+- **ProductImage** - S3-backed (`url`, `key`) with ordering.
+- **Brand / Category / ProductCategory / Tag / ProductTag** - taxonomy. Categories form a tree (parent/child) used by the storefront's category browser and the related-products engine.
+- **Wishlist** - per-user saved products.
+- **ProductReview** - buyer reviews with ratings.
+- **Order / OrderItem** - linked to a Stripe session (`stripeSessionId`) **or** flagged as COD, with `OrderStatus` (`PENDING` / `COMPLETED` / `CANCELLED` / `REFUNDED`) and a denormalized **shipping address** snapshot captured at checkout.
+- **CurrencyRate** - single-row-per-currency rate table (relative to USD) upserted weekly by the notifications service's currency-refresh cron.
+- **WebhookEvent** - idempotency tracking for external webhooks (Stripe / Clerk).
 
 ### Prerequisites
 
@@ -199,26 +199,26 @@ npx tsx scripts/apply-s3-lifecycle-rule.ts
 
 ### Webhooks
 
-External services hit the following routes — expose them via a tunnel (e.g. `ngrok`, `stripe listen`) during local dev:
+External services hit the following routes - expose them via a tunnel (e.g. `ngrok`, `stripe listen`) during local dev:
 
-- **Clerk → `/api/webhooks/clerk`** — syncs users/sessions (verified with `svix`, secret: `CLERK_WEBHOOK_SECRET`).
-- **Stripe → `/api/webhooks/stripe`** — checkout completion, payment, refunds, etc. (secret: `STRIPE_WEBHOOK_SECRET`).
+- **Clerk → `/api/webhooks/clerk`** - syncs users/sessions (verified with `svix`, secret: `CLERK_WEBHOOK_SECRET`).
+- **Stripe → `/api/webhooks/stripe`** - checkout completion, payment, refunds, etc. (secret: `STRIPE_WEBHOOK_SECRET`).
 
 ### Routing Overview
 
-- `(public)` — storefront: home, product listing/detail, cart, checkout
-- `(auth)` — Clerk sign-in / sign-up
-- `(dashboard)` — authenticated seller dashboard
-- `admin/` — admin panel for managing organizations, products, and users
-- `invite/` — accept organization invites
-- `api/uploads` — presigned S3 upload endpoints
-- `api/admin`, `api/clerk`, `api/webhooks` — internal and integration endpoints
-- `api/internal/order-details` — internal endpoint consumed by marketplace-notifications to render order emails (`x-api-key`-protected)
-- `api/internal/currency-rates` — internal endpoint upserted by the notifications weekly cron with fresh USD→{EUR,RSD} rates
+- `(public)` - storefront: home, product listing/detail, cart, checkout
+- `(auth)` - Clerk sign-in / sign-up
+- `(dashboard)` - authenticated seller dashboard
+- `admin/` - admin panel for managing organizations, products, and users
+- `invite/` - accept organization invites
+- `api/uploads` - presigned S3 upload endpoints
+- `api/admin`, `api/clerk`, `api/webhooks` - internal and integration endpoints
+- `api/internal/order-details` - internal endpoint consumed by marketplace-notifications to render order emails (`x-api-key`-protected)
+- `api/internal/currency-rates` - internal endpoint upserted by the notifications weekly cron with fresh USD→{EUR,RSD} rates
 
 ---
 
-## marketplace-messaging — Real-Time Chat Service
+## marketplace-messaging - Real-Time Chat Service
 
 > Located at `../marketplace-messaging`
 
@@ -251,27 +251,27 @@ Browser
 
 ### Tech Stack
 
-- **IaC / Deploy:** **SST v4 (Ion)** — Pulumi-based infrastructure-as-TypeScript with multi-stage support (`dev` / `production`)
-- **Runtime:** AWS Lambda (Node.js) — TypeScript 6, fully type-safe handlers
-- **Real-time transport:** **AWS API Gateway WebSocket API** — persistent bidirectional connections, server-push via `ApiGatewayManagementApi`
+- **IaC / Deploy:** **SST v4 (Ion)** - Pulumi-based infrastructure-as-TypeScript with multi-stage support (`dev` / `production`)
+- **Runtime:** AWS Lambda (Node.js) - TypeScript 6, fully type-safe handlers
+- **Real-time transport:** **AWS API Gateway WebSocket API** - persistent bidirectional connections, server-push via `ApiGatewayManagementApi`
 - **HTTP API:** AWS API Gateway HTTP API (v2)
-- **Database:** **AWS DynamoDB — single-table design** with two GSIs:
+- **Database:** **AWS DynamoDB - single-table design** with two GSIs:
   - `GSI1`: user → all conversations, sorted by last message timestamp
   - `GSI2`: user → all active WebSocket connections (for fan-out delivery)
   - `TTL` attribute for automatic expiry of stale connection records
-- **File storage:** AWS S3 with presigned upload (PUT) and read (GET) URLs — zero-byte Lambda traffic for file transfers
-- **Secrets:** AWS SSM Parameter Store (SecureString) — secrets fetched at cold start, never baked into Lambda environment
-- **Auth:** **JOSE** (JWT) — short-lived tokens issued by the HTTP API and verified by WebSocket and HTTP Lambdas
-- **IDs:** ULID (universally unique, lexicographically sortable — ideal as DynamoDB sort keys)
+- **File storage:** AWS S3 with presigned upload (PUT) and read (GET) URLs - zero-byte Lambda traffic for file transfers
+- **Secrets:** AWS SSM Parameter Store (SecureString) - secrets fetched at cold start, never baked into Lambda environment
+- **Auth:** **JOSE** (JWT) - short-lived tokens issued by the HTTP API and verified by WebSocket and HTTP Lambdas
+- **IDs:** ULID (universally unique, lexicographically sortable - ideal as DynamoDB sort keys)
 - **Push notifications:** AWS SNS (publishes `conversation.created` / `conversation.deleted` events to the search service)
 
 ### Key Engineering Decisions
 
-- **Single-table DynamoDB design** — all entity types (conversations, messages, connection records, reactions) coexist in one table, accessed via carefully crafted PK/SK patterns and GSIs. Eliminates cross-table joins and scales horizontally without relational overhead.
-- **TTL-based connection cleanup** — WebSocket `$disconnect` Lambda deletes the connection record immediately; TTL provides a safety net for abrupt disconnects, keeping the connections index clean without a scheduled cleanup job.
-- **Fan-out via GSI2** — to deliver a message to a recipient, the Lambda queries `GSI2` to find all of that user's active connections and pushes to each one in parallel via `ApiGatewayManagementApi`. Stale connections are caught and pruned on the fly.
-- **SSM runtime secret resolution** — rather than baking secrets into Lambda environment variables (visible in the AWS console), all sensitive values are fetched from SSM Parameter Store on cold start and cached in-memory for the lifetime of the execution environment.
-- **Cross-service decoupling via SNS** — the search service's SNS topic ARN is not hardcoded; it is published to SSM on deploy and read at runtime, so the two services can be deployed and torn down independently.
+- **Single-table DynamoDB design** - all entity types (conversations, messages, connection records, reactions) coexist in one table, accessed via carefully crafted PK/SK patterns and GSIs. Eliminates cross-table joins and scales horizontally without relational overhead.
+- **TTL-based connection cleanup** - WebSocket `$disconnect` Lambda deletes the connection record immediately; TTL provides a safety net for abrupt disconnects, keeping the connections index clean without a scheduled cleanup job.
+- **Fan-out via GSI2** - to deliver a message to a recipient, the Lambda queries `GSI2` to find all of that user's active connections and pushes to each one in parallel via `ApiGatewayManagementApi`. Stale connections are caught and pruned on the fly.
+- **SSM runtime secret resolution** - rather than baking secrets into Lambda environment variables (visible in the AWS console), all sensitive values are fetched from SSM Parameter Store on cold start and cached in-memory for the lifetime of the execution environment.
+- **Cross-service decoupling via SNS** - the search service's SNS topic ARN is not hardcoded; it is published to SSM on deploy and read at runtime, so the two services can be deployed and torn down independently.
 
 ### Project Structure
 
@@ -303,7 +303,7 @@ marketplace-messaging/
 ### Deployment
 
 ```bash
-# Local dev (uses SST dev mode — live Lambda tailing)
+# Local dev (uses SST dev mode - live Lambda tailing)
 npm run dev
 
 # Deploy to dev stage
@@ -315,7 +315,7 @@ npm run deploy:prod
 
 ---
 
-## marketplace-conversation-search — Search Indexing Service
+## marketplace-conversation-search - Search Indexing Service
 
 > Located at `../marketplace-conversation-search`
 
@@ -346,20 +346,20 @@ marketplace (Next.js, server-side)
 
 ### Tech Stack
 
-- **IaC / Deploy:** **SST v4 (Ion)** — multi-stage, production-protected deployments
-- **Runtime:** AWS Lambda — TypeScript 6
+- **IaC / Deploy:** **SST v4 (Ion)** - multi-stage, production-protected deployments
+- **Runtime:** AWS Lambda - TypeScript 6
 - **Message broker:** **AWS SNS** (publisher) → **AWS SQS** (subscriber) with a Dead-Letter Queue (DLQ) after 3 failed retries
-- **Database:** AWS DynamoDB — simple two-attribute primary key (`userId`, `conversationId`); filter-based name search at query time (no full-text engine needed at this scale)
-- **Service discovery:** AWS SSM Parameter Store — the search service publishes its SNS topic ARN to SSM on every deploy; the messaging service reads it at Lambda cold start
+- **Database:** AWS DynamoDB - simple two-attribute primary key (`userId`, `conversationId`); filter-based name search at query time (no full-text engine needed at this scale)
+- **Service discovery:** AWS SSM Parameter Store - the search service publishes its SNS topic ARN to SSM on every deploy; the messaging service reads it at Lambda cold start
 - **Auth:** Internal API key (SSM SecureString), verified per-request
 - **Scripts:** `tsx`-powered setup and backfill scripts for bootstrapping SSM secrets and retroactively indexing existing conversations
 
 ### Key Engineering Decisions
 
-- **SNS → SQS fan-out pattern** — decouples the messaging service from the search service completely. The messaging Lambda fires-and-forgets a SNS publish; the search Lambda processes asynchronously with automatic retries and a DLQ for poison messages.
-- **No dedicated search engine** — DynamoDB + `FilterExpression` is sufficient for participant-name search at this scale, keeping operational complexity and cost near zero.
-- **DLQ for observability** — failed events are parked in a DLQ rather than silently dropped, enabling replay and debugging without data loss.
-- **Cross-service secret sharing via SSM** — avoids hardcoded ARNs between services; each service owns its own SSM namespace and publishes discovery parameters there.
+- **SNS → SQS fan-out pattern** - decouples the messaging service from the search service completely. The messaging Lambda fires-and-forgets a SNS publish; the search Lambda processes asynchronously with automatic retries and a DLQ for poison messages.
+- **No dedicated search engine** - DynamoDB + `FilterExpression` is sufficient for participant-name search at this scale, keeping operational complexity and cost near zero.
+- **DLQ for observability** - failed events are parked in a DLQ rather than silently dropped, enabling replay and debugging without data loss.
+- **Cross-service secret sharing via SSM** - avoids hardcoded ARNs between services; each service owns its own SSM namespace and publishes discovery parameters there.
 
 ### Project Structure
 
@@ -370,8 +370,8 @@ marketplace-conversation-search/
 │   ├── setup-ssm.ts           Bootstrap SSM secrets for a new stage
 │   └── backfill.ts            Retroactively index existing conversations
 └── functions/
-    ├── processEvent.ts        SQS consumer — index conversation on create/delete events
-    └── searchConversations.ts HTTP handler — query DynamoDB by userId + name filter
+    ├── processEvent.ts        SQS consumer - index conversation on create/delete events
+    └── searchConversations.ts HTTP handler - query DynamoDB by userId + name filter
 ```
 
 ### Deployment
@@ -392,7 +392,7 @@ npm run deploy:prod    # production stage
 
 ---
 
-## marketplace-notifications — Transactional Email & Currency Service
+## marketplace-notifications - Transactional Email & Currency Service
 
 > Located at `../marketplace-notifications`
 
@@ -415,17 +415,17 @@ SQS Queue (retry=3, partial-batch failures)
   ▼
 Lambda: processEvent
   ├── Unwrap SNS envelope
-  ├── Idempotency claim — DynamoDB conditional PutItem on `NOTIF#{eventId}` (TTL 30d)
+  ├── Idempotency claim - DynamoDB conditional PutItem on `NOTIF#{eventId}` (TTL 30d)
   ├── For order.* events: GET marketplace /api/internal/order-details
   │     (returns buyer, items, shipping, sellers[] with member emails)
   ├── Render localized HTML template (en / sr / de / es)
   └── SES SendEmail
         ├── Buyer confirmation / refund / COD fulfilled / COD cancelled
-        ├── Seller (org member) new-order / refund — one email per seller org
+        ├── Seller (org member) new-order / refund - one email per seller org
         ├── Invite emails (with accept-link)
         └── Role-change notifications (member-in-org + site-wide user role)
 
-EventBridge Cron — every Mon 06:00 UTC
+EventBridge Cron - every Mon 06:00 UTC
   │
   ▼
 Lambda: refreshCurrencyRates
@@ -436,13 +436,13 @@ Lambda: refreshCurrencyRates
 
 ### Tech Stack
 
-- **IaC / Deploy:** **SST v4 (Ion)** — multi-stage (`dev` / `production`), production resources `retain`-protected
-- **Runtime:** AWS Lambda — TypeScript 6, ESM, `aws-lambda` types
+- **IaC / Deploy:** **SST v4 (Ion)** - multi-stage (`dev` / `production`), production resources `retain`-protected
+- **Runtime:** AWS Lambda - TypeScript 6, ESM, `aws-lambda` types
 - **Message broker:** **AWS SNS → SQS** with a Dead-Letter Queue after 3 failed retries; SQS configured for **partial-batch responses** so only the failing record is re-queued, not the whole batch
-- **Database:** **AWS DynamoDB** — single-table idempotency / audit log. `PK = NOTIF#{eventId}`, `SK = SENT`, with a `TTL` attribute auto-purging records after 30 days. Conditional `PutItem` (`attribute_not_exists(PK)`) guarantees exactly-once email delivery even under SQS at-least-once semantics.
-- **Email:** **AWS SES** — `SendEmail` / `SendRawEmail`; HTML templates rendered in-process per locale
+- **Database:** **AWS DynamoDB** - single-table idempotency / audit log. `PK = NOTIF#{eventId}`, `SK = SENT`, with a `TTL` attribute auto-purging records after 30 days. Conditional `PutItem` (`attribute_not_exists(PK)`) guarantees exactly-once email delivery even under SQS at-least-once semantics.
+- **Email:** **AWS SES** - `SendEmail` / `SendRawEmail`; HTML templates rendered in-process per locale
 - **Scheduler:** **EventBridge CronV2** (`cron(0 6 ? * MON *)`) for the weekly currency-rate refresh
-- **Secrets / Service discovery:** AWS SSM Parameter Store (SecureString) — `SES_FROM_EMAIL`, `MARKETPLACE_API_URL`, `MARKETPLACE_API_KEY`, `APP_URL`; the service also publishes its **SNS topic ARN** to SSM (`/marketplace-notifications/{stage}/SNS_TOPIC_ARN`) so the marketplace can discover it at runtime without a hardcoded ARN.
+- **Secrets / Service discovery:** AWS SSM Parameter Store (SecureString) - `SES_FROM_EMAIL`, `MARKETPLACE_API_URL`, `MARKETPLACE_API_KEY`, `APP_URL`; the service also publishes its **SNS topic ARN** to SSM (`/marketplace-notifications/{stage}/SNS_TOPIC_ARN`) so the marketplace can discover it at runtime without a hardcoded ARN.
 - **Auth back to marketplace:** internal `x-api-key` header (the key lives in SSM)
 
 ### Event Catalogue
@@ -462,11 +462,11 @@ All events carry an `eventId` (used for idempotency) and a `locale` so emails ar
 
 ### Key Engineering Decisions
 
-- **Dedicated service, not in-process SES** — moving email out of the Next.js request path eliminates SES from the critical path of Stripe webhooks, COD checkout, invites, and role changes. The marketplace publishes-and-forgets; failures are absorbed by SQS retries and the DLQ.
-- **Idempotency at the consumer** — even though SNS-to-SQS is at-least-once, the DynamoDB conditional write makes email sending exactly-once per `eventId`. Duplicate SQS deliveries are silently skipped.
-- **Partial-batch responses** — `batch.size = 1` with `partialResponses: true` means an individual poison message can fail and be redriven to the DLQ without holding up healthy events.
-- **Co-locating the currency cron** — the currency-rate refresher is operationally cheap and shares the same SSM / internal-API plumbing already needed for emails, so a single Lambda project hosts both. No new infra surface to maintain.
-- **Localized templates over user attributes in payloads** — events carry a `locale`, not pre-rendered subject/body text, so all email copy lives in the service and can be tweaked / re-rendered without redeploying the marketplace.
+- **Dedicated service, not in-process SES** - moving email out of the Next.js request path eliminates SES from the critical path of Stripe webhooks, COD checkout, invites, and role changes. The marketplace publishes-and-forgets; failures are absorbed by SQS retries and the DLQ.
+- **Idempotency at the consumer** - even though SNS-to-SQS is at-least-once, the DynamoDB conditional write makes email sending exactly-once per `eventId`. Duplicate SQS deliveries are silently skipped.
+- **Partial-batch responses** - `batch.size = 1` with `partialResponses: true` means an individual poison message can fail and be redriven to the DLQ without holding up healthy events.
+- **Co-locating the currency cron** - the currency-rate refresher is operationally cheap and shares the same SSM / internal-API plumbing already needed for emails, so a single Lambda project hosts both. No new infra surface to maintain.
+- **Localized templates over user attributes in payloads** - events carry a `locale`, not pre-rendered subject/body text, so all email copy lives in the service and can be tweaked / re-rendered without redeploying the marketplace.
 
 ### Project Structure
 
@@ -476,8 +476,8 @@ marketplace-notifications/
 ├── scripts/
 │   └── setup-ssm.mjs             Bootstrap SSM secrets for a new stage
 └── functions/
-    ├── processEvent.ts           SQS consumer — dispatches all email events
-    ├── refreshCurrencyRates.ts   Weekly cron — fetch FX rates + upsert via marketplace API
+    ├── processEvent.ts           SQS consumer - dispatches all email events
+    ├── refreshCurrencyRates.ts   Weekly cron - fetch FX rates + upsert via marketplace API
     ├── types.ts                  NotificationEvent union + OrderDetails / SellerGroup shapes
     └── lib/
         ├── db.ts                 DynamoDB DocumentClient + idempotency helpers
@@ -555,7 +555,7 @@ npm run deploy:prod    # production stage
 
 ### Cross-Cutting Concerns
 
-- **Multi-stage deployments** — all three services support `dev` and `production` stages via SST. Production resources are protected against accidental deletion.
-- **Secret management** — no secrets in environment variables or source control. AWS SSM Parameter Store (SecureString) is the single source of truth; Lambdas fetch and cache secrets on cold start.
-- **Type safety end-to-end** — TypeScript 6 (messaging & search) and TypeScript 5 strict (marketplace). Zod 4 validates all external input at runtime; `@t3-oss/env-nextjs` validates env vars at build time.
-- **Zero-trust between services** — inter-service calls are authenticated via internal API keys stored in SSM. The marketplace frontend never calls the WebSocket API directly for sensitive operations.
+- **Multi-stage deployments** - all three services support `dev` and `production` stages via SST. Production resources are protected against accidental deletion.
+- **Secret management** - no secrets in environment variables or source control. AWS SSM Parameter Store (SecureString) is the single source of truth; Lambdas fetch and cache secrets on cold start.
+- **Type safety end-to-end** - TypeScript 6 (messaging & search) and TypeScript 5 strict (marketplace). Zod 4 validates all external input at runtime; `@t3-oss/env-nextjs` validates env vars at build time.
+- **Zero-trust between services** - inter-service calls are authenticated via internal API keys stored in SSM. The marketplace frontend never calls the WebSocket API directly for sensitive operations.

@@ -112,14 +112,14 @@ export async function POST(req: Request) {
                 );
               }
             }
-            // Mark as processed so Stripe does not retry — refund is already issued
+            // Mark as processed so Stripe does not retry - refund is already issued
             break;
           }
 
           throw fulfillError;
         }
 
-        // Publish to notification service — fire-and-forget so SNS failures
+        // Publish to notification service - fire-and-forget so SNS failures
         // don't cause Stripe to retry the webhook.
         // The notification Lambda fetches full order context and sends
         // both the buyer confirmation and seller notification emails.

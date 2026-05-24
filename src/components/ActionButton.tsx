@@ -70,7 +70,7 @@ export function ActionButton({
             variant="destructive"
             disabled={isLoading}
             onClick={(e) => {
-              // Prevent Radix from auto-closing the dialog — we close it
+              // Prevent Radix from auto-closing the dialog - we close it
               // ourselves once the async action settles.
               e.preventDefault();
               onConfirm();

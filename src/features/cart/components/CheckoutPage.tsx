@@ -191,7 +191,7 @@ export function CheckoutPage() {
             </div>
           </div>
 
-          {/* Card checkout — simple CTA */}
+          {/* Card checkout - simple CTA */}
           {method === "card" && (
             <Button
               className="w-full"
@@ -207,7 +207,7 @@ export function CheckoutPage() {
             </Button>
           )}
 
-          {/* COD — shipping form */}
+          {/* COD - shipping form */}
           {method === "cod" && (
             <form onSubmit={handleSubmit(handleCodSubmit)} className="space-y-4">
               <p className="text-sm font-semibold">{t("shippingDetails")}</p>

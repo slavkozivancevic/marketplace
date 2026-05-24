@@ -47,7 +47,7 @@ export function DepartmentDrawer({
 
   function drillIn(item: CategoryTreeItem) {
     if (item.children.length === 0) {
-      // Leaf — select immediately
+      // Leaf - select immediately
       onChange(item.slug);
       handleClose();
       return;
@@ -128,7 +128,7 @@ export function DepartmentDrawer({
         {/* List */}
         <div className="flex-1 overflow-y-auto">
 
-          {/* "All Departments" row — only on root level */}
+          {/* "All Departments" row - only on root level */}
           {!currentFrame && (
             <button
               onClick={selectAll}
@@ -146,7 +146,7 @@ export function DepartmentDrawer({
             </button>
           )}
 
-          {/* "See all [current level]" row — when drilled in */}
+          {/* "See all [current level]" row - when drilled in */}
           {currentFrame && (
             <button
               onClick={selectCurrent}

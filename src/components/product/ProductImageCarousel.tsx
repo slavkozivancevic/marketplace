@@ -25,7 +25,7 @@ export interface ProductMediaItem {
 }
 
 interface ProductImageCarouselProps {
-  // Renamed from `images` — accepts mixed image+video media. The legacy file
+  // Renamed from `images` - accepts mixed image+video media. The legacy file
   // name is kept to avoid churn across callers; the component itself is now
   // media-agnostic and routes IMAGE/VIDEO items to the right renderer.
   media: ProductMediaItem[];
@@ -130,7 +130,7 @@ export function ProductImageCarousel({
                   <div
                     className={cn(
                       "relative w-full h-96 rounded-lg overflow-hidden border",
-                      // Videos use native controls — zoom-in/click-to-lightbox
+                      // Videos use native controls - zoom-in/click-to-lightbox
                       // is image-only territory.
                       isVideo ? "" : "cursor-zoom-in",
                     )}
@@ -305,7 +305,7 @@ export function ProductImageCarousel({
                   variant="ghost"
                   size="icon"
                   onClick={lightboxPrev}
-                  className="absolute left-3 text-white bg-black/40 hover:bg-black/60 hover:text-white rounded-full"
+                  className="absolute left-3 size-11 rounded-full border border-white/30 bg-black/55 text-white shadow-[0_4px_14px_rgba(0,0,0,0.4)] backdrop-blur-sm backdrop-saturate-150 transition-[background-color,border-color,box-shadow,color] duration-300 ease-out hover:bg-black/85 hover:border-white/55 hover:text-white hover:shadow-[0_6px_22px_rgba(0,0,0,0.6)] [&_svg]:drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]"
                 >
                   <ChevronLeft className="h-6 w-6" />
                 </Button>
@@ -313,7 +313,7 @@ export function ProductImageCarousel({
                   variant="ghost"
                   size="icon"
                   onClick={lightboxNext}
-                  className="absolute right-3 text-white bg-black/40 hover:bg-black/60 hover:text-white rounded-full"
+                  className="absolute right-3 size-11 rounded-full border border-white/30 bg-black/55 text-white shadow-[0_4px_14px_rgba(0,0,0,0.4)] backdrop-blur-sm backdrop-saturate-150 transition-[background-color,border-color,box-shadow,color] duration-300 ease-out hover:bg-black/85 hover:border-white/55 hover:text-white hover:shadow-[0_6px_22px_rgba(0,0,0,0.6)] [&_svg]:drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]"
                 >
                   <ChevronRight className="h-6 w-6" />
                 </Button>

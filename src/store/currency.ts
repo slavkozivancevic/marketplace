@@ -30,7 +30,7 @@ export const useCurrencyStore = create<CurrencyStore>()(
     }),
     {
       name: "marketplace-currency",
-      // Only persist the selected currency — rates are always reloaded from server
+      // Only persist the selected currency - rates are always reloaded from server
       partialize: (state) => ({ currency: state.currency }),
     },
   ),

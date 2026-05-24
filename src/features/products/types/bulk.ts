@@ -10,12 +10,35 @@ export type BulkFilter = {
   brandId?: string[];
   /** Only products that have NO brand assigned. */
   noBrand?: boolean;
+  /** Product must belong to at least one of these category IDs. */
+  categoryId?: string[];
+  /** Only products that have NO category assigned. */
+  noCategory?: boolean;
   /** Product status must be one of these values. */
   status?: string[];
   minPrice?: number;
   maxPrice?: number;
+  /** Inventory bounds. */
+  minStock?: number;
+  maxStock?: number;
+  /** Products with stock === 0 (excludes null = "untracked"). */
+  outOfStock?: boolean;
+  /** Boolean flag filters. */
+  taxable?: boolean;
+  requiresShipping?: boolean;
+  isDigital?: boolean;
   /** Case-insensitive substring match on title. */
   titleContains?: string;
+};
+
+export type BulkCategoryUpdate = {
+  /**
+   * - "set": replace all categories with `ids`
+   * - "add": append `ids` to existing categories (skip duplicates)
+   * - "remove": detach `ids` from existing categories
+   */
+  mode: "set" | "add" | "remove";
+  ids: string[];
 };
 
 export type BulkUpdateFields = {
@@ -27,6 +50,11 @@ export type BulkUpdateFields = {
   costPrice?: number | null;
   taxable?: boolean;
   requiresShipping?: boolean;
+  isDigital?: boolean;
+  /** Absolute stock value, or null to mark "untracked". */
+  stock?: number | null;
+  /** Category set / add / remove operation. */
+  categories?: BulkCategoryUpdate;
 };
 
 export type PreviewResult = {

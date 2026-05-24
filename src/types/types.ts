@@ -33,7 +33,7 @@ export type MediaInput = {
   height?: number | null;
 };
 
-// Single-field input used by the synchronous image/video processor pipelines —
+// Single-field input used by the synchronous image/video processor pipelines -
 // they only need the S3 key to fetch the original object back.
 export type ImageInput = {
   key: string;

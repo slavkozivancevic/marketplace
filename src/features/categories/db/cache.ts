@@ -7,5 +7,6 @@ export function revalidateCategoryCache(categoryId: string) {
 
   revalidatePath("/admin/categories");
   revalidatePath(`/admin/categories/${categoryId}/edit`);
+  revalidatePath("/admin/products/bulk");
   revalidatePath("/");
 }

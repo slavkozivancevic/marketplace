@@ -53,7 +53,7 @@ export async function getPublicProductsPage({
     if (maxPrice != null) where.price.lte = maxPrice;
   }
 
-  // Products with a compareAtPrice set are considered "on sale" — seller sets it only when discounting
+  // Products with a compareAtPrice set are considered "on sale" - seller sets it only when discounting
   if (onSale === true) {
     where.compareAtPrice = { not: null };
   }

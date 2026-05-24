@@ -99,7 +99,7 @@ function HistoryRow({
         </Badge>
       </div>
       <div role="cell" className="truncate">
-        {entry.updatedBy?.name ?? entry.updatedBy?.email ?? "—"}
+        {entry.updatedBy?.name ?? entry.updatedBy?.email ?? "-"}
       </div>
       <div role="cell" className="truncate">{new Date(entry.createdAt).toLocaleString(dl)}</div>
       <div role="cell">

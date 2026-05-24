@@ -14,15 +14,20 @@ export type BrandListItem = {
   slug: string;
   logoUrl: string | null;
   description: string | null;
+  translations: BrandTranslations | null;
   createdAt: Date;
   _count: { products: number };
 };
 
 export async function getAllBrands(): Promise<BrandListItem[]> {
-  return prisma.brand.findMany({
+  const rows = await prisma.brand.findMany({
     orderBy: { name: "asc" },
     include: { _count: { select: { products: true } } },
   });
+  return rows.map((r) => ({
+    ...r,
+    translations: (r.translations ?? null) as BrandTranslations | null,
+  }));
 }
 
 export async function getBrandById(id: string) {

@@ -75,7 +75,7 @@ export function DepartmentSearchBar({
 
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Local input state — debounced before propagating up
+  // Local input state - debounced before propagating up
   const [localSearch, setLocalSearch] = useState(search);
   const debounced = useDebounce(localSearch, 300);
 
@@ -160,7 +160,7 @@ export function DepartmentSearchBar({
           </div>
         </div>
 
-        {/* Mobile filter button — isti red, pre sort */}
+        {/* Mobile filter button - isti red, pre sort */}
         {filterGroups && filterValues && onFilterChange && onFilterClear && (
           <MobileFilterSheet
             groups={filterGroups}
@@ -172,7 +172,7 @@ export function DepartmentSearchBar({
           />
         )}
 
-        {/* Sort — desno od search bara */}
+        {/* Sort - desno od search bara */}
         <SortSelect
           sortBy={sortBy}
           sortOrder={sortOrder}

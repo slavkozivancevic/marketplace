@@ -130,7 +130,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
 
   function handleAdd() {
     if (!product) return;
-    // Cart preview is a still — pick the first IMAGE-type media from variant
+    // Cart preview is a still - pick the first IMAGE-type media from variant
     // → fall back to product's first IMAGE-type media. Videos are skipped
     // since the cart drawer doesn't play them.
     const variantImageRef = activeVariant?.media.find((vm) => {
@@ -177,7 +177,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
           <DialogTitle className="sr-only">{t("noLongerAvailable")}</DialogTitle>
           <button
             onClick={handleClose}
-            className="absolute top-2.5 right-2.5 z-10 rounded-full bg-background/80 backdrop-blur-sm border border-border/50 p-1 text-muted-foreground hover:text-foreground transition-colors shadow-sm cursor-pointer"
+            className="absolute top-2.5 right-2.5 z-10 rounded-full bg-background/80 backdrop-blur-xs border border-border/50 p-1 text-muted-foreground hover:text-foreground transition-colors shadow-sm cursor-pointer"
             aria-label="Close"
           >
             <X className="h-3.5 w-3.5" />
@@ -209,7 +209,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
         {/* Close */}
         <button
           onClick={handleClose}
-          className="absolute top-2.5 right-2.5 z-10 rounded-full bg-background/80 backdrop-blur-sm border border-border/50 p-1 text-muted-foreground hover:text-foreground transition-colors shadow-sm cursor-pointer"
+          className="absolute top-2.5 right-2.5 z-10 rounded-full bg-background/80 backdrop-blur-xs border border-border/50 p-1 text-muted-foreground hover:text-foreground transition-colors shadow-sm cursor-pointer"
           aria-label="Close"
         >
           <X className="h-3.5 w-3.5" />
@@ -217,7 +217,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
 
         {/*
           Two-column layout on sm+.
-          Left panel height = image + thumbnails + bottom-actions — this is the
+          Left panel height = image + thumbnails + bottom-actions - this is the
           "source of truth" for the dialog height on desktop.
           Right panel stretches (items-stretch) to match and its variants
           section fills whatever space is left between header and footer.
@@ -278,7 +278,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
               </div>
             )}
 
-            {/* Thumbnail strip — uses image thumb or video poster URL. */}
+            {/* Thumbnail strip - uses image thumb or video poster URL. */}
             {!isLoading && media.length > 1 && (
               <div className="flex gap-1 px-1.5 py-1 overflow-x-auto shrink-0 border-t border-border/50">
                 {media.map((m, i) => {
@@ -304,7 +304,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
               </div>
             )}
 
-            {/* Bottom actions — desktop only, pushed to bottom via mt-auto */}
+            {/* Bottom actions - desktop only, pushed to bottom via mt-auto */}
             <div className="mt-auto hidden sm:flex flex-col gap-1.5 px-3 py-2.5 border-t border-border/50">
               {product && (
                 <Link

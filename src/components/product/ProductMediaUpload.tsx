@@ -61,7 +61,7 @@ type ProductMediaUploadProps = {
 
 // Fetch the image/poster into the browser cache before swapping the visible
 // src. Resolves on success or failure so a missing/blocked URL never wedges
-// the upload flow — at worst the user sees the usual fallback.
+// the upload flow - at worst the user sees the usual fallback.
 function preloadImage(url: string): Promise<void> {
   return new Promise((resolve) => {
     const img = new window.Image();
@@ -108,7 +108,7 @@ function SortableItem({ item, onClick, onRemove }: SortableItemProps) {
     >
       <CardContent className="h-full w-full p-0" onClick={onClick}>
         {isVideo && !item.posterUrl ? (
-          // Server poster not yet available — render the source video paused
+          // Server poster not yet available - render the source video paused
           // on its first frame as a local preview.
           <video
             src={thumbSrc}

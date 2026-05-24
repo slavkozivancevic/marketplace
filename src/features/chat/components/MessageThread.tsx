@@ -165,7 +165,7 @@ function useAttachmentReadUrl(key: string) {
       );
       return data.url;
     },
-    staleTime: 1000 * 60 * 50, // 50 min — presigned URL expires at 60 min (buffer of 10 min)
+    staleTime: 1000 * 60 * 50, // 50 min - presigned URL expires at 60 min (buffer of 10 min)
     retry: 1,
   });
 }
@@ -183,7 +183,7 @@ function ImageLightbox({ url, onClose }: { url: string; onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-200 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      className="fixed inset-0 z-200 flex items-center justify-center bg-black/65 backdrop-blur-xs"
       onClick={onClose}
     >
       <button
@@ -234,7 +234,7 @@ type PdfCacheEntry = { dataUrl: string; numPages: number };
 const pdfPreviewCache = new Map<string, PdfCacheEntry>();
 
 function PdfPreviewCard({ attachment }: { attachment: Attachment }) {
-  // Presigned URL — React Query caches this for 50 min (staleTime in useAttachmentReadUrl)
+  // Presigned URL - React Query caches this for 50 min (staleTime in useAttachmentReadUrl)
   const { data: presignedUrl } = useAttachmentReadUrl(attachment.key);
 
   // Initialise from cache synchronously so there's no flash of spinner on re-mount
@@ -276,7 +276,7 @@ function PdfPreviewCard({ attachment }: { attachment: Attachment }) {
         const scale = IMG_MAX / viewport.width;
         const scaledViewport = page.getViewport({ scale });
 
-        // Render into an offscreen canvas — never mounted in the DOM
+        // Render into an offscreen canvas - never mounted in the DOM
         const offscreen = document.createElement("canvas");
         offscreen.width = scaledViewport.width;
         offscreen.height = scaledViewport.height;
@@ -289,7 +289,7 @@ function PdfPreviewCard({ attachment }: { attachment: Attachment }) {
         }).promise;
         if (cancelled) return;
 
-        // toBlob is async and encodes off the main thread — avoids blocking
+        // toBlob is async and encodes off the main thread - avoids blocking
         // the CSS animation right before the preview appears (toDataURL is synchronous).
         const blob = await new Promise<Blob>((resolve, reject) => {
           offscreen.toBlob(
@@ -346,7 +346,7 @@ function PdfPreviewCard({ attachment }: { attachment: Attachment }) {
         className="bg-muted overflow-hidden relative"
         style={{ height: PDF_PREVIEW_H }}
       >
-        {/* Shimmer — shown while image hasn't painted yet */}
+        {/* Shimmer - shown while image hasn't painted yet */}
         {!imgLoaded && !renderFailed && (
           <div className="absolute inset-0 z-10 skeleton-shimmer" />
         )}
@@ -418,7 +418,7 @@ function VideoLightbox({ url, onClose }: { url: string; onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-200 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+      className="fixed inset-0 z-200 flex items-center justify-center bg-black/75 backdrop-blur-xs"
       onClick={onClose}
     >
       <button
@@ -439,7 +439,7 @@ function VideoLightbox({ url, onClose }: { url: string; onClose: () => void }) {
   );
 }
 
-const VIDEO_H = Math.round(IMG_MAX * (9 / 16)); // 108px — 16:9
+const VIDEO_H = Math.round(IMG_MAX * (9 / 16)); // 108px - 16:9
 
 function VideoCard({ attachment }: { attachment: Attachment }) {
   const { data: url } = useAttachmentReadUrl(attachment.key);
@@ -486,13 +486,13 @@ function VideoCard({ attachment }: { attachment: Attachment }) {
               />
               {/* Play button */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="size-10 rounded-full bg-black/50 flex items-center justify-center backdrop-blur-sm">
+                <div className="size-10 rounded-full bg-black/50 flex items-center justify-center backdrop-blur-xs">
                   <Play className="size-5 text-white fill-white ml-0.5" />
                 </div>
               </div>
               {/* Duration badge */}
               {duration !== null && (
-                <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded backdrop-blur-sm">
+                <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded backdrop-blur-xs">
                   <Video className="size-2.5" />
                   <span>{formatDuration(duration)}</span>
                 </div>
@@ -772,7 +772,7 @@ async function uploadOne(
       : Promise.resolve(undefined),
   ]);
   // Tagging is encoded into the presigned URL as an `x-amz-tagging` query
-  // parameter (hoisted by the SDK, not a signed header) — we must NOT also
+  // parameter (hoisted by the SDK, not a signed header) - we must NOT also
   // send it as an HTTP header or S3 rejects the signature.
   await axios.put(data.url, file, {
     headers: { "Content-Type": file.type },
@@ -780,7 +780,7 @@ async function uploadOne(
     onUploadProgress: (e) => {
       if (!e.total) return;
       // Cap S3 progress at 90 so the bar always has a final jump to 100
-      // when the PUT resolves — keeps motion perceivable even on tiny
+      // when the PUT resolves - keeps motion perceivable even on tiny
       // uploads where onUploadProgress fires only once or twice.
       const ratio = e.loaded / e.total;
       onProgress(Math.min(90, Math.round(ratio * 90)));
@@ -918,7 +918,7 @@ export function MessageThread({
       }));
       setPendingAttachments((prev) => [...prev, ...newItems]);
 
-      // Fire off each upload independently — they share no order requirement
+      // Fire off each upload independently - they share no order requirement
       // and S3 handles parallel PUTs fine. Per-item state updates keep
       // progress, completion, and errors local to each chip.
       newItems.forEach((item) => {
@@ -957,7 +957,7 @@ export function MessageThread({
       const item = prev.find((a) => a.id === id);
       if (item?.status === "uploading") item.abort?.abort();
       // For already-uploaded items we rely on the bucket lifecycle rule to
-      // sweep the orphan after 24h — explicit S3 delete would need an extra
+      // sweep the orphan after 24h - explicit S3 delete would need an extra
       // server endpoint and a round-trip per removal.
       return prev.filter((a) => a.id !== id);
     });
@@ -1050,7 +1050,7 @@ export function MessageThread({
           <div className="sticky top-3 z-10 h-0 overflow-visible flex items-start justify-center pointer-events-none">
             <span
               className={cn(
-                "inline-flex items-center bg-black/50 text-white text-[11px] font-medium px-3 py-1 rounded-full backdrop-blur-sm transition-opacity duration-200 whitespace-nowrap",
+                "inline-flex items-center bg-black/50 text-white text-[11px] font-medium px-3 py-1 rounded-full backdrop-blur-xs transition-opacity duration-200 whitespace-nowrap",
                 floatingDate ? "opacity-100" : "opacity-0",
               )}
             >
@@ -1175,7 +1175,7 @@ export function MessageThread({
                         )}
                       </div>
 
-                      {/* Reaction trigger button — visible on hover */}
+                      {/* Reaction trigger button - visible on hover */}
                       {!isTemp && (
                         <div className="relative mb-0.5" data-reaction-picker>
                           <button
@@ -1195,7 +1195,7 @@ export function MessageThread({
                             <Smile className="size-3.5" />
                           </button>
 
-                          {/* Emoji picker popover — JS-clamped to stay
+                          {/* Emoji picker popover - JS-clamped to stay
                               inside the chat scroll container regardless of
                               where the message bubble sits. Without this,
                               wide bubbles push the picker past the drawer
@@ -1293,7 +1293,7 @@ export function MessageThread({
 
       {/* Input area */}
       <div className="shrink-0 border-t relative">
-        {/* File preview panel — absolutely positioned so it doesn't affect layout */}
+        {/* File preview panel - absolutely positioned so it doesn't affect layout */}
         <div
           className={cn(
             "absolute bottom-full inset-x-2 bg-background border border-border rounded-t-xl shadow-md px-3 pt-3 pb-2 flex gap-2 flex-wrap transition-all duration-200 ease-out",

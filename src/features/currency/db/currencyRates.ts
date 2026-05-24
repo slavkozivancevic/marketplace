@@ -4,7 +4,7 @@ import type { CurrencyRates } from "@/store/currency";
 /**
  * Returns all exchange rates as a plain object { eur: 0.921, rsd: 108.5, ... }.
  * USD is always 1.0 and is not stored in the DB.
- * Safe to call from server components — result is small and fast.
+ * Safe to call from server components - result is small and fast.
  */
 export async function getCurrencyRates(): Promise<CurrencyRates> {
   const rows = await prisma.currencyRate.findMany();

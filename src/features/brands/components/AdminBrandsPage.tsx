@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Loader2, Pencil, Trash2 } from "lucide-react";
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { deleteBrandAction } from "../actions/brands";
 import type { BrandListItem } from "../db/brands";
+import { getBrandDescription, getBrandName } from "../utils/translations";
 
 // Column layout: logo | name | slug | description | products | actions
 const COLS = "48px minmax(120px,1fr) 140px minmax(120px,2fr) 80px 80px";
@@ -47,12 +48,16 @@ function BrandTableHeader() {
 
 function BrandTableRow({
   brand,
+  displayName,
+  displayDescription,
   onDelete,
   onEdit,
   isDeleting,
   isEditing,
 }: {
   brand: BrandListItem;
+  displayName: string;
+  displayDescription: string | null;
   onDelete: (id: string) => void;
   onEdit: (id: string) => void;
   isDeleting: boolean;
@@ -80,7 +85,7 @@ function BrandTableRow({
           <div className="relative h-10 w-10 overflow-hidden rounded border bg-muted shrink-0">
             <Image
               src={brand.logoUrl}
-              alt={brand.name}
+              alt={displayName}
               fill
               sizes="40px"
               className="object-contain"
@@ -88,13 +93,13 @@ function BrandTableRow({
           </div>
         ) : (
           <div className="h-10 w-10 rounded border bg-muted flex items-center justify-center text-xs text-muted-foreground font-medium">
-            {brand.name.slice(0, 2).toUpperCase()}
+            {displayName.slice(0, 2).toUpperCase()}
           </div>
         )}
       </div>
-      <div role="cell" className="font-medium truncate">{brand.name}</div>
+      <div role="cell" className="font-medium truncate">{displayName}</div>
       <div role="cell" className="text-muted-foreground font-mono text-xs truncate">{brand.slug}</div>
-      <div role="cell" className="text-muted-foreground text-sm truncate">{brand.description ?? "—"}</div>
+      <div role="cell" className="text-muted-foreground text-sm truncate">{displayDescription ?? "-"}</div>
       <div role="cell" className="text-right tabular-nums text-sm">{brand._count.products}</div>
       <div role="cell" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-end gap-1">
@@ -126,7 +131,7 @@ function BrandTableRow({
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>{t("brands.deleteConfirm", { name: brand.name })}</AlertDialogTitle>
+                <AlertDialogTitle>{t("brands.deleteConfirm", { name: displayName })}</AlertDialogTitle>
                 <AlertDialogDescription>
                   {t("brands.deleteDesc")}
                 </AlertDialogDescription>
@@ -161,6 +166,7 @@ function BrandTableRow({
 
 export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
   const t = useTranslations();
+  const locale = useLocale();
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -168,16 +174,28 @@ export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
   const [isPending, startTransition] = useTransition();
   const [isNavigating, startNavigate] = useTransition();
 
+  const localizedBrands = useMemo(
+    () =>
+      brands.map((b) => ({
+        brand: b,
+        displayName: getBrandName(b, locale),
+        displayDescription: getBrandDescription(b, locale),
+      })),
+    [brands, locale],
+  );
+
   const filtered = useMemo(() => {
-    if (!search) return brands;
+    if (!search) return localizedBrands;
     const q = search.toLowerCase();
-    return brands.filter(
-      (b) =>
-        b.name.toLowerCase().includes(q) ||
+    return localizedBrands.filter(
+      ({ brand: b, displayName, displayDescription }) =>
+        displayName.toLowerCase().includes(q) ||
         b.slug.toLowerCase().includes(q) ||
+        displayDescription?.toLowerCase().includes(q) ||
+        b.name.toLowerCase().includes(q) ||
         b.description?.toLowerCase().includes(q),
     );
-  }, [brands, search]);
+  }, [localizedBrands, search]);
 
   const handleDelete = (id: string) => {
     setDeletingId(id);
@@ -225,10 +243,12 @@ export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
           )}
         >
           <BrandTableHeader />
-          {filtered.map((brand) => (
+          {filtered.map(({ brand, displayName, displayDescription }) => (
             <BrandTableRow
               key={brand.id}
               brand={brand}
+              displayName={displayName}
+              displayDescription={displayDescription}
               onDelete={handleDelete}
               onEdit={handleEdit}
               isDeleting={isPending && deletingId === brand.id}

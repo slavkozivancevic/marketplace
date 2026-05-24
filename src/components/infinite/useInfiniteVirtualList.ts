@@ -31,7 +31,7 @@ type Options<TItem> = {
  * Combines useInfiniteQuery with a vertical row virtualizer.
  * Auto-fetches the next page as the tail row scrolls into the overscan window.
  *
- * Caller owns the scroll container — attach `parentRef` to it and render
+ * Caller owns the scroll container - attach `parentRef` to it and render
  * `virtualizer.getVirtualItems()` inside an absolutely positioned spacer div
  * sized by `virtualizer.getTotalSize()`.
  */

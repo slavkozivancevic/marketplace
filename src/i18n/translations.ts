@@ -5,7 +5,7 @@ import { DEFAULT_LOCALE, isLocale, type Locale } from "./config";
  * translatable string fields. Keys are locale codes; values are partial maps
  * of `field name → translated string`.
  *
- * Only **non-default** locales appear here — the default locale uses the
+ * Only **non-default** locales appear here - the default locale uses the
  * canonical column on the model (e.g. `Product.title`).
  */
 export type FieldTranslations<F extends string> = Partial<

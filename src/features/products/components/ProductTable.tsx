@@ -208,7 +208,7 @@ export function ProductTableRow({
             <span className="truncate text-sm">{product.brand.name}</span>
           </div>
         ) : (
-          <span className="text-muted-foreground text-sm">—</span>
+          <span className="text-muted-foreground text-sm">-</span>
         )}
       </div>
       <div role="cell" className="truncate text-muted-foreground">

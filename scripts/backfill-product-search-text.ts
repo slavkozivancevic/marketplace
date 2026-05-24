@@ -5,7 +5,7 @@
  * category names) maintained by the application on product create/update.
  * Existing rows have NULL, so a one-time backfill is required after migration.
  *
- * Also useful as a recovery tool if brand/category renames have left rows stale —
+ * Also useful as a recovery tool if brand/category renames have left rows stale -
  * passing `--all` re-populates every product, otherwise only NULL rows are touched.
  *
  * Run with:

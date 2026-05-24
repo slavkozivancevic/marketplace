@@ -38,7 +38,7 @@ import { ConversationList } from "./ConversationList";
 import { MessageThread } from "./MessageThread";
 
 /**
- * Trigger button rendered in the header — visible only when signed in.
+ * Trigger button rendered in the header - visible only when signed in.
  * Shows an unread badge when new messages arrive.
  */
 export function ChatDrawerTrigger() {
@@ -64,7 +64,7 @@ export function ChatDrawerTrigger() {
 }
 
 /**
- * Sheet panel — mount once in the layout so state persists across navigation.
+ * Sheet panel - mount once in the layout so state persists across navigation.
  * The socket connection is established here (outside the Sheet) so messages
  * are received even when the drawer is closed.
  */
@@ -90,7 +90,7 @@ function ChatDrawerRootInner() {
     [convsData?.conversations]
   );
 
-  // Bootstrap unread badges from the initial conversations load — surfaces
+  // Bootstrap unread badges from the initial conversations load - surfaces
   // messages that arrived while the user was offline. MUST run only once
   // per signed-in user: otherwise every WebSocket-driven conversations
   // cache update (e.g., a NEW_MESSAGE arriving) re-runs the loop and

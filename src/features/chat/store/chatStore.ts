@@ -4,14 +4,14 @@ import { persist } from "zustand/middleware";
 interface ChatStore {
   isOpen: boolean;
   selectedConvId: string | null;
-  /** Total unread across all conversations — drives the header badge. */
+  /** Total unread across all conversations - drives the header badge. */
   unreadCount: number;
-  /** Per-conversation unread counts — drives the inbox row badges. */
+  /** Per-conversation unread counts - drives the inbox row badges. */
   convUnread: Record<string, number>;
   /**
    * Per-conversation read status for the last message.
    * Maps conversationId → readBy[] (user IDs who have read the last message).
-   * Maintained by WS events — never overwritten by React Query refetches.
+   * Maintained by WS events - never overwritten by React Query refetches.
    */
   readStatus: Record<string, string[]>;
   /**
@@ -63,7 +63,7 @@ export const useChatStore = create<ChatStore>()(
 
       close: () => set({ isOpen: false, selectedConvId: null }),
 
-      // Clicking a row inside the inbox — same clearing behaviour.
+      // Clicking a row inside the inbox - same clearing behaviour.
       setSelectedConvId: (id) =>
         set((s) => {
           if (!id) return { selectedConvId: null };
@@ -81,7 +81,7 @@ export const useChatStore = create<ChatStore>()(
 
       bootstrapUnread: (conversationId, lastMessageAt) =>
         set((s) => {
-          // Already has a live unread count from this session — don't double-count.
+          // Already has a live unread count from this session - don't double-count.
           if (s.convUnread[conversationId]) return s;
           // Compare lastMessageAt against when we last opened this conversation.
           // If we've never opened it, or the message is newer, show a badge.

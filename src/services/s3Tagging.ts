@@ -33,7 +33,7 @@ export async function commitS3Object(key: string): Promise<void> {
 /**
  * Marks a freshly uploaded product image (original + thumbnail) as pending.
  * The lifecycle rule will sweep both after 24h unless committed first.
- * Thumbnail tagging is best-effort — the original is authoritative.
+ * Thumbnail tagging is best-effort - the original is authoritative.
  */
 export async function tagProductImagePending(key: string): Promise<void> {
   await tagS3ObjectPending(key);
@@ -58,7 +58,7 @@ export async function tagProductMediaPending(
 }
 
 /**
- * Commits a product media item — removes the pending tag so the lifecycle rule
+ * Commits a product media item - removes the pending tag so the lifecycle rule
  * no longer applies. Called when the product is saved and the media becomes
  * a real DB reference. Thumbnail/poster commit is best-effort.
  */

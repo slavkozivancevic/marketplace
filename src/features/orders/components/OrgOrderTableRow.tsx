@@ -73,7 +73,7 @@ export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
 
       {/* Buyer */}
       <div role="cell" className="text-sm text-muted-foreground truncate">
-        {order.user.name ?? "—"}
+        {order.user.name ?? "-"}
       </div>
 
       {/* Org subtotal */}

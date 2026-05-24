@@ -171,9 +171,17 @@ function CarouselItem({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+// Shared visual style for carousel nav arrows. Designed to stay legible
+// against any underlying surface (white image, black image, vivid colors,
+// or any theme - light/dark/cosmos): dark translucent backdrop gives
+// contrast over light surfaces, the white border + white icon + dark
+// drop-shadow give contrast over dark surfaces.
+const carouselArrowBase =
+  "size-9 rounded-full border border-white/30 bg-black/55 text-white shadow-[0_4px_14px_rgba(0,0,0,0.4)] backdrop-blur-sm backdrop-saturate-150 transition-[background-color,border-color,box-shadow,color] duration-300 ease-out hover:bg-black/85 hover:border-white/55 hover:text-white hover:shadow-[0_6px_22px_rgba(0,0,0,0.6)] disabled:opacity-40 [&_svg]:drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]"
+
 function CarouselPrevious({
   className,
-  variant = "outline",
+  variant = "ghost",
   size = "icon-sm",
   ...props
 }: React.ComponentProps<typeof Button>) {
@@ -185,7 +193,8 @@ function CarouselPrevious({
       variant={variant}
       size={size}
       className={cn(
-        "absolute touch-manipulation rounded-full",
+        "absolute touch-manipulation",
+        carouselArrowBase,
         orientation === "horizontal"
           ? "top-1/2 -left-12 -translate-y-1/2"
           : "-top-12 left-1/2 -translate-x-1/2 rotate-90",
@@ -195,7 +204,7 @@ function CarouselPrevious({
       onClick={scrollPrev}
       {...props}
     >
-      <ChevronLeftIcon />
+      <ChevronLeftIcon className="size-5" />
       <span className="sr-only">Previous slide</span>
     </Button>
   )
@@ -203,7 +212,7 @@ function CarouselPrevious({
 
 function CarouselNext({
   className,
-  variant = "outline",
+  variant = "ghost",
   size = "icon-sm",
   ...props
 }: React.ComponentProps<typeof Button>) {
@@ -215,7 +224,8 @@ function CarouselNext({
       variant={variant}
       size={size}
       className={cn(
-        "absolute touch-manipulation rounded-full",
+        "absolute touch-manipulation",
+        carouselArrowBase,
         orientation === "horizontal"
           ? "top-1/2 -right-12 -translate-y-1/2"
           : "-bottom-12 left-1/2 -translate-x-1/2 rotate-90",
@@ -225,7 +235,7 @@ function CarouselNext({
       onClick={scrollNext}
       {...props}
     >
-      <ChevronRightIcon />
+      <ChevronRightIcon className="size-5" />
       <span className="sr-only">Next slide</span>
     </Button>
   )

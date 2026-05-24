@@ -18,7 +18,7 @@ export function ProductDetailLayout({ product }: ProductDetailLayoutProps) {
     locale,
   );
   // Match AddToCart's initial-variant logic so the variant list is already
-  // highlighted in the SSR HTML — without this, the highlight lags until
+  // highlighted in the SSR HTML - without this, the highlight lags until
   // hydration + AddToCart's useEffect callback fires.
   const [activeVariantId, setActiveVariantId] = useState<string | null>(() => {
     const optionVariants = product.variants.filter(

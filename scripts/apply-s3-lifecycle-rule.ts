@@ -4,7 +4,7 @@
  * Pending product images carry an object tag `lifecycle=pending`. They are
  * tagged in services/imageProcessor.ts on upload, and the tag is removed in
  * features/products/db/products.ts (syncProductImages) when a product is
- * saved. This rule sweeps anything still tagged after 1 day — covering the
+ * saved. This rule sweeps anything still tagged after 1 day - covering the
  * case where a user uploads but abandons the form.
  *
  * Idempotent: re-running replaces the bucket's lifecycle config with the

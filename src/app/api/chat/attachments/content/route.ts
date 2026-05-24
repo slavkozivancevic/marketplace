@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       { headers: { Authorization: `Bearer ${token}` } },
     );
 
-    // Fetch from S3 on the server — no browser CORS constraints apply here
+    // Fetch from S3 on the server - no browser CORS constraints apply here
     const s3Res = await fetch(urlData.url);
     if (!s3Res.ok) {
       return NextResponse.json({ error: "Failed to fetch from S3" }, { status: s3Res.status });

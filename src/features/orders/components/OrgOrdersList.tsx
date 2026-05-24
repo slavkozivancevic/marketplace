@@ -108,7 +108,7 @@ export function OrgOrdersList({ filters }: { filters?: OrgOrderFilters }) {
     );
   }
 
-  // Small dataset — no virtualization needed
+  // Small dataset - no virtualization needed
   if (!query.hasNextPage) {
     return (
       <div
@@ -123,7 +123,7 @@ export function OrgOrdersList({ filters }: { filters?: OrgOrderFilters }) {
     );
   }
 
-  // Large dataset — virtualized
+  // Large dataset - virtualized
   return (
     <div
       role="table"

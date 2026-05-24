@@ -164,7 +164,7 @@ export function BulkSelectPanel() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 gap-3">
-      {/* Search — outside scroll, matches /orders pattern */}
+      {/* Search - outside scroll, matches /orders pattern */}
       <div className="shrink-0">
         <SearchInput
           value={search}
@@ -173,12 +173,12 @@ export function BulkSelectPanel() {
         />
       </div>
 
-      {/* Table — its own scroll zone, never shifts position */}
+      {/* Table - its own scroll zone, never shifts position */}
       <div className="flex-1 min-h-0 flex flex-col rounded-lg border overflow-hidden">
 
-        {/* Toolbar — inside table border so it doesn't push the table down */}
+        {/* Toolbar - inside table border so it doesn't push the table down */}
         {selectedCount > 0 && (
-          <div className="shrink-0 flex items-center gap-3 border-b bg-background/95 backdrop-blur-sm px-4 py-2.5">
+          <div className="shrink-0 flex items-center gap-3 border-b bg-background/95 backdrop-blur-xs px-4 py-2.5">
             <span className="text-sm font-medium text-muted-foreground">
               {t("selected", { count: selectedCount })}
             </span>
@@ -259,7 +259,7 @@ export function BulkSelectPanel() {
           </div>
         )}
 
-        {/* Table header — shrink-0 so it's always visible above the scroll */}
+        {/* Table header - shrink-0 so it's always visible above the scroll */}
         <div
           role="row"
           className="shrink-0 grid items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground bg-background"
@@ -278,7 +278,7 @@ export function BulkSelectPanel() {
           <div role="columnheader">{t("colStatus")}</div>
         </div>
 
-        {/* Rows — only this part scrolls */}
+        {/* Rows - only this part scrolls */}
         <div className="flex-1 min-h-0 overflow-y-auto">
           {query.status === "pending" ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
@@ -333,7 +333,9 @@ export function BulkSelectPanel() {
                     </div>
                     <div role="cell" className="text-sm">{formatPrice(convertCents(product.price, currency, currentRate()), currency)}</div>
                     <div role="cell">
-                      <Badge variant={getStatusVariant(product.status)}>{product.status}</Badge>
+                      <Badge variant={getStatusVariant(product.status)}>
+                        {t(product.status.toLowerCase() as "draft" | "published" | "archived")}
+                      </Badge>
                     </div>
                   </div>
                 );

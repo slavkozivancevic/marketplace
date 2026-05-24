@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "@/components/ui/sonner";
@@ -58,6 +58,7 @@ export function CategoryForm(props: CategoryFormProps) {
   const t = useTranslations("adminCategories");
   const locale = useLocale();
   const [isPending, startTransition] = useTransition();
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 
   const derivedValues = useMemo<CategoryInput>(
     () => ({
@@ -79,7 +80,7 @@ export function CategoryForm(props: CategoryFormProps) {
     resolver: zodResolver(categorySchema),
     defaultValues: derivedValues,
     // In edit mode, re-sync the form when the underlying category changes
-    // (e.g., user navigates away from the edit page and returns — Next.js can
+    // (e.g., user navigates away from the edit page and returns - Next.js can
     // preserve the React tree, so without this the unsaved edits would persist).
     values: props.mode === "edit" ? derivedValues : undefined,
   });
@@ -88,12 +89,14 @@ export function CategoryForm(props: CategoryFormProps) {
   const descriptionValue = useWatch({ control: form.control, name: "description" });
   const parentId = useWatch({ control: form.control, name: "parentId" });
 
-  // Auto-slug from name (only if slug is empty)
+  // Auto-generate slug from name when not manually edited
+  const prevNameRef = useRef(form.getValues("name"));
   useEffect(() => {
-    if (!form.getValues("slug")) {
-      form.setValue("slug", slugify(nameValue ?? ""), { shouldValidate: false });
-    }
-  }, [nameValue, form]);
+    if (slugManuallyEdited) return;
+    if (nameValue === prevNameRef.current) return;
+    prevNameRef.current = nameValue;
+    form.setValue("slug", slugify(nameValue ?? ""), { shouldDirty: false });
+  }, [nameValue, slugManuallyEdited, form]);
 
   const onSubmit = (data: CategoryInput) => {
     startTransition(async () => {
@@ -159,7 +162,7 @@ export function CategoryForm(props: CategoryFormProps) {
           />
         </div>
 
-        {/* ── Translation sections — one per non-default locale ── */}
+        {/* ── Translation sections - one per non-default locale ── */}
         {NON_DEFAULT_LOCALES.map((loc) => (
           <div key={loc} className="rounded-lg border border-border/60 p-4 space-y-4">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -212,9 +215,31 @@ export function CategoryForm(props: CategoryFormProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>{t("slug")}</FormLabel>
-              <FormControl>
-                <Input placeholder="electronics" {...field} />
-              </FormControl>
+              <div className="flex gap-2">
+                <FormControl>
+                  <Input
+                    placeholder="electronics"
+                    {...field}
+                    onChange={(e) => {
+                      field.onChange(e);
+                      setSlugManuallyEdited(true);
+                    }}
+                  />
+                </FormControl>
+                {slugManuallyEdited && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      form.setValue("slug", slugify(form.getValues("name") ?? ""));
+                      setSlugManuallyEdited(false);
+                    }}
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+              </div>
               <FormDescription>{t("slugDesc")}</FormDescription>
               <FormMessage />
             </FormItem>
@@ -353,7 +378,7 @@ export function CategoryForm(props: CategoryFormProps) {
           )}
         />
 
-        {/* isFeatured — only for root departments */}
+        {/* isFeatured - only for root departments */}
         {isRoot && (
           <FormField
             control={form.control}

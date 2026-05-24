@@ -99,7 +99,7 @@ export function PublicProductsPage({
   }, [brands, t, currencySymbol]);
 
   // ---- Filter values ----
-  // URL stores values as typed by user (in selected currency) — no conversion, no rounding.
+  // URL stores values as typed by user (in selected currency) - no conversion, no rounding.
   const filterValues: FilterValues = {
     price: [params.minPrice ?? undefined, params.maxPrice ?? undefined],
     minRating: params.minRating ?? null,
@@ -153,7 +153,7 @@ export function PublicProductsPage({
     search,
     sortBy: params.sortBy,
     sortOrder: params.sortOrder,
-    // Raw display-currency values — buildFetcher converts to USD at fetch time.
+    // Raw display-currency values - buildFetcher converts to USD at fetch time.
     minPrice: params.minPrice,
     maxPrice: params.maxPrice,
     onSale: params.onSale,
@@ -168,7 +168,7 @@ export function PublicProductsPage({
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
 
-      {/* Search bar — shrink-0, ne skroluje */}
+      {/* Search bar - shrink-0, ne skroluje */}
       <div className="flex flex-col gap-2 shrink-0 px-6">
         <DepartmentSearchBar
           tree={categoryTree}

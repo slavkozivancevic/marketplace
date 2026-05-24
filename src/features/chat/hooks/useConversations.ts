@@ -22,7 +22,7 @@ export function useConversations() {
 
       const data = await fetchConversations();
 
-      // The backend doesn't return lastMessageReadBy or lastMessagePending —
+      // The backend doesn't return lastMessageReadBy or lastMessagePending -
       // they live only in the client cache and are maintained by WS events.
       // After a refetch we merge them back so read ticks don't reset.
       // We only carry them over when the last message hasn't changed
@@ -40,7 +40,7 @@ export function useConversations() {
             lastMessagePending: prev.lastMessageAt === conv.lastMessageAt
               ? (prev.lastMessagePending ?? conv.lastMessagePending)
               : conv.lastMessagePending,
-            // Prefer the fresher reaction info — cache wins if more recent than what API returned
+            // Prefer the fresher reaction info - cache wins if more recent than what API returned
             lastReactionPreview: prev.lastReactionAt && conv.lastReactionAt && prev.lastReactionAt > conv.lastReactionAt
               ? prev.lastReactionPreview
               : conv.lastReactionPreview,

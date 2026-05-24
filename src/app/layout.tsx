@@ -60,9 +60,11 @@ export default function RootLayout({
             unoptimized
           />
         </div>
-        <Suspense>
-          <LocaleShell>{children}</LocaleShell>
-        </Suspense>
+        <div className="app-shell">
+          <Suspense>
+            <LocaleShell>{children}</LocaleShell>
+          </Suspense>
+        </div>
       </body>
     </html>
   );

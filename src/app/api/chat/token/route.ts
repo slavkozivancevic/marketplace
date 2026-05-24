@@ -8,7 +8,7 @@ import axios from "axios";
  * POST /api/chat/token
  *
  * Exchanges the Clerk session for a short-lived chat JWT.
- * Called client-side once on mount — token is stored in memory, never in localStorage.
+ * Called client-side once on mount - token is stored in memory, never in localStorage.
  */
 export async function POST() {
   const { userId: clerkUserId } = await auth();

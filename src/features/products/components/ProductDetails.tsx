@@ -106,7 +106,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
               ))}
             </div>
           )}
-          <Row label={t("descLabel")} value={localDescription || "—"} />
+          <Row label={t("descLabel")} value={localDescription || "-"} />
           <div>
             <strong>{t("statusLabel")}</strong>{" "}
             <Badge variant={getStatusBadgeVariant(product.status)}>

@@ -119,7 +119,7 @@ export function SidebarNav(props: SidebarNavProps) {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r border-border/50 bg-card/30 backdrop-blur-sm">
+      <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r border-border/50 bg-card/30 backdrop-blur-xs">
         <div className="shrink-0 px-5 pt-5 pb-3">
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground px-3">
             {props.title}

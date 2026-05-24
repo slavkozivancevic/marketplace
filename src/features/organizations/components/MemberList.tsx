@@ -81,7 +81,7 @@ function MemberRow({
 
   const isSelf = member.user.id === currentUserId;
   const isOwner = member.role === MembershipRole.OWNER;
-  // Admins can't remove or change other admins — only owners can
+  // Admins can't remove or change other admins - only owners can
   const canActOnMember =
     canManage && !isOwner && !isSelf &&
     (currentUserRole === MembershipRole.OWNER || member.role !== MembershipRole.ADMIN);

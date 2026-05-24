@@ -56,7 +56,7 @@ export default async function HomePage() {
         {/* Content */}
         <div className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 text-center">
           {/* Badge */}
-          <div className="animate-slide-down mb-8 inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/50 px-4 py-1.5 text-sm font-medium text-muted-foreground backdrop-blur-sm">
+          <div className="animate-slide-down mb-8 inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/50 px-4 py-1.5 text-sm font-medium text-muted-foreground backdrop-blur-xs">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
@@ -90,7 +90,7 @@ export default async function HomePage() {
               <Button
                 variant="outline"
                 size="lg"
-                className="h-12 px-8 text-base font-semibold backdrop-blur-sm hover:-translate-y-0.5 transition-all duration-300"
+                className="h-12 px-8 text-base font-semibold backdrop-blur-xs hover:-translate-y-0.5 transition-all duration-300"
               >
                 {t("home.startSelling")}
               </Button>
@@ -127,7 +127,7 @@ export default async function HomePage() {
               return (
                 <div
                   key={feature.title}
-                  className="group relative rounded-2xl border border-border/50 bg-card/50 p-8 backdrop-blur-sm transition-all duration-300 hover:border-border hover:bg-card hover:shadow-xl hover:shadow-black/5 hover:-translate-y-1"
+                  className="group relative rounded-2xl border border-border/50 bg-card/50 p-8 backdrop-blur-xs transition-all duration-300 hover:border-border hover:bg-card hover:shadow-xl hover:shadow-black/5 hover:-translate-y-1"
                 >
                   <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                     <Icon className="h-6 w-6" />
@@ -148,7 +148,7 @@ export default async function HomePage() {
       {/* CTA Section */}
       <section className="relative py-24 sm:py-32">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl border border-border/50 bg-card/80 p-10 sm:p-16 text-center backdrop-blur-sm">
+          <div className="relative overflow-hidden rounded-3xl border border-border/50 bg-card/80 p-10 sm:p-16 text-center backdrop-blur-xs">
             {/* Decorative gradient orbs */}
             <div className="absolute -top-24 -right-24 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
             <div className="absolute -bottom-24 -left-24 h-48 w-48 rounded-full bg-accent/20 blur-3xl" />

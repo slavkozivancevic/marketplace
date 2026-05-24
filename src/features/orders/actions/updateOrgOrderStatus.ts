@@ -71,7 +71,7 @@ export async function updateOrgOrderStatus(
 
   revalidateOrderCache(order.userId, orderId);
 
-  // Fire notification — best-effort (don't fail the action if SNS is down)
+  // Fire notification - best-effort (don't fail the action if SNS is down)
   try {
     if (typedStatus === OrderStatus.COMPLETED) {
       await publishCodOrderFulfilled(orderId, order.locale ?? "en");

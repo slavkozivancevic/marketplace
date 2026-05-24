@@ -50,7 +50,7 @@ export async function createCodCheckout(
     // Fetch exchange rate once for the entire order
     const exchangeRate = await getCurrencyRate(currency);
 
-    // Server-side price calculation — never trust client
+    // Server-side price calculation - never trust client
     const productIds = items.filter((i) => !i.variantId).map((i) => i.productId);
     const variantIds = items.filter((i) => i.variantId).map((i) => i.variantId!);
 
@@ -108,7 +108,7 @@ export async function createCodCheckout(
       locale,
     });
 
-    // Fire-and-forget — notification failure must not block the order
+    // Fire-and-forget - notification failure must not block the order
     publishCodOrderPlaced(order.id, locale, currency).catch((err) =>
       console.error("[notifications] publishCodOrderPlaced failed", err),
     );

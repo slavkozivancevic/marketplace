@@ -11,7 +11,7 @@ export default function UsersNotFoundPage() {
         description="The requested user resource could not be found."
       />
       <Alert>
-        <AlertTitle>404 — Not Found</AlertTitle>
+        <AlertTitle>404 - Not Found</AlertTitle>
         <AlertDescription className="space-y-4">
           <p>
             The user you are looking for does not exist or has been removed.

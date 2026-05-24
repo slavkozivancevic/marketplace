@@ -1,7 +1,7 @@
 /**
  * Central locale configuration. Add a new language here and the rest of the
- * app — message loading, validation, language switcher, translation forms,
- * search text indexing — picks it up automatically.
+ * app - message loading, validation, language switcher, translation forms,
+ * search text indexing - picks it up automatically.
  *
  * To add a locale: append to `SUPPORTED_LOCALES`, add an entry to
  * `LOCALE_LABELS`, drop a `messages/<locale>.json` file in place.
@@ -13,7 +13,7 @@ export type Locale = (typeof SUPPORTED_LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "en";
 
 /**
- * Non-default locales — the ones that need separate translation input on
+ * Non-default locales - the ones that need separate translation input on
  * forms and contribute to the search text blob. The default locale uses the
  * canonical fields (Product.title, etc.) directly.
  */

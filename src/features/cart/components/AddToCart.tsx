@@ -26,9 +26,9 @@ import { getProductTitle, type ProductTranslations } from "@/features/products/u
 interface AddToCartProps {
   product: SerializedPublicProduct;
   onActiveVariantChange?: (variantId: string | null) => void;
-  /** Use <Select> dropdowns instead of pill buttons — better for compact layouts */
+  /** Use <Select> dropdowns instead of pill buttons - better for compact layouts */
   selectMode?: boolean;
-  /** Omit the Add to Cart button — parent renders it instead */
+  /** Omit the Add to Cart button - parent renders it instead */
   hideButton?: boolean;
 }
 
@@ -228,7 +228,7 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
   }
 
   function handleAdd() {
-    // Cart thumbnails are still images — pick the first IMAGE-type media on
+    // Cart thumbnails are still images - pick the first IMAGE-type media on
     // the variant, then fall back to the product's first image-type media.
     const variantImageRef = activeVariant?.media.find(
       (vm) => vm.media.mediaType === "IMAGE",
@@ -296,7 +296,7 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
                     {/* Explicit label so it shows pre-hydration (Radix
                         SelectContent is portaled and not available for
                         value→item lookup yet). */}
-                    <SelectValue placeholder={`— ${t("selectOption")}`}>
+                    <SelectValue placeholder={`- ${t("selectOption")}`}>
                       {selected ? loc.translate(selected) : null}
                     </SelectValue>
                   </SelectTrigger>
@@ -335,7 +335,7 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
               >
                 <SelectTrigger className="w-full">
                   {/* Explicit label so it shows pre-hydration. */}
-                  <SelectValue placeholder={`— ${t("selectOption")}`}>
+                  <SelectValue placeholder={`- ${t("selectOption")}`}>
                     {selectedManualId
                       ? (() => {
                           const v = manualVariants.find((mv) => mv.id === selectedManualId);
@@ -383,7 +383,7 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
                   {loc.name}
                   {selected && (
                     <span className="font-normal text-muted-foreground ml-1.5">
-                      — {loc.translate(selected)}
+                      - {loc.translate(selected)}
                     </span>
                   )}
                 </p>

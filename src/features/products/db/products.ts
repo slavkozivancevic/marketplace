@@ -85,7 +85,7 @@ async function syncProductMedia(
     });
 
     // Newly uploaded media (original + poster/thumb) carries a
-    // `lifecycle=pending` tag — strip it so the bucket lifecycle rule no
+    // `lifecycle=pending` tag - strip it so the bucket lifecycle rule no
     // longer marks the objects for deletion. Best-effort: if S3 is briefly
     // unavailable the next save (or the rule's 24h grace) resolves it.
     await Promise.all(
@@ -126,7 +126,7 @@ async function syncProductMedia(
 
 /**
  * Builds a stable, unique key for a variant from its option values.
- * This is the *semantic* identity of a variant — independent of the
+ * This is the *semantic* identity of a variant - independent of the
  * (user-editable) SKU, so two variants like `Color=Black, Size=37` and
  * `Color=Black-brown, Size=37` are always distinguishable even if their
  * SKUs happen to collide.
@@ -407,7 +407,14 @@ export async function refreshProductSearchText(
 
 /**
  * Builds the Prisma `where` clause for filter-based bulk operations.
- * Always scoped to the org and non-deleted products.
+ * Always scoped to the org and non-deleted products. All filter facets
+ * combine with AND so callers can compose narrow selections.
+ *
+ * Stock filtering is a two-source check: simple products carry stock on
+ * `Product.stock`, while variant products carry it on each variant. The
+ * filter matches if EITHER source satisfies the bound, so users get the
+ * intuitive "show me products that can be sold" semantic regardless of
+ * whether the catalogue uses variants or not.
  */
 function buildBulkFilterWhere(
   organizationId: string,
@@ -424,6 +431,12 @@ function buildBulkFilterWhere(
     where.brandId = { in: filter.brandId };
   }
 
+  if (filter.noCategory) {
+    where.categories = { none: {} };
+  } else if (filter.categoryId?.length) {
+    where.categories = { some: { categoryId: { in: filter.categoryId } } };
+  }
+
   if (filter.status?.length) {
     where.status = { in: filter.status as ProductStatus[] };
   }
@@ -433,6 +446,47 @@ function buildBulkFilterWhere(
     if (filter.minPrice != null) where.price.gte = filter.minPrice;
     if (filter.maxPrice != null) where.price.lte = filter.maxPrice;
   }
+
+  // Stock semantics:
+  //   - "simple" product: stock lives on Product.stock.
+  //   - "variant" product: stock lives on each ProductVariant.stock.
+  // For min/max we match if EITHER source satisfies the bound. For
+  // out-of-stock we require the product to be globally empty:
+  // simple stock = 0, OR every variant is 0 (and at least one variant exists,
+  // because Prisma's `every` returns true for empty sets).
+  if (filter.outOfStock) {
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+      {
+        OR: [
+          { variants: { none: {} }, stock: 0 },
+          {
+            AND: [
+              { variants: { some: {} } },
+              { variants: { every: { stock: 0 } } },
+            ],
+          },
+        ],
+      },
+    ];
+  } else if (filter.minStock != null || filter.maxStock != null) {
+    const stockBound: Prisma.IntFilter = {};
+    if (filter.minStock != null) stockBound.gte = filter.minStock;
+    if (filter.maxStock != null) stockBound.lte = filter.maxStock;
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+      {
+        OR: [
+          { variants: { none: {} }, stock: stockBound },
+          { variants: { some: { stock: stockBound } } },
+        ],
+      },
+    ];
+  }
+
+  if (filter.taxable !== undefined) where.taxable = filter.taxable;
+  if (filter.requiresShipping !== undefined) where.requiresShipping = filter.requiresShipping;
+  if (filter.isDigital !== undefined) where.isDigital = filter.isDigital;
 
   if (filter.titleContains) {
     where.title = { contains: filter.titleContains, mode: "insensitive" };
@@ -631,6 +685,8 @@ export function productRepository(
       media?: MediaInput[];
       variants?: ProductVariantInput[];
       options?: VariantOptionInput[];
+      /** Defaults to DRAFT; only the bulk-import path passes a non-default value. */
+      status?: ProductStatus;
     }): Promise<ProductWithRelations> {
       const { slugify } = await import("@/lib/utils");
       const product = await db.prisma.$transaction(async (tx) => {
@@ -661,6 +717,8 @@ export function productRepository(
             metaDescription: data.metaDescription,
             translations: translations === null ? Prisma.JsonNull : translations,
             brandId: data.brandId,
+            status: data.status ?? "DRAFT",
+            ...(data.status === "PUBLISHED" && { publishedAt: new Date() }),
             organizationId: ctx.organizationId,
             createdById: ctx.userId,
           },
@@ -1096,9 +1154,9 @@ export function productRepository(
         throw new NotFoundError(`Product ${id} not found`);
       }
 
-      // 2. Copy S3 media server-side (pure S3 CopyObject — no re-upload).
+      // 2. Copy S3 media server-side (pure S3 CopyObject - no re-upload).
       //    Build oldKey → newKey mapping so variant media references can be updated.
-      //    copyProductImage handles thumb/poster copy as well — works for both
+      //    copyProductImage handles thumb/poster copy as well - works for both
       //    image and video media (they share the /products/thumbs/ thumb path).
       const keyMap = new Map<string, string>();
       const copiedKeys: string[] = [];
@@ -1277,7 +1335,7 @@ export function productRepository(
     async bulkUpdateByFilter(
       filter: BulkFilter,
       updates: BulkUpdateFields,
-    ): Promise<{ count: number }> {
+    ): Promise<{ count: number; skippedWithVariants: number }> {
       const where = buildBulkFilterWhere(ctx.organizationId, filter);
 
       const products = await db.prisma.product.findMany({
@@ -1289,13 +1347,42 @@ export function productRepository(
           description: true,
           price: true,
           status: true,
+          _count: { select: { variants: true } },
         },
       });
 
-      if (products.length === 0) return { count: 0 };
+      if (products.length === 0) return { count: 0, skippedWithVariants: 0 };
 
-      const { status, brandId, price, compareAtPrice, costPrice, taxable, requiresShipping } =
-        updates;
+      const {
+        status,
+        brandId,
+        price,
+        compareAtPrice,
+        costPrice,
+        taxable,
+        requiresShipping,
+        isDigital,
+        stock,
+        categories,
+      } = updates;
+
+      // `Product.stock` is the canonical inventory for simple products only;
+      // products with variants carry stock on each ProductVariant row. Silently
+      // writing to Product.stock for variant products would be misleading - the
+      // value isn't read by checkout/PDP. So we partition the matched set and
+      // report how many were skipped so the caller can surface that to users.
+      const stockUpdateRequested = stock !== undefined;
+      const stockEligible = stockUpdateRequested
+        ? products.filter((p) => p._count.variants === 0)
+        : products;
+      const skippedWithVariants = stockUpdateRequested
+        ? products.length - stockEligible.length
+        : 0;
+
+      // Other updates (status, brand, categories, etc.) apply to all matched
+      // products regardless of variant configuration.
+      const baseIds = products.map((p) => p.id);
+      const stockIds = stockEligible.map((p) => p.id);
 
       // UncheckedUpdateManyInput allows FK scalars (brandId, updatedById) directly.
       const scalarUpdates: Prisma.ProductUncheckedUpdateManyInput = {
@@ -1310,16 +1397,119 @@ export function productRepository(
       if (costPrice !== undefined) scalarUpdates.costPrice = costPrice;
       if (taxable !== undefined) scalarUpdates.taxable = taxable;
       if (requiresShipping !== undefined) scalarUpdates.requiresShipping = requiresShipping;
+      if (isDigital !== undefined) scalarUpdates.isDigital = isDigital;
+
+      // If stock is the ONLY change and every matched product has variants,
+      // there is nothing to write - bail out cleanly so we don't bump versions
+      // for no reason.
+      const onlyStockChange =
+        stockUpdateRequested &&
+        status === undefined &&
+        brandId === undefined &&
+        price === undefined &&
+        compareAtPrice === undefined &&
+        costPrice === undefined &&
+        taxable === undefined &&
+        requiresShipping === undefined &&
+        isDigital === undefined &&
+        categories === undefined;
+      if (onlyStockChange && stockIds.length === 0) {
+        return { count: 0, skippedWithVariants };
+      }
+
+      const productIds = baseIds;
+
+      // Categories contribute to the denormalized searchText blob, so any
+      // category mutation requires re-running refreshProductSearchText for
+      // every affected product. We also want this in the same transaction
+      // as the category writes so a partial failure doesn't leave the
+      // search index out of sync.
+      const categoryMutationRequested =
+        categories !== undefined && categories.mode !== undefined;
+
+      // Brand-name change can also drift searchText, but brand-set affects
+      // exactly one canonical row so we don't loop products for it here.
 
       await db.prisma.$transaction(async (tx) => {
-        await tx.product.updateMany({
-          where: {
-            id: { in: products.map((p) => p.id) },
-            organizationId: ctx.organizationId,
-            deletedAt: null,
-          },
-          data: scalarUpdates,
-        });
+        // Non-stock scalar updates apply to every matched product. Skip the
+        // round-trip entirely when there's nothing to write (e.g. stock-only
+        // request where every match has variants - see early return above).
+        const hasNonStockScalarUpdate =
+          status !== undefined ||
+          brandId !== undefined ||
+          price !== undefined ||
+          compareAtPrice !== undefined ||
+          costPrice !== undefined ||
+          taxable !== undefined ||
+          requiresShipping !== undefined ||
+          isDigital !== undefined;
+
+        if (hasNonStockScalarUpdate || categoryMutationRequested) {
+          await tx.product.updateMany({
+            where: {
+              id: { in: productIds },
+              organizationId: ctx.organizationId,
+              deletedAt: null,
+            },
+            data: scalarUpdates,
+          });
+        }
+
+        // Stock writes are partitioned: only products without variants get
+        // Product.stock updated. The version bump rides along with this write.
+        if (stockUpdateRequested && stockIds.length > 0) {
+          await tx.product.updateMany({
+            where: {
+              id: { in: stockIds },
+              organizationId: ctx.organizationId,
+              deletedAt: null,
+            },
+            data: {
+              stock,
+              updatedById: ctx.userId,
+              // Only bump version here when we didn't already bump it above.
+              ...(hasNonStockScalarUpdate || categoryMutationRequested
+                ? {}
+                : { version: { increment: 1 } }),
+            },
+          });
+        }
+
+        if (categoryMutationRequested && categories) {
+          if (categories.mode === "set") {
+            await tx.productCategory.deleteMany({
+              where: { productId: { in: productIds } },
+            });
+            if (categories.ids.length > 0) {
+              await tx.productCategory.createMany({
+                data: productIds.flatMap((productId) =>
+                  categories.ids.map((categoryId) => ({ productId, categoryId })),
+                ),
+                skipDuplicates: true,
+              });
+            }
+          } else if (categories.mode === "add" && categories.ids.length > 0) {
+            await tx.productCategory.createMany({
+              data: productIds.flatMap((productId) =>
+                categories.ids.map((categoryId) => ({ productId, categoryId })),
+              ),
+              skipDuplicates: true,
+            });
+          } else if (categories.mode === "remove" && categories.ids.length > 0) {
+            await tx.productCategory.deleteMany({
+              where: {
+                productId: { in: productIds },
+                categoryId: { in: categories.ids },
+              },
+            });
+          }
+
+          // Refresh searchText for every affected product. Sequential to
+          // avoid hammering the txn connection with N concurrent updates.
+          for (const id of productIds) {
+            await refreshProductSearchText(tx, id);
+          }
+        }
 
         // Write a history entry per product when status or price changes.
         if (status !== undefined || price !== undefined) {
@@ -1346,7 +1536,11 @@ export function productRepository(
         revalidateProductCache(ctx.organizationId, p.id);
       }
 
-      return { count: products.length };
+      // For a stock-only request, only stock-eligible (variantless) products
+      // were actually written - report that as the canonical count so the UI
+      // doesn't claim it updated rows that have variants.
+      const writtenCount = onlyStockChange ? stockIds.length : products.length;
+      return { count: writtenCount, skippedWithVariants };
     },
 
     async bulkDelete(productIds: string[]): Promise<void> {
@@ -1468,9 +1662,11 @@ export type ProductRepo = {
     metaDescription?: string;
     translations?: ProductTranslationsInput | null;
     brandId?: string;
+    categoryIds?: string[];
     media?: MediaInput[];
     variants?: ProductVariantInput[];
     options?: VariantOptionInput[];
+    status?: ProductStatus;
   }): Promise<ProductWithRelations>;
 
   update(
@@ -1532,5 +1728,5 @@ export type ProductRepo = {
   bulkUpdateByFilter(
     filter: BulkFilter,
     updates: BulkUpdateFields,
-  ): Promise<{ count: number }>;
+  ): Promise<{ count: number; skippedWithVariants: number }>;
 };

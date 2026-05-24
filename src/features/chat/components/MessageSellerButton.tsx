@@ -17,7 +17,7 @@ export function MessageSellerButton({ productId, className }: Props) {
   const openConversation = useChatStore((s) => s.openConversation);
   const [loading, setLoading] = useState(false);
 
-  // Don't render for guests — they see a sign-in redirect on click
+  // Don't render for guests - they see a sign-in redirect on click
   // (or you can hide entirely: if (!isSignedIn) return null)
 
   const handleClick = async () => {

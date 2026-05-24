@@ -9,13 +9,17 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { bulkCreateProducts, type BulkCreateRow, type BulkCreateResult } from "@/features/products/actions/products";
+import type { ProductStatus } from "@/generated/prisma/client";
 
 // ---------------------------------------------------------------------------
 // CSV template
 // ---------------------------------------------------------------------------
+// Ordered so the most-used columns are leftmost; the new columns added after
+// brands & categories went GA are grouped together after the basic fields.
 
 const CSV_COLUMNS = [
   "title",
+  "slug",
   "description",
   "shortDescription",
   "price",
@@ -24,18 +28,33 @@ const CSV_COLUMNS = [
   "stock",
   "barcode",
   "taxable",
+  "taxCode",
   "requiresShipping",
   "isDigital",
   "weight",
   "weightUnit",
-  "brandId",
+  "length",
+  "width",
+  "height",
+  "dimensionUnit",
+  "brand",
+  "categories",
+  "status",
   "metaTitle",
   "metaDescription",
 ] as const;
 
+function csvEscape(value: string): string {
+  if (value === "") return "";
+  if (/[",\r\n]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
 function downloadTemplate(exampleRow: string[]) {
   const header = CSV_COLUMNS.join(",");
-  const example = exampleRow.map((v) => (v.includes(",") ? `"${v}"` : v)).join(",");
+  const example = exampleRow.map(csvEscape).join(",");
   const csv = `${header}\n${example}\n`;
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
@@ -112,6 +131,8 @@ type ParsedRow =
   | { ok: false; errors: string[] };
 
 const VALID_WEIGHT_UNITS = new Set(["G", "KG", "LB", "OZ"]);
+const VALID_DIMENSION_UNITS = new Set(["CM", "IN"]);
+const VALID_STATUS_VALUES = new Set<ProductStatus>(["DRAFT", "PUBLISHED", "ARCHIVED"]);
 
 function parseRow(cells: string[], headerIndex: Map<string, number>): ParsedRow {
   const get = (col: string) => cells[headerIndex.get(col) ?? -1]?.trim() ?? "";
@@ -127,17 +148,14 @@ function parseRow(cells: string[], headerIndex: Map<string, number>): ParsedRow 
   const rawPrice = get("price");
   const priceDecimal = parseFloat(rawPrice);
   if (!rawPrice || isNaN(priceDecimal) || priceDecimal < 0) errors.push("price must be a non-negative number");
-  const price = Math.round(priceDecimal * 100);
 
   const rawCompare = get("compareAtPrice");
   const compareAtPriceDecimal = rawCompare ? parseFloat(rawCompare) : undefined;
   if (rawCompare && isNaN(compareAtPriceDecimal!)) errors.push("compareAtPrice must be a number");
-  const compareAtPrice = compareAtPriceDecimal != null ? Math.round(compareAtPriceDecimal * 100) : undefined;
 
   const rawCost = get("costPrice");
   const costPriceDecimal = rawCost ? parseFloat(rawCost) : undefined;
   if (rawCost && isNaN(costPriceDecimal!)) errors.push("costPrice must be a number");
-  const costPrice = costPriceDecimal != null ? Math.round(costPriceDecimal * 100) : undefined;
 
   const rawStock = get("stock");
   const stock = rawStock ? parseInt(rawStock, 10) : undefined;
@@ -151,10 +169,43 @@ function parseRow(cells: string[], headerIndex: Map<string, number>): ParsedRow 
   if (weightUnit && !VALID_WEIGHT_UNITS.has(weightUnit))
     errors.push("weightUnit must be G, KG, LB, or OZ");
 
+  const parseDim = (col: string): number | undefined => {
+    const raw = get(col);
+    if (!raw) return undefined;
+    const v = parseFloat(raw);
+    if (isNaN(v)) {
+      errors.push(`${col} must be a number`);
+      return undefined;
+    }
+    if (v <= 0) {
+      errors.push(`${col} must be greater than 0`);
+      return undefined;
+    }
+    return v;
+  };
+
+  const length = parseDim("length");
+  const width = parseDim("width");
+  const height = parseDim("height");
+
+  const dimensionUnit = get("dimensionUnit").toUpperCase() || undefined;
+  if (dimensionUnit && !VALID_DIMENSION_UNITS.has(dimensionUnit))
+    errors.push("dimensionUnit must be CM or IN");
+
+  const status = get("status").toUpperCase() || undefined;
+  if (status && !VALID_STATUS_VALUES.has(status as ProductStatus))
+    errors.push("status must be DRAFT, PUBLISHED, or ARCHIVED");
+
   const parseBool = (v: string, def: boolean) => {
     if (!v) return def;
     return v.toLowerCase() === "true";
   };
+
+  // `;`-separated category references (slug, "parent/child" path, or UUID).
+  const rawCategories = get("categories");
+  const categoryRefs = rawCategories
+    ? rawCategories.split(";").map((s) => s.trim()).filter((s) => s.length > 0)
+    : undefined;
 
   if (errors.length > 0) return { ok: false, errors };
 
@@ -162,21 +213,29 @@ function parseRow(cells: string[], headerIndex: Map<string, number>): ParsedRow 
     ok: true,
     data: {
       title,
+      slug: get("slug") || undefined,
       description,
       shortDescription: get("shortDescription") || undefined,
-      price,
-      compareAtPrice,
-      costPrice,
+      price: priceDecimal,
+      compareAtPrice: compareAtPriceDecimal,
+      costPrice: costPriceDecimal,
       stock,
       barcode: get("barcode") || undefined,
       taxable: parseBool(get("taxable"), true),
+      taxCode: get("taxCode") || undefined,
       requiresShipping: parseBool(get("requiresShipping"), true),
       isDigital: parseBool(get("isDigital"), false),
       weight,
       weightUnit,
-      brandId: get("brandId") || undefined,
+      length,
+      width,
+      height,
+      dimensionUnit,
+      brandRef: get("brand") || undefined,
+      categoryRefs,
       metaTitle: get("metaTitle") || undefined,
       metaDescription: get("metaDescription") || undefined,
+      status: status as ProductStatus | undefined,
     },
   };
 }
@@ -193,25 +252,40 @@ type ImportResult = {
 
 export function CsvImportPanel() {
   const t = useTranslations("csvImport");
+  const tBulk = useTranslations("bulkProducts");
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const STATUS_LABELS: Record<string, string> = {
+    DRAFT: tBulk("draft"),
+    PUBLISHED: tBulk("published"),
+    ARCHIVED: tBulk("archived"),
+  };
+
   const exampleRow = [
-    t("exampleTitle"),
-    t("exampleDesc"),
-    t("exampleShortDesc"),
-    "29.99",
-    "39.99",
-    "",
-    "100",
-    "BARCODE123",
-    "true",
-    "true",
-    "false",
-    "",
-    "",
-    "",
-    "",
-    "",
+    /* title              */ t("exampleTitle"),
+    /* slug               */ "",
+    /* description        */ t("exampleDesc"),
+    /* shortDescription   */ t("exampleShortDesc"),
+    /* price              */ "29.99",
+    /* compareAtPrice     */ "39.99",
+    /* costPrice          */ "",
+    /* stock              */ "100",
+    /* barcode            */ "BARCODE123",
+    /* taxable            */ "true",
+    /* taxCode            */ "",
+    /* requiresShipping   */ "true",
+    /* isDigital          */ "false",
+    /* weight             */ "",
+    /* weightUnit         */ "",
+    /* length             */ "",
+    /* width              */ "",
+    /* height             */ "",
+    /* dimensionUnit      */ "",
+    /* brand              */ t("exampleBrand"),
+    /* categories         */ t("exampleCategories"),
+    /* status             */ "DRAFT",
+    /* metaTitle          */ "",
+    /* metaDescription    */ "",
   ];
   const [rawCsv, setRawCsv] = useState("");
   const [parsed, setParsed] = useState<
@@ -236,12 +310,19 @@ export function CsvImportPanel() {
       return;
     }
 
-    const header = rows[0].map((h) => h.trim().toLowerCase());
-    const headerIndex = new Map(header.map((h, i) => [h, i]));
+    const header = rows[0].map((h) => h.trim());
+    // Header keys are matched case-insensitively so "Title" or "TITLE" both work.
+    const headerIndex = new Map(header.map((h, i) => [h.toLowerCase(), i]));
+    // Build a case-insensitive accessor so parseRow can use canonical keys.
+    const ciHeaderIndex = new Map<string, number>();
+    for (const k of CSV_COLUMNS) {
+      const idx = headerIndex.get(k.toLowerCase());
+      if (idx !== undefined) ciHeaderIndex.set(k, idx);
+    }
 
     const results = rows.slice(1).map((cells, i) => ({
       rowIndex: i + 2, // 1-based, +1 for header
-      result: parseRow(cells, headerIndex),
+      result: parseRow(cells, ciHeaderIndex),
     }));
 
     setParsed(results);
@@ -278,7 +359,7 @@ export function CsvImportPanel() {
       const ok = res as { error: false; result: BulkCreateResult };
       setImportResult(ok.result);
       if (ok.result.errors.length === 0) {
-        // Full success — reset the form
+        // Full success - reset the form
         setRawCsv("");
         setParsed([]);
       }
@@ -308,6 +389,22 @@ export function CsvImportPanel() {
           <Download className="h-4 w-4" />
           {t("downloadTemplate")}
         </Button>
+
+        {/* Field reference */}
+        <details className="mt-2 rounded-lg border bg-muted/30 p-3 text-xs">
+          <summary className="cursor-pointer font-medium text-sm">
+            {t("fieldRefTitle")}
+          </summary>
+          <ul className="mt-2 space-y-1 text-muted-foreground">
+            <li><strong>brand</strong> - {t("hintBrand")}</li>
+            <li><strong>categories</strong> - {t("hintCategories")}</li>
+            <li><strong>status</strong> - {t("hintStatus")}</li>
+            <li><strong>weightUnit</strong> - G, KG, LB, OZ</li>
+            <li><strong>dimensionUnit</strong> - CM, IN</li>
+            <li><strong>taxable, requiresShipping, isDigital</strong> - true / false</li>
+            <li><strong>slug</strong> - {t("hintSlug")}</li>
+          </ul>
+        </details>
       </div>
 
       {/* Step 2: Upload */}
@@ -393,6 +490,8 @@ export function CsvImportPanel() {
                   <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t("colHash")}</th>
                   <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t("colTitle")}</th>
                   <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t("colPrice")}</th>
+                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t("colBrand")}</th>
+                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t("colCategories")}</th>
                   <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t("colStatus")}</th>
                 </tr>
               </thead>
@@ -412,11 +511,19 @@ export function CsvImportPanel() {
                       )}
                     </td>
                     <td className="px-3 py-2">
-                      {result.ok ? `$${result.data.price.toFixed(2)}` : "—"}
+                      {result.ok ? `$${result.data.price.toFixed(2)}` : "-"}
+                    </td>
+                    <td className="px-3 py-2 max-w-32 truncate text-muted-foreground">
+                      {result.ok ? (result.data.brandRef ?? "-") : "-"}
+                    </td>
+                    <td className="px-3 py-2 max-w-40 truncate text-muted-foreground">
+                      {result.ok ? (result.data.categoryRefs?.join(", ") ?? "-") : "-"}
                     </td>
                     <td className="px-3 py-2">
                       {result.ok ? (
-                        <Badge variant="secondary" className="text-xs">{t("statusDraft")}</Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          {STATUS_LABELS[result.data.status ?? "DRAFT"] ?? "DRAFT"}
+                        </Badge>
                       ) : (
                         <Badge variant="destructive" className="text-xs">{t("statusError")}</Badge>
                       )}

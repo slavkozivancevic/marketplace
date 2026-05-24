@@ -18,7 +18,7 @@ const ssm = new SSMClient({
   },
 });
 
-// Cached in-process — Next.js server instances are long-lived
+// Cached in-process - Next.js server instances are long-lived
 let _topicArn: string | undefined;
 
 async function getTopicArn(): Promise<string> {
@@ -44,7 +44,7 @@ export async function publishOrderCompleted(orderId: string, locale = "en", curr
         orderId,
         locale,
         currency,
-        // Unique per-event ID for idempotency — combines orderId + type
+        // Unique per-event ID for idempotency - combines orderId + type
         // so replaying the same Stripe webhook doesn't double-send emails.
         eventId: `${orderId}:order.completed`,
       }),

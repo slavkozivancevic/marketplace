@@ -17,7 +17,7 @@ export function useChatToken() {
   return useQuery({
     queryKey: ["chat-token"],
     queryFn: fetchChatToken,
-    // Token is valid for 2h — proactively refresh every 100 minutes so the
+    // Token is valid for 2h - proactively refresh every 100 minutes so the
     // socket never tries to reconnect with an expired token.
     staleTime: 1000 * 60 * 100,
     gcTime: 1000 * 60 * 120,

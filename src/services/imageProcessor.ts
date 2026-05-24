@@ -16,7 +16,7 @@ export async function processImage({
     // Defense-in-depth: the presigned PUT already tagged the original with
     // x-amz-tagging on upload, but we re-apply here in case that header was
     // ever stripped (proxy, misconfigured client) or the tag was somehow
-    // cleared between upload and process. Idempotent — same tag value.
+    // cleared between upload and process. Idempotent - same tag value.
     await tagS3ObjectPending(key);
 
     const object = await s3.send(

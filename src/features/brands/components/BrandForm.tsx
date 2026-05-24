@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "@/components/ui/sonner";
@@ -47,6 +47,7 @@ type BrandFormProps = CreateMode | EditMode;
 export function BrandForm(props: BrandFormProps) {
   const t = useTranslations("brands");
   const [isPending, startTransition] = useTransition();
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 
   const derivedValues = useMemo<CreateBrandInput>(
     () => ({
@@ -64,7 +65,7 @@ export function BrandForm(props: BrandFormProps) {
     resolver: zodResolver(props.mode === "create" ? createBrandSchema : updateBrandSchema),
     defaultValues: derivedValues,
     // In edit mode, re-sync the form when the underlying brand changes
-    // (e.g., user navigates away from the edit page and returns — Next.js can
+    // (e.g., user navigates away from the edit page and returns - Next.js can
     // preserve the React tree, so without this the unsaved edits would persist).
     values: props.mode === "edit" ? derivedValues : undefined,
   });
@@ -72,12 +73,14 @@ export function BrandForm(props: BrandFormProps) {
   const nameValue = useWatch({ control: form.control, name: "name" });
   const descriptionValue = useWatch({ control: form.control, name: "description" });
 
+  // Auto-generate slug from name when not manually edited
+  const prevNameRef = useRef(form.getValues("name"));
   useEffect(() => {
-    const currentSlug = form.getValues("slug");
-    if (!currentSlug) {
-      form.setValue("slug", slugify(nameValue ?? ""), { shouldValidate: false });
-    }
-  }, [nameValue, form]);
+    if (slugManuallyEdited) return;
+    if (nameValue === prevNameRef.current) return;
+    prevNameRef.current = nameValue;
+    form.setValue("slug", slugify(nameValue ?? ""), { shouldDirty: false });
+  }, [nameValue, slugManuallyEdited, form]);
 
   const onSubmit = (data: CreateBrandInput | UpdateBrandInput) => {
     startTransition(async () => {
@@ -135,7 +138,7 @@ export function BrandForm(props: BrandFormProps) {
           />
         </div>
 
-        {/* ── Translation sections — one per non-default locale ── */}
+        {/* ── Translation sections - one per non-default locale ── */}
         {NON_DEFAULT_LOCALES.map((loc) => (
           <div key={loc} className="rounded-lg border border-border/60 p-4 space-y-4">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -187,9 +190,31 @@ export function BrandForm(props: BrandFormProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>{t("slug")}</FormLabel>
-              <FormControl>
-                <Input placeholder={t("slugPlaceholder")} {...field} />
-              </FormControl>
+              <div className="flex gap-2">
+                <FormControl>
+                  <Input
+                    placeholder={t("slugPlaceholder")}
+                    {...field}
+                    onChange={(e) => {
+                      field.onChange(e);
+                      setSlugManuallyEdited(true);
+                    }}
+                  />
+                </FormControl>
+                {slugManuallyEdited && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      form.setValue("slug", slugify(form.getValues("name") ?? ""));
+                      setSlugManuallyEdited(false);
+                    }}
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+              </div>
               <FormDescription>{t("slugDesc")}</FormDescription>
               <FormMessage />
             </FormItem>

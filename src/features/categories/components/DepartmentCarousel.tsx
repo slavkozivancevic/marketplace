@@ -84,7 +84,7 @@ function DepartmentCollage({
     );
   }
 
-  // 4 images — 2×2 grid
+  // 4 images - 2×2 grid
   return (
     <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-px bg-border/40">
       {images.slice(0, 4).map((url, i) => (
@@ -118,7 +118,7 @@ function DepartmentCard({ dept }: { dept: DepartmentWithImages }) {
       {/* Gradient overlay */}
       <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent" />
 
-      {/* Vignette — blends card edges into page background, fades on hover */}
+      {/* Vignette - blends card edges into page background, fades on hover */}
       <div
         className="pointer-events-none absolute inset-0 transition-opacity duration-300 group-hover:opacity-0 group-hover:duration-700"
         style={{
@@ -220,7 +220,7 @@ export function DepartmentCarousel({
             onClick={() => scroll("left")}
             aria-label="Scroll left"
             className={cn(
-              "absolute left-0 top-1/2 -translate-y-1/2 z-10 -translate-x-4 w-10 h-10 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-all duration-200 cursor-pointer active:translate-y-[calc(-50%+1px)]",
+              "absolute left-0 top-1/2 -translate-y-1/2 z-10 -translate-x-4 w-10 h-10 rounded-full border border-white/30 bg-black/55 text-white shadow-[0_4px_14px_rgba(0,0,0,0.4)] backdrop-blur-sm backdrop-saturate-150 flex items-center justify-center transition-[background-color,border-color,box-shadow,color,opacity] duration-300 ease-out hover:bg-black/85 hover:border-white/55 hover:shadow-[0_6px_22px_rgba(0,0,0,0.6)] cursor-pointer active:translate-y-[calc(-50%+1px)] [&_svg]:drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]",
               canLeft
                 ? "opacity-100 pointer-events-auto"
                 : "opacity-0 pointer-events-none",
@@ -251,7 +251,7 @@ export function DepartmentCarousel({
             onClick={() => scroll("right")}
             aria-label="Scroll right"
             className={cn(
-              "absolute right-0 top-1/2 -translate-y-1/2 z-10 translate-x-4 w-10 h-10 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-all duration-200 cursor-pointer active:translate-y-[calc(-50%+1px)]",
+              "absolute right-0 top-1/2 -translate-y-1/2 z-10 translate-x-4 w-10 h-10 rounded-full border border-white/30 bg-black/55 text-white shadow-[0_4px_14px_rgba(0,0,0,0.4)] backdrop-blur-sm backdrop-saturate-150 flex items-center justify-center transition-[background-color,border-color,box-shadow,color,opacity] duration-300 ease-out hover:bg-black/85 hover:border-white/55 hover:shadow-[0_6px_22px_rgba(0,0,0,0.6)] cursor-pointer active:translate-y-[calc(-50%+1px)] [&_svg]:drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]",
               canRight
                 ? "opacity-100 pointer-events-auto"
                 : "opacity-0 pointer-events-none",

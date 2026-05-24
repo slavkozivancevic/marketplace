@@ -46,6 +46,8 @@ import type { BulkFilter, BulkUpdateFields } from "@/features/products/types/bul
 // ---------------------------------------------------------------------------
 
 type BrandOption = { id: string; name: string };
+/** Pre-flattened with indented `pathName` (e.g. "Apparel > Shoes > Men"). */
+type CategoryOption = { id: string; name: string; pathName: string };
 
 const STATUS_OPTIONS = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
 type ProductStatus = (typeof STATUS_OPTIONS)[number];
@@ -57,18 +59,68 @@ function getStatusVariant(s: string) {
 }
 
 // A single condition the user has configured.
-type ConditionType = "brand" | "noBrand" | "status" | "minPrice" | "maxPrice" | "titleContains";
+type ConditionType =
+  | "brand"
+  | "noBrand"
+  | "category"
+  | "noCategory"
+  | "status"
+  | "minPrice"
+  | "maxPrice"
+  | "minStock"
+  | "maxStock"
+  | "outOfStock"
+  | "taxable"
+  | "requiresShipping"
+  | "isDigital"
+  | "titleContains";
 
 type Condition =
   | { type: "brand"; brandIds: string[] }
   | { type: "noBrand" }
+  | { type: "category"; categoryIds: string[] }
+  | { type: "noCategory" }
   | { type: "status"; statuses: ProductStatus[] }
   | { type: "minPrice"; value: number }
   | { type: "maxPrice"; value: number }
+  | { type: "minStock"; value: number }
+  | { type: "maxStock"; value: number }
+  | { type: "outOfStock" }
+  | { type: "taxable"; value: boolean }
+  | { type: "requiresShipping"; value: boolean }
+  | { type: "isDigital"; value: boolean }
   | { type: "titleContains"; value: string };
 
 // The action to apply to matching products.
-type ActionType = "delete" | "setStatus" | "setBrand" | "removeBrand" | "setPrice" | "setCompareAtPrice" | "setCostPrice" | "setTaxable" | "setRequiresShipping";
+type ActionType =
+  | "delete"
+  | "setStatus"
+  | "setBrand"
+  | "removeBrand"
+  | "setCategoriesReplace"
+  | "addCategories"
+  | "removeCategories"
+  | "clearCategories"
+  | "setPrice"
+  | "setCompareAtPrice"
+  | "setCostPrice"
+  | "setStock"
+  | "setTaxable"
+  | "setRequiresShipping"
+  | "setIsDigital";
+
+// Mutually-exclusive condition pairs. Map is symmetric: looking up either
+// member yields the other(s). Shared between the add-menu (to disable
+// conflicting items) and addCondition() (defensive guard).
+const MUTEX_PARTNERS: Partial<Record<ConditionType, ConditionType[]>> = {
+  brand: ["noBrand"],
+  noBrand: ["brand"],
+  category: ["noCategory"],
+  noCategory: ["category"],
+  minStock: ["outOfStock"],
+  maxStock: ["outOfStock"],
+  outOfStock: ["minStock", "maxStock"],
+};
 
 // ---------------------------------------------------------------------------
 // Helper: build BulkFilter from conditions array
@@ -77,14 +129,98 @@ type ActionType = "delete" | "setStatus" | "setBrand" | "removeBrand" | "setPric
 function conditionsToFilter(conditions: Condition[]): BulkFilter {
   const filter: BulkFilter = {};
   for (const c of conditions) {
-    if (c.type === "brand" && c.brandIds.length > 0) filter.brandId = c.brandIds;
-    else if (c.type === "noBrand") filter.noBrand = true;
-    else if (c.type === "status" && c.statuses.length > 0) filter.status = c.statuses;
-    else if (c.type === "minPrice") filter.minPrice = c.value;
-    else if (c.type === "maxPrice") filter.maxPrice = c.value;
-    else if (c.type === "titleContains" && c.value) filter.titleContains = c.value;
+    switch (c.type) {
+      case "brand":
+        if (c.brandIds.length > 0) filter.brandId = c.brandIds;
+        break;
+      case "noBrand":
+        filter.noBrand = true;
+        break;
+      case "category":
+        if (c.categoryIds.length > 0) filter.categoryId = c.categoryIds;
+        break;
+      case "noCategory":
+        filter.noCategory = true;
+        break;
+      case "status":
+        if (c.statuses.length > 0) filter.status = c.statuses;
+        break;
+      case "minPrice":
+        filter.minPrice = c.value;
+        break;
+      case "maxPrice":
+        filter.maxPrice = c.value;
+        break;
+      case "minStock":
+        filter.minStock = c.value;
+        break;
+      case "maxStock":
+        filter.maxStock = c.value;
+        break;
+      case "outOfStock":
+        filter.outOfStock = true;
+        break;
+      case "taxable":
+        filter.taxable = c.value;
+        break;
+      case "requiresShipping":
+        filter.requiresShipping = c.value;
+        break;
+      case "isDigital":
+        filter.isDigital = c.value;
+        break;
+      case "titleContains":
+        if (c.value) filter.titleContains = c.value;
+        break;
+    }
   }
   return filter;
+}
+
+// ---------------------------------------------------------------------------
+// Reusable multi-pick chip group
+// ---------------------------------------------------------------------------
+
+function ChipGroup<T extends { id: string }>({
+  options,
+  selectedIds,
+  onToggle,
+  labelFor,
+  emptyMessage,
+  maxHeightClass = "max-h-40",
+}: {
+  options: T[];
+  selectedIds: string[];
+  onToggle: (id: string) => void;
+  labelFor: (opt: T) => string;
+  emptyMessage: string;
+  maxHeightClass?: string;
+}) {
+  if (options.length === 0) {
+    return <span className="text-xs text-muted-foreground">{emptyMessage}</span>;
+  }
+  return (
+    <div className={`flex flex-wrap gap-1.5 overflow-y-auto ${maxHeightClass}`}>
+      {options.map((opt) => {
+        const selected = selectedIds.includes(opt.id);
+        return (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => onToggle(opt.id)}
+            className={`cursor-pointer rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
+              selected
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-background hover:bg-muted"
+            }`}
+            title={labelFor(opt)}
+          >
+            {labelFor(opt)}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -94,11 +230,13 @@ function conditionsToFilter(conditions: Condition[]): BulkFilter {
 function ConditionRow({
   condition,
   brands,
+  categories,
   onUpdate,
   onRemove,
 }: {
   condition: Condition;
   brands: BrandOption[];
+  categories: CategoryOption[];
   onUpdate: (c: Condition) => void;
   onRemove: () => void;
 }) {
@@ -114,9 +252,17 @@ function ConditionRow({
   const CONDITION_LABELS: Record<ConditionType, string> = {
     brand: t("condBrand"),
     noBrand: t("condNoBrand"),
+    category: t("condCategory"),
+    noCategory: t("condNoCategory"),
     status: t("condStatus"),
     minPrice: t("condMinPrice"),
     maxPrice: t("condMaxPrice"),
+    minStock: t("condMinStock"),
+    maxStock: t("condMaxStock"),
+    outOfStock: t("condOutOfStock"),
+    taxable: t("condTaxable"),
+    requiresShipping: t("condRequiresShipping"),
+    isDigital: t("condIsDigital"),
     titleContains: t("condTitleContains"),
   };
 
@@ -127,6 +273,15 @@ function ConditionRow({
       ? existing.filter((b) => b !== brandId)
       : [...existing, brandId];
     onUpdate({ type: "brand", brandIds: next });
+  };
+
+  const toggleCategory = (categoryId: string) => {
+    if (condition.type !== "category") return;
+    const existing = condition.categoryIds;
+    const next = existing.includes(categoryId)
+      ? existing.filter((c) => c !== categoryId)
+      : [...existing, categoryId];
+    onUpdate({ type: "category", categoryIds: next });
   };
 
   const toggleStatus = (s: ProductStatus) => {
@@ -146,33 +301,31 @@ function ConditionRow({
       {/* Value editor */}
       <div className="flex-1 min-w-0">
         {condition.type === "brand" && (
-          <div className="flex flex-wrap gap-1.5">
-            {brands.length === 0 ? (
-              <span className="text-xs text-muted-foreground">{t("noBrandsFound")}</span>
-            ) : (
-              brands.map((b) => {
-                const selected = condition.brandIds.includes(b.id);
-                return (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => toggleBrand(b.id)}
-                    className={`cursor-pointer rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
-                      selected
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-background hover:bg-muted"
-                    }`}
-                  >
-                    {b.name}
-                  </button>
-                );
-              })
-            )}
-          </div>
+          <ChipGroup
+            options={brands}
+            selectedIds={condition.brandIds}
+            onToggle={toggleBrand}
+            labelFor={(b) => b.name}
+            emptyMessage={t("noBrandsFound")}
+          />
         )}
 
         {condition.type === "noBrand" && (
           <span className="text-sm text-muted-foreground">{t("noBrandAssigned")}</span>
+        )}
+
+        {condition.type === "category" && (
+          <ChipGroup
+            options={categories}
+            selectedIds={condition.categoryIds}
+            onToggle={toggleCategory}
+            labelFor={(c) => c.pathName}
+            emptyMessage={t("noCategoriesFound")}
+          />
+        )}
+
+        {condition.type === "noCategory" && (
+          <span className="text-sm text-muted-foreground">{t("noCategoryAssigned")}</span>
         )}
 
         {condition.type === "status" && (
@@ -217,6 +370,52 @@ function ConditionRow({
           </div>
         )}
 
+        {(condition.type === "minStock" || condition.type === "maxStock") && (
+          <div className="flex flex-col gap-1">
+            <Input
+              id={id}
+              type="number"
+              min="0"
+              step="1"
+              className="h-8 text-sm w-36"
+              value={condition.value}
+              onChange={(e) =>
+                onUpdate({
+                  type: condition.type as "minStock" | "maxStock",
+                  value: parseInt(e.target.value, 10) || 0,
+                })
+              }
+            />
+            <p className="text-xs text-muted-foreground">{t("stockEitherSourceHint")}</p>
+          </div>
+        )}
+
+        {condition.type === "outOfStock" && (
+          <span className="text-sm text-muted-foreground">{t("outOfStockDesc")}</span>
+        )}
+
+        {(condition.type === "taxable" ||
+          condition.type === "requiresShipping" ||
+          condition.type === "isDigital") && (
+          <Select
+            value={condition.value ? "true" : "false"}
+            onValueChange={(v) =>
+              onUpdate({
+                type: condition.type as "taxable" | "requiresShipping" | "isDigital",
+                value: v === "true",
+              })
+            }
+          >
+            <SelectTrigger className="w-28">
+              <SelectValue>{condition.value ? t("yes") : t("no")}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="true">{t("yes")}</SelectItem>
+              <SelectItem value="false">{t("no")}</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+
         {condition.type === "titleContains" && (
           <Input
             id={id}
@@ -244,11 +443,13 @@ function ActionEditor({
   onChangeType,
   onChangeValue,
   brands,
+  categories,
 }: {
-  action: { type: ActionType; value?: string | number | boolean | null };
+  action: { type: ActionType; value?: string | number | boolean | null | string[] };
   onChangeType: (t: ActionType) => void;
-  onChangeValue: (v: string | number | boolean | null) => void;
+  onChangeValue: (v: string | number | boolean | null | string[]) => void;
   brands: BrandOption[];
+  categories: CategoryOption[];
 }) {
   const t = useTranslations("bulkProducts");
 
@@ -263,11 +464,35 @@ function ActionEditor({
     setStatus: t("actSetStatus"),
     setBrand: t("actSetBrand"),
     removeBrand: t("actRemoveBrand"),
+    setCategoriesReplace: t("actSetCategoriesReplace"),
+    addCategories: t("actAddCategories"),
+    removeCategories: t("actRemoveCategories"),
+    clearCategories: t("actClearCategories"),
     setPrice: t("actSetPrice"),
     setCompareAtPrice: t("actSetCompareAtPrice"),
     setCostPrice: t("actSetCostPrice"),
+    setStock: t("actSetStock"),
     setTaxable: t("actSetTaxable"),
     setRequiresShipping: t("actSetRequiresShipping"),
+    setIsDigital: t("actSetIsDigital"),
+  };
+
+  const isCategoryMultiSelectAction =
+    action.type === "setCategoriesReplace" ||
+    action.type === "addCategories" ||
+    action.type === "removeCategories";
+
+  const isBoolAction =
+    action.type === "setTaxable" ||
+    action.type === "setRequiresShipping" ||
+    action.type === "setIsDigital";
+
+  const selectedCategoryIds = (action.value as string[]) ?? [];
+  const toggleCategoryAction = (id: string) => {
+    const next = selectedCategoryIds.includes(id)
+      ? selectedCategoryIds.filter((c) => c !== id)
+      : [...selectedCategoryIds, id];
+    onChangeValue(next);
   };
 
   return (
@@ -276,7 +501,6 @@ function ActionEditor({
         <Label className="text-xs text-muted-foreground">{t("actionLabel")}</Label>
         <Select value={action.type} onValueChange={(v) => onChangeType(v as ActionType)}>
           <SelectTrigger className="w-fit min-w-60">
-            {/* Explicit label so it shows pre-hydration. */}
             <SelectValue>{ACTION_LABELS[action.type]}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -298,7 +522,6 @@ function ActionEditor({
             onValueChange={(v) => onChangeValue(v)}
           >
             <SelectTrigger className="w-44">
-              {/* Explicit label so it shows pre-hydration. */}
               <SelectValue placeholder={t("pickStatus")}>
                 {action.value
                   ? STATUS_LABELS[action.value as keyof typeof STATUS_LABELS]
@@ -322,7 +545,6 @@ function ActionEditor({
             onValueChange={(v) => onChangeValue(v)}
           >
             <SelectTrigger className="w-56">
-              {/* Explicit label so it shows pre-hydration. */}
               <SelectValue placeholder={t("pickBrand")}>
                 {action.value
                   ? brands.find((b) => b.id === action.value)?.name ?? null
@@ -335,6 +557,31 @@ function ActionEditor({
               ))}
             </SelectContent>
           </Select>
+        </div>
+      )}
+
+      {isCategoryMultiSelectAction && (
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs text-muted-foreground">
+            {action.type === "setCategoriesReplace"
+              ? t("pickCategoriesReplace")
+              : action.type === "addCategories"
+              ? t("pickCategoriesAdd")
+              : t("pickCategoriesRemove")}
+          </Label>
+          <ChipGroup
+            options={categories}
+            selectedIds={selectedCategoryIds}
+            onToggle={toggleCategoryAction}
+            labelFor={(c) => c.pathName}
+            emptyMessage={t("noCategoriesFound")}
+            maxHeightClass="max-h-48"
+          />
+          {selectedCategoryIds.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {t("categoriesSelected", { count: selectedCategoryIds.length })}
+            </p>
+          )}
         </div>
       )}
 
@@ -363,7 +610,22 @@ function ActionEditor({
         </div>
       )}
 
-      {(action.type === "setTaxable" || action.type === "setRequiresShipping") && (
+      {action.type === "setStock" && (
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs text-muted-foreground">{t("newStock")}</Label>
+          <Input
+            type="number"
+            min="0"
+            step="1"
+            className="h-8 text-sm w-36"
+            value={(action.value as number) ?? 0}
+            onChange={(e) => onChangeValue(parseInt(e.target.value, 10) || 0)}
+          />
+          <p className="text-xs text-muted-foreground">{t("stockSimpleOnlyHint")}</p>
+        </div>
+      )}
+
+      {isBoolAction && (
         <div className="flex flex-col gap-1.5">
           <Label className="text-xs text-muted-foreground">{t("valueLabel")}</Label>
           <Select
@@ -371,7 +633,6 @@ function ActionEditor({
             onValueChange={(v) => onChangeValue(v === "true")}
           >
             <SelectTrigger className="w-28">
-              {/* Explicit label so it shows pre-hydration. */}
               <SelectValue>{action.value === true ? t("yes") : t("no")}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -392,6 +653,11 @@ function ActionEditor({
 function PreviewCard({ preview }: { preview: PreviewResult }) {
   const t = useTranslations("bulkProducts");
   const { currency, currentRate } = useCurrencyStore();
+  const STATUS_LABELS: Record<string, string> = {
+    DRAFT: t("draft"),
+    PUBLISHED: t("published"),
+    ARCHIVED: t("archived"),
+  };
   return (
     <div className="rounded-lg border bg-muted/20 p-4 flex flex-col gap-3">
       <p className="text-sm font-semibold">
@@ -417,11 +683,11 @@ function PreviewCard({ preview }: { preview: PreviewResult }) {
                   <td className="px-3 py-1.5">{formatPrice(convertCents(p.price, currency, currentRate()), currency)}</td>
                   <td className="px-3 py-1.5">
                     <Badge variant={getStatusVariant(p.status)} className="text-[10px]">
-                      {p.status}
+                      {STATUS_LABELS[p.status] ?? p.status}
                     </Badge>
                   </td>
                   <td className="px-3 py-1.5 text-muted-foreground">
-                    {p.brand?.name ?? "—"}
+                    {p.brand?.name ?? "-"}
                   </td>
                 </tr>
               ))}
@@ -446,14 +712,28 @@ function makeDefaultCondition(type: ConditionType): Condition {
   switch (type) {
     case "brand": return { type: "brand", brandIds: [] };
     case "noBrand": return { type: "noBrand" };
+    case "category": return { type: "category", categoryIds: [] };
+    case "noCategory": return { type: "noCategory" };
     case "status": return { type: "status", statuses: [] };
     case "minPrice": return { type: "minPrice", value: 0 };
     case "maxPrice": return { type: "maxPrice", value: 0 };
+    case "minStock": return { type: "minStock", value: 0 };
+    case "maxStock": return { type: "maxStock", value: 0 };
+    case "outOfStock": return { type: "outOfStock" };
+    case "taxable": return { type: "taxable", value: true };
+    case "requiresShipping": return { type: "requiresShipping", value: true };
+    case "isDigital": return { type: "isDigital", value: true };
     case "titleContains": return { type: "titleContains", value: "" };
   }
 }
 
-export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
+export function ConditionalBulkPanel({
+  brands,
+  categories,
+}: {
+  brands: BrandOption[];
+  categories: CategoryOption[];
+}) {
   const t = useTranslations("bulkProducts");
   const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
@@ -461,16 +741,24 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
   const ADDABLE_CONDITIONS: { type: ConditionType; label: string }[] = [
     { type: "brand", label: t("condBrand") },
     { type: "noBrand", label: t("condNoBrand") },
+    { type: "category", label: t("condCategory") },
+    { type: "noCategory", label: t("condNoCategory") },
     { type: "status", label: t("condStatus") },
     { type: "minPrice", label: t("condMinPrice") },
     { type: "maxPrice", label: t("condMaxPrice") },
+    { type: "minStock", label: t("condMinStock") },
+    { type: "maxStock", label: t("condMaxStock") },
+    { type: "outOfStock", label: t("condOutOfStock") },
+    { type: "taxable", label: t("condTaxable") },
+    { type: "requiresShipping", label: t("condRequiresShipping") },
+    { type: "isDigital", label: t("condIsDigital") },
     { type: "titleContains", label: t("condTitleContains") },
   ];
 
   const [conditions, setConditions] = useState<Condition[]>([]);
   const [action, setAction] = useState<{
     type: ActionType;
-    value?: string | number | boolean | null;
+    value?: string | number | boolean | null | string[];
   }>({ type: "setStatus", value: "DRAFT" });
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [isPreviewing, startPreview] = useTransition();
@@ -488,8 +776,9 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
   const [showAddMenu, setShowAddMenu] = useState(false);
 
   const addCondition = (type: ConditionType) => {
-    // Only one condition per type (except brand + noBrand can coexist makes no sense — prevent duplicates)
     if (conditions.some((c) => c.type === type)) return;
+    const partners = MUTEX_PARTNERS[type] ?? [];
+    if (partners.some((p) => conditions.some((c) => c.type === p))) return;
     setConditions((prev) => [...prev, makeDefaultCondition(type)]);
     setPreview(null);
     setShowAddMenu(false);
@@ -524,27 +813,53 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
   // Build BulkUpdateFields from current action state
   const buildUpdateFields = (): BulkUpdateFields => {
     switch (action.type) {
-      case "setStatus": return { status: action.value as ProductStatus };
-      case "setBrand": return { brandId: action.value as string };
-      case "removeBrand": return { brandId: null };
-      case "setPrice": return { price: action.value as number };
+      case "setStatus":
+        return { status: action.value as ProductStatus };
+      case "setBrand":
+        return { brandId: action.value as string };
+      case "removeBrand":
+        return { brandId: null };
+      case "setCategoriesReplace":
+        return { categories: { mode: "set", ids: (action.value as string[]) ?? [] } };
+      case "addCategories":
+        return { categories: { mode: "add", ids: (action.value as string[]) ?? [] } };
+      case "removeCategories":
+        return { categories: { mode: "remove", ids: (action.value as string[]) ?? [] } };
+      case "clearCategories":
+        return { categories: { mode: "set", ids: [] } };
+      case "setPrice":
+        return { price: action.value as number };
       case "setCompareAtPrice":
         return { compareAtPrice: (action.value as number) > 0 ? (action.value as number) : null };
       case "setCostPrice":
         return { costPrice: (action.value as number) > 0 ? (action.value as number) : null };
-      case "setTaxable": return { taxable: action.value as boolean };
-      case "setRequiresShipping": return { requiresShipping: action.value as boolean };
-      default: return {};
+      case "setStock":
+        return { stock: action.value as number };
+      case "setTaxable":
+        return { taxable: action.value as boolean };
+      case "setRequiresShipping":
+        return { requiresShipping: action.value as boolean };
+      case "setIsDigital":
+        return { isDigital: action.value as boolean };
+      default:
+        return {};
     }
   };
 
   const isActionValid = (): boolean => {
-    if (action.type === "delete" || action.type === "removeBrand") return true;
+    if (action.type === "delete" || action.type === "removeBrand" || action.type === "clearCategories") return true;
     if (action.type === "setStatus") return !!action.value;
     if (action.type === "setBrand") return !!action.value;
+    if (action.type === "setCategoriesReplace") return Array.isArray(action.value);
+    if (action.type === "addCategories" || action.type === "removeCategories") {
+      return Array.isArray(action.value) && (action.value as string[]).length > 0;
+    }
     if (action.type === "setPrice") return (action.value as number) > 0;
     if (action.type === "setCompareAtPrice" || action.type === "setCostPrice") return action.value !== undefined;
-    if (action.type === "setTaxable" || action.type === "setRequiresShipping") return action.value !== undefined;
+    if (action.type === "setStock") return action.value !== undefined && (action.value as number) >= 0;
+    if (action.type === "setTaxable" || action.type === "setRequiresShipping" || action.type === "setIsDigital") {
+      return action.value !== undefined;
+    }
     return true;
   };
 
@@ -563,7 +878,14 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
         return;
       }
 
-      const ok = res as { error: false; count: number; message: string };
+      // bulkUpdateByFilter returns `skippedWithVariants` for stock writes; the
+      // delete action doesn't, so default it to 0 for that branch.
+      const ok = res as {
+        error: false;
+        count: number;
+        message: string;
+        skippedWithVariants?: number;
+      };
       setLastResult({ count: ok.count, message: ok.message });
       queryClient.invalidateQueries({ queryKey: ["products"] });
       setPreview(null);
@@ -573,7 +895,13 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
         setConditions([]);
       }
 
-      toast.success(ok.message);
+      // Surface "no-op because all matches had variants" as a warning, not a
+      // success, so users notice rather than thinking the write went through.
+      if (ok.count === 0 && (ok.skippedWithVariants ?? 0) > 0) {
+        toast.warning(ok.message);
+      } else {
+        toast.success(ok.message);
+      }
     });
   };
 
@@ -615,6 +943,7 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
             key={i}
             condition={condition}
             brands={brands}
+            categories={categories}
             onUpdate={(c) => updateCondition(i, c)}
             onRemove={() => removeCondition(i)}
           />
@@ -633,20 +962,40 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
             <ChevronDown className="h-3.5 w-3.5" />
           </Button>
           {showAddMenu && (
-            <div className="absolute left-0 top-full mt-1 z-20 w-52 rounded-lg border bg-popover shadow-lg py-1">
+            <div className="absolute left-0 top-full mt-1 z-20 w-72 max-h-80 overflow-y-auto rounded-lg border bg-popover shadow-lg py-1">
               {ADDABLE_CONDITIONS.map(({ type, label }) => {
                 const alreadyAdded = existingTypes.has(type);
+                const partners = MUTEX_PARTNERS[type] ?? [];
+                const blockingPartner = partners.find((p) => existingTypes.has(p));
+                const disabled = alreadyAdded || !!blockingPartner;
+                // Surface *why* the item is unavailable so users aren't left
+                // wondering why their click did nothing.
+                const reasonLabel = alreadyAdded
+                  ? t("added")
+                  : blockingPartner
+                  ? t("conflictsWith", {
+                      condition:
+                        ADDABLE_CONDITIONS.find((c) => c.type === blockingPartner)?.label ?? "",
+                    })
+                  : null;
                 return (
                   <button
                     key={type}
                     type="button"
-                    disabled={alreadyAdded}
+                    disabled={disabled}
                     onClick={() => addCondition(type)}
-                    className="flex w-full cursor-pointer items-center px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed text-left"
+                    title={reasonLabel ?? undefined}
+                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-sm text-left transition-colors ${
+                      disabled
+                        ? "opacity-40 cursor-not-allowed"
+                        : "cursor-pointer hover:bg-muted"
+                    }`}
                   >
-                    {label}
-                    {alreadyAdded && (
-                      <span className="ml-auto text-xs text-muted-foreground">{t("added")}</span>
+                    <span className="truncate">{label}</span>
+                    {reasonLabel && (
+                      <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground shrink-0">
+                        {reasonLabel}
+                      </span>
                     )}
                   </button>
                 );
@@ -663,9 +1012,23 @@ export function ConditionalBulkPanel({ brands }: { brands: BrandOption[] }) {
         <h3 className="text-sm font-semibold">{t("chooseAction")}</h3>
         <ActionEditor
           action={action}
-          onChangeType={(t) => setAction({ type: t, value: t === "setTaxable" || t === "setRequiresShipping" ? true : undefined })}
+          onChangeType={(type) => {
+            // Pick a sensible default value per action so the UI never starts in an invalid state.
+            const defaultValue =
+              type === "setTaxable" || type === "setRequiresShipping" || type === "setIsDigital"
+                ? true
+                : type === "setCategoriesReplace" ||
+                  type === "addCategories" ||
+                  type === "removeCategories"
+                ? []
+                : type === "setStock"
+                ? 0
+                : undefined;
+            setAction({ type, value: defaultValue });
+          }}
           onChangeValue={(v) => setAction((prev) => ({ ...prev, value: v }))}
           brands={brands}
+          categories={categories}
         />
       </div>
 
