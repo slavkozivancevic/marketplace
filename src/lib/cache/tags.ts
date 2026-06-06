@@ -39,4 +39,7 @@ export const CacheTags = {
   wishlist: {
     byUser: (userId: string) => `id:wishlist:user:${userId}` as const,
   },
+  currency: {
+    rates: () => "global:currency-rates" as const,
+  },
 } as const;

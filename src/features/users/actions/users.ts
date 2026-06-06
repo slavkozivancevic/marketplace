@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
 import { updateUserRoleSchema, UpdateUserRoleInput } from "../schema/users";
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import { updateUserRole } from "../db/users";
@@ -24,21 +23,20 @@ export async function updateUserRoleAction(
 
     const result = await updateUserRole(userId, parsed.data.role);
 
-    revalidatePath("/admin/users");
-    revalidatePath("/admin/organizations");
-    revalidatePath("/dashboard");
-    revalidatePath("/dashboard/organization");
+    revalidatePath("/[locale]/admin/users", "page");
+    revalidatePath("/[locale]/admin/organizations", "page");
+    revalidatePath("/[locale]/dashboard", "page");
+    revalidatePath("/[locale]/dashboard/organization", "page");
 
     if (result.roleChanged) {
-      const cookieStore = await cookies();
-      const locale = cookieStore.get("NEXT_LOCALE")?.value ?? "en";
-
+      // Recipient-targeted notification: render in the affected user's
+      // preferred language, not the acting admin's session locale.
       publishUserRoleChanged({
         userEmail: result.user.email,
         userName: result.user.name,
         oldRole: result.oldRole,
         newRole: result.newRole,
-        locale,
+        locale: result.user.locale,
       }).catch((err) =>
         console.error("[notifications] publishUserRoleChanged failed", err),
       );

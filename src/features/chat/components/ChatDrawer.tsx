@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { MessageCircle, ArrowLeft, Trash2, Loader2, X } from "lucide-react";
 import { SearchInput } from "@/components/search/SearchInput";
-import { useUser } from "@clerk/nextjs";
+import { SignedIn } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import {
@@ -40,15 +40,37 @@ import { MessageThread } from "./MessageThread";
 /**
  * Trigger button rendered in the header - visible only when signed in.
  * Shows an unread badge when new messages arrive.
+ *
+ * The combo `mounted`-guard + `<SignedIn>` is deliberate:
+ *
+ *   - `<SignedIn>` alone isn't enough on a cold dev start: server-side
+ *     Clerk hasn't resolved the session cookie yet, so SSR renders nothing
+ *     (signed-out path); meanwhile the client hydrates with the session
+ *     already known, so it renders the button - and the position-shift in
+ *     the header trips React's hydration check.
+ *   - `mounted` keeps SSR and the FIRST client render aligned on `null`,
+ *     and only after that initial render do we let `<SignedIn>` decide.
+ *     By then Clerk is loaded on both sides and they agree.
  */
 export function ChatDrawerTrigger() {
-  const { isSignedIn } = useUser();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
+  if (!mounted) return null;
+  return (
+    <SignedIn>
+      <ChatDrawerTriggerInner />
+    </SignedIn>
+  );
+}
+
+function ChatDrawerTriggerInner() {
   const isOpen = useChatStore((s) => s.isOpen);
   const openInbox = useChatStore((s) => s.openInbox);
   const closeInbox = useChatStore((s) => s.close);
   const unreadCount = useChatStore((s) => s.unreadCount);
-
-  if (!isSignedIn) return null;
 
   return (
     <Button variant="outline" size="icon" data-chat-trigger onClick={isOpen ? closeInbox : openInbox} className="relative">
@@ -67,11 +89,23 @@ export function ChatDrawerTrigger() {
  * Sheet panel - mount once in the layout so state persists across navigation.
  * The socket connection is established here (outside the Sheet) so messages
  * are received even when the drawer is closed.
+ *
+ * Same `mounted` + `<SignedIn>` reasoning as `<ChatDrawerTrigger>` - the
+ * sheet sits in the body and shifts the layout if SSR/hydration disagree,
+ * so we hold off rendering until both sides agree on the session state.
  */
 export function ChatDrawerRoot() {
-  const { isSignedIn } = useUser();
-  if (!isSignedIn) return null;
-  return <ChatDrawerRootInner />;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
+  if (!mounted) return null;
+  return (
+    <SignedIn>
+      <ChatDrawerRootInner />
+    </SignedIn>
+  );
 }
 
 function ChatDrawerRootInner() {
@@ -103,7 +137,7 @@ function ChatDrawerRootInner() {
     bootstrappedForUserRef.current = currentUserId;
     for (const conv of bootstrapConvs) {
       if (conv.lastMessageSenderId && conv.lastMessageSenderId !== currentUserId && conv.lastMessageAt) {
-        bootstrapUnread(conv.conversationId, conv.lastMessageAt);
+        bootstrapUnread(conv.conversationId, conv.lastMessageAt, conv.lastReadAt);
       }
     }
   }, [bootstrapConvs, currentUserId, bootstrapUnread]);
@@ -263,7 +297,7 @@ function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
                   <AlertDialogAction
                     onClick={(e) => { e.preventDefault(); void handleDeleteConversation(); }}
                     disabled={deleting}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    variant="destructiveSolid"
                   >
                     {deleting ? <><Loader2 className="size-4 animate-spin" /> {t("deleting")}</> : t("delete")}
                   </AlertDialogAction>

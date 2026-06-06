@@ -2,7 +2,8 @@
 
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { getBrandName } from "@/features/brands/utils/translations";
 import { useQueryStates } from "nuqs";
 import { useCurrencyStore } from "@/store/currency";
 import { getCurrencyConfig } from "@/lib/currency";
@@ -28,13 +29,14 @@ export function MyProductsPage({
   brands?: BrandOption[];
 }) {
   const t = useTranslations();
+  const locale = useLocale();
   const currency = useCurrencyStore((s) => s.currency);
   const currencySymbol = getCurrencyConfig(currency).symbol;
 
+  // "title" sort dropped when title moved to ProductTranslation.
   const SORT_OPTIONS = [
     { value: "createdAt", label: t("myProducts.dateAdded") },
     { value: "price", label: t("myProducts.price") },
-    { value: "title", label: t("myProducts.name") },
     { value: "status", label: t("products.status") },
   ];
 
@@ -77,10 +79,10 @@ export function MyProductsPage({
         type: "checkbox" as const,
         key: "brandId",
         label: t("products.brand"),
-        options: brands.map((b) => ({ value: b.id, label: b.name })),
+        options: brands.map((b) => ({ value: b.id, label: getBrandName(b, locale) })),
       },
     ];
-  }, [brands, t, currencySymbol]);
+  }, [brands, t, currencySymbol, locale]);
 
   const filters: MyProductFilters = {
     search,

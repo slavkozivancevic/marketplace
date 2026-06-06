@@ -54,14 +54,12 @@ export async function submitReview(
 
     const hasPurchased = await hasUserPurchasedProduct(userId, productId);
     if (!hasPurchased) {
-      throw new ForbiddenError(
-        "You can only review products you have purchased",
-      );
+      throw new ForbiddenError({ key: "cannotReviewUnpurchased" });
     }
 
     const existingReview = await getUserReviewForProduct(productId, userId);
     if (existingReview) {
-      throw new ForbiddenError("You have already reviewed this product");
+      throw new ForbiddenError({ key: "alreadyReviewed" });
     }
 
     const order = await prisma.order.findFirst({

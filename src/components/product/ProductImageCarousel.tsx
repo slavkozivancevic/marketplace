@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, PlayCircle, X } from "lucide-react";
+import { PlayCircle } from "lucide-react";
 import {
   Carousel,
   CarouselContent,
@@ -11,8 +11,7 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { MediaLightbox } from "@/components/product/MediaLightbox";
 import { cn } from "@/lib/utils";
 import { IMAGE_ZOOM_FACTOR, IMAGE_ZOOM_LENS_SIZE } from "@/constants/constants";
 import type { MediaType } from "@/generated/prisma/client";
@@ -102,10 +101,6 @@ export function ProductImageCarousel({
     setLightboxOpen(true);
   };
 
-  const lightboxPrev = () =>
-    setLightboxIndex((i) => (i - 1 + media.length) % media.length);
-  const lightboxNext = () => setLightboxIndex((i) => (i + 1) % media.length);
-
   if (media.length === 0) {
     return (
       <div className="w-full h-96 rounded-lg border flex items-center justify-center text-muted-foreground">
@@ -158,6 +153,7 @@ export function ProductImageCarousel({
                           src={item.url}
                           alt={`${title} - image ${index + 1}`}
                           fill
+                          sizes="(max-width: 768px) 100vw, 50vw"
                           className="object-cover"
                           priority={index === 0}
                           onLoad={() =>
@@ -205,6 +201,7 @@ export function ProductImageCarousel({
                                     src={item.url}
                                     alt=""
                                     fill
+                                    sizes="(max-width: 768px) 200vw, 100vw"
                                     className="object-cover"
                                   />
                                 </div>
@@ -249,6 +246,7 @@ export function ProductImageCarousel({
                     src={thumbSrc}
                     alt={`${title} thumbnail ${index + 1}`}
                     fill
+                    sizes="64px"
                     className="object-cover"
                   />
                   {isVideo && (
@@ -263,78 +261,19 @@ export function ProductImageCarousel({
         )}
       </div>
 
-      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
-        <DialogContent
-          showCloseButton={false}
-          className="max-w-[95vw]! w-[95vw] h-[95vh] p-0 gap-0 bg-background border-none overflow-hidden sm:max-w-[95vw]!"
-        >
-          <DialogTitle className="sr-only">{title}</DialogTitle>
-
-          <div className="relative flex items-center justify-center w-full h-full">
-            <button
-              onClick={() => setLightboxOpen(false)}
-              className="absolute top-3 right-3 z-10 cursor-pointer rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70 transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
-
-            <div className="relative w-full h-full">
-              {media[lightboxIndex] &&
-                (media[lightboxIndex].mediaType === "VIDEO" ? (
-                  <video
-                    src={media[lightboxIndex].url}
-                    poster={media[lightboxIndex].thumbUrl ?? undefined}
-                    controls
-                    autoPlay
-                    playsInline
-                    className="absolute inset-0 w-full h-full object-contain bg-black"
-                  />
-                ) : (
-                  <Image
-                    src={media[lightboxIndex].url}
-                    alt={`${title} - image ${lightboxIndex + 1}`}
-                    fill
-                    className="object-contain"
-                  />
-                ))}
-            </div>
-
-            {media.length > 1 && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={lightboxPrev}
-                  className="absolute left-3 size-11 rounded-full border border-white/30 bg-black/55 text-white shadow-[0_4px_14px_rgba(0,0,0,0.4)] backdrop-blur-sm backdrop-saturate-150 transition-[background-color,border-color,box-shadow,color] duration-300 ease-out hover:bg-black/85 hover:border-white/55 hover:text-white hover:shadow-[0_6px_22px_rgba(0,0,0,0.6)] [&_svg]:drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]"
-                >
-                  <ChevronLeft className="h-6 w-6" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={lightboxNext}
-                  className="absolute right-3 size-11 rounded-full border border-white/30 bg-black/55 text-white shadow-[0_4px_14px_rgba(0,0,0,0.4)] backdrop-blur-sm backdrop-saturate-150 transition-[background-color,border-color,box-shadow,color] duration-300 ease-out hover:bg-black/85 hover:border-white/55 hover:text-white hover:shadow-[0_6px_22px_rgba(0,0,0,0.6)] [&_svg]:drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]"
-                >
-                  <ChevronRight className="h-6 w-6" />
-                </Button>
-
-                <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
-                  {media.map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setLightboxIndex(i)}
-                      className={cn(
-                        "w-2 h-2 rounded-full transition-all cursor-pointer",
-                        i === lightboxIndex ? "bg-white" : "bg-white/40",
-                      )}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <MediaLightbox
+        media={media.map((m) => ({
+          id: m.id,
+          mediaType: m.mediaType,
+          url: m.url,
+          posterUrl: m.thumbUrl,
+        }))}
+        index={lightboxIndex}
+        onIndexChange={setLightboxIndex}
+        open={lightboxOpen}
+        onOpenChange={setLightboxOpen}
+        title={title}
+      />
     </>
   );
 }

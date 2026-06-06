@@ -19,7 +19,7 @@ export async function syncClerkUserMetadata({
   try {
     const client = await clerkClient();
 
-    return await client.users.updateUserMetadata(clerkUserId, {
+    await client.users.updateUserMetadata(clerkUserId, {
       publicMetadata: {
         dbId,
         role,
@@ -27,7 +27,10 @@ export async function syncClerkUserMetadata({
       },
     });
   } catch (error) {
-    console.error("Clerk metadata update failed:", error);
-    throw error;
+    // Clerk publicMetadata is only a cache of the DB source-of-truth, used to
+    // populate the session JWT. A failed sync (e.g. Clerk 429 rate limit) must
+    // not break the request - the DB-derived context is still valid, and the
+    // next request retries once the token refreshes. So we log and swallow.
+    console.error("Clerk metadata sync failed (non-fatal):", error);
   }
 }

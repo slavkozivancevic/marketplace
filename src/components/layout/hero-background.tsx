@@ -2,9 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Image from "next/image";
-
-const HERO_IMAGE_URL =
-  "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop";
+import { HERO_IMAGE_URL } from "./hero-image";
 
 export function HeroBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);

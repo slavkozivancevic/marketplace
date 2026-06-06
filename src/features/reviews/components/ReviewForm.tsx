@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StarRating } from "./StarRating";
 import { submitReview } from "../actions/reviews";
-import { isActionErrorResult } from "@/features/common/errors/domainErrors";
+import { isActionErrorResult } from "@/features/common/errors/actionErrorResult";
 
 interface ReviewFormProps {
   productId: string;

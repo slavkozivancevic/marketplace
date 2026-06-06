@@ -16,7 +16,7 @@ import { Pencil, Trash2, Loader2 } from "lucide-react";
 import { StarRating } from "./StarRating";
 import { deleteReview, updateReview } from "../actions/reviews";
 import { SerializedProductReview } from "@/types/types";
-import { isActionErrorResult } from "@/features/common/errors/domainErrors";
+import { isActionErrorResult } from "@/features/common/errors/actionErrorResult";
 
 function formatRelativeTime(date: Date): string {
   const now = Date.now();

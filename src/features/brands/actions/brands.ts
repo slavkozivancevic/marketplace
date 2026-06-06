@@ -1,11 +1,20 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { getLocale } from "next-intl/server";
 import { createBrandSchema, updateBrandSchema, CreateBrandInput, UpdateBrandInput } from "../schema/brands";
-import { createBrand, updateBrand, deleteBrand } from "../db/brands";
+import { createBrand, updateBrand, deleteBrand, duplicateBrand } from "../db/brands";
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import { requireRole } from "@/lib/auth/requireRole";
 import { ActionErrorResult } from "@/types/types";
+
+// Server-action callers pass unlocalized paths like "/admin/brands"; we
+// re-prefix with the caller's request locale so the post-redirect URL stays
+// in the same language and middleware doesn't have to bounce again.
+async function localizedRedirect(redirectTo: string): Promise<never> {
+  const locale = await getLocale();
+  redirect(`/${locale}${redirectTo}`);
+}
 
 export async function createBrandAction(
   unsafeData: CreateBrandInput,
@@ -30,7 +39,7 @@ export async function createBrandAction(
     return handleActionError(error);
   }
 
-  redirect(redirectTo);
+  await localizedRedirect(redirectTo);
 }
 
 export async function updateBrandAction(
@@ -57,7 +66,7 @@ export async function updateBrandAction(
     return handleActionError(error);
   }
 
-  redirect(redirectTo);
+  await localizedRedirect(redirectTo);
 }
 
 export async function deleteBrandAction(
@@ -71,5 +80,17 @@ export async function deleteBrandAction(
     return handleActionError(error);
   }
 
-  redirect(redirectTo);
+  await localizedRedirect(redirectTo);
+}
+
+export async function duplicateBrandAction(
+  id: string,
+): Promise<{ error: false; id: string } | ActionErrorResult> {
+  try {
+    await requireRole("ADMIN");
+    const copy = await duplicateBrand(id);
+    return { error: false, id: copy.id };
+  } catch (error) {
+    return handleActionError(error);
+  }
 }

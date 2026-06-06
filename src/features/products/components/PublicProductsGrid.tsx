@@ -7,10 +7,10 @@ import { cn } from "@/lib/utils";
 import { ImageOff, ShoppingCart, ChevronDown, X, Video as VideoIcon } from "lucide-react";
 
 import React, { useRef, useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
+import { Link } from "@/i18n/navigation";
 import { useInfiniteVirtualGrid } from "@/components/infinite/useInfiniteVirtualGrid";
 import { HoverImageCycler } from "@/components/product/HoverImageCycler";
+import { BrandLogo } from "@/features/brands/components/BrandLogo";
 import { SkeletonProductGridCard } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -31,8 +31,8 @@ import {
   getProductTitle,
   getProductDescription,
   getProductShortDescription,
-  type ProductTranslations,
 } from "@/features/products/utils/translations";
+import { getBrandName } from "@/features/brands/utils/translations";
 import { StarRating } from "@/features/reviews/components/StarRating";
 import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
 import { GRID_PAGE_SIZE, MAX_PAGES } from "@/constants/queryConstants";
@@ -80,10 +80,12 @@ type RatingBreakdown = Record<number, number>;
 
 function RatingBreakdownPopover({
   productId,
+  productSlug,
   avgRating,
   ratingCount,
 }: {
   productId: string;
+  productSlug: string;
   avgRating: number;
   ratingCount: number;
 }) {
@@ -175,7 +177,11 @@ function RatingBreakdownPopover({
 
         {/* Link to reviews */}
         <Link
-          href={`/products/${productId}#reviews`}
+          href={{
+            pathname: "/products/[slug]",
+            params: { slug: productSlug },
+            hash: "reviews",
+          }}
           className="text-xs text-primary hover:underline block pt-1"
           onClick={(e: React.MouseEvent) => e.stopPropagation()}
         >
@@ -198,24 +204,25 @@ function ProductCard({
   const { currency, currentRate } = useCurrencyStore();
   const locale = useLocale();
   const tCart = useTranslations("cart");
-  const productTranslations = product.translations as ProductTranslations | null;
-  const localTitle = getProductTitle({ title: product.title, translations: productTranslations }, locale);
-  const localShortDescription = getProductShortDescription(
-    { shortDescription: product.shortDescription, translations: productTranslations },
-    locale,
-  );
-  const localDescription = getProductDescription(
-    { description: product.description, translations: productTranslations },
-    locale,
-  );
+  const localTitle = getProductTitle(product, locale);
+  const localShortDescription = getProductShortDescription(product, locale);
+  const localDescription = getProductDescription(product, locale);
+  const localBrandName = product.brand ? getBrandName(product.brand, locale) : "";
   // Prefer shortDescription on the card; fall back to full description.
   const cardDescription = localShortDescription ?? localDescription;
   const isOnSale =
     product.compareAtPrice != null && product.compareAtPrice > product.price;
+  const productSlug =
+    product.translations.find((tr) => tr.locale === locale)?.slug ??
+    product.translations.find((tr) => tr.locale === "en")?.slug ??
+    "";
 
   return (
     <div className="relative h-full">
-      <Link href={`/products/${product.id}`} className="block h-full">
+      <Link
+        href={{ pathname: "/products/[slug]", params: { slug: productSlug } }}
+        className="block h-full"
+      >
         <Card className="h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 border-border/50 pt-0 pb-0 gap-0 flex flex-col">
           <CardHeader className="p-0 relative">
             {(() => {
@@ -275,20 +282,17 @@ function ProductCard({
               <div className="absolute top-2 right-2 pointer-events-none">
                 {product.brand.logoUrl ? (
                   <div className="flex items-center gap-2 bg-background/85 backdrop-blur-xs border border-border/60 rounded-full px-2.5 py-1.5 shadow-sm">
-                    <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded-full border border-border/40 bg-white">
-                      <Image
-                        src={product.brand.logoUrl}
-                        alt={product.brand.name}
-                        fill
-                        sizes="20px"
-                        className="object-contain"
-                      />
-                    </div>
-                    <span className="text-xs font-semibold leading-none">{product.brand.name}</span>
+                    <BrandLogo
+                      src={product.brand.logoUrl}
+                      name={localBrandName}
+                      size={20}
+                      shape="circle"
+                    />
+                    <span className="text-xs font-semibold leading-none">{localBrandName}</span>
                   </div>
                 ) : (
                   <div className="bg-background/85 backdrop-blur-xs border border-border/60 rounded-full px-2.5 py-1.5 shadow-sm">
-                    <span className="text-xs font-semibold leading-none">{product.brand.name}</span>
+                    <span className="text-xs font-semibold leading-none">{localBrandName}</span>
                   </div>
                 )}
               </div>
@@ -313,6 +317,7 @@ function ProductCard({
                 <div className="mt-1.5" onClick={(e) => e.preventDefault()}>
                   <RatingBreakdownPopover
                     productId={product.id}
+                    productSlug={productSlug}
                     avgRating={product.avgRating}
                     ratingCount={product.ratingCount}
                   />

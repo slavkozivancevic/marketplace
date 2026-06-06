@@ -137,6 +137,11 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
             const { isOpen, selectedConvId } = useChatStore.getState();
             if (!(isOpen && selectedConvId === msg.conversationId)) {
               useChatStore.getState().incrementUnread(msg.conversationId);
+            } else {
+              // Conversation is open - the thread auto-marks this message read.
+              // Record it as seen so bootstrapUnread doesn't resurface a badge
+              // for it on the next sign-in / reload.
+              useChatStore.getState().recordSeen(msg.conversationId, msg.createdAt);
             }
             playReceiveSound();
           }

@@ -8,7 +8,7 @@ import { useInfiniteVirtualList } from "@/components/infinite/useInfiniteVirtual
 import { OrderTableRow } from "./OrderTableRow";
 import { SkeletonOrderRow } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import type { UserOrderListItem } from "../db/orders";
 import { LIST_PAGE_SIZE, MAX_PAGES } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
@@ -44,8 +44,8 @@ function OrderTableHeader({ t }: { t: ReturnType<typeof useTranslations> }) {
       <div role="columnheader">{t("orders.date")}</div>
       <div role="columnheader">{t("orders.time")}</div>
       <div role="columnheader">{t("orders.items")}</div>
-      <div role="columnheader">{t("orders.yourTotal")}</div>
-      <div role="columnheader">{t("orders.status")}</div>
+      <div role="columnheader" className="text-right">{t("orders.yourTotal")}</div>
+      <div role="columnheader" className="text-center">{t("orders.status")}</div>
     </div>
   );
 }

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import {
+  Copy,
   Loader2,
   Pencil,
   Trash2,
@@ -28,10 +29,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { deleteCategoryAction } from "../actions/categories";
+import { deleteCategoryAction, duplicateCategoryAction } from "../actions/categories";
 import type { CategoryListItem } from "../db/categories";
 import { getCategoryName } from "../utils/translations";
-import { useLocale } from "next-intl";
 import { cn } from "@/lib/utils";
 
 /** Sort flat list into tree order: root → its children → next root → its children */
@@ -76,9 +76,11 @@ export function AdminCategoriesPage({
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [deleteOpenId, setDeleteOpenId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isNavigating, startNavigate] = useTransition();
+  const [isDuplicating, startDuplicate] = useTransition();
 
   // Close the open dialog once its delete settles.
   const wasPending = useRef(false);
@@ -93,11 +95,14 @@ export function AdminCategoriesPage({
   const filtered = useMemo(() => {
     if (!search) return treeRows;
     const q = search.toLowerCase();
-    return treeRows.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.slug.toLowerCase().includes(q) ||
-        (c.translations?.sr?.name ?? "").toLowerCase().includes(q),
+    // Match against any locale's name or slug so admins can paste a snippet
+    // from any UI language and still hit the right category.
+    return treeRows.filter((c) =>
+      c.translations.some(
+        (tr) =>
+          tr.name.toLowerCase().includes(q) ||
+          tr.slug.toLowerCase().includes(q),
+      ),
     );
   }, [treeRows, search]);
 
@@ -111,6 +116,24 @@ export function AdminCategoriesPage({
         toast.success(t("deleted"));
       }
       setDeletingId(null);
+    });
+  };
+
+  const handleDuplicate = (id: string) => {
+    setDuplicatingId(id);
+    startDuplicate(async () => {
+      const result = await duplicateCategoryAction(id);
+      if ("id" in result) {
+        toast.success(t("duplicated"), {
+          action: {
+            label: t("editCopy"),
+            onClick: () => router.push(`/${locale}/admin/categories/${result.id}/edit`),
+          },
+        });
+      } else {
+        toast.error(result.message);
+      }
+      setDuplicatingId(null);
     });
   };
 
@@ -142,18 +165,20 @@ export function AdminCategoriesPage({
             "rounded-lg border flex-1 min-h-0 overflow-auto",
             // Lock the whole table while any row's action is in flight, so
             // the user can't start a second action on a different row.
-            (isPending || isNavigating) &&
+            (isPending || isNavigating || isDuplicating) &&
               "opacity-60 pointer-events-none transition-opacity duration-150",
           )}
         >
           {/* Header */}
           <div className="grid items-center gap-3 border-b p-3 text-xs font-medium text-muted-foreground bg-background sticky top-0 z-10"
-            style={{ gridTemplateColumns: "1fr 140px 90px 70px 80px" }}>
+            style={{ gridTemplateColumns: "1fr 140px 90px 70px 116px" }}>
             <div>{t("name")}</div>
             <div>{t("slug")}</div>
-            <div className="text-center">{t("products")}</div>
+            <div className="text-right">{t("products")}</div>
             <div className="text-center">{t("status")}</div>
-            <div />
+            {/* pr-2.5 (10px) matches the trash icon's visible right edge -
+                36px icon Button with 16px glyph leaves 10px on each side. */}
+            <div className="text-right pr-2.5">{t("actions")}</div>
           </div>
 
           {filtered.map((row) => {
@@ -165,7 +190,7 @@ export function AdminCategoriesPage({
                   "grid items-center gap-3 border-b p-3",
                   isRoot && "bg-muted/20",
                 )}
-                style={{ gridTemplateColumns: "1fr 140px 90px 70px 80px" }}
+                style={{ gridTemplateColumns: "1fr 140px 90px 70px 116px" }}
               >
                 {/* Name */}
                 <div className="flex items-center gap-2 min-w-0">
@@ -199,13 +224,15 @@ export function AdminCategoriesPage({
                   )}
                 </div>
 
-                {/* Slug */}
+                {/* Slug - show the active locale's slug (defaults to en) */}
                 <div className="font-mono text-xs text-muted-foreground truncate">
-                  {row.slug}
+                  {row.translations.find((tr) => tr.locale === locale)?.slug ??
+                    row.translations.find((tr) => tr.locale === "en")?.slug ??
+                    ""}
                 </div>
 
                 {/* Products */}
-                <div className="text-sm text-center tabular-nums">
+                <div className="text-sm text-right tabular-nums">
                   {row._count.products}
                 </div>
 
@@ -227,13 +254,25 @@ export function AdminCategoriesPage({
                     disabled={isNavigating && editingId === row.id}
                     onClick={() => {
                       setEditingId(row.id);
-                      startNavigate(() => router.push(`/admin/categories/${row.id}/edit`));
+                      startNavigate(() => router.push(`/${locale}/admin/categories/${row.id}/edit`));
                     }}
                   >
                     {isNavigating && editingId === row.id
                       ? <Loader2 className="h-4 w-4 animate-spin" />
                       : <Pencil className="h-4 w-4" />}
                     <span className="sr-only">{t("edit")}</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={isDuplicating && duplicatingId === row.id}
+                    onClick={() => handleDuplicate(row.id)}
+                    title={t("duplicate")}
+                  >
+                    {isDuplicating && duplicatingId === row.id
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : <Copy className="h-4 w-4" />}
+                    <span className="sr-only">{t("duplicate")}</span>
                   </Button>
                   <AlertDialog
                     open={deleteOpenId === row.id}
@@ -276,7 +315,7 @@ export function AdminCategoriesPage({
                             handleDelete(row.id);
                           }}
                           disabled={isPending && deletingId === row.id}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          variant="destructiveSolid"
                         >
                           {isPending && deletingId === row.id ? (
                             <>

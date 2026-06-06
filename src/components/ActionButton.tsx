@@ -67,7 +67,7 @@ export function ActionButton({
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isLoading}>{cancelText}</AlertDialogCancel>
           <AlertDialogAction
-            variant="destructive"
+            variant="destructiveSolid"
             disabled={isLoading}
             onClick={(e) => {
               // Prevent Radix from auto-closing the dialog - we close it

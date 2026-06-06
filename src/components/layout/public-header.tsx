@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { SignedIn } from "@clerk/nextjs";
 import { HeaderAuth } from "./header-auth";
 import { PreferencesPopover } from "./preferences-popover";
 import { CartButton } from "@/features/cart/components/CartButton";
@@ -17,17 +18,32 @@ interface PublicHeaderProps {
   showAdminLink?: boolean;
 }
 
+interface NavLink {
+  href: string;
+  label: string;
+  authGated?: boolean;
+}
+
 export function PublicHeader({ showAdminLink = false }: PublicHeaderProps) {
   const t = useTranslations();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // mounted + <SignedIn> pattern: avoids hydration mismatch on cold dev
+  // start where SSR doesn't know the session yet but the client hydrate
+  // already does. See header-auth.tsx for the same pattern.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
 
-  const baseNavLinks = [
+  const baseNavLinks: NavLink[] = [
     { href: "/products", label: t("nav.products") },
-    { href: "/dashboard", label: t("nav.dashboard") },
+    { href: "/brands", label: t("nav.brands") },
+    { href: "/dashboard", label: t("nav.dashboard"), authGated: true },
   ];
-  const navLinks = showAdminLink
-    ? [...baseNavLinks, { href: "/admin", label: t("nav.admin") }]
+  const navLinks: NavLink[] = showAdminLink
+    ? [...baseNavLinks, { href: "/admin", label: t("nav.admin"), authGated: true }]
     : baseNavLinks;
 
   useEffect(() => {
@@ -50,8 +66,9 @@ export function PublicHeader({ showAdminLink = false }: PublicHeaderProps) {
         )}
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between gap-4">
-            {/* Logo */}
+          <div className="flex h-16 items-center gap-4">
+            {/* Logo - flex-1 left rail keeps the center nav screen-centered */}
+            <div className="flex flex-1 justify-start min-w-0">
             <Link
               href="/"
               className="group flex items-center gap-2.5 shrink-0"
@@ -68,25 +85,33 @@ export function PublicHeader({ showAdminLink = false }: PublicHeaderProps) {
                 </span>
               </div>
             </Link>
+            </div>
 
             {/* Desktop Nav */}
-            <nav className="hidden md:flex items-center gap-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="relative px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground group"
-                >
-                  {link.label}
-                  <span className="absolute inset-x-4 -bottom-px h-px bg-primary scale-x-0 transition-transform duration-300 group-hover:scale-x-100" />
-                </Link>
-              ))}
+            <nav className="hidden md:flex items-center gap-1 shrink-0">
+              {navLinks.map((link) => {
+                const linkEl = (
+                  <Link
+                    key={link.href}
+                    href={link.href as never}
+                    className="relative px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground group"
+                  >
+                    {link.label}
+                    <span className="absolute inset-x-4 -bottom-px h-px bg-primary scale-x-0 transition-transform duration-300 group-hover:scale-x-100" />
+                  </Link>
+                );
+                if (!link.authGated) return linkEl;
+                if (!mounted) return null;
+                return <SignedIn key={link.href}>{linkEl}</SignedIn>;
+              })}
             </nav>
 
-            {/* Right side actions */}
-            <div className="flex items-center gap-1 sm:gap-2">
+            {/* Right side actions - flex-1 right rail mirrors the left */}
+            <div className="flex flex-1 items-center justify-end gap-1 sm:gap-2">
               <PreferencesPopover />
               <ChatDrawerTrigger />
+              {/* Always visible - count is 0 (query disabled) when signed out,
+                  and clicking through to /wishlist redirects guests to sign-in. */}
               <WishlistHeaderButton />
               <CartButton />
               <div className="hidden sm:flex items-center gap-2 ml-1">
@@ -94,7 +119,7 @@ export function PublicHeader({ showAdminLink = false }: PublicHeaderProps) {
               </div>
               {/* Mobile menu button */}
               <Button
-                variant="ghost"
+                variant="outline"
                 size="icon"
                 className="md:hidden h-9 w-9"
                 onClick={() => setMobileOpen(!mobileOpen)}
@@ -117,16 +142,21 @@ export function PublicHeader({ showAdminLink = false }: PublicHeaderProps) {
           )}
         >
           <div className="px-4 py-3 space-y-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
-                onClick={() => setMobileOpen(false)}
-              >
-                {link.label}
-              </Link>
-            ))}
+            {navLinks.map((link) => {
+              const linkEl = (
+                <Link
+                  key={link.href}
+                  href={link.href as never}
+                  className="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              );
+              if (!link.authGated) return linkEl;
+              if (!mounted) return null;
+              return <SignedIn key={link.href}>{linkEl}</SignedIn>;
+            })}
             <div className="pt-2 px-3 sm:hidden">
               <HeaderAuth mode="modal" showDashboardLink={false} />
             </div>

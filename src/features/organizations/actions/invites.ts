@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
+import { getTranslations } from "next-intl/server";
 import {
   handleActionError,
   ForbiddenError,
@@ -34,13 +35,14 @@ export async function sendInviteAction(
       ctx.membershipRole !== MembershipRole.OWNER &&
       ctx.membershipRole !== MembershipRole.ADMIN
     ) {
-      throw new ForbiddenError("Only owners and admins can send invites");
+      throw new ForbiddenError({ key: "onlyOwnersAndAdminsInvites" });
     }
 
     const organization = await getOrganizationById(ctx.organizationId);
 
     if (!organization) {
-      return { error: true, message: "Organization not found" };
+      const t = await getTranslations("actionErrors");
+      return { error: true, message: t("organizationNotFound") };
     }
 
     const cookieStore = await cookies();
@@ -53,7 +55,7 @@ export async function sendInviteAction(
       createdById: ctx.userId,
     });
 
-    const inviteUrl = `${env.APP_URL}/invite/${invite.token}`;
+    const inviteUrl = `${env.APP_URL}/${locale}/invite/${invite.token}`;
 
     // Fire-and-forget - notification failure must not block the invite creation
     publishInviteSent({
@@ -65,7 +67,7 @@ export async function sendInviteAction(
       locale,
     }).catch((err) => console.error("[notifications] publishInviteSent failed", err));
 
-    revalidatePath("/dashboard/organization");
+    revalidatePath("/[locale]/dashboard/organization", "page");
   } catch (error) {
     console.error("[sendInviteAction] error:", error);
     return handleActionError(error);
@@ -82,12 +84,12 @@ export async function cancelInviteAction(
       ctx.membershipRole !== MembershipRole.OWNER &&
       ctx.membershipRole !== MembershipRole.ADMIN
     ) {
-      throw new ForbiddenError("Only owners and admins can cancel invites");
+      throw new ForbiddenError({ key: "onlyOwnersAndAdminsCancelInvites" });
     }
 
     await cancelInvite(inviteId, ctx.organizationId);
 
-    revalidatePath("/dashboard/organization");
+    revalidatePath("/[locale]/dashboard/organization", "page");
   } catch (error) {
     return handleActionError(error);
   }
@@ -101,8 +103,8 @@ export async function acceptInviteAction(
 
     await acceptInvite(token, ctx.userId);
 
-    revalidatePath("/dashboard/organization");
-    revalidatePath("/dashboard");
+    revalidatePath("/[locale]/dashboard/organization", "page");
+    revalidatePath("/[locale]/dashboard", "page");
   } catch (error) {
     return handleActionError(error);
   }
@@ -114,7 +116,7 @@ export async function declineInviteAction(
   try {
     await declineInvite(token);
 
-    revalidatePath('/dashboard/organization');
+    revalidatePath('/[locale]/dashboard/organization', "page");
   } catch (error) {
     return handleActionError(error);
   }

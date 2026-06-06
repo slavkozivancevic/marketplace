@@ -7,7 +7,7 @@ import { useInfiniteVirtualList } from "@/components/infinite/useInfiniteVirtual
 import { OrgOrderTableRow } from "./OrgOrderTableRow";
 import { SkeletonOrderRow } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import type { OrgOrderListItem } from "../db/orgOrders";
 import { LIST_PAGE_SIZE, MAX_PAGES } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
@@ -44,8 +44,8 @@ function OrgOrderTableHeader({ t }: { t: ReturnType<typeof useTranslations> }) {
       <div role="columnheader">{t("time")}</div>
       <div role="columnheader">{t("items")}</div>
       <div role="columnheader">{t("buyer")}</div>
-      <div role="columnheader">{t("subtotal")}</div>
-      <div role="columnheader">{t("status")}</div>
+      <div role="columnheader" className="text-right">{t("subtotal")}</div>
+      <div role="columnheader" className="text-center">{t("status")}</div>
     </div>
   );
 }

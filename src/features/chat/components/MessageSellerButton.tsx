@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
+import { useLocale } from "next-intl";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
 import { useChatStore } from "../store/chatStore";
@@ -14,6 +15,7 @@ interface Props {
 
 export function MessageSellerButton({ productId, className }: Props) {
   const { isSignedIn } = useUser();
+  const locale = useLocale();
   const openConversation = useChatStore((s) => s.openConversation);
   const [loading, setLoading] = useState(false);
 
@@ -22,8 +24,9 @@ export function MessageSellerButton({ productId, className }: Props) {
 
   const handleClick = async () => {
     if (!isSignedIn) {
-      // Redirect to sign-in with return URL
-      window.location.href = `/sign-in?redirect_url=${encodeURIComponent(window.location.pathname)}`;
+      // Redirect to sign-in with return URL - both legs prefixed with locale
+      // so middleware doesn't have to bounce again.
+      window.location.href = `/${locale}/sign-in?redirect_url=${encodeURIComponent(window.location.pathname)}`;
       return;
     }
 

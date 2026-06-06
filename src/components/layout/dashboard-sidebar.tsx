@@ -8,6 +8,7 @@ import {
   Shield,
   LayoutDashboard,
   PackageCheck,
+  Tag,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { OrganizationSwitcher } from "@/features/organizations/components/OrganizationSwitcher";
@@ -39,6 +40,7 @@ export function DashboardSidebar({
   const links: SidebarLink[] = [
     { href: "/dashboard", label: t("overview"), icon: LayoutDashboard },
     { href: "/products", label: t("browseProducts"), icon: ShoppingBag },
+    { href: "/brands", label: t("browseBrands"), icon: Tag },
     ...(userRole === "SELLER" ? [{ href: "/dashboard/my-products", label: t("myProducts"), icon: Package } as SidebarLink] : []),
     { href: "/dashboard/orders", label: t("myOrders"), icon: ClipboardList },
     ...(currentOrgId ? [orgOrdersLink] : []),

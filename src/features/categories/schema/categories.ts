@@ -16,6 +16,9 @@ const translationsSchema = z
     z
       .object({
         name: z.string().max(100).optional(),
+        // Locale-specific URL slug. Left empty, the repo falls back to
+        // `slugify(translatedName)`.
+        slug: z.string().max(200).optional(),
         description: z.string().max(500).optional(),
       })
       .optional(),

@@ -13,6 +13,7 @@ export async function GET(
   const product = await prisma.product.findFirst({
     where: { id, status: "PUBLISHED", deletedAt: null },
     include: {
+      translations: true,
       media: { orderBy: { order: "asc" } },
       variants: {
         orderBy: { order: "asc" },
@@ -23,9 +24,12 @@ export async function GET(
       },
       options: {
         orderBy: { order: "asc" },
-        include: { values: { orderBy: { order: "asc" } } },
+        include: {
+          translations: true,
+          values: { orderBy: { order: "asc" } },
+        },
       },
-      brand: { select: { id: true, name: true, logoUrl: true } },
+      brand: { select: { id: true, logoUrl: true, translations: true } },
     },
   });
 

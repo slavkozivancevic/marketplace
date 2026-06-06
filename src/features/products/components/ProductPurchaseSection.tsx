@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations, useLocale } from "next-intl";
-import Image from "next/image";
+import { BrandLogo } from "@/features/brands/components/BrandLogo";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -12,8 +12,9 @@ import { cn } from "@/lib/utils";
 import { SerializedPublicProduct } from "@/types/types";
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
-import { getOptionValue, type OptionTranslations } from "@/features/products/utils/optionTranslations";
-import { getProductDescription, type ProductTranslations } from "@/features/products/utils/translations";
+import { getOptionValue } from "@/features/products/utils/optionTranslations";
+import { getProductDescription } from "@/features/products/utils/translations";
+import { getBrandName } from "@/features/brands/utils/translations";
 
 interface ProductPurchaseSectionProps {
   product: SerializedPublicProduct;
@@ -42,8 +43,9 @@ export function ProductPurchaseSection({
   const translateOptionValue = (optionId: string, value: string) => {
     const opt = optionById.get(optionId);
     if (!opt) return value;
-    return getOptionValue({ translations: opt.translations as OptionTranslations | null }, value, locale);
+    return getOptionValue(opt, value, locale);
   };
+  const localBrandName = product.brand ? getBrandName(product.brand, locale) : "";
 
   const displayPrice = activeVariant ? activeVariant.price : product.price;
   const displayCompareAt = activeVariant
@@ -79,27 +81,17 @@ export function ProductPurchaseSection({
             <div className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground font-medium">{t("brandLabel")}</span>
               {product.brand.logoUrl && (
-                <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded-sm border bg-muted">
-                  <Image
-                    src={product.brand.logoUrl}
-                    alt={product.brand.name}
-                    fill
-                    sizes="20px"
-                    className="object-contain"
-                  />
-                </div>
+                <BrandLogo
+                  src={product.brand.logoUrl}
+                  name={localBrandName}
+                  size={20}
+                />
               )}
-              <span className="font-medium">{product.brand.name}</span>
+              <span className="font-medium">{localBrandName}</span>
             </div>
           )}
           <p className="text-muted-foreground">
-            {getProductDescription(
-              {
-                description: product.description,
-                translations: product.translations as ProductTranslations | null,
-              },
-              locale,
-            )}
+            {getProductDescription(product, locale)}
           </p>
           <AddToCart
             product={product}

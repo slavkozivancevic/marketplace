@@ -110,8 +110,8 @@ export async function createOrUpdateUserFromClerk(params: {
 
   if (user) {
     revalidateUserCache(user.id, params.clerkUserId);
-    revalidatePath("/dashboard");
-    revalidatePath("/admin");
+    revalidatePath("/[locale]/dashboard", "page");
+    revalidatePath("/[locale]/admin", "page");
   }
 
   return user;

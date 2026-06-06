@@ -71,7 +71,7 @@ export async function removeMember(targetUserId: string, orgId: string) {
 
   if (!membership) throw new NotFoundError("Member not found");
   if (membership.role === MembershipRole.OWNER) {
-    throw new ForbiddenError("Cannot remove the organization owner");
+    throw new ForbiddenError({ key: "cannotRemoveOwner" });
   }
 
   await prisma.membership.delete({
@@ -89,17 +89,17 @@ export async function updateMemberRole(
   const membership = await prisma.membership.findUnique({
     where: { userId_orgId: { userId: targetUserId, orgId } },
     include: {
-      user: { select: { email: true, name: true } },
+      user: { select: { email: true, name: true, locale: true } },
       organization: { select: { name: true } },
     },
   });
 
   if (!membership) throw new NotFoundError("Member not found");
   if (membership.role === MembershipRole.OWNER) {
-    throw new ForbiddenError("Cannot change the owner's role");
+    throw new ForbiddenError({ key: "cannotChangeOwnerRole" });
   }
   if (role === MembershipRole.OWNER) {
-    throw new ForbiddenError("Cannot assign owner role directly");
+    throw new ForbiddenError({ key: "cannotAssignOwnerRole" });
   }
 
   await prisma.membership.update({
@@ -114,6 +114,7 @@ export async function updateMemberRole(
     newRole: role,
     userEmail: membership.user.email,
     userName: membership.user.name,
+    userLocale: membership.user.locale,
     organizationName: membership.organization.name,
   };
 }

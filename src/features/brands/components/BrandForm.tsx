@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,13 +22,145 @@ import { createBrandSchema, updateBrandSchema, CreateBrandInput, UpdateBrandInpu
 import { createBrandAction, updateBrandAction } from "../actions/brands";
 import { slugify } from "@/lib/utils";
 import { NON_DEFAULT_LOCALES, LOCALE_LABELS, DEFAULT_LOCALE } from "@/i18n/config";
+import { BRAND_EXAMPLES, withEgPrefix } from "@/i18n/form-examples";
+import { SlugAvailabilityIndicator } from "@/components/admin/SlugAvailabilityIndicator";
 
 function emptyBrandTranslations(): NonNullable<CreateBrandInput["translations"]> {
-  const out: Record<string, { name?: string; description?: string }> = {};
+  const out: Record<string, { name?: string; slug?: string; description?: string }> = {};
   for (const loc of NON_DEFAULT_LOCALES) {
-    out[loc] = { name: "", description: "" };
+    out[loc] = { name: "", slug: "", description: "" };
   }
   return out;
+}
+
+/**
+ * Per-locale fields card. Auto-slugifies the translated name into the
+ * locale's slug whenever the slug input hasn't been manually edited - same
+ * UX as the canonical-locale section above. Lifted out of the parent
+ * component so each locale gets its own `useRef`/`useState` instance
+ * without leaking the manual-edit flag between languages.
+ */
+function PerLocaleSection({
+  locale,
+  form,
+  fallbackName,
+  fallbackDescription,
+  excludeId,
+  t,
+}: {
+  locale: (typeof NON_DEFAULT_LOCALES)[number];
+  form: ReturnType<typeof useForm<CreateBrandInput>>;
+  fallbackName: string;
+  fallbackDescription: string;
+  excludeId?: string;
+  t: ReturnType<typeof useTranslations<"brands">>;
+}) {
+  const uiLocale = useLocale();
+  const namePath = `translations.${locale}.name` as const;
+  const slugPath = `translations.${locale}.slug` as const;
+  const descriptionPath = `translations.${locale}.description` as const;
+
+  const nameValue = useWatch({ control: form.control, name: namePath });
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  const prevNameRef = useRef<string | undefined>(form.getValues(namePath));
+
+  useEffect(() => {
+    if (slugManuallyEdited) return;
+    if (nameValue === prevNameRef.current) return;
+    prevNameRef.current = nameValue;
+    form.setValue(slugPath, slugify(nameValue ?? ""), { shouldDirty: false });
+  }, [nameValue, slugManuallyEdited, form, slugPath]);
+
+  return (
+    <div className="rounded-lg border border-border/60 p-4 space-y-4">
+      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        {LOCALE_LABELS[locale].emoji} {LOCALE_LABELS[locale].label}
+      </p>
+
+      <FormField
+        control={form.control}
+        name={namePath}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t("brandName")}</FormLabel>
+            <FormControl>
+              <Input
+                placeholder={fallbackName || withEgPrefix(uiLocale, BRAND_EXAMPLES.name[locale])}
+                {...field}
+                value={field.value ?? ""}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name={slugPath}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t("slug")}</FormLabel>
+            <div className="flex gap-2">
+              <FormControl>
+                <Input
+                  placeholder={withEgPrefix(uiLocale, BRAND_EXAMPLES.slug[locale])}
+                  {...field}
+                  value={field.value ?? ""}
+                  onChange={(e) => {
+                    field.onChange(e);
+                    setSlugManuallyEdited(true);
+                  }}
+                />
+              </FormControl>
+              {slugManuallyEdited && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    form.setValue(slugPath, slugify(form.getValues(namePath) ?? ""));
+                    setSlugManuallyEdited(false);
+                  }}
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </Button>
+              )}
+            </div>
+            <div className="flex items-center justify-between">
+              <FormDescription>{t("slugDesc")}</FormDescription>
+              <SlugAvailabilityIndicator
+                entity="brand"
+                locale={locale}
+                slug={field.value}
+                excludeId={excludeId}
+              />
+            </div>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name={descriptionPath}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t("description")}</FormLabel>
+            <FormControl>
+              <Textarea
+                placeholder={fallbackDescription || t("descPlaceholder")}
+                rows={3}
+                {...field}
+                value={field.value ?? ""}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </div>
+  );
 }
 
 type CreateMode = {
@@ -46,6 +178,7 @@ type BrandFormProps = CreateMode | EditMode;
 
 export function BrandForm(props: BrandFormProps) {
   const t = useTranslations("brands");
+  const locale = useLocale();
   const [isPending, startTransition] = useTransition();
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 
@@ -111,7 +244,7 @@ export function BrandForm(props: BrandFormProps) {
               <FormItem>
                 <FormLabel>{t("brandName")}</FormLabel>
                 <FormControl>
-                  <Input placeholder={t("brandNamePlaceholder")} {...field} />
+                  <Input placeholder={withEgPrefix(locale, BRAND_EXAMPLES.name[DEFAULT_LOCALE])} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -140,48 +273,15 @@ export function BrandForm(props: BrandFormProps) {
 
         {/* ── Translation sections - one per non-default locale ── */}
         {NON_DEFAULT_LOCALES.map((loc) => (
-          <div key={loc} className="rounded-lg border border-border/60 p-4 space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              {LOCALE_LABELS[loc].emoji} {LOCALE_LABELS[loc].label}
-            </p>
-
-            <FormField
-              control={form.control}
-              name={`translations.${loc}.name` as const}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("brandName")}</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder={nameValue || t("brandNamePlaceholder")}
-                      {...field}
-                      value={field.value ?? ""}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name={`translations.${loc}.description` as const}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("description")}</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder={descriptionValue || t("descPlaceholder")}
-                      rows={3}
-                      {...field}
-                      value={field.value ?? ""}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+          <PerLocaleSection
+            key={loc}
+            locale={loc}
+            form={form}
+            fallbackName={nameValue ?? ""}
+            fallbackDescription={descriptionValue ?? ""}
+            excludeId={props.mode === "edit" ? props.brandId : undefined}
+            t={t}
+          />
         ))}
 
         <FormField
@@ -193,7 +293,7 @@ export function BrandForm(props: BrandFormProps) {
               <div className="flex gap-2">
                 <FormControl>
                   <Input
-                    placeholder={t("slugPlaceholder")}
+                    placeholder={withEgPrefix(locale, BRAND_EXAMPLES.slug[DEFAULT_LOCALE])}
                     {...field}
                     onChange={(e) => {
                       field.onChange(e);
@@ -215,7 +315,15 @@ export function BrandForm(props: BrandFormProps) {
                   </Button>
                 )}
               </div>
-              <FormDescription>{t("slugDesc")}</FormDescription>
+              <div className="flex items-center justify-between">
+                <FormDescription>{t("slugDesc")}</FormDescription>
+                <SlugAvailabilityIndicator
+                  entity="brand"
+                  locale={DEFAULT_LOCALE}
+                  slug={field.value}
+                  excludeId={props.mode === "edit" ? props.brandId : undefined}
+                />
+              </div>
               <FormMessage />
             </FormItem>
           )}

@@ -43,9 +43,15 @@ interface DepartmentSearchBarProps {
   isPending?: boolean;
 }
 
+function nodeMatchesSlug(node: CategoryTreeItem, slug: string): boolean {
+  // Match against any locale's slug so a "dept=..." param works regardless of
+  // the language the URL was generated in.
+  return node.translations.some((tr) => tr.slug === slug);
+}
+
 function findDeptNode(tree: CategoryTreeItem[], slug: string): CategoryTreeItem | null {
   for (const node of tree) {
-    if (node.slug === slug) return node;
+    if (nodeMatchesSlug(node, slug)) return node;
     const found = findDeptNode(node.children, slug);
     if (found) return found;
   }
@@ -189,10 +195,9 @@ export function DepartmentSearchBar({
         onClose={() => setDrawerOpen(false)}
         tree={tree}
         selectedDept={dept}
-        onChange={(slug) => {
-          onDeptChange(slug);
-          clearSearch();
-        }}
+        // Dept change navigates to a clean URL, so search resets on its own -
+        // calling the nuqs-backed clearSearch here would race the navigation.
+        onChange={onDeptChange}
       />
     </>
   );

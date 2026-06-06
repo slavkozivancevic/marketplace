@@ -17,7 +17,7 @@ export async function getUserOrders(userId: string) {
     include: {
       items: {
         include: {
-          product: { select: { title: true } },
+          product: { select: { translations: { select: { locale: true, title: true } } } },
           variant: { select: { sku: true } },
         },
       },
@@ -73,7 +73,17 @@ export async function getUserOrdersPage({
   if (search) {
     where.OR = [
       { id: { contains: search, mode: "insensitive" } },
-      { items: { some: { product: { title: { contains: search, mode: "insensitive" } } } } },
+      {
+        items: {
+          some: {
+            product: {
+              translations: {
+                some: { title: { contains: search, mode: "insensitive" } },
+              },
+            },
+          },
+        },
+      },
     ];
   }
 
@@ -89,7 +99,7 @@ export async function getUserOrdersPage({
     include: {
       items: {
         include: {
-          product: { select: { title: true } },
+          product: { select: { translations: { select: { locale: true, title: true } } } },
           variant: { select: { sku: true } },
         },
       },
@@ -144,7 +154,7 @@ export async function getOrderById(id: string, userId: string) {
           product: {
             select: {
               id: true,
-              title: true,
+              translations: { select: { locale: true, title: true } },
               media: {
                 orderBy: { order: "asc" },
                 take: 1,
@@ -157,7 +167,17 @@ export async function getOrderById(id: string, userId: string) {
           variant: {
             select: {
               sku: true,
-              optionValues: true,
+              optionValues: {
+                // Pull each option's per-locale value map so the order page can
+                // localize the variant label instead of showing raw values.
+                include: {
+                  option: {
+                    select: {
+                      translations: { select: { locale: true, values: true } },
+                    },
+                  },
+                },
+              },
               media: {
                 orderBy: { order: "asc" },
                 take: 1,

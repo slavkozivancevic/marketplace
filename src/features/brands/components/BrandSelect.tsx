@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   Select,
   SelectContent,
@@ -8,10 +8,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getBrandName } from "../utils/translations";
 
+/**
+ * Brand option shape used by the select. Carries the full per-locale
+ * translations payload so the rendered label resolves to the active UI
+ * language without callers having to compute it.
+ */
 export type BrandOption = {
   id: string;
-  name: string;
+  translations: {
+    locale: string;
+    name: string;
+    slug: string;
+    description: string | null;
+  }[];
 };
 
 interface BrandSelectProps {
@@ -23,6 +34,7 @@ interface BrandSelectProps {
 
 export function BrandSelect({ brands, value, onChange, disabled }: BrandSelectProps) {
   const t = useTranslations("brands");
+  const locale = useLocale();
   const selectedBrand = value ? brands.find((b) => b.id === value) : undefined;
   return (
     <Select
@@ -34,14 +46,14 @@ export function BrandSelect({ brands, value, onChange, disabled }: BrandSelectPr
         {/* Explicit children so the label shows pre-hydration (the SelectContent
             is portaled and not available for Radix's value→item lookup yet). */}
         <SelectValue placeholder={t("noBrand")}>
-          {selectedBrand?.name ?? t("noBrand")}
+          {selectedBrand ? getBrandName(selectedBrand, locale) : t("noBrand")}
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="none" className="cursor-pointer">{t("noBrand")}</SelectItem>
         {brands.map((brand) => (
           <SelectItem key={brand.id} value={brand.id} className="cursor-pointer">
-            {brand.name}
+            {getBrandName(brand, locale)}
           </SelectItem>
         ))}
       </SelectContent>

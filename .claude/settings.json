@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(timeout 120 bash -c 'sleep 3 *)",
+      "PowerShell(\"ready\")",
+      "Bash(timeout 130 bash -c 'sleep 3 *)",
+      "Bash(echo \"exit=$?\")",
+      "PowerShell(\"deleted\")",
+      "PowerShell(\"deleted orphan BrandProductCardPrice\")",
+      "Bash(mkdir -p \"\\(i18n\\)\" \"\\(fallback\\)\")",
+      "Bash(mv \"[locale]\" \"\\(i18n\\)/[locale]\")",
+      "Bash(mv not-found.tsx \"\\(fallback\\)/not-found.tsx\")",
+      "Bash(node -e ' *)"
+    ]
+  }
+}

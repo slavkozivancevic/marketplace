@@ -2,6 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/core/db/prisma";
 import { createCodOrder } from "@/features/orders/db/orders";
 import { publishCodOrderPlaced } from "@/services/notifications";
@@ -34,9 +35,10 @@ export async function createCodCheckout(
     const currency: Currency = VALID_CURRENCIES.includes(rawCurrency as Currency)
       ? (rawCurrency as Currency)
       : "usd";
+    const t = await getTranslations("actionErrors");
 
     if (!clerkUserId) {
-      return { error: true, message: "You must be signed in to checkout" };
+      return { error: true, message: t("mustBeSignedIn") };
     }
 
     const user = await prisma.user.findUnique({
@@ -44,8 +46,8 @@ export async function createCodCheckout(
       select: { id: true },
     });
 
-    if (!user) return { error: true, message: "User not found" };
-    if (items.length === 0) return { error: true, message: "Cart is empty" };
+    if (!user) return { error: true, message: t("userNotFound") };
+    if (items.length === 0) return { error: true, message: t("cartEmpty") };
 
     // Fetch exchange rate once for the entire order
     const exchangeRate = await getCurrencyRate(currency);
@@ -76,15 +78,15 @@ export async function createCodCheckout(
     for (const item of items) {
       if (item.variantId) {
         const v = variantMap.get(item.variantId);
-        if (!v) return { error: true, message: "Item no longer available" };
-        if (v.stock < item.quantity) return { error: true, message: "Insufficient stock" };
+        if (!v) return { error: true, message: t("itemNoLongerAvailable") };
+        if (v.stock < item.quantity) return { error: true, message: t("insufficientStock") };
         const unitCents = convertCents(Number(v.price), currency, exchangeRate);
         totalInCurrency += unitCents * item.quantity;
       } else {
         const p = productMap.get(item.productId);
-        if (!p) return { error: true, message: "Item no longer available" };
+        if (!p) return { error: true, message: t("itemNoLongerAvailable") };
         if (p.stock !== null && p.stock < item.quantity)
-          return { error: true, message: "Insufficient stock" };
+          return { error: true, message: t("insufficientStock") };
         const unitCents = convertCents(Number(p.price), currency, exchangeRate);
         totalInCurrency += unitCents * item.quantity;
       }

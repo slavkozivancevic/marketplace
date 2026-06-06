@@ -32,6 +32,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: false });
   } catch (error) {
     console.error("Delete error:", error);
-    return NextResponse.json(handleActionError(error), { status: 400 });
+    return NextResponse.json(await handleActionError(error), { status: 400 });
   }
 }

@@ -9,9 +9,13 @@ import {
 
 // ---------- Public products ----------
 
+// Note: "title" sort was removed when title moved to ProductTranslation.
+// Sorting by a per-locale field across cursor-paginated pages requires either
+// a denormalized column or post-fetch sort - both add complexity for an
+// admin-only convenience. UI can sort the current page client-side if needed.
 export const productSearchParams = {
   search: parseAsString.withDefault(""),
-  sortBy: parseAsStringEnum(["createdAt", "price", "title", "avgRating"] as const).withDefault("createdAt"),
+  sortBy: parseAsStringEnum(["createdAt", "price", "avgRating"] as const).withDefault("createdAt"),
   sortOrder: parseAsStringEnum(["asc", "desc"] as const).withDefault("desc"),
   minPrice: parseAsFloat,
   maxPrice: parseAsFloat,
@@ -27,7 +31,7 @@ export const productSearchParams = {
 
 export type ProductFilters = {
   search: string;
-  sortBy: "createdAt" | "price" | "title" | "avgRating";
+  sortBy: "createdAt" | "price" | "avgRating";
   sortOrder: "asc" | "desc";
   minPrice: number | null;
   maxPrice: number | null;
@@ -42,7 +46,7 @@ export type ProductFilters = {
 
 export const adminProductSearchParams = {
   search: parseAsString.withDefault(""),
-  sortBy: parseAsStringEnum(["createdAt", "price", "title", "status"] as const).withDefault("createdAt"),
+  sortBy: parseAsStringEnum(["createdAt", "price", "status"] as const).withDefault("createdAt"),
   sortOrder: parseAsStringEnum(["asc", "desc"] as const).withDefault("desc"),
   status: parseAsArrayOf(parseAsString).withDefault([]),
   minPrice: parseAsFloat,
@@ -52,7 +56,7 @@ export const adminProductSearchParams = {
 
 export type AdminProductFilters = {
   search: string;
-  sortBy: "createdAt" | "price" | "title" | "status";
+  sortBy: "createdAt" | "price" | "status";
   sortOrder: "asc" | "desc";
   status: string[];
   minPrice: number | null;
@@ -64,7 +68,7 @@ export type AdminProductFilters = {
 
 export const myProductSearchParams = {
   search: parseAsString.withDefault(""),
-  sortBy: parseAsStringEnum(["createdAt", "price", "title", "status"] as const).withDefault("createdAt"),
+  sortBy: parseAsStringEnum(["createdAt", "price", "status"] as const).withDefault("createdAt"),
   sortOrder: parseAsStringEnum(["asc", "desc"] as const).withDefault("desc"),
   status: parseAsArrayOf(parseAsString).withDefault([]),
   minPrice: parseAsFloat,
@@ -74,7 +78,7 @@ export const myProductSearchParams = {
 
 export type MyProductFilters = {
   search: string;
-  sortBy: "createdAt" | "price" | "title" | "status";
+  sortBy: "createdAt" | "price" | "status";
   sortOrder: "asc" | "desc";
   status: string[];
   minPrice: number | null;

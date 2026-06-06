@@ -29,19 +29,164 @@ import {
 import { categorySchema, type CategoryInput } from "../schema/categories";
 import { createCategoryAction, updateCategoryAction } from "../actions/categories";
 import { slugify } from "@/lib/utils";
-import { getCategoryName, type CategoryTranslations } from "../utils/translations";
+import { getCategoryName } from "../utils/translations";
 import { useLocale } from "next-intl";
 import { NON_DEFAULT_LOCALES, LOCALE_LABELS, DEFAULT_LOCALE } from "@/i18n/config";
+import { CATEGORY_EXAMPLES, withEgPrefix } from "@/i18n/form-examples";
+import { SlugAvailabilityIndicator } from "@/components/admin/SlugAvailabilityIndicator";
 
 function emptyCategoryTranslations(): NonNullable<CategoryInput["translations"]> {
-  const out: Record<string, { name?: string; description?: string }> = {};
+  const out: Record<string, { name?: string; slug?: string; description?: string }> = {};
   for (const loc of NON_DEFAULT_LOCALES) {
-    out[loc] = { name: "", description: "" };
+    out[loc] = { name: "", slug: "", description: "" };
   }
   return out;
 }
 
-type ParentOption = { id: string; name: string; parentId: string | null; translations: CategoryTranslations | null };
+/**
+ * Per-locale fields card for CategoryForm. Mirrors the canonical-locale
+ * Name+Slug+Description trio, with the same auto-slugify-from-name UX.
+ * Lifted out of the parent component so each locale gets its own
+ * manual-edit ref state without it leaking across languages.
+ */
+function PerLocaleSection({
+  locale,
+  form,
+  fallbackName,
+  fallbackDescription,
+  excludeId,
+  t,
+}: {
+  locale: (typeof NON_DEFAULT_LOCALES)[number];
+  form: ReturnType<typeof useForm<CategoryInput>>;
+  fallbackName: string;
+  fallbackDescription: string;
+  excludeId?: string;
+  t: ReturnType<typeof useTranslations<"categories">>;
+}) {
+  const uiLocale = useLocale();
+  const namePath = `translations.${locale}.name` as const;
+  const slugPath = `translations.${locale}.slug` as const;
+  const descriptionPath = `translations.${locale}.description` as const;
+
+  const nameValue = useWatch({ control: form.control, name: namePath });
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  const prevNameRef = useRef<string | undefined>(form.getValues(namePath));
+
+  useEffect(() => {
+    if (slugManuallyEdited) return;
+    if (nameValue === prevNameRef.current) return;
+    prevNameRef.current = nameValue;
+    form.setValue(slugPath, slugify(nameValue ?? ""), { shouldDirty: false });
+  }, [nameValue, slugManuallyEdited, form, slugPath]);
+
+  return (
+    <div className="rounded-lg border border-border/60 p-4 space-y-4">
+      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        {LOCALE_LABELS[locale].emoji} {LOCALE_LABELS[locale].label}
+      </p>
+
+      <FormField
+        control={form.control}
+        name={namePath}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t("name")}</FormLabel>
+            <FormControl>
+              <Input
+                placeholder={fallbackName || withEgPrefix(uiLocale, CATEGORY_EXAMPLES.name[locale])}
+                {...field}
+                value={field.value ?? ""}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name={slugPath}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t("slug")}</FormLabel>
+            <div className="flex gap-2">
+              <FormControl>
+                <Input
+                  placeholder={withEgPrefix(uiLocale, CATEGORY_EXAMPLES.slug[locale])}
+                  {...field}
+                  value={field.value ?? ""}
+                  onChange={(e) => {
+                    field.onChange(e);
+                    setSlugManuallyEdited(true);
+                  }}
+                />
+              </FormControl>
+              {slugManuallyEdited && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    form.setValue(slugPath, slugify(form.getValues(namePath) ?? ""));
+                    setSlugManuallyEdited(false);
+                  }}
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </Button>
+              )}
+            </div>
+            <div className="flex items-center justify-between">
+              <FormDescription>{t("slugDesc")}</FormDescription>
+              <SlugAvailabilityIndicator
+                entity="category"
+                locale={locale}
+                slug={field.value}
+                excludeId={excludeId}
+              />
+            </div>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name={descriptionPath}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t("description")}</FormLabel>
+            <FormControl>
+              <Textarea
+                placeholder={fallbackDescription || t("descPlaceholder")}
+                rows={2}
+                {...field}
+                value={field.value ?? ""}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </div>
+  );
+}
+
+/**
+ * Parent picker option shape. Carries the full per-locale translation rows
+ * so the dropdown label resolves to the active UI language - no need for
+ * the caller to pre-compute a name string.
+ */
+type ParentOption = {
+  id: string;
+  parentId: string | null;
+  translations: {
+    locale: string;
+    name: string;
+    slug: string;
+    description: string | null;
+  }[];
+};
 
 type CreateMode = { mode: "create"; defaultValues?: Partial<CategoryInput> };
 type EditMode = {
@@ -135,7 +280,7 @@ export function CategoryForm(props: CategoryFormProps) {
               <FormItem>
                 <FormLabel>{t("name")}</FormLabel>
                 <FormControl>
-                  <Input placeholder={t("namePlaceholder")} {...field} />
+                  <Input placeholder={withEgPrefix(locale, CATEGORY_EXAMPLES.name[DEFAULT_LOCALE])} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -164,48 +309,15 @@ export function CategoryForm(props: CategoryFormProps) {
 
         {/* ── Translation sections - one per non-default locale ── */}
         {NON_DEFAULT_LOCALES.map((loc) => (
-          <div key={loc} className="rounded-lg border border-border/60 p-4 space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              {LOCALE_LABELS[loc].emoji} {LOCALE_LABELS[loc].label}
-            </p>
-
-            <FormField
-              control={form.control}
-              name={`translations.${loc}.name` as const}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("name")}</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder={nameValue || t("namePlaceholder")}
-                      {...field}
-                      value={field.value ?? ""}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name={`translations.${loc}.description` as const}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("description")}</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder={descriptionValue || t("descPlaceholder")}
-                      rows={2}
-                      {...field}
-                      value={field.value ?? ""}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+          <PerLocaleSection
+            key={loc}
+            locale={loc}
+            form={form}
+            fallbackName={nameValue ?? ""}
+            fallbackDescription={descriptionValue ?? ""}
+            excludeId={props.mode === "edit" ? props.categoryId : undefined}
+            t={t}
+          />
         ))}
 
         {/* Slug */}
@@ -218,7 +330,7 @@ export function CategoryForm(props: CategoryFormProps) {
               <div className="flex gap-2">
                 <FormControl>
                   <Input
-                    placeholder="electronics"
+                    placeholder={withEgPrefix(locale, CATEGORY_EXAMPLES.slug[DEFAULT_LOCALE])}
                     {...field}
                     onChange={(e) => {
                       field.onChange(e);
@@ -240,7 +352,15 @@ export function CategoryForm(props: CategoryFormProps) {
                   </Button>
                 )}
               </div>
-              <FormDescription>{t("slugDesc")}</FormDescription>
+              <div className="flex items-center justify-between">
+                <FormDescription>{t("slugDesc")}</FormDescription>
+                <SlugAvailabilityIndicator
+                  entity="category"
+                  locale={DEFAULT_LOCALE}
+                  slug={field.value}
+                  excludeId={props.mode === "edit" ? props.categoryId : undefined}
+                />
+              </div>
               <FormMessage />
             </FormItem>
           )}

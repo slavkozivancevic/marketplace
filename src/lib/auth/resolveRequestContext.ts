@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { auth } from "@clerk/nextjs/server";
 import { validateAuthSync } from "./validateAuthSync";
 import { prisma } from "@/core/db/prisma";
@@ -7,7 +8,11 @@ import {
   UnauthenticatedError,
 } from "@/features/common/errors/domainErrors";
 
-export async function resolveRequestContext(): Promise<RequestContext> {
+// Wrapped in React cache() so the many requireRole()/resolveRequestContext()
+// calls within a single render (layout + page + nested components) share one
+// result instead of each re-running auth(), DB lookups and the Clerk sync.
+export const resolveRequestContext = cache(
+  async (): Promise<RequestContext> => {
   const { userId, sessionClaims } = await auth();
 
   if (!userId) {
@@ -55,6 +60,11 @@ export async function resolveRequestContext(): Promise<RequestContext> {
       clerkUserId: userId,
       dbId,
       activeOrgId,
+      currentClaims: {
+        dbId: claims?.dbId,
+        role: claims?.role,
+        activeOrgId: claims?.activeOrgId,
+      },
     });
 
     dbId = ctx.dbId;
@@ -104,4 +114,5 @@ export async function resolveRequestContext(): Promise<RequestContext> {
     membershipRole: membership.role,
     organizationVerified: membership.organization.verified,
   };
-}
+  }
+);

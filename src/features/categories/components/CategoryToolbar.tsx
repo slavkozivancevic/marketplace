@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { AlignLeft, ChevronRight, ChevronLeft, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -11,6 +11,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import type { CategoryTreeItem } from "../db/categories";
+import { getCategoryName } from "../utils/translations";
 
 interface CategoryToolbarProps {
   categories: CategoryTreeItem[];
@@ -34,6 +35,7 @@ function CategoryDrawer({
   onChange: (ids: string[]) => void;
 }) {
   const t = useTranslations("categories");
+  const locale = useLocale();
   // stack of { label, items } - root is always items[0]
   const [stack, setStack] = useState<{ label: string; items: CategoryTreeItem[] }[]>([]);
 
@@ -46,7 +48,10 @@ function CategoryDrawer({
       toggleId(item.id);
       return;
     }
-    setStack((prev) => [...prev, { label: item.name, items: item.children }]);
+    setStack((prev) => [
+      ...prev,
+      { label: getCategoryName(item, locale), items: item.children },
+    ]);
   };
 
   const handleBack = () => setStack((prev) => prev.slice(0, -1));
@@ -66,7 +71,7 @@ function CategoryDrawer({
 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <SheetContent side="left" className="w-72 flex flex-col p-0">
+      <SheetContent side="left" className="w-72 flex flex-col p-0" aria-describedby={undefined}>
         <SheetHeader className="shrink-0 px-4 pt-4 pb-3 border-b">
           <div className="flex items-center gap-2">
             {parentLabel ? (
@@ -104,7 +109,7 @@ function CategoryDrawer({
                   isSelected && "bg-primary/5 text-primary font-medium",
                 )}
               >
-                <span>{item.name}</span>
+                <span>{getCategoryName(item, locale)}</span>
                 {hasChildren ? (
                   <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                 ) : isSelected ? (
@@ -142,6 +147,7 @@ export function CategoryToolbar({
   onChange,
 }: CategoryToolbarProps) {
   const t = useTranslations("categories");
+  const locale = useLocale();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const toggleId = (id: string) => {
@@ -185,7 +191,7 @@ export function CategoryToolbar({
                   : "bg-background border-border text-foreground hover:bg-muted",
               )}
             >
-              {cat.name}
+              {getCategoryName(cat, locale)}
             </button>
           );
         })}

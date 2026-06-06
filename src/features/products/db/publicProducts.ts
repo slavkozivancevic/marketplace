@@ -2,7 +2,7 @@ import { prisma } from "@/core/db/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { SerializedProductListItem } from "@/types/types";
 
-type SortField = "createdAt" | "price" | "title" | "avgRating";
+type SortField = "createdAt" | "price" | "avgRating";
 type SortOrder = "asc" | "desc";
 
 /**
@@ -10,11 +10,15 @@ type SortOrder = "asc" | "desc";
  *
  * Cursor-paginated using the `take + 1` trick. Numbers are serialized to
  * primitive numbers for safe transport across the SSR/client boundary.
+ *
+ * Search runs against `ProductTranslation.searchText` per locale - callers
+ * pass the buyer's active locale so matches stay relevant to the UI language.
  */
 export async function getPublicProductsPage({
   take,
   cursor,
   search,
+  searchLocale,
   sortBy = "createdAt",
   sortOrder = "desc",
   minPrice,
@@ -28,6 +32,7 @@ export async function getPublicProductsPage({
   take: number;
   cursor?: string;
   search?: string;
+  searchLocale?: string;
   sortBy?: SortField;
   sortOrder?: SortOrder;
   minPrice?: number;
@@ -44,7 +49,13 @@ export async function getPublicProductsPage({
   };
 
   if (search) {
-    where.searchText = { contains: search, mode: "insensitive" };
+    const localeClause = searchLocale ? { locale: searchLocale } : {};
+    where.translations = {
+      some: {
+        ...localeClause,
+        searchText: { contains: search, mode: "insensitive" },
+      },
+    };
   }
 
   if (minPrice != null || maxPrice != null) {
@@ -88,8 +99,9 @@ export async function getPublicProductsPage({
     cursor: cursor ? { id: cursor } : undefined,
     skip: cursor ? 1 : 0,
     include: {
+      translations: true,
       media: { orderBy: { order: "asc" }, take: 5 },
-      brand: { select: { id: true, name: true, logoUrl: true } },
+      brand: { select: { id: true, logoUrl: true, translations: true } },
     },
   });
 

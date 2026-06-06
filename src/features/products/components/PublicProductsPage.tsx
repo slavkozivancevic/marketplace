@@ -2,7 +2,8 @@
 
 import { useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { getBrandName } from "@/features/brands/utils/translations";
 import { useQueryStates } from "nuqs";
 import {
   productSearchParams,
@@ -18,26 +19,95 @@ import { PublicProductsGrid } from "./PublicProductsGrid";
 import type { BrandOption } from "@/features/brands/components/BrandSelect";
 import { DepartmentSearchBar } from "@/features/categories/components/DepartmentSearchBar";
 import type { CategoryTreeItem } from "@/features/categories/db/categories";
+import { getCategorySlug } from "@/features/categories/utils/translations";
+import { useRouter } from "@/i18n/navigation";
 import { useCurrencyStore } from "@/store/currency";
 import { getCurrencyConfig } from "@/lib/currency";
 
+/** Sheet close animation duration (see `data-closed:animate-out` +
+ *  `transition duration-200` in `components/ui/sheet`). The dept-change
+ *  navigation waits this long so the drawer is fully closed/unmounted before
+ *  the route commit, avoiding a slide-out animation restart ("flash"). A small
+ *  buffer over 200ms covers timing jitter. */
+const SHEET_CLOSE_MS = 220;
+
+/** Finds a category node by any locale's slug (the dept selector emits the
+ *  default-locale slug, but we resolve robustly regardless of which one). */
+function findDeptNodeBySlug(
+  tree: CategoryTreeItem[],
+  slug: string,
+): CategoryTreeItem | null {
+  for (const node of tree) {
+    if (node.translations.some((tr) => tr.slug === slug)) return node;
+    const found = findDeptNodeBySlug(node.children, slug);
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * Universal product catalog used by `/products`, `/brands/[slug]` and
+ * `/categories/[slug]`.
+ *
+ *   - `lockedBrandId`  set by `/brands/[slug]` -> brand filter is removed
+ *     from the sidebar and the brand-id is force-merged into every query
+ *     against `/api/products`. NOT persisted to the URL (owned by the route).
+ *   - `currentDept`    set by `/categories/[slug]` -> the department this
+ *     page is scoped to. The department selector stays fully visible and
+ *     pre-selects this dept; the page behaves exactly like `/products` but
+ *     pre-filtered. Department is path-based, so changing it navigates to
+ *     the chosen department's page rather than toggling a query param.
+ */
 export function PublicProductsPage({
   brands = [],
   categoryTree = [],
   footer,
+  lockedBrandId,
+  currentDept,
 }: {
   brands?: BrandOption[];
   categoryTree?: CategoryTreeItem[];
   footer?: React.ReactNode;
+  lockedBrandId?: string;
+  currentDept?: string;
 }) {
   const t = useTranslations();
+  const locale = useLocale();
+  const router = useRouter();
+
+  // Department lives in the path (`/categories/[slug]`), so switching it is a
+  // navigation: pick a dept -> its page, "All" -> the full catalog. Resolving
+  // the node lets us emit the locale-correct slug for the target URL.
+  //
+  // The selector opens a Radix Sheet. Navigating while the Sheet is still
+  // animating closed has two problems: (1) it can leave `pointer-events: none`
+  // stuck on <body>, and (2) the route commit re-renders the portaled, mid-exit
+  // SheetContent and restarts its slide-out animation - the drawer visibly pops
+  // back open and slides out again. Defer the push until the close animation
+  // finishes and the Sheet content has unmounted, so there is nothing left to
+  // disturb. Must stay >= the Sheet's close animation duration (200ms).
+  const handleDeptChange = (slug: string) => {
+    const navigate = () => {
+      if (!slug) {
+        router.push("/products");
+        return;
+      }
+      const node = findDeptNodeBySlug(categoryTree, slug);
+      const localizedSlug = node ? getCategorySlug(node, locale) : slug;
+      router.push({
+        pathname: "/categories/[slug]",
+        params: { slug: localizedSlug },
+      });
+    };
+    setTimeout(navigate, SHEET_CLOSE_MS);
+  };
   const { currency } = useCurrencyStore();
   const currencySymbol = getCurrencyConfig(currency).symbol;
 
+  // "title" sort dropped when title moved to ProductTranslation.
   const SORT_OPTIONS = [
     { value: "createdAt", label: t("products.dateAdded") },
     { value: "price", label: t("products.price") },
-    { value: "title", label: t("products.name") },
     { value: "avgRating", label: t("products.rating") },
   ];
 
@@ -85,18 +155,19 @@ export function PublicProductsPage({
       },
     ];
 
-    if (brands.length > 0) {
+    // Hide the brand filter when the page already pins it (brand storefront).
+    if (brands.length > 0 && !lockedBrandId) {
       groups.push({
         type: "checkbox",
         key: "brandId",
         label: t("products.brand"),
-        options: brands.map((b) => ({ value: b.id, label: b.name })),
+        options: brands.map((b) => ({ value: b.id, label: getBrandName(b, locale) })),
         maxVisible: 5,
       });
     }
 
     return groups;
-  }, [brands, t, currencySymbol]);
+  }, [brands, lockedBrandId, t, currencySymbol, locale]);
 
   // ---- Filter values ----
   // URL stores values as typed by user (in selected currency) - no conversion, no rounding.
@@ -158,9 +229,11 @@ export function PublicProductsPage({
     maxPrice: params.maxPrice,
     onSale: params.onSale,
     isDigital: params.isDigital,
-    brandId: params.brandId,
+    // Locked dimensions take precedence so the visitor can't unlock the
+    // brand storefront / category page via URL tampering.
+    brandId: lockedBrandId ? [lockedBrandId] : params.brandId,
     minRating: params.minRating,
-    dept: params.dept,
+    dept: currentDept ?? params.dept,
   };
 
   const outerScrollRef = useRef<HTMLDivElement>(null);
@@ -172,8 +245,8 @@ export function PublicProductsPage({
       <div className="flex flex-col gap-2 shrink-0 px-6">
         <DepartmentSearchBar
           tree={categoryTree}
-          dept={params.dept}
-          onDeptChange={(slug) => setParams({ dept: slug, search: "" })}
+          dept={currentDept ?? params.dept}
+          onDeptChange={handleDeptChange}
           search={search}
           onSearchChange={(v) => setParams({ search: v })}
           sortBy={params.sortBy}

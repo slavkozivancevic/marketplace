@@ -15,8 +15,12 @@ import { prisma } from "@/core/db/prisma";
  *   buyer: { email, name },
  *   items: [{ name, quantity, price, orgId }],
  *   shipping?: { name, line1, line2, city, state, postalCode, country },
- *   sellers: [{ orgId, orgName, memberEmails, items }]
+ *   sellers: [{ orgId, orgName, members: [{ email, locale }], items }]
  * }
+ *
+ * Note: `sellers[].members` carries per-recipient locale so the Lambda can
+ * group recipients by language and dispatch one email per locale - sellers
+ * in the same org may prefer different languages.
  */
 export async function GET(request: NextRequest) {
   const apiKey = request.headers.get("x-api-key");
@@ -37,7 +41,11 @@ export async function GET(request: NextRequest) {
         include: {
           product: {
             select: {
-              title: true,
+              // Notification emails are sent in `order.locale` (captured at
+              // checkout). We pull every translation row and pick the right
+              // one per item below so each notification reads in the buyer's
+              // language at order time.
+              translations: { select: { locale: true, title: true } },
               organizationId: true,
               organization: {
                 select: {
@@ -46,7 +54,7 @@ export async function GET(request: NextRequest) {
                   members: {
                     where: { role: { in: ["OWNER", "ADMIN"] } },
                     include: {
-                      user: { select: { email: true } },
+                      user: { select: { email: true, locale: true } },
                     },
                   },
                 },
@@ -68,20 +76,27 @@ export async function GET(request: NextRequest) {
     {
       orgId: string;
       orgName: string;
-      memberEmails: string[];
+      members: { email: string; locale: string }[];
       items: { name: string; quantity: number; price: number; orgId: string }[];
     }
   >();
 
   const allItems = order.items.map((item) => {
     const org = item.product.organization;
+    const title =
+      item.product.translations.find((tr) => tr.locale === order.locale)?.title ??
+      item.product.translations.find((tr) => tr.locale === "en")?.title ??
+      "";
     return {
-      name: item.product.title,
+      name: title,
       quantity: item.quantity,
       price: Number(item.price),
       orgId: org.id,
       orgName: org.name,
-      memberEmails: org.members.map((m) => m.user.email),
+      members: org.members.map((m) => ({
+        email: m.user.email,
+        locale: m.user.locale,
+      })),
     };
   });
 
@@ -90,7 +105,7 @@ export async function GET(request: NextRequest) {
       sellerMap.set(item.orgId, {
         orgId: item.orgId,
         orgName: item.orgName,
-        memberEmails: item.memberEmails,
+        members: item.members,
         items: [],
       });
     }

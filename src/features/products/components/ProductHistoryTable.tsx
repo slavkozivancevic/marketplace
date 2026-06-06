@@ -39,13 +39,20 @@ function HistoryTableHeader() {
       className={`grid ${GRID_COLS} items-center gap-2 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit`}
     >
       <div role="columnheader" className="truncate">{t("historyVersion")}</div>
-      <div role="columnheader"><Badge variant="outline" className="text-xs invisible">{t("historyCurrent")}</Badge></div>
+      {/* "Current" badge column is centered (it's a badge cell), so the header
+          placeholder badge - rendered invisible to keep header height aligned -
+          is also centered. */}
+      <div role="columnheader" className="flex justify-center">
+        <Badge variant="outline" className="text-xs invisible">{t("historyCurrent")}</Badge>
+      </div>
       <div role="columnheader" className="truncate">{t("historyTitle")}</div>
       <div role="columnheader" className="truncate">{t("historyDescription")}</div>
-      <div role="columnheader" className="truncate">{t("historyPrice")}</div>
-      <div role="columnheader" className="truncate">{t("historyStatus")}</div>
+      <div role="columnheader" className="truncate text-right">{t("historyPrice")}</div>
+      <div role="columnheader" className="truncate text-center">{t("historyStatus")}</div>
       <div role="columnheader" className="truncate">{t("historyUpdatedBy")}</div>
       <div role="columnheader" className="truncate">{t("historyCreatedAt")}</div>
+      {/* Rollback is a labeled button (not an icon row) - keeping the column
+          LEFT-aligned reads more naturally than right-anchoring a wide button. */}
       <div role="columnheader" className="truncate">{t("historyActions")}</div>
     </div>
   );
@@ -64,7 +71,8 @@ function HistoryRow({
   const { currency, currentRate } = useCurrencyStore();
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
-  const dl = dateLocale(useLocale());
+  const locale = useLocale();
+  const dl = dateLocale(locale);
 
   const handleRollback = () => {
     startTransition(async () => {
@@ -73,7 +81,7 @@ function HistoryRow({
         toast.error(result.message);
       } else {
         toast.success(t("historyRollbackSuccess", { version: entry.version }));
-        router.push(`/admin/products/${productId}/history`);
+        router.push(`/${locale}/admin/products/${productId}/history`);
         router.refresh();
       }
     });
@@ -85,15 +93,17 @@ function HistoryRow({
       className={`grid ${GRID_COLS} items-center gap-2 border-b p-3 transition-colors min-w-fit`}
     >
       <div role="cell">{entry.version}</div>
-      <div role="cell">
+      <div role="cell" className="flex justify-center">
         <Badge variant="outline" className={`text-xs ${isLatest ? "" : "invisible"}`}>
           {t("historyCurrent")}
         </Badge>
       </div>
       <div role="cell" className="truncate">{entry.title}</div>
       <div role="cell" className="truncate text-muted-foreground">{entry.description}</div>
-      <div role="cell">{formatPrice(convertCents(entry.price, currency, currentRate()), currency)}</div>
-      <div role="cell">
+      <div role="cell" className="text-right tabular-nums">
+        {formatPrice(convertCents(entry.price, currency, currentRate()), currency)}
+      </div>
+      <div role="cell" className="flex justify-center">
         <Badge variant={getStatusVariant(entry.status)}>
           {t(entry.status.toLowerCase() as "published" | "draft" | "archived")}
         </Badge>

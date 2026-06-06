@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import Image from "next/image";
 import { Minus, Plus, Trash2, ShoppingCart, X, Loader2 } from "lucide-react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname } from "@/i18n/navigation";
 import {
   Sheet,
   SheetClose,
@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useCartStore } from "../store/cartStore";
+import { localizedVariantLabel, pickLocalized } from "../utils/variantOptions";
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
 
@@ -27,6 +28,7 @@ function CartItemImage({ src, alt }: { src: string; alt: string }) {
         src={src}
         alt={alt}
         fill
+        sizes="64px"
         className="object-cover"
         onLoad={() => setLoaded(true)}
       />
@@ -36,6 +38,7 @@ function CartItemImage({ src, alt }: { src: string; alt: string }) {
 
 export function CartDrawer() {
   const t = useTranslations("cart");
+  const locale = useLocale();
   const { items, isOpen, closeCart, removeItem, updateQuantity, totalPrice } =
     useCartStore();
   const { currency, currentRate } = useCurrencyStore();
@@ -69,6 +72,7 @@ export function CartDrawer() {
     >
       <SheetContent
         className="flex flex-col w-full sm:max-w-md p-0 gap-0"
+        aria-describedby={undefined}
         showCloseButton={false}
         onInteractOutside={(e) => {
           if ((e.target as HTMLElement).closest("[data-cart-trigger]"))
@@ -94,7 +98,18 @@ export function CartDrawer() {
           ) : (
             <>
               <div className="flex-1 overflow-y-auto -mx-6 px-6">
-                {items.map((item, index) => (
+                {items.map((item, index) => {
+                  const variantText = localizedVariantLabel(
+                    item.variantOptions,
+                    locale,
+                    item.variantLabel,
+                  );
+                  const title = pickLocalized(
+                    item.productTitleI18n,
+                    locale,
+                    item.productTitle,
+                  );
+                  return (
                   <div key={`${item.productId}-${item.variantId}`}>
                     {index > 0 && <Separator className="my-4" />}
                     <div className="flex gap-3 py-1">
@@ -102,7 +117,7 @@ export function CartDrawer() {
                         {item.productImage ? (
                           <CartItemImage
                             src={item.productImage}
-                            alt={item.productTitle}
+                            alt={title}
                           />
                         ) : (
                           <div className="h-full w-full bg-muted" />
@@ -111,11 +126,11 @@ export function CartDrawer() {
 
                       <div className="flex flex-1 flex-col gap-1 min-w-0">
                         <p className="text-sm font-medium truncate">
-                          {item.productTitle}
+                          {title}
                         </p>
-                        {item.variantLabel && (
+                        {variantText && (
                           <p className="text-xs text-muted-foreground">
-                            {item.variantLabel}
+                            {variantText}
                           </p>
                         )}
                         <p className="text-sm font-semibold">
@@ -172,7 +187,8 @@ export function CartDrawer() {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="space-y-4 pt-4 border-t mt-4 select-none">

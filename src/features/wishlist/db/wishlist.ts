@@ -47,8 +47,9 @@ export async function getWishlistProducts(
     include: {
       product: {
         include: {
+          translations: true,
           media: { orderBy: { order: "asc" }, take: 5 },
-          brand: { select: { id: true, name: true, logoUrl: true } },
+          brand: { select: { id: true, logoUrl: true, translations: true } },
         },
       },
     },

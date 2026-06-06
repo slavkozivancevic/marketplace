@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, usePathname } from "@/i18n/navigation";
 import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -53,7 +52,7 @@ function NavLinks({
         return (
           <Link
             key={link.href}
-            href={link.href}
+            href={link.href as never}
             onClick={onNavigate}
             className={cn(
               "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
@@ -87,7 +86,7 @@ function NavLinks({
             return (
               <Link
                 key={link.href}
-                href={link.href}
+                href={link.href as never}
                 onClick={onNavigate}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
@@ -141,15 +140,15 @@ export function SidebarNav(props: SidebarNavProps) {
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <Button
-              variant="ghost"
+              variant="default"
               size="icon"
-              className="fixed bottom-4 left-4 z-40 h-12 w-12 rounded-full shadow-lg bg-primary text-primary-foreground hover:bg-primary/90"
+              className="fixed bottom-4 left-4 z-40 h-12 w-12 rounded-full shadow-lg hover:brightness-110"
             >
               <Menu className="h-5 w-5" />
               <span className="sr-only">Open navigation</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-64 flex flex-col p-0">
+          <SheetContent side="left" className="w-64 flex flex-col p-0" aria-describedby={undefined}>
             <SheetTitle className="shrink-0 text-xs font-semibold uppercase tracking-widest text-muted-foreground px-8 pt-6 pb-3">
               {props.title}
             </SheetTitle>

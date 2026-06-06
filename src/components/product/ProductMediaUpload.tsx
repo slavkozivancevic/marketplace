@@ -33,13 +33,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { MediaLightbox } from "@/components/product/MediaLightbox";
 import {
   ALLOWED_IMAGE_TYPES,
   ALLOWED_VIDEO_TYPES,
@@ -106,7 +100,7 @@ function SortableItem({ item, onClick, onRemove }: SortableItemProps) {
       {...listeners}
       className={`group py-0 relative h-24 w-full cursor-pointer overflow-hidden ${isDragging ? "z-1" : ""}`}
     >
-      <CardContent className="h-full w-full p-0" onClick={onClick}>
+      <CardContent className="relative h-full w-full p-0" onClick={onClick}>
         {isVideo && !item.posterUrl ? (
           // Server poster not yet available - render the source video paused
           // on its first frame as a local preview.
@@ -121,9 +115,9 @@ function SortableItem({ item, onClick, onRemove }: SortableItemProps) {
           <Image
             src={thumbSrc}
             alt={isVideo ? "Video poster" : "Uploaded"}
-            width={96}
-            height={96}
-            className="h-full w-full object-cover"
+            fill
+            sizes="(max-width: 768px) 25vw, 160px"
+            className="object-cover"
             unoptimized={thumbSrc.startsWith("blob:")}
           />
         )}
@@ -169,8 +163,7 @@ export const ProductMediaUpload: React.FC<ProductMediaUploadProps> = ({
 }) => {
   const t = useTranslations("mediaUpload");
   const dndId = useId();
-  const [previewItem, setPreviewItem] =
-    useState<PresignedUploadedMedia | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -399,7 +392,8 @@ export const ProductMediaUpload: React.FC<ProductMediaUploadProps> = ({
       return prev.filter((m) => m.key !== key);
     });
 
-    setPreviewItem((prev) => (prev?.key === key ? null : prev));
+    // Close the fullscreen preview if open; indices shift after removal.
+    setPreviewIndex(null);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -468,13 +462,13 @@ export const ProductMediaUpload: React.FC<ProductMediaUploadProps> = ({
             strategy={verticalListSortingStrategy}
           >
             <div className="mt-4 grid grid-cols-4 gap-4">
-              {media.map((m) => (
+              {media.map((m, i) => (
                 <SortableItem
                   key={m.clientId ?? m.key}
                   item={m}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setPreviewItem(m);
+                    setPreviewIndex(i);
                   }}
                   onRemove={() => removeItem(m.key)}
                 />
@@ -484,45 +478,25 @@ export const ProductMediaUpload: React.FC<ProductMediaUploadProps> = ({
         </DndContext>
       </CardContent>
 
-      {previewItem && (
-        <Dialog
-          open={!!previewItem}
-          onOpenChange={() => setPreviewItem(null)}
-        >
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>{t("mediaPreview")}</DialogTitle>
-            </DialogHeader>
-
-            {previewItem.mediaType === "VIDEO" ? (
-              <video
-                src={previewItem.downloadUrl ?? previewItem.url}
-                poster={previewItem.posterUrl}
-                className="w-full rounded-md"
-                controls
-                playsInline
-              />
-            ) : (
-              <Image
-                src={previewItem.downloadUrl ?? previewItem.url}
-                alt="Preview"
-                width={600}
-                height={600}
-                className="w-full rounded-md object-contain"
-                unoptimized={(previewItem.downloadUrl ?? previewItem.url).startsWith(
-                  "blob:",
-                )}
-              />
-            )}
-
-            <DialogFooter>
-              <Button type="button" onClick={() => setPreviewItem(null)}>
-                {t("close")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      <MediaLightbox
+        media={media.map((m) => {
+          const src = m.downloadUrl ?? m.url;
+          return {
+            id: m.clientId ?? m.key,
+            mediaType: m.mediaType,
+            url: src,
+            posterUrl: m.posterUrl,
+            unoptimized: src.startsWith("blob:"),
+          };
+        })}
+        index={previewIndex ?? 0}
+        onIndexChange={setPreviewIndex}
+        open={previewIndex !== null}
+        onOpenChange={(o) => {
+          if (!o) setPreviewIndex(null);
+        }}
+        title={t("mediaPreview")}
+      />
     </Card>
   );
 };

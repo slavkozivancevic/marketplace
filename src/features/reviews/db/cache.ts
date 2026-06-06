@@ -9,5 +9,7 @@ export function revalidateReviewCache(productId: string, userId?: string) {
     revalidateTag(CacheTags.reviews.userReview(productId, userId), "max");
   }
 
-  revalidatePath(`/products/${productId}`);
+  // The public product page is a dynamic [slug] route, so it must be
+  // revalidated by its pattern - a concrete product id matches no route.
+  revalidatePath("/[locale]/products/[slug]", "page");
 }

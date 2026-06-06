@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { Loader2, Pencil, Trash2 } from "lucide-react";
+import { BrandLogo } from "@/features/brands/components/BrandLogo";
+import { Copy, Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { SearchInput } from "@/components/search/SearchInput";
@@ -21,12 +21,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { deleteBrandAction } from "../actions/brands";
+import { deleteBrandAction, duplicateBrandAction } from "../actions/brands";
 import type { BrandListItem } from "../db/brands";
-import { getBrandDescription, getBrandName } from "../utils/translations";
+import { getBrandDescription, getBrandName, getBrandSlug } from "../utils/translations";
 
 // Column layout: logo | name | slug | description | products | actions
-const COLS = "48px minmax(120px,1fr) 140px minmax(120px,2fr) 80px 80px";
+const COLS = "48px minmax(120px,1fr) 140px minmax(120px,2fr) 80px 116px";
 
 function BrandTableHeader() {
   const t = useTranslations();
@@ -41,7 +41,10 @@ function BrandTableHeader() {
       <div role="columnheader">{t("brands.slug")}</div>
       <div role="columnheader">{t("brands.description")}</div>
       <div role="columnheader" className="text-right">{t("brands.products")}</div>
-      <div role="columnheader" />
+      {/* pr-2.5 (10px) aligns the label with the trash icon's visible right
+          edge - the icon Button is 36px with a 16px glyph, so the rightmost
+          icon stops 10px before the cell's right border. */}
+      <div role="columnheader" className="text-right pr-2.5">{t("brands.actions")}</div>
     </div>
   );
 }
@@ -49,19 +52,25 @@ function BrandTableHeader() {
 function BrandTableRow({
   brand,
   displayName,
+  displaySlug,
   displayDescription,
   onDelete,
   onEdit,
+  onDuplicate,
   isDeleting,
   isEditing,
+  isDuplicating,
 }: {
   brand: BrandListItem;
   displayName: string;
+  displaySlug: string;
   displayDescription: string | null;
   onDelete: (id: string) => void;
   onEdit: (id: string) => void;
+  onDuplicate: (id: string) => void;
   isDeleting: boolean;
   isEditing: boolean;
+  isDuplicating: boolean;
 }) {
   const t = useTranslations();
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -81,24 +90,12 @@ function BrandTableRow({
       style={{ gridTemplateColumns: COLS }}
     >
       <div role="cell">
-        {brand.logoUrl ? (
-          <div className="relative h-10 w-10 overflow-hidden rounded border bg-muted shrink-0">
-            <Image
-              src={brand.logoUrl}
-              alt={displayName}
-              fill
-              sizes="40px"
-              className="object-contain"
-            />
-          </div>
-        ) : (
-          <div className="h-10 w-10 rounded border bg-muted flex items-center justify-center text-xs text-muted-foreground font-medium">
-            {displayName.slice(0, 2).toUpperCase()}
-          </div>
-        )}
+        <BrandLogo src={brand.logoUrl} name={displayName} size={40} />
       </div>
       <div role="cell" className="font-medium truncate">{displayName}</div>
-      <div role="cell" className="text-muted-foreground font-mono text-xs truncate">{brand.slug}</div>
+      <div role="cell" className="text-muted-foreground font-mono text-xs truncate">
+        {displaySlug}
+      </div>
       <div role="cell" className="text-muted-foreground text-sm truncate">{displayDescription ?? "-"}</div>
       <div role="cell" className="text-right tabular-nums text-sm">{brand._count.products}</div>
       <div role="cell" onClick={(e) => e.stopPropagation()}>
@@ -113,6 +110,18 @@ function BrandTableRow({
               ? <Loader2 className="h-4 w-4 animate-spin" />
               : <Pencil className="h-4 w-4" />}
             <span className="sr-only">Edit</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            disabled={isDuplicating}
+            onClick={() => onDuplicate(brand.id)}
+            title={t("brands.duplicate")}
+          >
+            {isDuplicating
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <Copy className="h-4 w-4" />}
+            <span className="sr-only">{t("brands.duplicate")}</span>
           </Button>
           <AlertDialog
             open={deleteOpen}
@@ -144,7 +153,7 @@ function BrandTableRow({
                     onDelete(brand.id);
                   }}
                   disabled={isDeleting}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  variant="destructiveSolid"
                 >
                   {isDeleting ? (
                     <>
@@ -171,14 +180,17 @@ export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isNavigating, startNavigate] = useTransition();
+  const [isDuplicating, startDuplicate] = useTransition();
 
   const localizedBrands = useMemo(
     () =>
       brands.map((b) => ({
         brand: b,
         displayName: getBrandName(b, locale),
+        displaySlug: getBrandSlug(b, locale),
         displayDescription: getBrandDescription(b, locale),
       })),
     [brands, locale],
@@ -190,10 +202,15 @@ export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
     return localizedBrands.filter(
       ({ brand: b, displayName, displayDescription }) =>
         displayName.toLowerCase().includes(q) ||
-        b.slug.toLowerCase().includes(q) ||
         displayDescription?.toLowerCase().includes(q) ||
-        b.name.toLowerCase().includes(q) ||
-        b.description?.toLowerCase().includes(q),
+        // Match against any locale's name / slug / description so admins
+        // can paste a snippet from any language and still hit a brand.
+        b.translations.some(
+          (tr) =>
+            tr.name.toLowerCase().includes(q) ||
+            tr.slug.toLowerCase().includes(q) ||
+            tr.description?.toLowerCase().includes(q),
+        ),
     );
   }, [localizedBrands, search]);
 
@@ -212,7 +229,25 @@ export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
 
   const handleEdit = (id: string) => {
     setEditingId(id);
-    startNavigate(() => router.push(`/admin/brands/${id}/edit`));
+    startNavigate(() => router.push(`/${locale}/admin/brands/${id}/edit`));
+  };
+
+  const handleDuplicate = (id: string) => {
+    setDuplicatingId(id);
+    startDuplicate(async () => {
+      const result = await duplicateBrandAction(id);
+      if ("id" in result) {
+        toast.success(t("brands.duplicated"), {
+          action: {
+            label: t("brands.editCopy"),
+            onClick: () => router.push(`/${locale}/admin/brands/${result.id}/edit`),
+          },
+        });
+      } else {
+        toast.error(result.message);
+      }
+      setDuplicatingId(null);
+    });
   };
 
   return (
@@ -238,21 +273,24 @@ export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
             "rounded-lg border flex-1 min-h-0 overflow-auto",
             // Lock the whole table while any row's action is in flight, so
             // the user can't start a second action on a different row.
-            (isPending || isNavigating) &&
+            (isPending || isNavigating || isDuplicating) &&
               "opacity-60 pointer-events-none transition-opacity duration-150",
           )}
         >
           <BrandTableHeader />
-          {filtered.map(({ brand, displayName, displayDescription }) => (
+          {filtered.map(({ brand, displayName, displaySlug, displayDescription }) => (
             <BrandTableRow
               key={brand.id}
               brand={brand}
               displayName={displayName}
+              displaySlug={displaySlug}
               displayDescription={displayDescription}
               onDelete={handleDelete}
               onEdit={handleEdit}
+              onDuplicate={handleDuplicate}
               isDeleting={isPending && deletingId === brand.id}
               isEditing={isNavigating && editingId === brand.id}
+              isDuplicating={isDuplicating && duplicatingId === brand.id}
             />
           ))}
         </div>

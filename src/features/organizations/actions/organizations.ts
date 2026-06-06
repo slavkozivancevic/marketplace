@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
 import {
   handleActionError,
   ForbiddenError,
@@ -43,8 +42,8 @@ export async function setOrganizationVerifiedAction(
 
     await setOrganizationVerified(organizationId, parsed.data.verified);
 
-    revalidatePath("/admin/organizations");
-    revalidatePath("/dashboard/organization");
+    revalidatePath("/[locale]/admin/organizations", "page");
+    revalidatePath("/[locale]/dashboard/organization", "page");
   } catch (error) {
     return handleActionError(error);
   }
@@ -66,15 +65,13 @@ export async function updateOrganizationNameAction(
     const ctx = await resolveRequestContext();
 
     if (ctx.membershipRole !== "OWNER" && ctx.membershipRole !== "ADMIN") {
-      throw new ForbiddenError(
-        "Only organization owners and admins can update organization settings",
-      );
+      throw new ForbiddenError({ key: "onlyOwnersAndAdminsChangeRoles" });
     }
 
     await updateOrganizationName(ctx.organizationId, parsed.data.name);
 
-    revalidatePath("/dashboard/organization");
-    revalidatePath("/admin/organizations");
+    revalidatePath("/[locale]/dashboard/organization", "page");
+    revalidatePath("/[locale]/admin/organizations", "page");
   } catch (error) {
     return handleActionError(error);
   }
@@ -87,7 +84,7 @@ export async function removeMemberAction(
     const ctx = await resolveRequestContext();
 
     if (ctx.membershipRole !== "OWNER" && ctx.membershipRole !== "ADMIN") {
-      throw new ForbiddenError("Only owners and admins can remove members");
+      throw new ForbiddenError({ key: "onlyOwnersAndAdminsRemoveMembers" });
     }
 
     await removeMember(targetUserId, ctx.organizationId);
@@ -113,7 +110,7 @@ export async function updateMemberRoleAction(
     const ctx = await resolveRequestContext();
 
     if (ctx.membershipRole !== "OWNER" && ctx.membershipRole !== "ADMIN") {
-      throw new ForbiddenError("Only owners and admins can change member roles");
+      throw new ForbiddenError({ key: "onlyOwnersAndAdminsChangeRoles" });
     }
 
     const updated = await updateMemberRole(
@@ -122,16 +119,16 @@ export async function updateMemberRoleAction(
       parsed.data.role as MembershipRole,
     );
 
-    const cookieStore = await cookies();
-    const locale = cookieStore.get("NEXT_LOCALE")?.value ?? "en";
-
+    // Recipient-targeted notification: the email goes to the member whose
+    // role just changed, so it must render in THEIR preferred language,
+    // not the acting admin's.
     publishMemberRoleChanged({
       userEmail: updated.userEmail,
       userName: updated.userName,
       organizationName: updated.organizationName,
       oldRole: updated.oldRole,
       newRole: updated.newRole,
-      locale,
+      locale: updated.userLocale,
     }).catch((err) =>
       console.error("[notifications] publishMemberRoleChanged failed", err),
     );

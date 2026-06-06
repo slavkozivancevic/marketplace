@@ -4,8 +4,8 @@ import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod/v4";
-import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/navigation";
+import { useTranslations, useLocale } from "next-intl";
 import { CreditCard, Truck, ShoppingBag, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,11 +14,12 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/sonner";
 import { useCartStore } from "../store/cartStore";
+import { localizedVariantLabel, pickLocalized } from "../utils/variantOptions";
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
 import { createCheckoutSession } from "../actions/checkout";
 import { createCodCheckout } from "../actions/codCheckout";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 type PaymentMethod = "card" | "cod";
 
@@ -36,6 +37,7 @@ type ShippingForm = z.infer<typeof shippingSchema>;
 
 export function CheckoutPage() {
   const t = useTranslations("checkout");
+  const locale = useLocale();
   const router = useRouter();
   const { items, totalPrice } = useCartStore();
   const { currency, currentRate } = useCurrencyStore();
@@ -87,7 +89,9 @@ export function CheckoutPage() {
         toast.error(result.message);
         return;
       }
-      router.push(result.url);
+      // Stripe-hosted checkout - external URL. Bypass next-intl's typed
+      // router (it only accepts registered pathnames) with a hard nav.
+      window.location.href = result.url;
     });
   };
 
@@ -105,7 +109,10 @@ export function CheckoutPage() {
         toast.error(result.message);
         return;
       }
-      router.push(`/checkout/success?order_id=${result.orderId}`);
+      router.push({
+        pathname: "/checkout/success",
+        query: { order_id: result.orderId },
+      });
     });
   };
 
@@ -122,14 +129,25 @@ export function CheckoutPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {items.map((item, i) => (
+            {items.map((item, i) => {
+              const variantText = localizedVariantLabel(
+                item.variantOptions,
+                locale,
+                item.variantLabel,
+              );
+              const title = pickLocalized(
+                item.productTitleI18n,
+                locale,
+                item.productTitle,
+              );
+              return (
               <div key={`${item.productId}-${item.variantId}`}>
                 {i > 0 && <Separator className="mb-3" />}
                 <div className="flex justify-between text-sm">
                   <div>
-                    <p className="font-medium">{item.productTitle}</p>
-                    {item.variantLabel && (
-                      <p className="text-xs text-muted-foreground">{item.variantLabel}</p>
+                    <p className="font-medium">{title}</p>
+                    {variantText && (
+                      <p className="text-xs text-muted-foreground">{variantText}</p>
                     )}
                     <p className="text-xs text-muted-foreground">
                       {formatPrice(convertCents(item.price, currency, currentRate()), currency)} × {item.quantity}
@@ -140,7 +158,8 @@ export function CheckoutPage() {
                   </p>
                 </div>
               </div>
-            ))}
+              );
+            })}
             <Separator />
             <div className="flex justify-between font-semibold text-sm">
               <span>{t("total")}</span>

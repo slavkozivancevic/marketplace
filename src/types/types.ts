@@ -73,6 +73,9 @@ export type ProductTranslationsInput = Partial<
     Locale,
     {
       title?: string;
+      // Per-locale URL slug. Optional - omitted/empty, the repo derives it
+      // from `slugify(translatedTitle)`.
+      slug?: string;
       description?: string;
       shortDescription?: string;
       metaTitle?: string;
@@ -163,8 +166,15 @@ export type ActionErrorResult = {
 
 export type ProductWithRelations = Prisma.ProductGetPayload<{
   include: {
+    translations: true;
     media: true;
-    brand: { select: { id: true; name: true; logoUrl: true } };
+    brand: {
+      select: {
+        id: true;
+        logoUrl: true;
+        translations: true;
+      };
+    };
     variants: {
       include: {
         optionValues: true;
@@ -173,12 +183,19 @@ export type ProductWithRelations = Prisma.ProductGetPayload<{
     };
     options: {
       include: {
+        translations: true;
         values: true;
       };
     };
     categories: {
       include: {
-        category: { select: { id: true; name: true; translations: true; parentId: true } };
+        category: {
+          select: {
+            id: true;
+            parentId: true;
+            translations: true;
+          };
+        };
       };
     };
   };
@@ -186,8 +203,15 @@ export type ProductWithRelations = Prisma.ProductGetPayload<{
 
 export type ProductListItem = Prisma.ProductGetPayload<{
   include: {
+    translations: true;
     media: true;
-    brand: { select: { id: true; name: true; logoUrl: true } };
+    brand: {
+      select: {
+        id: true;
+        logoUrl: true;
+        translations: true;
+      };
+    };
   };
 }>;
 
@@ -225,10 +249,17 @@ export type SerializedProductHistory = Omit<ProductHistory, "price"> & {
 
 export type PublicProduct = Prisma.ProductGetPayload<{
   include: {
+    translations: true;
     media: true;
     variants: { include: { optionValues: true; media: { include: { media: true } } } };
-    options: { include: { values: true } };
-    brand: { select: { id: true; name: true; logoUrl: true } };
+    options: { include: { translations: true; values: true } };
+    brand: {
+      select: {
+        id: true;
+        logoUrl: true;
+        translations: true;
+      };
+    };
   };
 }>;
 

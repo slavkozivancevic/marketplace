@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { getLocale } from "next-intl/server";
 import {
   handleActionError,
   ForbiddenError,
@@ -29,7 +30,7 @@ export async function switchOrganizationAction(
     });
 
     if (!membership) {
-      throw new ForbiddenError("You are not a member of this organization");
+      throw new ForbiddenError({ key: "notMemberOfOrganization" });
     }
 
     await switchActiveOrg(ctx.userId, targetOrgId);
@@ -47,5 +48,6 @@ export async function switchOrganizationAction(
     return handleActionError(error);
   }
 
-  redirect("/dashboard");
+  const locale = await getLocale();
+  redirect(`/${locale}/dashboard`);
 }

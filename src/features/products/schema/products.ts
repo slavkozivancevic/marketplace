@@ -19,13 +19,17 @@ export const productMediaSchema = z.object({
 export const productImageSchema = productMediaSchema;
 
 // Locale-keyed translations map. Any locale supported by the app may appear
-// as a key. The default locale uses the canonical columns and never appears here.
+// as a key. The default locale uses the canonical columns and never appears
+// here. `slug` is per-locale - that's what shows up in the URL for that
+// locale (`/sr/proizvodi/crvena-majica`); leaving it empty falls back to a
+// `slugify(title)` value computed in the repo.
 export const productTranslationsSchema = z
   .record(
     z.string(),
     z
       .object({
         title: z.string().optional(),
+        slug: z.string().optional(),
         description: z.string().optional(),
         shortDescription: z.string().optional(),
         metaTitle: z.string().optional(),

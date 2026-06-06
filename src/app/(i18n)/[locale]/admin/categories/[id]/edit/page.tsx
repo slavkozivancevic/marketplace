@@ -1,0 +1,106 @@
+import { Link, getPathname } from "@/i18n/navigation";
+import { notFound } from "next/navigation";
+import { cacheTag } from "next/cache";
+import { getLocale, getTranslations } from "next-intl/server";
+import { PageHeader } from "@/components/PageHeader";
+import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
+import { Button } from "@/components/ui/button";
+import { CacheTags } from "@/lib/cache/tags";
+import {
+  getCategoryById,
+  getAllCategoriesFlat,
+} from "@/features/categories/db/categories";
+import { CategoryForm } from "@/features/categories/components/CategoryForm";
+import { DEFAULT_LOCALE, NON_DEFAULT_LOCALES } from "@/i18n/config";
+import type { CategoryTranslations } from "@/features/categories/utils/translations";
+
+export default async function EditCategoryPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const t = await getTranslations("adminCategories");
+  const tCrumbs = await getTranslations("breadcrumbs");
+  const locale = await getLocale();
+
+  const [category, allCategories] = await Promise.all([
+    fetchCategory(id),
+    fetchCategories(),
+  ]);
+
+  if (!category) notFound();
+
+  const breadcrumbItems = [
+    { name: tCrumbs("admin"), href: getPathname({ href: "/admin", locale }) },
+    { name: tCrumbs("adminCategories"), href: getPathname({ href: "/admin/categories", locale }) },
+    {
+      name: tCrumbs("editCategory"),
+      href: getPathname({ href: { pathname: "/admin/categories/[id]/edit", params: { id } }, locale }),
+    },
+  ];
+
+  // Exclude the category itself (and its descendants ideally) from parent options
+  const parentOptions = allCategories
+    .filter((c) => c.id !== id)
+    .map((c) => ({ id: c.id, parentId: c.parentId, translations: c.translations }));
+
+  // Pull the default-locale row for the canonical form fields and build a
+  // non-default translations map for the rest.
+  const en = category.translations.find((tr) => tr.locale === DEFAULT_LOCALE);
+  const nonDefault: CategoryTranslations = {};
+  for (const loc of NON_DEFAULT_LOCALES) {
+    const row = category.translations.find((tr) => tr.locale === loc);
+    nonDefault[loc] = {
+      name: row?.name ?? "",
+      description: row?.description ?? "",
+    };
+  }
+
+  return (
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="shrink-0 px-6 pt-2">
+        <Breadcrumbs items={breadcrumbItems} seo={false} />
+        <PageHeader title={t("editTitle")} description={en?.name ?? ""}>
+          <Button asChild variant="outline">
+            <Link href="/admin/categories">{t("back")}</Link>
+          </Button>
+        </PageHeader>
+      </div>
+      <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
+        {/* Fresh key forces remount on each page render so unsaved edits
+            don't persist across navigations (Next.js can preserve the
+            form's in-memory state otherwise). */}
+        <CategoryForm
+          key={crypto.randomUUID()}
+          mode="edit"
+          categoryId={id}
+          parentOptions={parentOptions}
+          defaultValues={{
+            name: en?.name ?? "",
+            slug: en?.slug ?? "",
+            parentId: category.parentId,
+            imageUrl: category.imageUrl ?? "",
+            description: en?.description ?? "",
+            order: category.order,
+            isActive: category.isActive,
+            isFeatured: category.isFeatured,
+            translations: nonDefault,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+async function fetchCategory(id: string) {
+  "use cache";
+  cacheTag(CacheTags.categories.byId(id));
+  return getCategoryById(id);
+}
+
+async function fetchCategories() {
+  "use cache";
+  cacheTag(CacheTags.categories.all());
+  return getAllCategoriesFlat();
+}

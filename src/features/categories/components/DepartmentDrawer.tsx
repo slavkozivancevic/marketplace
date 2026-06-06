@@ -45,16 +45,25 @@ export function DepartmentDrawer({
   const currentFrame = stack[stack.length - 1] ?? null;
   const displayItems = currentFrame ? currentFrame.items : tree;
 
+  function defaultSlug(item: CategoryTreeItem): string {
+    return (
+      item.translations.find((tr) => tr.locale === "en")?.slug ??
+      item.translations[0]?.slug ??
+      ""
+    );
+  }
+
   function drillIn(item: CategoryTreeItem) {
+    const itemSlug = defaultSlug(item);
     if (item.children.length === 0) {
       // Leaf - select immediately
-      onChange(item.slug);
+      onChange(itemSlug);
       handleClose();
       return;
     }
     setStack((prev) => [
       ...prev,
-      { item, items: item.children, parentSlug: item.slug },
+      { item, items: item.children, parentSlug: itemSlug },
     ]);
   }
 
@@ -85,7 +94,7 @@ export function DepartmentDrawer({
 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <SheetContent side="left" className="w-72 p-0 flex flex-col gap-0">
+      <SheetContent side="left" className="w-72 p-0 flex flex-col gap-0" aria-describedby={undefined}>
 
         {/* Header */}
         <div className="flex items-center gap-2 px-4 py-3 border-b shrink-0">
@@ -166,7 +175,8 @@ export function DepartmentDrawer({
 
           {/* Category rows */}
           {displayItems.map((item) => {
-            const isSelected = selectedDept === item.slug;
+            const itemSlug = defaultSlug(item);
+            const isSelected = selectedDept === itemSlug;
             const hasChildren = item.children.length > 0;
 
             return (

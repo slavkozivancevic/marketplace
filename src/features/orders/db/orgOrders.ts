@@ -34,7 +34,9 @@ export async function getOrgOrdersPage({
                 some: {
                   product: {
                     organizationId,
-                    title: { contains: search, mode: "insensitive" as const },
+                    translations: {
+                      some: { title: { contains: search, mode: "insensitive" as const } },
+                    },
                   },
                 },
               },
@@ -64,7 +66,12 @@ export async function getOrgOrdersPage({
       items: {
         where: { product: { organizationId } },
         include: {
-          product: { select: { id: true, title: true } },
+          product: {
+            select: {
+              id: true,
+              translations: { select: { locale: true, title: true } },
+            },
+          },
           variant: { select: { sku: true } },
         },
       },
@@ -114,7 +121,7 @@ export async function getOrgOrderById(orderId: string, organizationId: string) {
           product: {
             select: {
               id: true,
-              title: true,
+              translations: { select: { locale: true, title: true } },
               media: {
                 orderBy: { order: "asc" },
                 take: 1,
@@ -125,7 +132,17 @@ export async function getOrgOrderById(orderId: string, organizationId: string) {
           variant: {
             select: {
               sku: true,
-              optionValues: true,
+              optionValues: {
+                // Pull each option's per-locale value map so the order page can
+                // localize the variant label instead of showing raw values.
+                include: {
+                  option: {
+                    select: {
+                      translations: { select: { locale: true, values: true } },
+                    },
+                  },
+                },
+              },
               media: {
                 orderBy: { order: "asc" },
                 take: 1,

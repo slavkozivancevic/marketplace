@@ -2,6 +2,7 @@
 
 import { Heart } from "lucide-react";
 import { useClerk, useAuth } from "@clerk/nextjs";
+import { useLocale } from "next-intl";
 import { cn } from "@/lib/utils";
 import { useIsWishlisted, useWishlistToggle } from "../hooks/useWishlist";
 
@@ -18,6 +19,7 @@ export function WishlistButton({
 }: WishlistButtonProps) {
   const { isSignedIn } = useAuth();
   const { openSignIn } = useClerk();
+  const locale = useLocale();
   const isWishlisted = useIsWishlisted(productId);
   const { mutate, isPending } = useWishlistToggle();
 
@@ -26,7 +28,9 @@ export function WishlistButton({
     e.stopPropagation();
 
     if (!isSignedIn) {
-      openSignIn();
+      // Land back on the same-locale home so middleware doesn't have to
+      // resolve `/` -> `/<locale>` again after Clerk closes the modal.
+      openSignIn({ fallbackRedirectUrl: `/${locale}` });
       return;
     }
 

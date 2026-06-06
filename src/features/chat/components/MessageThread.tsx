@@ -233,6 +233,21 @@ const PDF_PREVIEW_H = 56;
 type PdfCacheEntry = { dataUrl: string; numPages: number };
 const pdfPreviewCache = new Map<string, PdfCacheEntry>();
 
+// A single shared pdf.js worker, created lazily and reused across all previews
+// (pdf.js multiplexes documents over one port). We build the URL at runtime so
+// the bundler doesn't try to resolve the worker through its module graph -
+// under Turbopack that turns pdf.js's fake-worker dynamic import into a
+// "Failed to fetch dynamically imported module" error. Handing pdf.js a real
+// Worker via workerPort sidesteps the fake-worker path entirely.
+let pdfWorkerPort: Worker | null = null;
+function getPdfWorkerPort(): Worker {
+  pdfWorkerPort ??= new Worker(
+    `${window.location.origin}/pdf.worker.min.mjs`,
+    { type: "module" }
+  );
+  return pdfWorkerPort;
+}
+
 function PdfPreviewCard({ attachment }: { attachment: Attachment }) {
   // Presigned URL - React Query caches this for 50 min (staleTime in useAttachmentReadUrl)
   const { data: presignedUrl } = useAttachmentReadUrl(attachment.key);
@@ -261,7 +276,7 @@ function PdfPreviewCard({ attachment }: { attachment: Attachment }) {
         }
 
         const pdfjsLib = await import("pdfjs-dist");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        pdfjsLib.GlobalWorkerOptions.workerPort = getPdfWorkerPort();
 
         // S3 CORS now allows GET, so PDF.js can fetch the presigned URL directly
         const pdfDoc = await pdfjsLib.getDocument({ url: presignedUrl })

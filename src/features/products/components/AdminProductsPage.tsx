@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
 import { useCurrencyStore } from "@/store/currency";
 import { getCurrencyConfig } from "@/lib/currency";
@@ -19,16 +19,19 @@ import {
 import { ActiveFilters } from "@/components/search/ActiveFilters";
 import { AdminProductsList } from "./AdminProductsList";
 import type { BrandOption } from "@/features/brands/components/BrandSelect";
+import { getBrandName } from "@/features/brands/utils/translations";
 
 export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
   const t = useTranslations();
+  const locale = useLocale();
   const currency = useCurrencyStore((s) => s.currency);
   const currencySymbol = getCurrencyConfig(currency).symbol;
 
+  // "title" sort dropped when title moved to ProductTranslation; sort by
+  // createdAt / price / status only.
   const SORT_OPTIONS = [
     { value: "createdAt", label: t("products.dateAdded") },
     { value: "price", label: t("products.price") },
-    { value: "title", label: t("products.name") },
     { value: "status", label: t("products.status") },
   ];
 
@@ -69,11 +72,11 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
         type: "checkbox",
         key: "brandId",
         label: t("products.brand"),
-        options: brands.map((b) => ({ value: b.id, label: b.name })),
+        options: brands.map((b) => ({ value: b.id, label: getBrandName(b, locale) })),
       });
     }
     return groups;
-  }, [brands, t, currencySymbol]);
+  }, [brands, t, currencySymbol, locale]);
 
   const filters: AdminProductFilters = {
     search,

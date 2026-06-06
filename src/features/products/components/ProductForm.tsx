@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, useTransition, KeyboardEvent } fr
 import { useTranslations, useLocale } from "next-intl";
 import { useForm, useFieldArray, useWatch, Resolver, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/sonner";
 import {
   Form,
@@ -51,6 +52,7 @@ import { X, Plus, RefreshCw, ImageOff, AlertCircle } from "lucide-react";
 import Image from "next/image";
 import { cn, slugify } from "@/lib/utils";
 import { BrandSelect, type BrandOption } from "@/features/brands/components/BrandSelect";
+import { SlugAvailabilityIndicator } from "@/components/admin/SlugAvailabilityIndicator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getCategoryName } from "@/features/categories/utils/translations";
@@ -161,6 +163,7 @@ function PriceInput({
 
 type ProductTranslationsLocaleFields = {
   title: string;
+  slug: string;
   description: string;
   shortDescription: string;
   metaTitle: string;
@@ -178,6 +181,7 @@ type OptionTranslationsForm = Record<NonDefaultLocale, OptionTranslationsLocaleF
 
 const PRODUCT_TRANSLATION_FIELDS = [
   "title",
+  "slug",
   "description",
   "shortDescription",
   "metaTitle",
@@ -185,7 +189,14 @@ const PRODUCT_TRANSLATION_FIELDS = [
 ] as const;
 
 function emptyProductLocaleFields(): ProductTranslationsLocaleFields {
-  return { title: "", description: "", shortDescription: "", metaTitle: "", metaDescription: "" };
+  return {
+    title: "",
+    slug: "",
+    description: "",
+    shortDescription: "",
+    metaTitle: "",
+    metaDescription: "",
+  };
 }
 
 function emptyProductTranslations(): ProductTranslationsForm {
@@ -204,19 +215,35 @@ function emptyOptionTranslations(): OptionTranslationsForm {
   ) as OptionTranslationsForm;
 }
 
-function normalizeProductTranslations(raw: unknown): ProductTranslationsForm {
+/**
+ * Builds the form's non-default-locale slots from the ProductTranslation row
+ * array. Default-locale values are surfaced via the top-level `title` / `slug`
+ * / `description` / … form fields, so the row for `DEFAULT_LOCALE` is skipped
+ * here.
+ */
+function normalizeProductTranslations(
+  rows: readonly {
+    locale: string;
+    title: string;
+    slug: string;
+    description: string;
+    shortDescription: string | null;
+    metaTitle: string | null;
+    metaDescription: string | null;
+  }[] | null | undefined,
+): ProductTranslationsForm {
   const result = emptyProductTranslations();
-  if (!raw || typeof raw !== "object") return result;
-  const data = raw as Record<string, unknown>;
+  if (!rows) return result;
   for (const loc of NON_DEFAULT_LOCALES) {
-    const localeData = data[loc];
-    if (!localeData || typeof localeData !== "object") continue;
-    const obj = localeData as Record<string, unknown>;
+    const row = rows.find((r) => r.locale === loc);
+    if (!row) continue;
     const slot = result[loc];
-    for (const field of PRODUCT_TRANSLATION_FIELDS) {
-      const v = obj[field];
-      if (typeof v === "string") slot[field] = v;
-    }
+    slot.title = row.title ?? "";
+    slot.slug = row.slug ?? "";
+    slot.description = row.description ?? "";
+    slot.shortDescription = row.shortDescription ?? "";
+    slot.metaTitle = row.metaTitle ?? "";
+    slot.metaDescription = row.metaDescription ?? "";
   }
   return result;
 }
@@ -275,22 +302,27 @@ function buildOptionTranslationsPayload(
  * record. Pre-initializing prevents RHF's `setValue` from creating an array
  * when a value key looks numeric (e.g. size "10").
  */
-function normalizeOptionTranslations(raw: unknown): OptionTranslationsForm {
+function normalizeOptionTranslations(
+  rows: readonly {
+    locale: string;
+    name: string;
+    values: unknown;
+  }[] | null | undefined,
+): OptionTranslationsForm {
   const result = emptyOptionTranslations();
-  if (!raw || typeof raw !== "object") return result;
-  const data = raw as Record<string, unknown>;
+  if (!rows) return result;
   for (const loc of NON_DEFAULT_LOCALES) {
-    const localeData = data[loc];
-    if (!localeData || typeof localeData !== "object") continue;
-    const obj = localeData as { name?: unknown; values?: unknown };
+    const row = rows.find((r) => r.locale === loc);
+    if (!row) continue;
     const slot = result[loc];
-    if (typeof obj.name === "string") slot.name = obj.name;
-    if (Array.isArray(obj.values)) {
-      obj.values.forEach((v, i) => {
+    if (typeof row.name === "string") slot.name = row.name;
+    const vals = row.values;
+    if (Array.isArray(vals)) {
+      vals.forEach((v, i) => {
         if (typeof v === "string") slot.values[String(i)] = v;
       });
-    } else if (obj.values && typeof obj.values === "object") {
-      for (const [k, v] of Object.entries(obj.values as Record<string, unknown>)) {
+    } else if (vals && typeof vals === "object") {
+      for (const [k, v] of Object.entries(vals as Record<string, unknown>)) {
         if (typeof v === "string") slot.values[k] = v;
       }
     }
@@ -512,6 +544,165 @@ const DIMENSION_UNITS = [
   { value: "IN", label: "in" },
 ] as const;
 
+/**
+ * Per-locale title + slug + short/full description card for the Translations
+ * tab. Mirrors the canonical-locale UX:
+ *   - slug auto-derives from the translated title while it hasn't been
+ *     manually edited (own ref + own state per locale, so editing one
+ *     language never leaks the "manually edited" flag into another),
+ *   - a refresh button restores the auto-slugified value once the user
+ *     has overridden it.
+ *
+ * Lifted out of the parent so each instance keeps its own state - putting
+ * `useState` inside a `.map(...)` callback would violate the rules of
+ * hooks across re-renders that change locale order.
+ */
+function PerLocaleProductSection({
+  locale,
+  form,
+  fallbackTitle,
+  fallbackShortDescription,
+  fallbackDescription,
+  excludeId,
+  t,
+}: {
+  locale: (typeof NON_DEFAULT_LOCALES)[number];
+  form: ReturnType<typeof useForm<ProductFormData, unknown, ProductFormData>>;
+  fallbackTitle: string;
+  fallbackShortDescription: string;
+  fallbackDescription: string;
+  excludeId?: string;
+  t: ReturnType<typeof useTranslations<"productForm">>;
+}) {
+  const titlePath = `translations.${locale}.title` as const;
+  const slugPath = `translations.${locale}.slug` as const;
+  const shortDescPath = `translations.${locale}.shortDescription` as const;
+  const descPath = `translations.${locale}.description` as const;
+
+  const titleValue = useWatch({ control: form.control, name: titlePath });
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  const prevTitleRef = useRef<string | undefined>(form.getValues(titlePath));
+
+  useEffect(() => {
+    if (slugManuallyEdited) return;
+    if (titleValue === prevTitleRef.current) return;
+    prevTitleRef.current = titleValue;
+    form.setValue(slugPath, slugify(titleValue ?? ""), { shouldDirty: false });
+  }, [titleValue, slugManuallyEdited, form, slugPath]);
+
+  return (
+    <div className="rounded-md border border-border/60 p-4 space-y-4">
+      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        {LOCALE_LABELS[locale].emoji} {LOCALE_LABELS[locale].label}
+        <span className="ml-1.5 font-normal text-muted-foreground normal-case tracking-normal">
+          - {t("optional")}
+        </span>
+      </p>
+
+      <FormField
+        control={form.control}
+        name={titlePath}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t("titleField")}</FormLabel>
+            <FormControl>
+              <Input
+                placeholder={fallbackTitle || t("titlePlaceholder")}
+                {...field}
+                value={field.value ?? ""}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name={slugPath}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t("slug")}</FormLabel>
+            <div className="flex gap-2">
+              <FormControl>
+                <Input
+                  placeholder={t("slugPlaceholder")}
+                  {...field}
+                  value={field.value ?? ""}
+                  onChange={(e) => {
+                    field.onChange(e);
+                    setSlugManuallyEdited(true);
+                  }}
+                />
+              </FormControl>
+              {slugManuallyEdited && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    form.setValue(slugPath, slugify(form.getValues(titlePath) ?? ""));
+                    setSlugManuallyEdited(false);
+                  }}
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </Button>
+              )}
+            </div>
+            <div className="flex items-center justify-between">
+              <FormDescription>{t("slugDesc")}</FormDescription>
+              <SlugAvailabilityIndicator
+                entity="product"
+                locale={locale}
+                slug={field.value}
+                excludeId={excludeId}
+              />
+            </div>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name={shortDescPath}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t("shortDesc")}</FormLabel>
+            <FormControl>
+              <Input
+                placeholder={fallbackShortDescription || t("shortDescPlaceholder")}
+                {...field}
+                value={field.value ?? ""}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name={descPath}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t("description")}</FormLabel>
+            <FormControl>
+              <Textarea
+                className="min-h-30"
+                placeholder={fallbackDescription || t("descPlaceholder")}
+                {...field}
+                value={field.value ?? ""}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </div>
+  );
+}
+
 export function ProductForm({
   mode,
   product,
@@ -522,8 +713,22 @@ export function ProductForm({
 }: ProductFormProps) {
   const t = useTranslations("productForm");
   const locale = useLocale() as Locale;
+  const router = useRouter();
   const { rates } = useCurrencyStore();
   const [isPending, startTransition] = useTransition();
+
+  // The client Router Cache can serve a stale RSC payload when the user
+  // returns to the edit page after a prior save (e.g. they changed the slug,
+  // navigated away, and came back). That stale payload carries an outdated
+  // optimistic-lock `version`, which makes the next save fail with a false
+  // "modified by another user" conflict. Forcing a refresh on entry pulls the
+  // current server state (the `version` is then re-synced into the form via
+  // the `values` prop below). Guarded to update mode; create has no version.
+  useEffect(() => {
+    if (mode === "update") router.refresh();
+    // Run once on mount; router is stable and mode never changes per instance.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [previewLocale, setPreviewLocale] = useState<Locale>(locale);
   const [activeTab, setActiveTab] = useState("details");
@@ -558,7 +763,8 @@ export function ProductForm({
     () =>
       snapshotOptions(
         product?.options.map((opt) => ({
-          name: opt.name,
+          name:
+            opt.translations.find((tr) => tr.locale === DEFAULT_LOCALE)?.name ?? "",
           values: Array.from(new Set(opt.values.map((v) => v.value))),
         })) ?? [],
       ),
@@ -599,13 +805,21 @@ export function ProductForm({
         version: 1,
       };
     }
-    const optionById = new Map(product.options.map((o) => [o.id, o.name]));
+    // Default-locale row carries the canonical title / slug / description that
+    // the form's top-level fields are bound to. Falls back to an empty row when
+    // - somehow - the product has no default-locale translation yet.
+    const defaultProductT = product.translations.find((tr) => tr.locale === DEFAULT_LOCALE);
+    const optionDefaultName = (opt: { translations: { locale: string; name: string }[] }) =>
+      opt.translations.find((tr) => tr.locale === DEFAULT_LOCALE)?.name ?? "";
+    const optionById = new Map(
+      product.options.map((o) => [o.id, optionDefaultName(o)]),
+    );
     const mediaKeyById = new Map(product.media.map((m) => [m.id, m.key]));
     return {
-      title: product.title,
-      slug: product.slug ?? "",
-      description: product.description,
-      shortDescription: product.shortDescription ?? "",
+      title: defaultProductT?.title ?? "",
+      slug: defaultProductT?.slug ?? "",
+      description: defaultProductT?.description ?? "",
+      shortDescription: defaultProductT?.shortDescription ?? "",
       price: product.price / 100,
       compareAtPrice: product.compareAtPrice != null ? product.compareAtPrice / 100 : null,
       costPrice: product.costPrice != null ? product.costPrice / 100 : null,
@@ -621,8 +835,8 @@ export function ProductForm({
       width: product.width ?? null,
       height: product.height ?? null,
       dimensionUnit: (product.dimensionUnit ?? null) as ProductFormData["dimensionUnit"],
-      metaTitle: product.metaTitle ?? "",
-      metaDescription: product.metaDescription ?? "",
+      metaTitle: defaultProductT?.metaTitle ?? "",
+      metaDescription: defaultProductT?.metaDescription ?? "",
       translations: normalizeProductTranslations(product.translations),
       brandId: product.brandId ?? undefined,
       categoryIds: product.categories.map((c) => c.categoryId),
@@ -636,7 +850,7 @@ export function ProductForm({
         height: m.height,
       })),
       options: product.options.map((opt) => ({
-        name: opt.name,
+        name: optionDefaultName(opt),
         values: Array.from(new Set(opt.values.map((v) => v.value))),
         translations: normalizeOptionTranslations(opt.translations),
       })),
@@ -675,8 +889,11 @@ export function ProductForm({
     // In update mode, re-sync the form when the underlying product changes
     // (e.g., user navigates away and returns - Next.js can preserve the React
     // tree and form state in memory, so without this the unsaved edits would
-    // persist).
+    // persist). keepDirtyValues lets the on-mount router.refresh() pull the
+    // fresh server `version` (and any other untouched fields) into the form
+    // without clobbering fields the user has already started editing.
     values: mode === "update" ? derivedValues : undefined,
+    resetOptions: { keepDirtyValues: true },
   });
 
   const {
@@ -744,7 +961,8 @@ export function ProductForm({
     productRef.current = product;
     if (!product) return;
     setSlugManuallyEdited(false);
-    prevTitleRef.current = product.title;
+    prevTitleRef.current =
+      product.translations.find((tr) => tr.locale === DEFAULT_LOCALE)?.title ?? "";
     setUploadedMedia(
       product.media.map((m) => ({
         key: m.key,
@@ -762,7 +980,8 @@ export function ProductForm({
     setSyncedOptionsSnapshot(
       snapshotOptions(
         product.options.map((opt) => ({
-          name: opt.name,
+          name:
+            opt.translations.find((tr) => tr.locale === DEFAULT_LOCALE)?.name ?? "",
           values: Array.from(new Set(opt.values.map((v) => v.value))),
         })),
       ),
@@ -1072,67 +1291,16 @@ export function ProductForm({
 
             {/* Translation sections - one per non-default locale */}
             {NON_DEFAULT_LOCALES.map((loc) => (
-              <div key={loc} className="rounded-md border border-border/60 p-4 space-y-4">
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  {LOCALE_LABELS[loc].emoji} {LOCALE_LABELS[loc].label}
-                  <span className="ml-1.5 font-normal text-muted-foreground normal-case tracking-normal">- {t("optional")}</span>
-                </p>
-
-                <FormField
-                  control={form.control}
-                  name={`translations.${loc}.title` as const}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("titleField")}</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder={form.watch("title") || t("titlePlaceholder")}
-                          {...field}
-                          value={field.value ?? ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name={`translations.${loc}.shortDescription` as const}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("shortDesc")}</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder={form.watch("shortDescription") || t("shortDescPlaceholder")}
-                          {...field}
-                          value={field.value ?? ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name={`translations.${loc}.description` as const}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("description")}</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          className="min-h-30"
-                          placeholder={form.watch("description") || t("descPlaceholder")}
-                          {...field}
-                          value={field.value ?? ""}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <PerLocaleProductSection
+                key={loc}
+                locale={loc}
+                form={form}
+                fallbackTitle={form.watch("title") ?? ""}
+                fallbackShortDescription={form.watch("shortDescription") ?? ""}
+                fallbackDescription={form.watch("description") ?? ""}
+                excludeId={product?.id}
+                t={t}
+              />
             ))}
 
             <FormField
@@ -1166,9 +1334,15 @@ export function ProductForm({
                       </Button>
                     )}
                   </div>
-                  <FormDescription>
-                    {t("slugDesc")}
-                  </FormDescription>
+                  <div className="flex items-center justify-between">
+                    <FormDescription>{t("slugDesc")}</FormDescription>
+                    <SlugAvailabilityIndicator
+                      entity="product"
+                      locale={DEFAULT_LOCALE}
+                      slug={field.value}
+                      excludeId={product?.id}
+                    />
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
@@ -1647,7 +1821,7 @@ export function ProductForm({
                       <FormLabel>{t("metaTitle")}</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder={form.watch(`translations.${loc}.title` as const) || ""}
+                          placeholder={form.watch(`translations.${loc}.title` as const) || t("metaTitlePlaceholder")}
                           maxLength={70}
                           {...field}
                           value={field.value ?? ""}
@@ -2192,7 +2366,7 @@ export function ProductForm({
                                 {isVideo && !m.posterUrl ? (
                                   <video src={thumbSrc} className="absolute inset-0 w-full h-full object-cover" muted playsInline preload="metadata" />
                                 ) : (
-                                  <Image src={thumbSrc} alt="Variant media" fill className="object-cover" unoptimized={thumbSrc.startsWith("blob:")} />
+                                  <Image src={thumbSrc} alt="Variant media" fill sizes="64px" className="object-cover" unoptimized={thumbSrc.startsWith("blob:")} />
                                 )}
                                 {isVideo && (
                                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20">

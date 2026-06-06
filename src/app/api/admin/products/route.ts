@@ -8,7 +8,9 @@ import { handleActionError } from "@/features/common/errors/domainErrors";
 import { ProductStatus } from "@/generated/prisma/client";
 import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 
-const ALLOWED_SORTS = ["createdAt", "price", "title", "status"] as const;
+// "title" was removed when title moved to ProductTranslation - see comment
+// in `src/lib/query/searchParams.ts`. UI can sort current page client-side.
+const ALLOWED_SORTS = ["createdAt", "price", "status"] as const;
 type SortField = (typeof ALLOWED_SORTS)[number];
 
 function parseSort(value: string | null): SortField | undefined {
@@ -30,7 +32,7 @@ export async function GET(req: NextRequest) {
     ctx = await resolveRequestContext();
     requirePermission(ctx, "product:read");
   } catch (e) {
-    return NextResponse.json(handleActionError(e), { status: 401 });
+    return NextResponse.json(await handleActionError(e), { status: 401 });
   }
 
   const { searchParams } = req.nextUrl;

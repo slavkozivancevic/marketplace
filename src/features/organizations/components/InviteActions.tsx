@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { acceptInviteAction, declineInviteAction } from "../actions/invites";
@@ -14,6 +14,7 @@ interface InviteActionsProps {
 export function InviteActions({ token }: InviteActionsProps) {
   const t = useTranslations("invite");
   const router = useRouter();
+  const locale = useLocale();
   const [isAccepting, startAcceptTransition] = useTransition();
   const [isDeclining, startDeclineTransition] = useTransition();
 
@@ -23,7 +24,7 @@ export function InviteActions({ token }: InviteActionsProps) {
     startAcceptTransition(async () => {
       const result = await acceptInviteAction(token);
       if (!result || !("error" in result)) {
-        router.push("/dashboard/organization");
+        router.push(`/${locale}/dashboard/organization`);
       }
     });
   };
@@ -31,7 +32,7 @@ export function InviteActions({ token }: InviteActionsProps) {
   const handleDecline = () => {
     startDeclineTransition(async () => {
       await declineInviteAction(token);
-      router.push("/dashboard");
+      router.push(`/${locale}/dashboard`);
     });
   };
 

@@ -6,33 +6,35 @@ import {
   ForbiddenError,
   NotFoundError,
 } from "@/features/common/errors/domainErrors";
+import { DEFAULT_LOCALE } from "@/i18n/config";
 
 function assertCanPublish(product: {
-  title: string;
-  description: string;
+  translations: { locale: string; title: string; description: string }[];
   price: unknown;
   media: { key: string }[];
 }) {
-  if (!product.title.trim()) {
-    throw new ForbiddenError("Product title is required before publishing");
+  // Publish gate runs against the default-locale translation row: it's the
+  // canonical content the product is required to have. Sellers can still
+  // ship missing non-default translations and fill them in later via the
+  // translations tab.
+  const defaultRow =
+    product.translations.find((t) => t.locale === DEFAULT_LOCALE) ??
+    product.translations[0];
+
+  if (!defaultRow?.title.trim()) {
+    throw new ForbiddenError({ key: "productTitleRequiredBeforePublish" });
   }
 
-  if (!product.description.trim()) {
-    throw new ForbiddenError(
-      "Product description is required before publishing",
-    );
+  if (!defaultRow.description.trim()) {
+    throw new ForbiddenError({ key: "productDescriptionRequiredBeforePublish" });
   }
 
   if (!product.price || (product.price as number) <= 0) {
-    throw new ForbiddenError(
-      "Product price must be greater than 0 before publishing",
-    );
+    throw new ForbiddenError({ key: "productPriceRequiredBeforePublish" });
   }
 
   if (product.media.length === 0) {
-    throw new ForbiddenError(
-      "At least one product image or video is required before publishing",
-    );
+    throw new ForbiddenError({ key: "productMediaRequiredBeforePublish" });
   }
 }
 
@@ -44,9 +46,10 @@ function assertStatusTransition(current: ProductStatus, next: ProductStatus) {
   };
 
   if (!allowed[current].includes(next)) {
-    throw new ForbiddenError(
-      `Invalid product status transition: ${current} → ${next}`,
-    );
+    throw new ForbiddenError({
+      key: "invalidStatusTransition",
+      params: { from: current, to: next },
+    });
   }
 }
 

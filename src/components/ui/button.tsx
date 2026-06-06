@@ -18,6 +18,12 @@ const buttonVariants = cva(
           "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+        // High-emphasis (filled) destructive - the canonical style for the
+        // confirm action of a delete dialog. `destructive` (above) stays the
+        // subtle style for inline / trigger buttons. Both use theme tokens so
+        // they track every selected theme.
+        destructiveSolid:
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

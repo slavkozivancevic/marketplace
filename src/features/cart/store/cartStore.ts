@@ -1,13 +1,22 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { CartVariantOption, LocalizedText } from "../utils/variantOptions";
 
 export interface CartItem {
   productId: string;
+  // Title pre-translated for every locale so the cart can follow a locale
+  // switch. `productTitle` stays as the plain fallback (legacy / image alt).
+  productTitleI18n: LocalizedText | null;
   productTitle: string;
   productImage: string | null;
   variantId: string | null;
   variantSku: string | null;
-  variantLabel: string | null; // e.g. "Red / XL"
+  // Selected options, pre-translated for every locale, so the drawer/checkout
+  // can render the label in the active language. Null for variant-less or
+  // manual (SKU-only) variants - those fall back to `variantLabel`.
+  variantOptions: CartVariantOption[] | null;
+  // Non-translatable fallback label (variant SKU, or a legacy pre-i18n label).
+  variantLabel: string | null;
   price: number;
   quantity: number;
   maxStock: number | null; // null = unlimited
@@ -94,7 +103,22 @@ export const useCartStore = create<CartStore>()(
     }),
     {
       name: "cart-storage",
+      version: 2,
       partialize: (state) => ({ items: state.items }),
+      // Older carts predate the localized snapshots (`variantOptions` in v1,
+      // `productTitleI18n` in v2). Default them to null so the render path
+      // falls back cleanly to the stored plain `variantLabel` / `productTitle`.
+      migrate: (persisted, version) => {
+        const state = persisted as { items?: CartItem[] } | undefined;
+        if (version < 2 && state?.items) {
+          state.items = state.items.map((i) => ({
+            ...i,
+            variantOptions: i.variantOptions ?? null,
+            productTitleI18n: i.productTitleI18n ?? null,
+          }));
+        }
+        return state as { items: CartItem[] };
+      },
     },
   ),
 );

@@ -36,7 +36,16 @@ export async function POST(request: NextRequest) {
   // 1. Find the product
   const product = await prisma.product.findUnique({
     where: { id: body.productId },
-    select: { id: true, title: true, organizationId: true },
+    select: {
+      id: true,
+      organizationId: true,
+      // Chat header just shows a label - take the default-locale title.
+      // Buyer can switch UI language elsewhere.
+      translations: {
+        where: { locale: "en" },
+        select: { title: true },
+      },
+    },
   });
 
   if (!product) {
@@ -78,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       conversationId: conversation.conversationId,
-      productTitle: product.title,
+      productTitle: product.translations[0]?.title ?? "",
     });
   } catch {
     return NextResponse.json({ error: "Failed to start conversation" }, { status: 500 });

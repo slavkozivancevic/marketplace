@@ -3,24 +3,36 @@ import { NotFoundError } from "@/features/common/errors/domainErrors";
 import { revalidateCategoryCache } from "./cache";
 import { slugify } from "@/lib/utils";
 import { refreshProductSearchText } from "@/features/products/db/products";
+import { recordSlugChanges } from "@/lib/seo/slugHistory";
+import { DEFAULT_LOCALE, NON_DEFAULT_LOCALES } from "@/i18n/config";
+import { Prisma } from "@/generated/prisma/client";
 
 // ---------- Translation types & helpers ----------
 
 export type { CategoryTranslations } from "../utils/translations";
-export { getCategoryName, getCategoryDescription } from "../utils/translations";
+export {
+  getCategoryName,
+  getCategorySlug,
+  getCategoryDescription,
+} from "../utils/translations";
 import type { CategoryTranslations } from "../utils/translations";
+
+type CategoryTranslationRow = {
+  locale: string;
+  name: string;
+  slug: string;
+  description: string | null;
+};
 
 // ---------- Tree types ----------
 
 export type CategoryTreeItem = {
   id: string;
-  name: string;
-  slug: string;
   imageUrl: string | null;
   order: number;
   isActive: boolean;
   isFeatured: boolean;
-  translations: CategoryTranslations | null;
+  translations: CategoryTranslationRow[];
   children: CategoryTreeItem[];
 };
 
@@ -47,10 +59,21 @@ function buildTree(
   return roots;
 }
 
+function defaultSlug(rows: readonly CategoryTranslationRow[]): string {
+  return (
+    rows.find((r) => r.locale === DEFAULT_LOCALE)?.slug ??
+    rows[0]?.slug ??
+    ""
+  );
+}
+
 export function getDescendantIds(tree: CategoryTreeItem[], slug: string): string[] {
   function findNode(nodes: CategoryTreeItem[]): CategoryTreeItem | null {
     for (const n of nodes) {
-      if (n.slug === slug) return n;
+      // Match against ANY locale's slug: department URLs are localized
+      // (`/sr/kategorije/moda`), so a default-locale-only match would fail to
+      // resolve the dept on every non-default locale.
+      if (n.translations.some((tr) => tr.slug === slug)) return n;
       const found = findNode(n.children);
       if (found) return found;
     }
@@ -71,7 +94,7 @@ export function findCategoryBySlug(
   slug: string,
 ): CategoryTreeItem | null {
   for (const node of tree) {
-    if (node.slug === slug) return node;
+    if (defaultSlug(node.translations) === slug) return node;
     const found = findCategoryBySlug(node.children, slug);
     if (found) return found;
   }
@@ -83,11 +106,9 @@ export function findCategoryBySlug(
 export async function getCategoryTree(): Promise<CategoryTreeItem[]> {
   const rows = await prisma.category.findMany({
     where: { isActive: true },
-    orderBy: [{ order: "asc" }, { name: "asc" }],
+    orderBy: [{ order: "asc" }],
     select: {
       id: true,
-      name: true,
-      slug: true,
       imageUrl: true,
       order: true,
       isActive: true,
@@ -97,12 +118,7 @@ export async function getCategoryTree(): Promise<CategoryTreeItem[]> {
     },
   });
 
-  return buildTree(
-    rows.map((r) => ({
-      ...r,
-      translations: (r.translations ?? null) as CategoryTranslations | null,
-    })),
-  );
+  return buildTree(rows);
 }
 
 // ---------- Homepage ----------
@@ -114,11 +130,9 @@ export type DepartmentWithImages = Omit<CategoryTreeItem, "children"> & {
 export async function getFeaturedDepartmentsWithImages(): Promise<DepartmentWithImages[]> {
   const depts = await prisma.category.findMany({
     where: { isActive: true, isFeatured: true, parentId: null },
-    orderBy: [{ order: "asc" }, { name: "asc" }],
+    orderBy: [{ order: "asc" }],
     select: {
       id: true,
-      name: true,
-      slug: true,
       imageUrl: true,
       order: true,
       isActive: true,
@@ -179,13 +193,11 @@ export async function getFeaturedDepartmentsWithImages(): Promise<DepartmentWith
 
       return {
         id: dept.id,
-        name: dept.name,
-        slug: dept.slug,
         imageUrl: dept.imageUrl,
         order: dept.order,
         isActive: dept.isActive,
         isFeatured: dept.isFeatured,
-        translations: (dept.translations ?? null) as CategoryTranslations | null,
+        translations: dept.translations,
         productImages: images,
       };
     }),
@@ -196,50 +208,40 @@ export async function getFeaturedDepartmentsWithImages(): Promise<DepartmentWith
 
 export type CategoryListItem = {
   id: string;
-  name: string;
-  slug: string;
   imageUrl: string | null;
   order: number;
   isActive: boolean;
   isFeatured: boolean;
-  translations: CategoryTranslations | null;
+  translations: CategoryTranslationRow[];
   parentId: string | null;
-  parent: { id: string; name: string } | null;
+  parent: { id: string; translations: CategoryTranslationRow[] } | null;
   _count: { children: number; products: number };
 };
 
 export async function getAllCategoriesFlat(): Promise<CategoryListItem[]> {
   const rows = await prisma.category.findMany({
-    orderBy: [{ parentId: "asc" }, { order: "asc" }, { name: "asc" }],
+    orderBy: [{ parentId: "asc" }, { order: "asc" }],
     select: {
       id: true,
-      name: true,
-      slug: true,
       imageUrl: true,
       order: true,
       isActive: true,
       isFeatured: true,
       translations: true,
       parentId: true,
-      parent: { select: { id: true, name: true } },
+      parent: { select: { id: true, translations: true } },
       _count: { select: { children: true, products: true } },
     },
   });
 
-  return rows.map((r) => ({
-    ...r,
-    translations: (r.translations ?? null) as CategoryTranslations | null,
-  }));
+  return rows;
 }
 
 export async function getCategoryById(id: string) {
-  const row = await prisma.category.findUnique({
+  return prisma.category.findUnique({
     where: { id },
     select: {
       id: true,
-      name: true,
-      slug: true,
-      description: true,
       imageUrl: true,
       order: true,
       isActive: true,
@@ -248,11 +250,6 @@ export async function getCategoryById(id: string) {
       parentId: true,
     },
   });
-  if (!row) return null;
-  return {
-    ...row,
-    translations: (row.translations ?? null) as CategoryTranslations | null,
-  };
 }
 
 type CategoryMutationData = {
@@ -267,21 +264,58 @@ type CategoryMutationData = {
   isFeatured?: boolean;
 };
 
-export async function createCategory(data: CategoryMutationData) {
-  const slug = data.slug?.trim() || slugify(data.name);
-
-  const category = await prisma.category.create({
-    data: {
+function buildCategoryTranslationRows(
+  data: CategoryMutationData,
+): CategoryTranslationRow[] {
+  const defaultSlug = (data.slug?.trim() || slugify(data.name)).trim();
+  const rows: CategoryTranslationRow[] = [
+    {
+      locale: DEFAULT_LOCALE,
       name: data.name.trim(),
-      slug,
-      parentId: data.parentId || null,
-      imageUrl: data.imageUrl || null,
-      description: data.description || null,
-      translations: data.translations ?? undefined,
-      order: data.order ?? 0,
-      isActive: data.isActive ?? true,
-      isFeatured: data.isFeatured ?? false,
+      slug: defaultSlug,
+      description: data.description?.trim() || null,
     },
+  ];
+
+  for (const locale of NON_DEFAULT_LOCALES) {
+    const t = data.translations?.[locale];
+    const name = t?.name?.trim();
+    if (!name) continue;
+    const explicitSlug = t?.slug?.trim();
+    rows.push({
+      locale,
+      name,
+      slug: explicitSlug || slugify(name) || `${defaultSlug}-${locale}`,
+      description: t?.description?.trim() || null,
+    });
+  }
+  return rows;
+}
+
+export async function createCategory(data: CategoryMutationData) {
+  const rows = buildCategoryTranslationRows(data);
+
+  const category = await prisma.$transaction(async (tx) => {
+    const created = await tx.category.create({
+      data: {
+        parentId: data.parentId || null,
+        imageUrl: data.imageUrl || null,
+        order: data.order ?? 0,
+        isActive: data.isActive ?? true,
+        isFeatured: data.isFeatured ?? false,
+        translations: { create: rows },
+      },
+      include: { translations: true },
+    });
+    // Reclaim these slugs from history so a live category URL never 308s away.
+    await recordSlugChanges(
+      tx,
+      "CATEGORY",
+      created.id,
+      new Map(),
+      new Map(rows.map((r) => [r.locale, r.slug])),
+    );
+    return created;
   });
 
   revalidateCategoryCache(category.id);
@@ -289,33 +323,46 @@ export async function createCategory(data: CategoryMutationData) {
 }
 
 export async function updateCategory(id: string, data: CategoryMutationData) {
-  const existing = await prisma.category.findUnique({ where: { id } });
+  const existing = await prisma.category.findUnique({
+    where: { id },
+    include: { translations: true },
+  });
   if (!existing) throw new NotFoundError(`Category ${id} not found`);
 
-  const slug = data.slug?.trim() || slugify(data.name);
+  const rows = buildCategoryTranslationRows(data);
 
-  const newName = data.name.trim();
-  const newSrName =
-    (data.translations as CategoryTranslations | null | undefined)?.sr?.name?.trim() ?? "";
-  const existingSrName =
-    (existing.translations as CategoryTranslations | null)?.sr?.name?.trim() ?? "";
+  const oldByLocale = new Map(existing.translations.map((t) => [t.locale, t.name]));
+  const searchableChanged = rows.some((r) => oldByLocale.get(r.locale) !== r.name);
 
-  const searchableChanged =
-    newName !== existing.name || newSrName !== existingSrName;
+  const category = await prisma.$transaction(async (tx) => {
+    await tx.category.update({
+      where: { id },
+      data: {
+        parentId: data.parentId ?? null,
+        imageUrl: data.imageUrl || null,
+        order: data.order ?? 0,
+        isActive: data.isActive ?? true,
+        isFeatured: data.isFeatured ?? false,
+      },
+    });
 
-  const category = await prisma.category.update({
-    where: { id },
-    data: {
-      name: newName,
-      slug,
-      parentId: data.parentId ?? null,
-      imageUrl: data.imageUrl || null,
-      description: data.description || null,
-      translations: data.translations ?? undefined,
-      order: data.order ?? 0,
-      isActive: data.isActive ?? true,
-      isFeatured: data.isFeatured ?? false,
-    },
+    await tx.categoryTranslation.deleteMany({ where: { categoryId: id } });
+    await tx.categoryTranslation.createMany({
+      data: rows.map((r) => ({ ...r, categoryId: id })),
+    });
+
+    await recordSlugChanges(
+      tx,
+      "CATEGORY",
+      id,
+      new Map(existing.translations.map((t) => [t.locale, t.slug])),
+      new Map(rows.map((r) => [r.locale, r.slug])),
+    );
+
+    return tx.category.findUniqueOrThrow({
+      where: { id },
+      include: { translations: true },
+    });
   });
 
   if (searchableChanged) {
@@ -324,7 +371,7 @@ export async function updateCategory(id: string, data: CategoryMutationData) {
       select: { productId: true },
     });
     for (const pc of productCategories) {
-      await refreshProductSearchText(prisma, pc.productId);
+      await refreshProductSearchText(prisma as unknown as Prisma.TransactionClient, pc.productId);
     }
   }
 
@@ -338,4 +385,51 @@ export async function deleteCategory(id: string) {
 
   await prisma.category.delete({ where: { id } });
   revalidateCategoryCache(id);
+}
+
+export async function duplicateCategory(id: string) {
+  const source = await prisma.category.findUnique({
+    where: { id },
+    include: { translations: true },
+  });
+  if (!source) throw new NotFoundError(`Category ${id} not found`);
+
+  // Suffix every slug so the copy can never collide with the source on the
+  // unique CategoryTranslation.slug constraint; prefix only the default-locale
+  // name with "Copy of" to mirror the product-duplicate convention.
+  const suffix = Date.now().toString(36);
+  const rows: CategoryTranslationRow[] = source.translations.map((t) => ({
+    locale: t.locale,
+    name: t.locale === DEFAULT_LOCALE ? `Copy of ${t.name}` : t.name,
+    slug: `${t.slug}-copy-${suffix}`,
+    description: t.description,
+  }));
+
+  const category = await prisma.$transaction(async (tx) => {
+    const created = await tx.category.create({
+      data: {
+        parentId: source.parentId,
+        imageUrl: source.imageUrl,
+        order: source.order,
+        isActive: source.isActive,
+        // A featured copy would surface a half-edited duplicate on the
+        // homepage, so the copy always starts un-featured.
+        isFeatured: false,
+        translations: { create: rows },
+      },
+      include: { translations: true },
+    });
+    // Reclaim the copy's slugs from history so its URL never 308s away.
+    await recordSlugChanges(
+      tx,
+      "CATEGORY",
+      created.id,
+      new Map(),
+      new Map(rows.map((r) => [r.locale, r.slug])),
+    );
+    return created;
+  });
+
+  revalidateCategoryCache(category.id);
+  return category;
 }

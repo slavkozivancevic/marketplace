@@ -1,17 +1,16 @@
 ﻿"use client";
 
 import { useRef, useState } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { ImageOff, PlayCircle } from "lucide-react";
 import type { MediaType } from "@/generated/prisma/client";
 import Autoplay from "embla-carousel-autoplay";
 import { useTranslations, useLocale } from "next-intl";
 import { useCurrencyStore } from "@/store/currency";
-import {
-  getProductTitle,
-  type ProductTranslations,
-} from "@/features/products/utils/translations";
+import { getProductTitle } from "@/features/products/utils/translations";
+import { getBrandName } from "@/features/brands/utils/translations";
+import { BrandLogo } from "@/features/brands/components/BrandLogo";
 import { formatPrice, convertCents } from "@/lib/currency";
 import {
   Carousel,
@@ -23,8 +22,11 @@ import {
 
 export type RelatedProduct = {
   id: string;
-  title: string;
-  translations: unknown;
+  translations: {
+    locale: string;
+    title: string;
+    slug: string;
+  }[];
   price: number;
   compareAtPrice: number | null;
   media: {
@@ -32,19 +34,17 @@ export type RelatedProduct = {
     thumbUrl: string | null;
     mediaType: MediaType;
   }[];
-  brand: { name: string; logoUrl: string | null } | null;
+  brand: {
+    logoUrl: string | null;
+    translations: { locale: string; name: string }[];
+  } | null;
 };
 
 function RelatedProductCard({ product }: { product: RelatedProduct }) {
   const { currency, currentRate } = useCurrencyStore();
   const locale = useLocale();
-  const localTitle = getProductTitle(
-    {
-      title: product.title,
-      translations: (product.translations as ProductTranslations | null) ?? null,
-    },
-    locale,
-  );
+  const localTitle = getProductTitle(product, locale);
+  const localBrandName = product.brand ? getBrandName(product.brand, locale) : "";
   const [imgLoaded, setImgLoaded] = useState(false);
   const isOnSale =
     product.compareAtPrice != null && product.compareAtPrice > product.price;
@@ -63,7 +63,18 @@ function RelatedProductCard({ product }: { product: RelatedProduct }) {
   const isVideo = firstMedia?.mediaType === "VIDEO";
 
   return (
-    <Link href={`/products/${product.id}`} className="block group h-full">
+    <Link
+      href={{
+        pathname: "/products/[slug]",
+        params: {
+          slug:
+            product.translations.find((tr) => tr.locale === locale)?.slug ??
+            product.translations.find((tr) => tr.locale === "en")?.slug ??
+            "",
+        },
+      }}
+      className="block group h-full"
+    >
       <div className="h-full flex flex-col rounded-xl overflow-hidden border border-border/40 bg-card transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-xl group-hover:shadow-primary/10 group-hover:border-border/80">
         {/* Media preview */}
         <div className="relative aspect-4/3 overflow-hidden bg-muted/30">
@@ -107,23 +118,20 @@ function RelatedProductCard({ product }: { product: RelatedProduct }) {
             <div className="absolute top-2 right-2 pointer-events-none">
               {product.brand.logoUrl ? (
                 <div className="flex items-center gap-1.5 bg-background/80 backdrop-blur-xs border border-border/50 rounded-full px-2 py-1 shadow-sm">
-                  <div className="relative h-4 w-4 shrink-0 overflow-hidden rounded-full bg-white">
-                    <Image
-                      src={product.brand.logoUrl}
-                      alt={product.brand.name}
-                      fill
-                      sizes="16px"
-                      className="object-contain"
-                    />
-                  </div>
+                  <BrandLogo
+                    src={product.brand.logoUrl}
+                    name={localBrandName}
+                    size={16}
+                    shape="circle"
+                  />
                   <span className="text-xs font-semibold leading-none">
-                    {product.brand.name}
+                    {localBrandName}
                   </span>
                 </div>
               ) : (
                 <div className="bg-background/80 backdrop-blur-xs border border-border/50 rounded-full px-2 py-1 shadow-sm">
                   <span className="text-xs font-semibold leading-none">
-                    {product.brand.name}
+                    {localBrandName}
                   </span>
                 </div>
               )}

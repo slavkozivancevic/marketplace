@@ -29,11 +29,18 @@ function PaymentMethodIcon({ method }: { method: string }) {
 export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
   const router = useRouter();
   const t = useTranslations("orgOrders");
-  const dl = dateLocale(useLocale());
+  const locale = useLocale();
+  const dl = dateLocale(locale);
 
   const itemSummary = order.items
     .map((i) => {
-      const label = i.variant?.sku ? `${i.product.title} (${i.variant.sku})` : i.product.title;
+      // Org order rows display titles in the buyer's order-time locale so
+      // sellers see the same string the buyer saw when ordering.
+      const title =
+        i.product.translations.find((tr) => tr.locale === order.locale)?.title ??
+        i.product.translations.find((tr) => tr.locale === "en")?.title ??
+        "";
+      const label = i.variant?.sku ? `${title} (${i.variant.sku})` : title;
       return i.quantity > 1 ? `${label} ×${i.quantity}` : label;
     })
     .join(", ");
@@ -42,7 +49,7 @@ export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
     <div
       role="row"
       className="grid grid-cols-[100px_100px_80px_minmax(180px,2fr)_140px_120px_130px] items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors min-w-fit"
-      onClick={() => router.push(`/dashboard/organization/orders/${order.id}`)}
+      onClick={() => router.push(`/${locale}/dashboard/organization/orders/${order.id}`)}
     >
       {/* Order ID */}
       <div role="cell" className="font-mono text-xs text-muted-foreground">
@@ -77,12 +84,12 @@ export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
       </div>
 
       {/* Org subtotal */}
-      <div role="cell" className="font-semibold text-sm">
+      <div role="cell" className="font-semibold text-sm text-right tabular-nums">
         {formatPrice(order.orgSubtotal, order.currency as Currency)}
       </div>
 
       {/* Status */}
-      <div role="cell" className="flex items-center gap-1.5">
+      <div role="cell" className="flex items-center justify-center gap-1.5">
         <PaymentMethodIcon method={order.paymentMethod} />
         <Badge variant={getStatusVariant(order.status)}>
           {t(order.status.toLowerCase() as "pending" | "pending_cod" | "completed" | "cancelled" | "refunded")}

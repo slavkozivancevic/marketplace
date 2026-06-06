@@ -1,13 +1,20 @@
 import { prisma } from "@/core/db/prisma";
 import { syncClerkUserMetadata } from "@/services/clerk";
+import { UserRole } from "@/generated/prisma/client";
 
 export async function validateAuthSync({
   clerkUserId,
   dbId,
+  currentClaims,
 }: {
   clerkUserId: string;
   dbId?: string;
   activeOrgId?: string;
+  currentClaims?: {
+    dbId?: string;
+    role?: UserRole;
+    activeOrgId?: string;
+  };
 }) {
   const user = await prisma.user.findFirst({
     where: dbId ? { id: dbId } : { clerkUserId },
@@ -36,7 +43,17 @@ export async function validateAuthSync({
     activeOrgId: membership.orgId,
   };
 
-  await syncClerkUserMetadata(context);
+  // Only push to Clerk when the session token is actually stale. If the JWT
+  // already carries the same dbId/role/activeOrgId, the metadata is in sync and
+  // a write would be a redundant call against Clerk's (strict) write rate limit.
+  const metadataInSync =
+    currentClaims?.dbId === context.dbId &&
+    currentClaims?.role === context.role &&
+    currentClaims?.activeOrgId === context.activeOrgId;
+
+  if (!metadataInSync) {
+    await syncClerkUserMetadata(context);
+  }
 
   return context;
 }

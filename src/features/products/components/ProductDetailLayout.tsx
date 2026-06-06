@@ -5,7 +5,7 @@ import { useLocale } from "next-intl";
 import { ProductImageCarousel } from "@/components/product/ProductImageCarousel";
 import { ProductPurchaseSection } from "./ProductPurchaseSection";
 import { SerializedPublicProduct } from "@/types/types";
-import { getProductTitle, type ProductTranslations } from "@/features/products/utils/translations";
+import { getProductTitle } from "@/features/products/utils/translations";
 
 interface ProductDetailLayoutProps {
   product: SerializedPublicProduct;
@@ -13,10 +13,7 @@ interface ProductDetailLayoutProps {
 
 export function ProductDetailLayout({ product }: ProductDetailLayoutProps) {
   const locale = useLocale();
-  const localTitle = getProductTitle(
-    { title: product.title, translations: product.translations as ProductTranslations | null },
-    locale,
-  );
+  const localTitle = getProductTitle(product, locale);
   // Match AddToCart's initial-variant logic so the variant list is already
   // highlighted in the SSR HTML - without this, the highlight lags until
   // hydration + AddToCart's useEffect callback fires.

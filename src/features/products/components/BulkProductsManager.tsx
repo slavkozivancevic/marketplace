@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
-import { usePathname } from "next/navigation";
+import { usePathname } from "@/i18n/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BulkSelectPanel } from "./BulkSelectPanel";
 import { CsvImportPanel } from "./CsvImportPanel";

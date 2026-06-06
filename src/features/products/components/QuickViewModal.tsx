@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { X, ImageOff, ExternalLink, ShoppingCart } from "lucide-react";
 
 import { useLocale } from "next-intl";
@@ -17,8 +17,8 @@ import {
 import {
   getProductTitle,
   getProductShortDescription,
-  type ProductTranslations,
 } from "@/features/products/utils/translations";
+import { getBrandName } from "@/features/brands/utils/translations";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Carousel,
@@ -33,6 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StarRating } from "@/features/reviews/components/StarRating";
 import { AddToCart } from "@/features/cart/components/AddToCart";
+import { buildCartVariantOptions, buildLocalizedText } from "@/features/cart/utils/variantOptions";
 import { useCartStore } from "@/features/cart/store/cartStore";
 import { SerializedPublicProduct } from "@/types/types";
 import { useCurrencyStore } from "@/store/currency";
@@ -81,18 +82,9 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
 
   const media = product?.media ?? [];
   const activeVariant = product?.variants.find((v) => v.id === activeVariantId);
-  const localTitle = product
-    ? getProductTitle(
-        { title: product.title, translations: product.translations as ProductTranslations | null },
-        locale,
-      )
-    : "";
-  const localShortDescription = product
-    ? getProductShortDescription(
-        { shortDescription: product.shortDescription, translations: product.translations as ProductTranslations | null },
-        locale,
-      )
-    : null;
+  const localTitle = product ? getProductTitle(product, locale) : "";
+  const localShortDescription = product ? getProductShortDescription(product, locale) : null;
+  const localBrandName = product?.brand ? getBrandName(product.brand, locale) : "";
 
   const handleSetApi = useCallback((api: CarouselApi) => {
     setCarouselApi(api);
@@ -143,16 +135,23 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
     const firstProductImage = media.find((m) => m.mediaType === "IMAGE");
     const firstImage =
       variantFirstImageUrl ?? (firstProductImage?.url ?? null);
-    const optionLabel = activeVariant?.optionValues.map((ov) => ov.value).join(" / ");
-    const variantLabel = optionLabel || activeVariant?.sku || null;
+    // Snapshot selected options translated for every locale (see AddToCart);
+    // SKU is the non-translatable fallback for manual / option-less variants.
+    const variantOptions =
+      activeVariant && activeVariant.optionValues.length > 0
+        ? buildCartVariantOptions(activeVariant.optionValues, product.options)
+        : null;
+    const variantLabel = activeVariant?.sku ?? null;
     const price = activeVariant ? activeVariant.price : product.price;
     const maxStock = activeVariant ? activeVariant.stock : (product.stock ?? null);
     addItem({
       productId: product.id,
+      productTitleI18n: buildLocalizedText((loc) => getProductTitle(product, loc)),
       productTitle: localTitle,
       productImage: firstImage,
       variantId: activeVariant?.id ?? null,
       variantSku: activeVariant?.sku ?? null,
+      variantOptions,
       variantLabel,
       price,
       maxStock,
@@ -173,6 +172,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
         <DialogContent
           className="px-6 pt-10 pb-6 w-[calc(100vw-2rem)] max-w-none sm:max-w-md"
           showCloseButton={false}
+          aria-describedby={undefined}
         >
           <DialogTitle className="sr-only">{t("noLongerAvailable")}</DialogTitle>
           <button
@@ -201,6 +201,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
       <DialogContent
         className="p-0 gap-0 overflow-hidden w-[calc(100vw-2rem)] max-w-none sm:max-w-2xl max-h-[90svh]"
         showCloseButton={false}
+        aria-describedby={undefined}
       >
         <DialogTitle className="sr-only">
           {localTitle || t("quickView")}
@@ -308,7 +309,15 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
             <div className="mt-auto hidden sm:flex flex-col gap-1.5 px-3 py-2.5 border-t border-border/50">
               {product && (
                 <Link
-                  href={`/products/${product.id}`}
+                  href={{
+                    pathname: "/products/[slug]",
+                    params: {
+                      slug:
+                        product.translations.find((tr) => tr.locale === locale)?.slug ??
+                        product.translations.find((tr) => tr.locale === "en")?.slug ??
+                        "",
+                    },
+                  }}
                   onClick={handleClose}
                   className="flex items-center gap-1 text-xs text-primary hover:underline"
                 >
@@ -341,7 +350,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                     <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">{localShortDescription}</p>
                   )}
                   {product.brand && (
-                    <p className="text-[11px] text-muted-foreground">{t("brandLabel")} {product.brand.name}</p>
+                    <p className="text-[11px] text-muted-foreground">{t("brandLabel")} {localBrandName}</p>
                   )}
                   {product.ratingCount > 0 && (
                     <div className="flex items-center gap-1">
@@ -422,7 +431,15 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                   {/* Mobile-only: View Details + Cancel */}
                   <div className="flex sm:hidden items-center justify-between">
                     <Link
-                      href={`/products/${product.id}`}
+                      href={{
+                        pathname: "/products/[slug]",
+                        params: {
+                          slug:
+                            product.translations.find((tr) => tr.locale === locale)?.slug ??
+                            product.translations.find((tr) => tr.locale === "en")?.slug ??
+                            "",
+                        },
+                      }}
                       onClick={handleClose}
                       className="flex items-center gap-1 text-xs text-primary hover:underline"
                     >

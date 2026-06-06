@@ -168,7 +168,7 @@ export async function POST(req: Request) {
         const refunded = await refundOrder(sessionId);
         if (refunded) {
           console.log("Order refunded for session:", sessionId);
-          publishOrderRefunded(refunded.id).catch((err) =>
+          publishOrderRefunded(refunded.id, refunded.locale ?? "en").catch((err) =>
             console.error("[notifications] publishOrderRefunded failed", err)
           );
         }

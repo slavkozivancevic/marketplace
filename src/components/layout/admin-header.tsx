@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { HeaderAuth } from "./header-auth";
@@ -54,7 +54,7 @@ export function AdminHeader() {
               <HeaderAuth mode="redirect" showDashboardLink={false} />
             </div>
             <Button
-              variant="ghost"
+              variant="outline"
               size="icon"
               className="sm:hidden h-9 w-9"
               onClick={() => setMobileOpen(!mobileOpen)}

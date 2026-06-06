@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { Store } from "lucide-react";
 
@@ -10,7 +10,7 @@ export function Footer() {
   const footerLinks = {
     [t("platform")]: [
       { label: t("products"), href: "/products" },
-      { label: t("dashboard"), href: "/dashboard" },
+      { label: t("brands"), href: "/brands" },
       { label: t("pricing"), href: "#" },
     ],
     [t("company")]: [
@@ -52,7 +52,7 @@ export function Footer() {
                 {links.map((link) => (
                   <li key={link.label}>
                     <Link
-                      href={link.href}
+                      href={link.href as never}
                       className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                     >
                       {link.label}

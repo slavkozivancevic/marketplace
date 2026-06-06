@@ -67,12 +67,7 @@ export function tenantPrisma({
         return product;
       },
 
-      async create(data: {
-        title: string;
-        slug: string;
-        description: string;
-        price: number;
-      }) {
+      async create(data: { price: number }) {
         return prisma.product.create({
           data: {
             ...data,
@@ -86,8 +81,6 @@ export function tenantPrisma({
         id: string,
         version: number | undefined,
         data: Partial<{
-          title: string;
-          description: string;
           price: number;
           status?: ProductStatus;
         }>,
@@ -206,11 +199,11 @@ export function tenantPrisma({
         return option;
       },
 
-      async create(data: { productId: string; name: string }) {
+      async create(data: { productId: string }) {
         return prisma.variantOption.create({ data });
       },
 
-      async update(id: string, data: Partial<{ name: string }>) {
+      async update(id: string, data: Partial<{ order: number }>) {
         return prisma.variantOption.update({ where: { id }, data });
       },
 

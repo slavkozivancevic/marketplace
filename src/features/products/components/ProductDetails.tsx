@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useTranslations, useLocale } from "next-intl";
-import Image from "next/image";
+import { BrandLogo } from "@/features/brands/components/BrandLogo";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -11,15 +11,16 @@ import { ProductStatusActions } from "./ProductStatusActions";
 import { ProductImageCarousel } from "@/components/product/ProductImageCarousel";
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
-import { getCategoryName, type CategoryTranslations } from "@/features/categories/utils/translations";
-import { getOptionName, getOptionValue, type OptionTranslations } from "@/features/products/utils/optionTranslations";
+import { getCategoryName } from "@/features/categories/utils/translations";
+import { getOptionName, getOptionValue } from "@/features/products/utils/optionTranslations";
+import { getBrandName } from "@/features/brands/utils/translations";
 import {
   getProductTitle,
+  getProductSlug,
   getProductDescription,
   getProductShortDescription,
   getProductMetaTitle,
   getProductMetaDescription,
-  type ProductTranslations,
 } from "@/features/products/utils/translations";
 
 interface ProductDetailsProps {
@@ -41,18 +42,13 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
   const rate = currentRate();
   const fmt = (cents: number) => formatPrice(convertCents(cents, currency, rate), currency);
 
-  const productTranslations = (product.translations as ProductTranslations | null) ?? null;
-  const localTitle = getProductTitle({ title: product.title, translations: productTranslations }, locale);
-  const localDescription = getProductDescription({ description: product.description, translations: productTranslations }, locale);
-  const localShortDescription = getProductShortDescription(
-    { shortDescription: product.shortDescription, translations: productTranslations },
-    locale,
-  );
-  const localMetaTitle = getProductMetaTitle({ metaTitle: product.metaTitle, translations: productTranslations }, locale);
-  const localMetaDescription = getProductMetaDescription(
-    { metaDescription: product.metaDescription, translations: productTranslations },
-    locale,
-  );
+  const localTitle = getProductTitle(product, locale);
+  const localSlug = getProductSlug(product, locale);
+  const localDescription = getProductDescription(product, locale);
+  const localShortDescription = getProductShortDescription(product, locale);
+  const localMetaTitle = getProductMetaTitle(product, locale);
+  const localMetaDescription = getProductMetaDescription(product, locale);
+  const localBrandName = product.brand ? getBrandName(product.brand, locale) : "";
 
   return (
     <div className="space-y-6">
@@ -70,8 +66,8 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
         </CardHeader>
         <CardContent className="space-y-2">
           <Row label={t("titleLabel")} value={localTitle} />
-          {product.slug && (
-            <Row label={tf("slug")} value={product.slug} mono />
+          {localSlug && (
+            <Row label={tf("slug")} value={localSlug} mono />
           )}
           {localShortDescription && (
             <Row label={tf("shortDesc")} value={localShortDescription} />
@@ -80,17 +76,13 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
             <div className="flex items-center gap-2">
               <strong>{t("brandLabel")}</strong>
               {product.brand.logoUrl && (
-                <div className="relative h-5 w-5 overflow-hidden rounded-sm border bg-muted shrink-0">
-                  <Image
-                    src={product.brand.logoUrl}
-                    alt={product.brand.name}
-                    fill
-                    sizes="20px"
-                    className="object-contain"
-                  />
-                </div>
+                <BrandLogo
+                  src={product.brand.logoUrl}
+                  name={localBrandName}
+                  size={20}
+                />
               )}
-              <span>{product.brand.name}</span>
+              <span>{localBrandName}</span>
             </div>
           )}
           {product.categories?.length > 0 && (
@@ -98,10 +90,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
               <strong>{t("categoriesLabel")}</strong>
               {product.categories.map((c) => (
                 <Badge key={c.categoryId} variant="secondary">
-                  {getCategoryName(
-                    { ...c.category, translations: c.category.translations as CategoryTranslations | null },
-                    locale,
-                  )}
+                  {getCategoryName(c.category, locale)}
                 </Badge>
               ))}
             </div>
@@ -131,7 +120,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
         <CardContent>
           <ProductImageCarousel
             media={product.media ?? []}
-            title={product.title}
+            title={localTitle}
           />
         </CardContent>
       </Card>
@@ -249,23 +238,20 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
               <CardTitle>{t("options")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {product.options.map((option) => {
-                const optionTranslations = option.translations as OptionTranslations | null;
-                return (
-                  <div key={option.id} className="flex items-center gap-2">
-                    <span className="text-sm font-medium w-20">
-                      {getOptionName({ name: option.name, translations: optionTranslations }, locale)}:
-                    </span>
-                    <div className="flex flex-wrap gap-1">
-                      {Array.from(new Set(option.values.map((v) => v.value))).map((value) => (
-                        <Badge key={value} variant="secondary">
-                          {getOptionValue({ translations: optionTranslations }, value, locale)}
-                        </Badge>
-                      ))}
-                    </div>
+              {product.options.map((option) => (
+                <div key={option.id} className="flex items-center gap-2">
+                  <span className="text-sm font-medium w-20">
+                    {getOptionName(option, locale)}:
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {Array.from(new Set(option.values.map((v) => v.value))).map((value) => (
+                      <Badge key={value} variant="secondary">
+                        {getOptionValue(option, value, locale)}
+                      </Badge>
+                    ))}
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </CardContent>
           </Card>
           <Separator />
@@ -303,11 +289,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
                     {variant.optionValues.map((ov) => {
                       const opt = product.options.find((o) => o.id === ov.optionId);
                       const translated = opt
-                        ? getOptionValue(
-                            { translations: opt.translations as OptionTranslations | null },
-                            ov.value,
-                            locale,
-                          )
+                        ? getOptionValue(opt, ov.value, locale)
                         : ov.value;
                       return (
                         <Badge key={ov.id} variant="outline">{translated}</Badge>

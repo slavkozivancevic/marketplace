@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -107,10 +107,18 @@ function DepartmentCollage({
 function DepartmentCard({ dept }: { dept: DepartmentWithImages }) {
   const locale = useLocale();
   const name = getCategoryName(dept, locale);
+  // Department cards now route to the dedicated category detail page in
+  // the visitor's active locale; falls back to the EN slug if the locale
+  // doesn't have its own translation row for this dept.
+  const slug =
+    dept.translations.find((tr) => tr.locale === locale)?.slug ??
+    dept.translations.find((tr) => tr.locale === "en")?.slug ??
+    dept.translations[0]?.slug ??
+    "";
 
   return (
     <Link
-      href={`/products?dept=${dept.slug}`}
+      href={{ pathname: "/categories/[slug]", params: { slug } }}
       className="group relative overflow-hidden rounded-xl border border-border/50 bg-card aspect-square flex flex-col items-center justify-end hover:border-border hover:shadow-lg hover:shadow-black/10 transition-all duration-300 hover:-translate-y-0.5 shrink-0"
     >
       <DepartmentCollage images={dept.productImages} name={name} />

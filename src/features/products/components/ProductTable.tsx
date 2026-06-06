@@ -21,6 +21,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/components/ui/sonner";
+import { BrandLogo } from "@/features/brands/components/BrandLogo";
 import { deleteProduct, duplicateProduct } from "@/features/products/actions/products";
 import { SerializedProductListItem } from "@/types/types";
 import { useCurrencyStore } from "@/store/currency";
@@ -28,8 +29,8 @@ import { formatPrice, convertCents } from "@/lib/currency";
 import {
   getProductTitle,
   getProductDescription,
-  type ProductTranslations,
 } from "@/features/products/utils/translations";
+import { getBrandName } from "@/features/brands/utils/translations";
 
 function getStatusVariant(status: string) {
   switch (status) {
@@ -66,9 +67,15 @@ export function ProductTableHeader({
       <div role="columnheader" className="truncate">{t("titleHeader")}</div>
       <div role="columnheader" className="truncate">{t("brand")}</div>
       <div role="columnheader" className="truncate">{t("descriptionHeader")}</div>
-      <div role="columnheader" className="truncate">{t("price")}</div>
-      <div role="columnheader" className="truncate">{t("status")}</div>
-      {showActions && <div role="columnheader" className="truncate">{t("actions")}</div>}
+      <div role="columnheader" className="truncate text-right">{t("price")}</div>
+      <div role="columnheader" className="truncate text-center">{t("status")}</div>
+      {showActions && (
+        // pr-2.5 (10px) compensates for the icon Button's internal padding:
+        // a 16x16 icon inside a 36x36 ghost button leaves ~10px of empty
+        // space on each side, so without this the header label sits to the
+        // right of the trash icon's visible edge instead of aligned with it.
+        <div role="columnheader" className="truncate text-right pr-2.5">{t("actions")}</div>
+      )}
     </div>
   );
 }
@@ -99,12 +106,9 @@ export function ProductTableRow({
   const [thumbLoaded, setThumbLoaded] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const productTranslations = (product.translations as ProductTranslations | null) ?? null;
-  const localTitle = getProductTitle({ title: product.title, translations: productTranslations }, locale);
-  const localDescription = getProductDescription(
-    { description: product.description, translations: productTranslations },
-    locale,
-  );
+  const localTitle = getProductTitle(product, locale);
+  const localDescription = getProductDescription(product, locale);
+  const localBrandName = product.brand ? getBrandName(product.brand, locale) : "";
 
   // Auto-close the confirm dialog once the in-flight delete finishes.
   const wasDeleting = useRef(false);
@@ -137,7 +141,7 @@ export function ProductTableRow({
       toast.success(t("duplicated"), {
         action: {
           label: t("editCopy"),
-          onClick: () => router.push(`${basePath}/${copyId}/edit`),
+          onClick: () => router.push(`/${locale}${basePath}/${copyId}/edit`),
         },
       });
     });
@@ -168,7 +172,7 @@ export function ProductTableRow({
           : "cursor-pointer hover:bg-muted/50",
       )}
       style={{ gridTemplateColumns: cols }}
-      onClick={() => !isBusy && router.push(`${basePath}/${product.id}`)}
+      onClick={() => !isBusy && router.push(`/${locale}${basePath}/${product.id}`)}
     >
       <div role="cell">
         {thumbnailUrl ? (
@@ -195,17 +199,13 @@ export function ProductTableRow({
         {product.brand ? (
           <div className="flex items-center gap-1.5 min-w-0">
             {product.brand.logoUrl && (
-              <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded-sm border bg-muted">
-                <Image
-                  src={product.brand.logoUrl}
-                  alt={product.brand.name}
-                  fill
-                  sizes="20px"
-                  className="object-contain"
-                />
-              </div>
+              <BrandLogo
+                src={product.brand.logoUrl}
+                name={localBrandName}
+                size={20}
+              />
             )}
-            <span className="truncate text-sm">{product.brand.name}</span>
+            <span className="truncate text-sm">{localBrandName}</span>
           </div>
         ) : (
           <span className="text-muted-foreground text-sm">-</span>
@@ -214,20 +214,22 @@ export function ProductTableRow({
       <div role="cell" className="truncate text-muted-foreground">
         {localDescription}
       </div>
-      <div role="cell">{formatPrice(convertCents(product.price, currency, currentRate()), currency)}</div>
-      <div role="cell">
+      <div role="cell" className="text-right tabular-nums">
+        {formatPrice(convertCents(product.price, currency, currentRate()), currency)}
+      </div>
+      <div role="cell" className="flex justify-center">
         <Badge variant={getStatusVariant(product.status)}>
           {product.status === "PUBLISHED" ? t("published") : product.status === "DRAFT" ? t("draft") : t("archived")}
         </Badge>
       </div>
       {showActions && (
         <div role="cell" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center justify-end gap-1">
             <Button
               variant="ghost"
               size="icon"
               disabled={isNavigating}
-              onClick={() => startNavigate(() => router.push(`${basePath}/${product.id}/edit`))}
+              onClick={() => startNavigate(() => router.push(`/${locale}${basePath}/${product.id}/edit`))}
             >
               {isNavigating
                 ? <Loader2 className="h-4 w-4 animate-spin" />
@@ -276,7 +278,7 @@ export function ProductTableRow({
                       handleDelete();
                     }}
                     disabled={isDeleting}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    variant="destructiveSolid"
                   >
                     {isDeleting ? (
                       <>

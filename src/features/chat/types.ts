@@ -20,6 +20,7 @@ export interface Conversation {
   lastMessagePreview?: string;
   lastMessageSenderId?: string;
   lastAttachmentType?: string; // "image" | "pdf" | "video" | "file" | ""
+  lastReadAt?: string; // server-side: when the current user last read this conversation
   lastMessageReadBy?: string[]; // who has read the last message (client-tracked)
   lastMessagePending?: boolean; // optimistic temp message still in-flight
   lastReactionPreview?: string; // e.g. "reacted ❤️ to "Tekst poruke…""

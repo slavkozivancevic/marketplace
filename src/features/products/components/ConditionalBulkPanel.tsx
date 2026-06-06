@@ -1107,11 +1107,7 @@ export function ConditionalBulkPanel({
                     handleExecute();
                   }}
                   disabled={isExecuting}
-                  className={
-                    action.type === "delete"
-                      ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      : undefined
-                  }
+                  variant={action.type === "delete" ? "destructiveSolid" : "default"}
                 >
                   {isExecuting ? (
                     <>

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { getLocale, getTranslations } from "next-intl/server";
 import { decimalToCents } from "@/lib/currency";
 import { prisma } from "@/core/db/prisma";
 import {
@@ -22,6 +23,13 @@ import {
   archiveProduct as workflowArchive,
   unarchiveProduct as workflowUnarchive,
 } from "../services/productWorkflow";
+
+// Callers pass unlocalized paths; we re-prefix with the request locale so
+// the user lands on the same-language URL without a middleware bounce.
+async function localizedRedirect(redirectTo: string): Promise<never> {
+  const locale = await getLocale();
+  redirect(`/${locale}${redirectTo}`);
+}
 
 /**
  * Shape of a single row from the CSV import.
@@ -101,7 +109,7 @@ export async function createProduct(
     return handleActionError(error);
   }
 
-  redirect(redirectTo);
+  await localizedRedirect(redirectTo);
 }
 
 export async function updateProduct(
@@ -143,7 +151,7 @@ export async function updateProduct(
     return handleActionError(error);
   }
 
-  redirect(redirectTo);
+  await localizedRedirect(redirectTo);
 }
 
 export async function deleteProduct(
@@ -160,7 +168,7 @@ export async function deleteProduct(
     return handleActionError(error);
   }
 
-  if (redirectTo) redirect(redirectTo);
+  if (redirectTo) await localizedRedirect(redirectTo);
 }
 
 export async function rollbackProductVersion(
@@ -189,7 +197,7 @@ export async function publishProduct(
     return handleActionError(error);
   }
 
-  redirect(redirectTo);
+  await localizedRedirect(redirectTo);
 }
 
 export async function unpublishProduct(
@@ -203,7 +211,7 @@ export async function unpublishProduct(
     return handleActionError(error);
   }
 
-  redirect(redirectTo);
+  await localizedRedirect(redirectTo);
 }
 
 export async function archiveProduct(
@@ -217,7 +225,7 @@ export async function archiveProduct(
     return handleActionError(error);
   }
 
-  redirect(redirectTo);
+  await localizedRedirect(redirectTo);
 }
 
 export async function unarchiveProduct(
@@ -231,7 +239,7 @@ export async function unarchiveProduct(
     return handleActionError(error);
   }
 
-  redirect(redirectTo);
+  await localizedRedirect(redirectTo);
 }
 
 export async function bulkUpdateProductStatus(
@@ -245,9 +253,10 @@ export async function bulkUpdateProductStatus(
 
     await repo.bulkUpdateStatus(productIds, status);
 
+    const t = await getTranslations("actionErrors");
     return {
       error: false,
-      message: `Updated ${productIds.length} product(s).`,
+      message: t("productsUpdated", { count: productIds.length }),
     };
   } catch (error) {
     return handleActionError(error);
@@ -264,9 +273,10 @@ export async function bulkDeleteProducts(
 
     await repo.bulkDelete(productIds);
 
+    const t = await getTranslations("actionErrors");
     return {
       error: false,
-      message: `Deleted ${productIds.length} product(s).`,
+      message: t("productsDeleted", { count: productIds.length }),
     };
   } catch (error) {
     return handleActionError(error);
@@ -285,7 +295,8 @@ export async function duplicateProduct(
 
     const copy = await repo.duplicate(id);
 
-    return { error: false, id: copy.id, message: "Product duplicated." };
+    const t = await getTranslations("actionErrors");
+    return { error: false, id: copy.id, message: t("productDuplicated") };
   } catch (error) {
     return handleActionError(error);
   }
@@ -314,24 +325,38 @@ type CategoryLookup = {
 };
 
 async function buildBrandLookup(): Promise<BrandLookup> {
-  const brands = await prisma.brand.findMany({ select: { id: true, slug: true } });
+  // Slugs now live on BrandTranslation; for CSV import we match any locale's
+  // slug so sellers can paste either the English or a localized one.
+  const brands = await prisma.brand.findMany({
+    select: { id: true, translations: { select: { slug: true } } },
+  });
   const byId = new Map<string, string>();
   const bySlug = new Map<string, string>();
   for (const b of brands) {
     byId.set(b.id, b.id);
-    bySlug.set(b.slug.toLowerCase(), b.id);
+    for (const t of b.translations) {
+      bySlug.set(t.slug.toLowerCase(), b.id);
+    }
   }
   return { byId, bySlug };
 }
 
 async function buildCategoryLookup(): Promise<CategoryLookup> {
   const cats = await prisma.category.findMany({
-    select: { id: true, slug: true, parentId: true },
+    select: {
+      id: true,
+      parentId: true,
+      translations: { select: { slug: true } },
+    },
   });
 
+  // Pick the default-locale slug as the canonical slug for path building.
+  // Any locale's slug can match in `bySlugUnique` so sellers can paste a
+  // localized slug, but the parent-child path notation uses the canonical
+  // English path to stay stable across UI language switches.
   const nodes: CategoryNode[] = cats.map((c) => ({
     id: c.id,
-    slug: c.slug.toLowerCase(),
+    slug: (c.translations[0]?.slug ?? "").toLowerCase(),
     parentId: c.parentId,
   }));
 
@@ -339,9 +364,16 @@ async function buildCategoryLookup(): Promise<CategoryLookup> {
   const slugCounts = new Map<string, string[]>();
   for (const n of nodes) {
     byId.set(n.id, n.id);
-    const list = slugCounts.get(n.slug) ?? [];
-    list.push(n.id);
-    slugCounts.set(n.slug, list);
+  }
+  // Index every translated slug across every locale for the unique-slug
+  // lookup so CSV imports work with any language's slug.
+  for (const c of cats) {
+    for (const t of c.translations) {
+      const slug = t.slug.toLowerCase();
+      const list = slugCounts.get(slug) ?? [];
+      if (!list.includes(c.id)) list.push(c.id);
+      slugCounts.set(slug, list);
+    }
   }
 
   const bySlugUnique = new Map<string, string | null>();
@@ -369,43 +401,55 @@ async function buildCategoryLookup(): Promise<CategoryLookup> {
   return { byId, bySlugUnique, byPath };
 }
 
+/**
+ * Per-row CSV resolution errors carry a translation key + params so the action
+ * layer can localize each row's failure message before returning it to the
+ * client. Plain Error.message would be English-only.
+ */
+class CsvRowError extends Error {
+  readonly i18n: { key: string; params?: Record<string, string | number> };
+  constructor(key: string, params?: Record<string, string | number>) {
+    super(key);
+    this.i18n = { key, params };
+    this.name = "CsvRowError";
+  }
+}
+
 function resolveBrand(ref: string | undefined, lookup: BrandLookup): string | undefined {
   if (!ref) return undefined;
   const trimmed = ref.trim();
   if (!trimmed) return undefined;
   if (UUID_RE.test(trimmed)) {
     const hit = lookup.byId.get(trimmed);
-    if (!hit) throw new Error(`brand id "${trimmed}" not found`);
+    if (!hit) throw new CsvRowError("csvBrandIdNotFound", { ref: trimmed });
     return hit;
   }
   const hit = lookup.bySlug.get(trimmed.toLowerCase());
-  if (!hit) throw new Error(`brand "${trimmed}" not found (use slug or UUID)`);
+  if (!hit) throw new CsvRowError("csvBrandNotFound", { ref: trimmed });
   return hit;
 }
 
 function resolveCategory(ref: string, lookup: CategoryLookup): string {
   const trimmed = ref.trim();
-  if (!trimmed) throw new Error("empty category reference");
+  if (!trimmed) throw new CsvRowError("csvEmptyCategoryRef");
 
   if (UUID_RE.test(trimmed)) {
     const hit = lookup.byId.get(trimmed);
-    if (!hit) throw new Error(`category id "${trimmed}" not found`);
+    if (!hit) throw new CsvRowError("csvCategoryIdNotFound", { ref: trimmed });
     return hit;
   }
 
   const normalized = trimmed.toLowerCase();
   if (normalized.includes("/")) {
     const hit = lookup.byPath.get(normalized);
-    if (!hit) throw new Error(`category path "${trimmed}" not found`);
+    if (!hit) throw new CsvRowError("csvCategoryPathNotFound", { ref: trimmed });
     return hit;
   }
 
   const hit = lookup.bySlugUnique.get(normalized);
-  if (hit === undefined) throw new Error(`category "${trimmed}" not found`);
+  if (hit === undefined) throw new CsvRowError("csvCategoryNotFound", { ref: trimmed });
   if (hit === null) {
-    throw new Error(
-      `category "${trimmed}" is ambiguous - use full path "parent/${trimmed}" or UUID`,
-    );
+    throw new CsvRowError("csvCategoryAmbiguous", { ref: trimmed });
   }
   return hit;
 }
@@ -433,6 +477,7 @@ export async function bulkCreateProducts(
     const ctx = await resolveRequestContext();
     requirePermission(ctx, "product:create");
     const repo = productRepository(ctx);
+    const t = await getTranslations("actionErrors");
 
     const [brandLookup, categoryLookup] = await Promise.all([
       buildBrandLookup(),
@@ -454,18 +499,18 @@ export async function bulkCreateProducts(
 
         const weightUnit = row.weightUnit ? row.weightUnit.toUpperCase() : undefined;
         if (weightUnit && !VALID_WEIGHT_UNITS_SET.has(weightUnit)) {
-          throw new Error(`invalid weightUnit "${row.weightUnit}"`);
+          throw new CsvRowError("csvInvalidWeightUnit", { unit: row.weightUnit! });
         }
 
         const dimensionUnit = row.dimensionUnit
           ? row.dimensionUnit.toUpperCase()
           : undefined;
         if (dimensionUnit && !VALID_DIMENSION_UNITS.has(dimensionUnit)) {
-          throw new Error(`invalid dimensionUnit "${row.dimensionUnit}"`);
+          throw new CsvRowError("csvInvalidDimensionUnit", { unit: row.dimensionUnit! });
         }
 
         if (row.status && !VALID_STATUSES.has(row.status)) {
-          throw new Error(`invalid status "${row.status}"`);
+          throw new CsvRowError("csvInvalidStatus", { status: row.status });
         }
 
         await repo.create({
@@ -496,9 +541,20 @@ export async function bulkCreateProducts(
         });
         result.created++;
       } catch (err) {
+        let message: string;
+        if (err instanceof CsvRowError) {
+          message = t(err.i18n.key, err.i18n.params);
+        } else if (err instanceof Error) {
+          // Unknown errors from the repo layer (e.g. Prisma) keep their raw
+          // message - they're operator-facing and the row index points at the
+          // offending input regardless of locale.
+          message = err.message;
+        } else {
+          message = t("csvUnknownError");
+        }
         result.errors.push({
           row: i + 1,
-          message: err instanceof Error ? err.message : "Unknown error",
+          message,
         });
       }
     }
@@ -552,10 +608,11 @@ export async function bulkDeleteByFilter(
       ...(filter.maxPrice != null && { maxPrice: decimalToCents(filter.maxPrice) }),
     };
     const { count } = await repo.bulkDeleteByFilter(filterInCents);
+    const t = await getTranslations("actionErrors");
     return {
       error: false,
       count,
-      message: count > 0 ? `Deleted ${count} product(s).` : "No products matched the filter.",
+      message: count > 0 ? t("productsDeleted", { count }) : t("noProductsMatchedFilter"),
     };
   } catch (error) {
     return handleActionError(error);
@@ -592,15 +649,16 @@ export async function bulkUpdateByFilter(
     // Compose a message that mentions the skipped count when relevant -
     // stock writes silently drop variant products and we want users to see why
     // the affected count is smaller than the preview suggested.
+    const t = await getTranslations("actionErrors");
     let message: string;
     if (count === 0 && skippedWithVariants === 0) {
-      message = "No products matched the filter.";
+      message = t("noProductsMatchedFilter");
     } else if (count === 0 && skippedWithVariants > 0) {
-      message = `No products updated - ${skippedWithVariants} matched but stock is managed per variant for them.`;
+      message = t("noProductsUpdatedSkippedVariants", { skipped: skippedWithVariants });
     } else if (skippedWithVariants > 0) {
-      message = `Updated ${count} product(s). Skipped ${skippedWithVariants} with variants (stock is managed per variant).`;
+      message = t("productsUpdatedSkippedVariants", { count, skipped: skippedWithVariants });
     } else {
-      message = `Updated ${count} product(s).`;
+      message = t("productsUpdated", { count });
     }
 
     return {

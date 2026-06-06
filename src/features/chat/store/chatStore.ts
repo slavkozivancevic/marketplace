@@ -31,8 +31,26 @@ interface ChatStore {
    * whether to show a badge. No-op if the conversation already has a live
    * unread count from this session.
    */
-  bootstrapUnread: (conversationId: string, lastMessageAt: string) => void;
+  bootstrapUnread: (
+    conversationId: string,
+    lastMessageAt: string,
+    lastReadAt?: string
+  ) => void;
+  /**
+   * Records that the user has seen messages in a conversation up to `at`.
+   * Used for messages that arrive while the conversation is already open
+   * (auto-marked read by the thread) so the unread badge doesn't reappear
+   * on the next sign-in. Never moves lastSeenAt backwards.
+   */
+  recordSeen: (conversationId: string, at: string) => void;
   setReadStatus: (conversationId: string, readBy: string[]) => void;
+}
+
+/** Returns the later of two ISO timestamps; ignores undefined values. */
+function maxIso(a?: string, b?: string): string | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  return a >= b ? a : b;
 }
 
 function clearConv(s: ChatStore, id: string): Partial<ChatStore> {
@@ -79,18 +97,36 @@ export const useChatStore = create<ChatStore>()(
           },
         })),
 
-      bootstrapUnread: (conversationId, lastMessageAt) =>
+      bootstrapUnread: (conversationId, lastMessageAt, lastReadAt) =>
         set((s) => {
           // Already has a live unread count from this session - don't double-count.
           if (s.convUnread[conversationId]) return s;
-          // Compare lastMessageAt against when we last opened this conversation.
-          // If we've never opened it, or the message is newer, show a badge.
-          const lastSeen = s.lastSeenAt[conversationId];
-          if (lastSeen && lastMessageAt <= lastSeen) return s;
+          // The effective "seen" marker is the later of:
+          //  - lastReadAt: server-side read receipt, survives storage wipes
+          //    (e.g. incognito window closed) - the authoritative source.
+          //  - lastSeenAt: locally persisted time we last opened the conv.
+          // Folding the server marker into lastSeenAt keeps future comparisons
+          // and clearConv math consistent.
+          const localSeen = s.lastSeenAt[conversationId];
+          const seen = maxIso(localSeen, lastReadAt);
+          const folded =
+            seen && seen !== localSeen
+              ? { lastSeenAt: { ...s.lastSeenAt, [conversationId]: seen } }
+              : {};
+          // If we've seen up to or past the last message, no badge.
+          if (seen && lastMessageAt <= seen) return folded;
           return {
+            ...folded,
             convUnread: { ...s.convUnread, [conversationId]: 1 },
             unreadCount: s.unreadCount + 1,
           };
+        }),
+
+      recordSeen: (conversationId, at) =>
+        set((s) => {
+          const cur = s.lastSeenAt[conversationId];
+          if (cur && cur >= at) return s;
+          return { lastSeenAt: { ...s.lastSeenAt, [conversationId]: at } };
         }),
 
       setReadStatus: (conversationId, readBy) =>

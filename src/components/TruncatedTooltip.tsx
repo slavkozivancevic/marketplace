@@ -30,6 +30,7 @@ export function TruncatedTooltip({
   // that fires when a `useRef` object is forwarded through cloneElement.
   const [el, setEl] = React.useState<HTMLElement | null>(null);
   const [isTruncated, setIsTruncated] = React.useState(false);
+  const [open, setOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (!el) return;
@@ -50,8 +51,15 @@ export function TruncatedTooltip({
     { ref: setEl },
   );
 
+  // Always pass a boolean `open` so Radix sees a stable controlled component.
+  // Toggling between `undefined` (uncontrolled) and `false` (controlled)
+  // triggers React's "changing from controlled to uncontrolled" warning.
   return (
-    <Tooltip delayDuration={delayDuration} open={isTruncated ? undefined : false}>
+    <Tooltip
+      delayDuration={delayDuration}
+      open={isTruncated && open}
+      onOpenChange={setOpen}
+    >
       <TooltipTrigger asChild>{child}</TooltipTrigger>
       <TooltipContent side={side} className={contentClassName}>
         {content}

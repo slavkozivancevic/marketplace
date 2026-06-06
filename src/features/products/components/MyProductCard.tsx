@@ -3,9 +3,8 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import Image from "next/image";
 import { Copy, ImageOff, Pencil, Trash2, Video as VideoIcon } from "lucide-react";
 import { HoverImageCycler } from "@/components/product/HoverImageCycler";
 import { Badge } from "@/components/ui/badge";
@@ -18,22 +17,37 @@ import { formatPrice, convertCents } from "@/lib/currency";
 import {
   getProductTitle,
   getProductDescription,
-  type ProductTranslations,
 } from "@/features/products/utils/translations";
+import { getBrandName } from "@/features/brands/utils/translations";
+import { BrandLogo } from "@/features/brands/components/BrandLogo";
+
+type BrandTranslationRow = {
+  locale: string;
+  name: string;
+  slug: string;
+  description: string | null;
+};
+type ProductTranslationRow = {
+  locale: string;
+  title: string;
+  slug: string;
+  description: string;
+  shortDescription: string | null;
+  metaTitle: string | null;
+  metaDescription: string | null;
+};
 
 interface MyProductCardProps {
   canWrite: boolean;
   product: {
     id: string;
-    title: string;
-    description: string;
-    translations: unknown;
+    translations: ProductTranslationRow[];
     price: number;
     compareAtPrice: number | null;
     status: string;
     imageUrls: string[];
     hasVideo?: boolean;
-    brand?: { name: string; logoUrl: string | null } | null;
+    brand?: { translations: BrandTranslationRow[]; logoUrl: string | null } | null;
   };
 }
 
@@ -47,12 +61,9 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
   const [isDuplicating, startDuplicate] = useTransition();
 
   const { currency, currentRate } = useCurrencyStore();
-  const productTranslations = (product.translations as ProductTranslations | null) ?? null;
-  const localTitle = getProductTitle({ title: product.title, translations: productTranslations }, locale);
-  const localDescription = getProductDescription(
-    { description: product.description, translations: productTranslations },
-    locale,
-  );
+  const localTitle = getProductTitle(product, locale);
+  const localDescription = getProductDescription(product, locale);
+  const localBrandName = product.brand ? getBrandName(product.brand, locale) : "";
   const isOnSale =
     product.compareAtPrice != null && product.compareAtPrice > product.price;
 
@@ -79,7 +90,7 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
       toast.success(t("duplicated"), {
         action: {
           label: t("editCopy"),
-          onClick: () => router.push(`/dashboard/my-products/${copyId}/edit`),
+          onClick: () => router.push(`/${locale}/dashboard/my-products/${copyId}/edit`),
         },
       });
     });
@@ -87,7 +98,7 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
 
   return (
     <div className="border border-border/50 rounded-lg overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 cursor-pointer"
-      onClick={() => router.push(`/dashboard/my-products/${product.id}`)}>
+      onClick={() => router.push(`/${locale}/dashboard/my-products/${product.id}`)}>
       <div className="relative">
         {product.imageUrls.length > 0 ? (
           <>
@@ -120,20 +131,17 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
           <div className="absolute top-2 right-2 pointer-events-none">
             {product.brand.logoUrl ? (
               <div className="flex items-center gap-2 bg-background/85 backdrop-blur-xs border border-border/60 rounded-full px-2.5 py-1.5 shadow-sm">
-                <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded-full border border-border/40 bg-white">
-                  <Image
-                    src={product.brand.logoUrl}
-                    alt={product.brand.name}
-                    fill
-                    sizes="20px"
-                    className="object-contain"
-                  />
-                </div>
-                <span className="text-xs font-semibold leading-none">{product.brand.name}</span>
+                <BrandLogo
+                  src={product.brand.logoUrl}
+                  name={localBrandName}
+                  size={20}
+                  shape="circle"
+                />
+                <span className="text-xs font-semibold leading-none">{localBrandName}</span>
               </div>
             ) : (
               <div className="bg-background/85 backdrop-blur-xs border border-border/60 rounded-full px-2.5 py-1.5 shadow-sm">
-                <span className="text-xs font-semibold leading-none">{product.brand.name}</span>
+                <span className="text-xs font-semibold leading-none">{localBrandName}</span>
               </div>
             )}
           </div>
@@ -167,7 +175,7 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
         </div>
         <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
           <Button asChild variant="outline" size="sm" className="flex-1 gap-1.5">
-            <Link href={`/dashboard/my-products/${product.id}/edit`}>
+            <Link href={{ pathname: "/dashboard/my-products/[id]/edit", params: { id: product.id } }}>
               <Pencil className="h-3.5 w-3.5" />
               {canWrite ? t("edit") : t("view")}
             </Link>

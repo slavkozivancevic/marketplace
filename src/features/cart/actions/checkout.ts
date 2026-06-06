@@ -2,6 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/core/db/prisma";
 import { stripe } from "@/services/stripe";
 import { env } from "@/env/server";
@@ -10,6 +11,8 @@ import { handleActionError } from "@/features/common/errors/domainErrors";
 import { getCurrencyRate } from "@/features/currency/db/currencyRates";
 import { convertCents } from "@/lib/currency";
 import { VALID_CURRENCIES, type Currency } from "@/lib/currency-config";
+import { asLocale } from "@/i18n/config";
+import { getPathname } from "@/i18n/navigation";
 
 export type CheckoutCartItem = {
   productId: string;
@@ -23,14 +26,15 @@ export async function createCheckoutSession(
   try {
     const { userId: clerkUserId } = await auth();
     const cookieStore = await cookies();
-    const locale = cookieStore.get("NEXT_LOCALE")?.value ?? "en";
+    const locale = asLocale(cookieStore.get("NEXT_LOCALE")?.value);
     const rawCurrency = cookieStore.get("NEXT_CURRENCY")?.value ?? "usd";
     const currency: Currency = VALID_CURRENCIES.includes(rawCurrency as Currency)
       ? (rawCurrency as Currency)
       : "usd";
+    const t = await getTranslations("actionErrors");
 
     if (!clerkUserId) {
-      return { error: true, message: "You must be signed in to checkout" };
+      return { error: true, message: t("mustBeSignedIn") };
     }
 
     const user = await prisma.user.findUnique({
@@ -39,11 +43,11 @@ export async function createCheckoutSession(
     });
 
     if (!user) {
-      return { error: true, message: "User not found" };
+      return { error: true, message: t("userNotFound") };
     }
 
     if (items.length === 0) {
-      return { error: true, message: "Cart is empty" };
+      return { error: true, message: t("cartEmpty") };
     }
 
     // Fetch exchange rate once for the entire session
@@ -65,6 +69,10 @@ export async function createCheckoutSession(
       const product = await prisma.product.findFirst({
         where: { id: item.productId, status: "PUBLISHED", deletedAt: null },
         include: {
+          // Title is read per-locale from translations - we only need the
+          // buyer's locale row plus the default-locale fallback, but pulling
+          // the whole relation keeps the query simple and the payload tiny.
+          translations: { select: { locale: true, title: true } },
           // Stripe checkout shows a still preview - keep image-only so a
           // video poster isn't sent as a "product image".
           media: {
@@ -87,26 +95,34 @@ export async function createCheckoutSession(
       if (!product) {
         return {
           error: true,
-          message: `Product not found or no longer available`,
+          message: t("productNotAvailable"),
         };
       }
 
+      // Stripe line items get the default-locale title - we don't know the
+      // buyer's UI language at this server-action layer; emails are sent in
+      // the order.locale captured at order creation.
+      const productTitle =
+        product.translations.find((tr) => tr.locale === "en")?.title ??
+        product.translations[0]?.title ??
+        "";
+
       let unitPriceUsdCents: number;
-      let itemName = product.title;
+      let itemName = productTitle;
 
       if (item.variantId) {
         const variant = product.variants.find((v) => v.id === item.variantId);
         if (!variant) {
-          return { error: true, message: `Variant not found for ${product.title}` };
+          return { error: true, message: t("variantNotFoundFor", { title: productTitle }) };
         }
         if (variant.stock < item.quantity) {
           return {
             error: true,
-            message: `Not enough stock for ${product.title}`,
+            message: t("notEnoughStockFor", { title: productTitle }),
           };
         }
         unitPriceUsdCents = Number(variant.price); // Int after migration; Number() is safe for both Decimal and Int
-        itemName = `${product.title} (${variant.sku})`;
+        itemName = `${productTitle} (${variant.sku})`;
       } else {
         unitPriceUsdCents = Number(product.price); // Int after migration
       }
@@ -162,12 +178,17 @@ export async function createCheckoutSession(
           })),
         ),
       },
-      success_url: `${env.APP_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${env.APP_URL}/checkout/cancel`,
+      // Localized return URLs: Stripe redirects the buyer back to the
+      // marketplace path that matches their checkout-time locale
+      // (e.g. /sr/placanje/uspesno, /de/kasse/erfolgreich) instead of
+      // the canonical English path. Using getPathname keeps the slug
+      // mapping in sync with routing.ts.
+      success_url: `${env.APP_URL}${getPathname({ href: "/checkout/success", locale })}?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${env.APP_URL}${getPathname({ href: "/checkout/cancel", locale })}`,
     });
 
     if (!session.url) {
-      return { error: true, message: "Failed to create checkout session" };
+      return { error: true, message: t("checkoutSessionFailed") };
     }
 
     return { url: session.url };

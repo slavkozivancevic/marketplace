@@ -19,9 +19,9 @@ import { SerializedPublicProduct } from "@/types/types";
 import {
   getOptionName,
   getOptionValue,
-  type OptionTranslations,
 } from "@/features/products/utils/optionTranslations";
-import { getProductTitle, type ProductTranslations } from "@/features/products/utils/translations";
+import { buildCartVariantOptions, buildLocalizedText } from "@/features/cart/utils/variantOptions";
+import { getProductTitle } from "@/features/products/utils/translations";
 
 interface AddToCartProps {
   product: SerializedPublicProduct;
@@ -42,16 +42,8 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
   const hasOptions = product.options.length > 0;
 
   const localizedOption = (option: typeof product.options[number]) => ({
-    name: getOptionName(
-      { name: option.name, translations: option.translations as OptionTranslations | null },
-      locale,
-    ),
-    translate: (value: string) =>
-      getOptionValue(
-        { translations: option.translations as OptionTranslations | null },
-        value,
-        locale,
-      ),
+    name: getOptionName(option, locale),
+    translate: (value: string) => getOptionValue(option, value, locale),
   });
 
   const optionVariants = product.variants.filter(
@@ -244,10 +236,14 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
       (firstProductImage
         ? (firstProductImage.thumbUrl ?? firstProductImage.url)
         : null);
-    const optionLabel = activeVariant?.optionValues
-      .map((ov) => ov.value)
-      .join(" / ");
-    const variantLabel = optionLabel || activeVariant?.sku || null;
+    // Snapshot the selected options translated for every locale so the cart
+    // can render the label in whatever language is active at view time.
+    const variantOptions =
+      activeVariant && activeVariant.optionValues.length > 0
+        ? buildCartVariantOptions(activeVariant.optionValues, product.options)
+        : null;
+    // SKU is the non-translatable fallback (manual variants / no options).
+    const variantLabel = activeVariant?.sku ?? null;
 
     const maxStock = activeVariant
       ? activeVariant.stock
@@ -255,13 +251,12 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
 
     addItem({
       productId: product.id,
-      productTitle: getProductTitle(
-        { title: product.title, translations: product.translations as ProductTranslations | null },
-        locale,
-      ),
+      productTitleI18n: buildLocalizedText((loc) => getProductTitle(product, loc)),
+      productTitle: getProductTitle(product, locale),
       productImage: firstImage,
       variantId: activeVariant?.id ?? null,
       variantSku: activeVariant?.sku ?? null,
+      variantOptions,
       variantLabel,
       price,
       maxStock,

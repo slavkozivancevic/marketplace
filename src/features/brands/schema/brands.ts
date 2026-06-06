@@ -9,6 +9,9 @@ const translationsSchema = z
     z
       .object({
         name: z.string().max(100).optional(),
+        // Locale-specific URL slug. Optional - left empty, the repo computes
+        // `slugify(translatedName)` as fallback so old payloads keep working.
+        slug: z.string().max(200).optional(),
         description: z.string().max(1000).optional(),
       })
       .optional(),

@@ -29,13 +29,14 @@ function PaymentMethodIcon({ method }: { method: string }) {
 export function OrderTableRow({ order }: { order: UserOrderListItem }) {
   const router = useRouter();
   const t = useTranslations("orders");
-  const dl = dateLocale(useLocale());
+  const locale = useLocale();
+  const dl = dateLocale(locale);
 
   return (
     <div
       role="row"
       className="grid grid-cols-[100px_100px_80px_minmax(200px,2fr)_120px_120px] items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors min-w-fit"
-      onClick={() => router.push(`/dashboard/orders/${order.id}`)}
+      onClick={() => router.push(`/${locale}/dashboard/orders/${order.id}`)}
     >
       {/* Order ID */}
       <div role="cell" className="font-mono text-xs text-muted-foreground">
@@ -62,21 +63,25 @@ export function OrderTableRow({ order }: { order: UserOrderListItem }) {
       {/* Items */}
       <div role="cell" className="text-sm truncate">
         {order.items.map((item, i) => {
-          const label = item.variant?.sku
-            ? `${item.product.title} (${item.variant.sku})`
-            : item.product.title;
+          // Order row label uses the title in the order's captured locale so
+          // the buyer sees their own language even when navigating later.
+          const title =
+            item.product.translations.find((tr) => tr.locale === order.locale)?.title ??
+            item.product.translations.find((tr) => tr.locale === "en")?.title ??
+            "";
+          const label = item.variant?.sku ? `${title} (${item.variant.sku})` : title;
           const qty = item.quantity > 1 ? ` ×${item.quantity}` : "";
           return (i > 0 ? ", " : "") + label + qty;
         }).join("")}
       </div>
 
       {/* Total */}
-      <div role="cell" className="font-semibold text-sm">
+      <div role="cell" className="font-semibold text-sm text-right tabular-nums">
         {formatPrice(order.total, order.currency as Currency)}
       </div>
 
       {/* Status */}
-      <div role="cell" className="flex items-center gap-1.5">
+      <div role="cell" className="flex items-center justify-center gap-1.5">
         <PaymentMethodIcon method={order.paymentMethod} />
         <Badge variant={getStatusVariant(order.status)}>
           {t(order.status.toLowerCase() as "pending" | "pending_cod" | "completed" | "cancelled" | "refunded")}

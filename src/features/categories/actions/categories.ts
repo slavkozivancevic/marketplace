@@ -1,15 +1,22 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { getLocale } from "next-intl/server";
 import { categorySchema, type CategoryInput } from "../schema/categories";
 import {
   createCategory,
   updateCategory,
   deleteCategory,
+  duplicateCategory,
 } from "../db/categories";
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import { requireRole } from "@/lib/auth/requireRole";
 import type { ActionErrorResult } from "@/types/types";
+
+async function localizedRedirect(redirectTo: string): Promise<never> {
+  const locale = await getLocale();
+  redirect(`/${locale}${redirectTo}`);
+}
 
 export async function createCategoryAction(
   unsafeData: CategoryInput,
@@ -38,7 +45,7 @@ export async function createCategoryAction(
     return handleActionError(error);
   }
 
-  redirect("/admin/categories");
+  await localizedRedirect("/admin/categories");
 }
 
 export async function updateCategoryAction(
@@ -69,7 +76,7 @@ export async function updateCategoryAction(
     return handleActionError(error);
   }
 
-  redirect("/admin/categories");
+  await localizedRedirect("/admin/categories");
 }
 
 export async function deleteCategoryAction(
@@ -82,5 +89,17 @@ export async function deleteCategoryAction(
     return handleActionError(error);
   }
 
-  redirect("/admin/categories");
+  await localizedRedirect("/admin/categories");
+}
+
+export async function duplicateCategoryAction(
+  id: string,
+): Promise<{ error: false; id: string } | ActionErrorResult> {
+  try {
+    await requireRole("ADMIN");
+    const copy = await duplicateCategory(id);
+    return { error: false, id: copy.id };
+  } catch (error) {
+    return handleActionError(error);
+  }
 }

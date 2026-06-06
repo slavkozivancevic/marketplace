@@ -1,11 +1,14 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
-import { setLocale } from "@/actions/setLocale";
+import { useRouter as useNextRouter, useParams } from "next/navigation";
+import { usePathname, useRouter } from "@/i18n/navigation";
+import { useTheme } from "@/providers/theme/ThemeProvider";
+import { useEffect, useState, useTransition } from "react";
 import { setCurrency } from "@/actions/setCurrency";
+import { useLocalePaths } from "@/i18n/LocalePathsContext";
+import { useHardNav } from "@/components/layout/hard-nav-boundary";
+import type { Locale } from "@/i18n/config";
 import { VALID_CURRENCIES } from "@/lib/currency-config";
 import { useCurrencyStore } from "@/store/currency";
 import { SUPPORTED_LOCALES, LOCALE_LABELS } from "@/i18n/config";
@@ -25,6 +28,12 @@ const currencySymbols: Record<string, string> = {
   rsd: "дин",
 };
 
+// Module-level so the React Compiler doesn't flag the document.cookie write
+// as mutating a global from inside the component (same pattern as ThemeProvider).
+function persistLocaleCookie(newLocale: string) {
+  document.cookie = `NEXT_LOCALE=${newLocale}; path=/; max-age=31536000; SameSite=Lax`;
+}
+
 const languages = SUPPORTED_LOCALES.map((loc) => ({
   locale: loc,
   flag: LOCALE_LABELS[loc].flag,
@@ -43,7 +52,19 @@ export function PreferencesPopover() {
   const tTheme = useTranslations("theme");
   const tCurrency = useTranslations("currency");
   const locale = useLocale();
+  // `useRouter` from `@/i18n/navigation` handles URL-based locale swaps
+  // (swapping `/en/products` <-> `/sr/proizvodi`). `useNextRouter` is kept
+  // only for `router.refresh()` after a currency change, which is plain
+  // revalidation with no URL rewrite.
   const router = useRouter();
+  const nextRouter = useNextRouter();
+  const pathname = usePathname();
+  const params = useParams();
+  const localePaths = useLocalePaths();
+  // True on the 404 page, where the App Router won't commit soft navigation.
+  // See HardNavBoundary - language/currency must navigate via window.location.
+  const hardNav = useHardNav();
+  const [, startTransition] = useTransition();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -54,24 +75,56 @@ export function PreferencesPopover() {
     setMounted(true);
   }, []);
 
-  async function handleLocale(newLocale: string) {
-    await setLocale(newLocale);
-    router.refresh();
+  function handleLocale(newLocale: string) {
+    // On a not-found boundary, router.replace silently no-ops. There's no
+    // valid current page to translate anyway, so persist the choice and hard-
+    // navigate to the target locale's home.
+    if (hardNav) {
+      persistLocaleCookie(newLocale);
+      // Stay on the current (invalid) path but swap its locale prefix, so the
+      // 404 just re-renders in the chosen language instead of jumping home.
+      const segments = window.location.pathname.split("/");
+      if (SUPPORTED_LOCALES.includes(segments[1] as Locale)) {
+        segments[1] = newLocale;
+      } else {
+        segments.splice(1, 0, newLocale);
+      }
+      window.location.assign(segments.join("/") + window.location.search);
+      return;
+    }
+    startTransition(() => {
+      // Pages with translated dynamic segments (product / brand / category
+      // slugs) publish their per-locale URLs via `LocalePathsProvider`.
+      // When that's set, jump straight to the pre-resolved URL so the
+      // slug also gets translated (`/en/products/my-suit` ->
+      // `/sr/proizvodi/muski-vuneni-odelo`, not `/sr/proizvodi/my-suit`
+      // which 404s). Otherwise fall back to next-intl's pattern-only swap.
+      const targetUrl = localePaths?.[newLocale as Locale];
+      if (targetUrl) {
+        nextRouter.replace(targetUrl);
+        return;
+      }
+      router.replace(
+        { pathname: pathname as never, params: params as never },
+        { locale: newLocale as never },
+      );
+    });
   }
 
   async function handleCurrency(newCurrency: string) {
-    setStoreCurrency(newCurrency as typeof VALID_CURRENCIES[number]);
+    setStoreCurrency(newCurrency as (typeof VALID_CURRENCIES)[number]);
     await setCurrency(newCurrency);
-    router.refresh();
+    // The Zustand store update already repaints prices client-side and the
+    // cookie persists the choice. On a 404 there's nothing to refresh (and
+    // the soft refresh no-ops), so skip it there.
+    if (hardNav) return;
+    nextRouter.refresh();
   }
 
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          size="icon"
-        >
+        <Button variant="outline" size="icon">
           <SlidersHorizontal className="h-4 w-4" />
           <span className="sr-only">Preferences</span>
         </Button>
@@ -94,7 +147,7 @@ export function PreferencesPopover() {
                 "flex cursor-pointer items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition-colors",
                 locale === lang.locale
                   ? "border-primary bg-primary/5 text-primary"
-                  : "border-border text-muted-foreground hover:border-primary/50 hover:bg-muted hover:text-foreground"
+                  : "border-border text-muted-foreground hover:border-primary/50 hover:bg-muted hover:text-foreground",
               )}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -125,7 +178,7 @@ export function PreferencesPopover() {
                 "flex flex-1 cursor-pointer items-center justify-center rounded-md border px-2 py-1.5 text-xs font-medium transition-colors",
                 mounted && currency === code
                   ? "border-primary bg-primary/5 text-primary"
-                  : "border-border text-muted-foreground hover:border-primary/50 hover:bg-muted hover:text-foreground"
+                  : "border-border text-muted-foreground hover:border-primary/50 hover:bg-muted hover:text-foreground",
               )}
             >
               {code.toUpperCase()}
@@ -153,7 +206,7 @@ export function PreferencesPopover() {
                   "flex cursor-pointer flex-col items-center justify-center rounded-md border py-2 transition-colors",
                   isActive
                     ? "border-primary bg-primary/5 text-primary"
-                    : "border-border text-muted-foreground hover:border-primary/50 hover:bg-muted hover:text-foreground"
+                    : "border-border text-muted-foreground hover:border-primary/50 hover:bg-muted hover:text-foreground",
                 )}
               >
                 <Icon className="h-3.5 w-3.5" />
