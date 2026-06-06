@@ -57,6 +57,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { getCategoryName } from "@/features/categories/utils/translations";
 import type { CategoryTreeItem } from "@/features/categories/db/categories";
+import { ProductAttributesField } from "./ProductAttributesField";
+import type { AttributeSelectorItem } from "@/features/attributes/db/attributes";
 import { useCurrencyStore } from "@/store/currency";
 import { CURRENCIES } from "@/lib/currency";
 import type { Currency } from "@/lib/currency-config";
@@ -377,8 +379,16 @@ type ProductFormData = {
     mediaKeys: string[];
     options: { name: string; value: string }[];
   }[];
+  attributes: {
+    attributeId: string;
+    optionIds: string[];
+    valueNumeric: number | null;
+    valueBool: boolean | null;
+  }[];
   version: number;
 };
+
+export type { ProductFormData };
 
 type OptionSnapshot = { name: string; values: string[] };
 
@@ -446,8 +456,28 @@ interface ProductFormProps {
   product?: SerializedProductWithRelations;
   brands?: BrandOption[];
   categoryTree?: CategoryTreeItem[];
+  attributeLibrary?: AttributeSelectorItem[];
+  categoryAttributeMap?: Record<string, string[]>;
   onSuccess?: () => void;
   redirectTo?: string;
+}
+
+/** Collapses persisted attribute value rows into the form's grouped shape. */
+function buildAttributeEntries(
+  rows: { attributeId: string; optionId: string | null; valueNumeric: number | null; valueBool: boolean | null }[],
+): ProductFormData["attributes"] {
+  const byAttr = new Map<string, ProductFormData["attributes"][number]>();
+  for (const r of rows) {
+    let entry = byAttr.get(r.attributeId);
+    if (!entry) {
+      entry = { attributeId: r.attributeId, optionIds: [], valueNumeric: null, valueBool: null };
+      byAttr.set(r.attributeId, entry);
+    }
+    if (r.optionId) entry.optionIds.push(r.optionId);
+    else if (r.valueNumeric != null) entry.valueNumeric = r.valueNumeric;
+    else if (r.valueBool != null) entry.valueBool = r.valueBool;
+  }
+  return [...byAttr.values()];
 }
 
 // ---------- CategoryPicker ----------
@@ -708,6 +738,8 @@ export function ProductForm({
   product,
   brands = [],
   categoryTree = [],
+  attributeLibrary = [],
+  categoryAttributeMap = {},
   onSuccess,
   redirectTo,
 }: ProductFormProps) {
@@ -802,6 +834,7 @@ export function ProductForm({
         media: [],
         options: [],
         variants: [],
+        attributes: [],
         version: 1,
       };
     }
@@ -879,6 +912,7 @@ export function ProductForm({
           options: dedupedOptions,
         };
       }),
+      attributes: buildAttributeEntries(product.attributeValues ?? []),
       version: product.version,
     };
   }, [product]);
@@ -1156,6 +1190,7 @@ export function ProductForm({
           media: data.media,
           options: optionsPayload,
           variants: data.variants,
+          attributes: data.attributes,
         };
         result = await createProduct(createData, redirectTo);
       } else {
@@ -1370,6 +1405,13 @@ export function ProductForm({
                 )}
               />
             )}
+
+            <ProductAttributesField
+              form={form}
+              attributeLibrary={attributeLibrary}
+              categoryAttributeMap={categoryAttributeMap}
+              categoryTree={categoryTree}
+            />
 
             {brands.length > 0 && (
               <FormField

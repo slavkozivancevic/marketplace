@@ -125,6 +125,48 @@ export async function getUserOrdersPage({
   return { items, nextCursor };
 }
 
+/**
+ * Disjunctive status counts for the buyer's order list sidebar. Ignores the
+ * status selection itself (so every status stays countable while one is
+ * checked) but applies the active search, matching the list query.
+ */
+export async function getUserOrderStatusCounts({
+  userId,
+  search,
+}: {
+  userId: string;
+  search?: string;
+}): Promise<Record<string, number>> {
+  const where: Prisma.OrderWhereInput = { userId };
+
+  if (search) {
+    where.OR = [
+      { id: { contains: search, mode: "insensitive" } },
+      {
+        items: {
+          some: {
+            product: {
+              translations: {
+                some: { title: { contains: search, mode: "insensitive" } },
+              },
+            },
+          },
+        },
+      },
+    ];
+  }
+
+  const groups = await prisma.order.groupBy({
+    by: ["status"],
+    where,
+    _count: { _all: true },
+  });
+
+  const counts: Record<string, number> = {};
+  for (const g of groups) counts[g.status] = g._count._all;
+  return counts;
+}
+
 export async function getOrderByStripeSessionId(stripeSessionId: string) {
   const order = await prisma.order.findUnique({
     where: { stripeSessionId },

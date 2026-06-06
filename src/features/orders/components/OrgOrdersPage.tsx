@@ -1,7 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import { useQueryStates } from "nuqs";
 import { orgOrderSearchParams, type OrgOrderFilters } from "@/lib/query/searchParams";
 import { SearchToolbar } from "@/components/search/SearchToolbar";
@@ -17,20 +20,6 @@ export function OrgOrdersPage() {
     { value: "total", label: t("total") },
   ];
 
-  const FILTER_GROUPS: FilterGroup[] = [
-    {
-      type: "checkbox",
-      key: "status",
-      label: t("status"),
-      options: [
-        { value: "PENDING_COD", label: t("pending_cod") },
-        { value: "COMPLETED", label: t("completed") },
-        { value: "CANCELLED", label: t("cancelled") },
-        { value: "REFUNDED", label: t("refunded") },
-      ],
-    },
-  ];
-
   const [params, setParams] = useQueryStates(orgOrderSearchParams, {
     shallow: false,
     throttleMs: 300,
@@ -41,6 +30,40 @@ export function OrgOrdersPage() {
   // from the URL so navigating to a clean URL always starts empty.
   const urlSearchParams = useSearchParams();
   const search = urlSearchParams.get("search") ?? "";
+
+  // Disjunctive status counts for the sidebar - ignores the status selection
+  // but applies the active search and org scope, matching the list.
+  const countsQuery = useQuery<{ status: Record<string, number> }>({
+    queryKey: ["org-orders", "counts", search],
+    queryFn: async () => {
+      const sp = new URLSearchParams();
+      if (search) sp.set("search", search);
+      const { data } = await axios.get(`/api/dashboard/org-orders/counts?${sp.toString()}`);
+      return data as { status: Record<string, number> };
+    },
+  });
+  const countsReady = countsQuery.isSuccess;
+  const statusCounts = useMemo(() => countsQuery.data?.status ?? {}, [countsQuery.data]);
+
+  // Status is a small fixed enum: every option stays visible (with a count,
+  // including 0) so the filter set is stable - GitHub/Shopify convention.
+  const FILTER_GROUPS: FilterGroup[] = useMemo(() => {
+    const opt = (value: string, label: string) =>
+      countsReady ? { value, label, count: statusCounts[value] ?? 0 } : { value, label };
+    return [
+      {
+        type: "checkbox",
+        key: "status",
+        label: t("status"),
+        options: [
+          opt("PENDING_COD", t("pending_cod")),
+          opt("COMPLETED", t("completed")),
+          opt("CANCELLED", t("cancelled")),
+          opt("REFUNDED", t("refunded")),
+        ],
+      },
+    ];
+  }, [t, countsReady, statusCounts]);
 
   const filters: OrgOrderFilters = {
     search,

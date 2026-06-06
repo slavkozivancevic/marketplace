@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { getPublicProductsPage } from "@/features/products/db/publicProducts";
 import { getCategoryTree, getDescendantIds } from "@/features/categories/db/categories";
 import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
+import { parseAttrs } from "@/lib/query/attrs";
 
 const ALLOWED_SORTS = ["createdAt", "price", "avgRating"] as const;
 type SortField = (typeof ALLOWED_SORTS)[number];
@@ -44,6 +45,7 @@ export async function GET(req: NextRequest) {
   const minRatingRaw = searchParams.get("minRating");
   const minRating = minRatingRaw ? parseInt(minRatingRaw, 10) : undefined;
   const dept = searchParams.get("dept") ?? "";
+  const attributeFilters = parseAttrs(searchParams.get("attrs"));
 
   // Resolve department slug → all descendant category IDs
   let categoryId: string[] | undefined;
@@ -67,6 +69,7 @@ export async function GET(req: NextRequest) {
       brandId,
       minRating,
       categoryId,
+      attributeFilters,
     });
     return NextResponse.json(result);
   } catch (error) {

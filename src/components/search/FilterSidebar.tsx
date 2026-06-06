@@ -20,6 +20,15 @@ import { cn } from "@/lib/utils";
 
 // ---------- Filter config types ----------
 
+/**
+ * Shared "see more" threshold for long checkbox facets (brand, attribute
+ * options). Single source of truth so every sidebar collapses at the same
+ * count - a per-page number drifts and makes the same filter behave
+ * differently across pages. Short fixed facets (status, role, verified) have
+ * fewer options than this and never collapse, so they can omit `maxVisible`.
+ */
+export const FILTER_OPTIONS_VISIBLE_LIMIT = 8;
+
 export interface CheckboxFilterGroup {
   type: "checkbox";
   key: string;

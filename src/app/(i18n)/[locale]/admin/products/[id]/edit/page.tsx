@@ -19,6 +19,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SerializedProductWithRelations } from "@/types/types";
 import { getAllBrands } from "@/features/brands/db/brands";
 import { getCategoryTree } from "@/features/categories/db/categories";
+import {
+  fetchAttributeSelector,
+  fetchCategoryAttributeMap,
+} from "@/features/attributes/db/formData";
 
 interface EditProductPageProps {
   params: Promise<{ id: string }>;
@@ -29,11 +33,14 @@ async function EditProductForm({ productId }: { productId: string }) {
   const ctx = await resolveRequestContext();
   requirePermission(ctx, "product:read");
 
-  const [result, brands, categoryTree] = await Promise.all([
-    fetchProductForEdit(ctx.organizationId, ctx.userId, productId),
-    fetchBrands(),
-    fetchCategoryTree(),
-  ]);
+  const [result, brands, categoryTree, attributeLibrary, categoryAttributeMap] =
+    await Promise.all([
+      fetchProductForEdit(ctx.organizationId, ctx.userId, productId),
+      fetchBrands(),
+      fetchCategoryTree(),
+      fetchAttributeSelector(),
+      fetchCategoryAttributeMap(),
+    ]);
 
   if (isActionErrorResult(result)) {
     return (
@@ -59,6 +66,8 @@ async function EditProductForm({ productId }: { productId: string }) {
       product={product}
       brands={brands}
       categoryTree={categoryTree}
+      attributeLibrary={attributeLibrary}
+      categoryAttributeMap={categoryAttributeMap}
     />
   );
 }

@@ -53,3 +53,13 @@ export const BRAND_EXAMPLES: {
   name: { en: "Nike", sr: "Najki", de: "Nike", es: "Nike" },
   slug: { en: "nike", sr: "najki", de: "nike", es: "nike" },
 };
+
+export const ATTRIBUTE_EXAMPLES: {
+  /** Example attribute label per section locale (e.g. the "Color" attribute). */
+  label: LocaleExamples;
+  /** Example option label per section locale (e.g. the "Red" option). */
+  option: LocaleExamples;
+} = {
+  label: { en: "Color", sr: "Boja", de: "Farbe", es: "Color" },
+  option: { en: "Red", sr: "Crvena", de: "Rot", es: "Rojo" },
+};

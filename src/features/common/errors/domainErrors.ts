@@ -184,5 +184,9 @@ export async function handleActionError(error: unknown): Promise<ActionErrorResu
     return { error: true, message };
   }
 
+  // Unexpected error: the toast only ever shows the generic `internalError`
+  // string, so without this log the real cause (Prisma code, FK target, stack)
+  // is lost. Log it server-side so failures stay diagnosable from the terminal.
+  console.error("[handleActionError] unexpected error:", error);
   return { error: true, message: t("internalError") };
 }

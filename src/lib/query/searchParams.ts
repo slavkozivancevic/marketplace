@@ -27,6 +27,9 @@ export const productSearchParams = {
   // "" means "All Departments". The API resolves this to the full
   // descendant ID set before querying the DB.
   dept: parseAsString.withDefault(""),
+  // Catalog attribute facet selections, encoded as a single compact string
+  // (see lib/query/attrs.ts). Kept as one param so the schema stays static.
+  attrs: parseAsString.withDefault(""),
 };
 
 export type ProductFilters = {
@@ -40,6 +43,7 @@ export type ProductFilters = {
   brandId: string[];
   minRating: number | null;
   dept: string;
+  attrs: string;
 };
 
 // ---------- Admin products ----------

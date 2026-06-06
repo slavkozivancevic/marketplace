@@ -268,6 +268,7 @@ export default async function CategoryDetailPage({ params }: CategoryPageProps) 
     brandId: [] as string[],
     minRating: null,
     dept: deptSlug,
+    attrs: "",
   };
 
   await queryClient.prefetchInfiniteQuery({

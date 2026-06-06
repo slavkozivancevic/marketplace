@@ -8,12 +8,22 @@ import { Link, getPathname } from "@/i18n/navigation";
 import { CacheTags } from "@/lib/cache/tags";
 import { getAllBrands } from "@/features/brands/db/brands";
 import { getCategoryTree } from "@/features/categories/db/categories";
+import {
+  fetchAttributeSelector,
+  fetchCategoryAttributeMap,
+} from "@/features/attributes/db/formData";
 
 export default async function NewProductPage() {
   const t = await getTranslations();
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();
-  const [brands, categoryTree] = await Promise.all([fetchBrands(), fetchCategoryTree()]);
+  const [brands, categoryTree, attributeLibrary, categoryAttributeMap] =
+    await Promise.all([
+      fetchBrands(),
+      fetchCategoryTree(),
+      fetchAttributeSelector(),
+      fetchCategoryAttributeMap(),
+    ]);
 
   const breadcrumbItems = [
     { name: tCrumbs("admin"), href: getPathname({ href: "/admin", locale }) },
@@ -35,7 +45,13 @@ export default async function NewProductPage() {
         </PageHeader>
       </div>
       <div className="flex-1 flex flex-col min-h-0 px-6">
-        <ProductForm mode="create" brands={brands} categoryTree={categoryTree} />
+        <ProductForm
+          mode="create"
+          brands={brands}
+          categoryTree={categoryTree}
+          attributeLibrary={attributeLibrary}
+          categoryAttributeMap={categoryAttributeMap}
+        />
       </div>
     </div>
   );

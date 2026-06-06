@@ -182,6 +182,21 @@ export const createProductSchema = z
     media: z.array(productMediaSchema).default([]),
     options: z.array(productOptionSchema).default([]),
     variants: z.array(productVariantSchema).default([]),
+
+    // Catalog attribute values. One entry per attribute the product has a
+    // value for. SELECT uses a single optionId, MULTI_SELECT uses several,
+    // RANGE uses valueNumeric, BOOLEAN uses valueBool. Empty entries are
+    // pruned client-side before submit.
+    attributes: z
+      .array(
+        z.object({
+          attributeId: z.string(),
+          optionIds: z.array(z.string()).default([]),
+          valueNumeric: z.number().nullable().default(null),
+          valueBool: z.boolean().nullable().default(null),
+        }),
+      )
+      .default([]),
   })
   .superRefine((data, ctx) => {
     const seenSignatures = new Map<string, number>();

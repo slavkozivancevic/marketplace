@@ -13,6 +13,10 @@ import {
 import { CacheTags } from "@/lib/cache/tags";
 import { getAllBrands } from "@/features/brands/db/brands";
 import { getCategoryTree } from "@/features/categories/db/categories";
+import {
+  fetchAttributeSelector,
+  fetchCategoryAttributeMap,
+} from "@/features/attributes/db/formData";
 import { ProductForm } from "@/features/products/components/ProductForm";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
@@ -70,11 +74,14 @@ async function ProductEditContent({ productId }: { productId: string }) {
 
   if (!canWrite) notFound();
 
-  const [result, brands, categoryTree] = await Promise.all([
-    fetchProductForEdit(product.organizationId, user.id, productId),
-    fetchBrands(),
-    fetchCategoryTree(),
-  ]);
+  const [result, brands, categoryTree, attributeLibrary, categoryAttributeMap] =
+    await Promise.all([
+      fetchProductForEdit(product.organizationId, user.id, productId),
+      fetchBrands(),
+      fetchCategoryTree(),
+      fetchAttributeSelector(),
+      fetchCategoryAttributeMap(),
+    ]);
 
   if (isActionErrorResult(result)) {
     return (
@@ -100,6 +107,8 @@ async function ProductEditContent({ productId }: { productId: string }) {
       product={productData}
       brands={brands}
       categoryTree={categoryTree}
+      attributeLibrary={attributeLibrary}
+      categoryAttributeMap={categoryAttributeMap}
       redirectTo={`/dashboard/my-products/${productData.id}`}
     />
   );

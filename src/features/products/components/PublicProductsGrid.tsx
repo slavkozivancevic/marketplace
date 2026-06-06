@@ -68,6 +68,7 @@ function buildFetcher(filters: ProductFilters) {
     for (const id of filters.brandId) params.append("brandId", id);
     if (filters.minRating != null) params.set("minRating", String(filters.minRating));
     if (filters.dept) params.set("dept", filters.dept);
+    if (filters.attrs) params.set("attrs", filters.attrs);
 
     const { data } = await axios.get(`/api/products?${params.toString()}`);
     return data;

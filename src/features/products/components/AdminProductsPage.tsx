@@ -3,6 +3,8 @@
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import { useQueryStates } from "nuqs";
 import { useCurrencyStore } from "@/store/currency";
 import { getCurrencyConfig } from "@/lib/currency";
@@ -13,6 +15,7 @@ import {
 import { SearchToolbar } from "@/components/search/SearchToolbar";
 import {
   FilterSidebar,
+  FILTER_OPTIONS_VISIBLE_LIMIT,
   type FilterGroup,
   type FilterValues,
 } from "@/components/search/FilterSidebar";
@@ -46,16 +49,55 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
   const urlSearchParams = useSearchParams();
   const search = urlSearchParams.get("search") ?? "";
 
+  // Disjunctive facet counts (status + brand) for the sidebar. Mirrors the
+  // list's filters so the numbers track the visible result set; each facet's
+  // own selection is ignored server-side so it stays countable while checked.
+  const countsQuery = useQuery<{
+    status: Record<string, number>;
+    brand: Record<string, number>;
+  }>({
+    queryKey: [
+      "products",
+      "admin",
+      "counts",
+      search,
+      params.status.join(","),
+      params.brandId.join(","),
+      params.minPrice,
+      params.maxPrice,
+      currency,
+    ],
+    queryFn: async () => {
+      const rate = useCurrencyStore.getState().currentRate();
+      const sp = new URLSearchParams();
+      if (search) sp.set("search", search);
+      for (const s of params.status) sp.append("status", s);
+      for (const id of params.brandId) sp.append("brandId", id);
+      if (params.minPrice != null) sp.set("minPrice", String(params.minPrice / rate));
+      if (params.maxPrice != null) sp.set("maxPrice", String(params.maxPrice / rate));
+      const { data } = await axios.get(`/api/admin/products/counts?${sp.toString()}`);
+      return data as { status: Record<string, number>; brand: Record<string, number> };
+    },
+  });
+  const countsReady = countsQuery.isSuccess;
+  const statusCounts = useMemo(() => countsQuery.data?.status ?? {}, [countsQuery.data]);
+  const brandCounts = useMemo(() => countsQuery.data?.brand ?? {}, [countsQuery.data]);
+
   const filterGroups: FilterGroup[] = useMemo(() => {
+    // Status is a small fixed enum: always show every option (with a count,
+    // including 0) so the filter set stays stable - GitHub/Shopify convention.
+    const statusOption = (value: string, label: string) =>
+      countsReady ? { value, label, count: statusCounts[value] ?? 0 } : { value, label };
+
     const groups: FilterGroup[] = [
       {
         type: "checkbox",
         key: "status",
         label: t("products.status"),
         options: [
-          { value: "DRAFT", label: t("products.draft") },
-          { value: "PUBLISHED", label: t("products.published") },
-          { value: "ARCHIVED", label: t("products.archived") },
+          statusOption("DRAFT", t("products.draft")),
+          statusOption("PUBLISHED", t("products.published")),
+          statusOption("ARCHIVED", t("products.archived")),
         ],
       },
       {
@@ -68,15 +110,40 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
       },
     ];
     if (brands.length > 0) {
-      groups.push({
-        type: "checkbox",
-        key: "brandId",
-        label: t("products.brand"),
-        options: brands.map((b) => ({ value: b.id, label: getBrandName(b, locale) })),
-      });
+      // Brand is a long list: show counts and hide brands with no products in
+      // the current result set (Amazon-style), keeping any selected brand
+      // visible so it can be cleared.
+      const selectedBrands = new Set(params.brandId);
+      const brandOptions = countsReady
+        ? brands
+            .map((b) => ({
+              value: b.id,
+              label: getBrandName(b, locale),
+              count: brandCounts[b.id] ?? 0,
+            }))
+            .filter((b) => b.count > 0 || selectedBrands.has(b.value))
+        : brands.map((b) => ({ value: b.id, label: getBrandName(b, locale) }));
+      if (brandOptions.length > 0) {
+        groups.push({
+          type: "checkbox",
+          key: "brandId",
+          label: t("products.brand"),
+          options: brandOptions,
+          maxVisible: FILTER_OPTIONS_VISIBLE_LIMIT,
+        });
+      }
     }
     return groups;
-  }, [brands, t, currencySymbol, locale]);
+  }, [
+    brands,
+    t,
+    currencySymbol,
+    locale,
+    countsReady,
+    statusCounts,
+    brandCounts,
+    params.brandId,
+  ]);
 
   const filters: AdminProductFilters = {
     search,

@@ -26,6 +26,16 @@ const translationsSchema = z
   .nullable()
   .optional();
 
+// Attributes assigned directly to this category (department-level assignments
+// are inherited by descendants and are not repeated here).
+const categoryAttributesSchema = z.array(
+  z.object({
+    attributeId: z.string(),
+    order: z.number().int().min(0),
+    isFilterable: z.boolean(),
+  }),
+);
+
 export const categorySchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long"),
   slug: z.string().optional(),
@@ -36,6 +46,7 @@ export const categorySchema = z.object({
   order: z.number().int().min(0),
   isActive: z.boolean(),
   isFeatured: z.boolean(),
+  attributes: categoryAttributesSchema,
 });
 
 export type CategoryInput = z.infer<typeof categorySchema>;

@@ -6,6 +6,7 @@ import { createSearchParamsCache } from "nuqs/server";
 import { getQueryClient } from "@/lib/query/getQueryClient";
 import { getPublicProductsPage } from "@/features/products/db/publicProducts";
 import { productSearchParams } from "@/lib/query/searchParams";
+import { parseAttrs } from "@/lib/query/attrs";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { PublicProductsPage } from "@/features/products/components/PublicProductsPage";
@@ -102,6 +103,7 @@ export default async function ProductsRoute({
     brandId: params.brandId,
     minRating: params.minRating,
     dept: params.dept,
+    attrs: params.attrs,
   };
 
   await queryClient.prefetchInfiniteQuery({
@@ -119,6 +121,7 @@ export default async function ProductsRoute({
         brandId: filters.brandId.length ? filters.brandId : undefined,
         minRating: filters.minRating ?? undefined,
         categoryId: deptCategoryIds?.length ? deptCategoryIds : undefined,
+        attributeFilters: parseAttrs(filters.attrs),
       }),
     initialPageParam: undefined as string | undefined,
   });

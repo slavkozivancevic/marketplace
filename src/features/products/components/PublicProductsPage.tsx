@@ -3,7 +3,21 @@
 import { useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import { getBrandName } from "@/features/brands/utils/translations";
+import { getLabel } from "@/features/attributes/utils/translations";
+import type { CategoryFacetsResult } from "@/features/attributes/db/facets";
+import {
+  parseAttrs,
+  serializeAttrs,
+  findOptionFilter,
+  findRangeFilter,
+  hasBoolFilter,
+  setOptionFilter,
+  setRangeFilter,
+  setBoolFilter,
+} from "@/lib/query/attrs";
 import { useQueryStates } from "nuqs";
 import {
   productSearchParams,
@@ -11,6 +25,7 @@ import {
 } from "@/lib/query/searchParams";
 import {
   FilterSidebar,
+  FILTER_OPTIONS_VISIBLE_LIMIT,
   type FilterGroup,
   type FilterValues,
 } from "@/components/search/FilterSidebar";
@@ -122,6 +137,60 @@ export function PublicProductsPage({
   const urlSearchParams = useSearchParams();
   const search = urlSearchParams.get("search") ?? "";
 
+  const dept = currentDept ?? params.dept;
+  const attrFilters = useMemo(() => parseAttrs(params.attrs), [params.attrs]);
+  const lockedOrParamBrand = lockedBrandId ? [lockedBrandId] : params.brandId;
+
+  // ---- Category facets (with counts) ----
+  // Counts reflect every other active filter (incl. other attribute selections)
+  // so the Amazon-style multi-select facet stays meaningful as you refine.
+  const facetsQuery = useQuery<CategoryFacetsResult>({
+    queryKey: [
+      "facets",
+      dept,
+      currency,
+      params.minPrice,
+      params.maxPrice,
+      params.onSale,
+      params.isDigital,
+      params.minRating,
+      lockedOrParamBrand.join(","),
+      search,
+      params.attrs,
+      locale,
+    ],
+    queryFn: async () => {
+      const rate = useCurrencyStore.getState().currentRate();
+      const sp = new URLSearchParams();
+      sp.set("dept", dept);
+      sp.set("searchLocale", locale);
+      if (search) sp.set("search", search);
+      if (params.minPrice != null) sp.set("minPrice", String(params.minPrice / rate));
+      if (params.maxPrice != null) sp.set("maxPrice", String(params.maxPrice / rate));
+      if (params.onSale === true) sp.set("onSale", "true");
+      if (params.isDigital != null) sp.set("isDigital", String(params.isDigital));
+      for (const id of lockedOrParamBrand) sp.append("brandId", id);
+      if (params.minRating != null) sp.set("minRating", String(params.minRating));
+      if (params.attrs) sp.set("attrs", params.attrs);
+      const { data } = await axios.get(`/api/facets?${sp.toString()}`);
+      return data as CategoryFacetsResult;
+    },
+  });
+  const facets = useMemo(() => facetsQuery.data?.facets ?? [], [facetsQuery.data]);
+  const brandCounts = useMemo(
+    () => facetsQuery.data?.brandCounts ?? {},
+    [facetsQuery.data],
+  );
+  // Base-refinement counts are only authoritative once the request resolves;
+  // until then the toggles render without counts (and without hide-empty) to
+  // avoid a flash of disappearing filters on first paint.
+  const countsReady = facetsQuery.isSuccess;
+  const onSaleCount = facetsQuery.data?.onSaleCount ?? 0;
+  const isDigitalCounts = useMemo(
+    () => facetsQuery.data?.isDigitalCounts ?? { true: 0, false: 0 },
+    [facetsQuery.data],
+  );
+
   // ---- Filter groups ----
   const filterGroups: FilterGroup[] = useMemo(() => {
     const groups: FilterGroup[] = [
@@ -138,36 +207,126 @@ export function PublicProductsPage({
         key: "minRating",
         label: t("search.customerReviews"),
       },
-      {
+    ];
+
+    // Deals + product type are discrete refinements, so - like brand and the
+    // attribute facets - they carry disjunctive counts and hide when nothing
+    // matches. A selected value stays visible so the buyer can always clear it.
+    // Until the first facet request resolves they render plain (no count, no
+    // hide-empty) to avoid a flash of disappearing filters.
+    if (!countsReady || onSaleCount > 0 || params.onSale === true) {
+      groups.push({
         type: "checkbox",
         key: "onSale",
         label: t("products.deals"),
-        options: [{ value: "true", label: t("products.onSale") }],
-      },
-      {
-        type: "checkbox",
-        key: "isDigital",
-        label: t("products.productType"),
         options: [
-          { value: "false", label: t("products.physical") },
-          { value: "true", label: t("products.digital") },
+          countsReady
+            ? { value: "true", label: t("products.onSale"), count: onSaleCount }
+            : { value: "true", label: t("products.onSale") },
         ],
-      },
-    ];
-
-    // Hide the brand filter when the page already pins it (brand storefront).
-    if (brands.length > 0 && !lockedBrandId) {
-      groups.push({
-        type: "checkbox",
-        key: "brandId",
-        label: t("products.brand"),
-        options: brands.map((b) => ({ value: b.id, label: getBrandName(b, locale) })),
-        maxVisible: 5,
       });
     }
 
+    const typeOptions: { value: string; label: string; count?: number }[] = countsReady
+      ? [
+          { value: "false", label: t("products.physical"), count: isDigitalCounts.false },
+          { value: "true", label: t("products.digital"), count: isDigitalCounts.true },
+        ].filter(
+          (o) =>
+            o.count > 0 ||
+            (o.value === "false" ? params.isDigital === false : params.isDigital === true),
+        )
+      : [
+          { value: "false", label: t("products.physical") },
+          { value: "true", label: t("products.digital") },
+        ];
+    if (typeOptions.length > 0) {
+      groups.push({
+        type: "checkbox",
+        key: "isDigital",
+        label: t("products.productType"),
+        options: typeOptions,
+      });
+    }
+
+    // Brand: same disjunctive-count + hide-empty treatment as the facets. Counts
+    // come from the facet endpoint, which now computes them globally too, so this
+    // works on `/products` and brand pages, not just category pages. Hide the
+    // group entirely when no brand matches (no orphan "Brand" heading). Hidden
+    // when the page already pins a brand (brand storefront). Until the request
+    // resolves, show the full count-less list to avoid an empty-group flash.
+    if (brands.length > 0 && !lockedBrandId) {
+      const selectedBrands = new Set(params.brandId);
+      const brandOptions = countsReady
+        ? brands
+            .map((b) => ({
+              value: b.id,
+              label: getBrandName(b, locale),
+              count: brandCounts[b.id] ?? 0,
+            }))
+            .filter((b) => b.count > 0 || selectedBrands.has(b.value))
+        : brands.map((b) => ({ value: b.id, label: getBrandName(b, locale) }));
+      if (brandOptions.length > 0) {
+        groups.push({
+          type: "checkbox",
+          key: "brandId",
+          label: t("products.brand"),
+          options: brandOptions,
+          maxVisible: FILTER_OPTIONS_VISIBLE_LIMIT,
+        });
+      }
+    }
+
+    // Category-specific facets (own + inherited), keyed `attr:<attributeKey>`.
+    for (const f of facets) {
+      const baseLabel = getLabel(f.translations, locale);
+      if (f.type === "SELECT" || f.type === "MULTI_SELECT") {
+        groups.push({
+          type: "checkbox",
+          key: `attr:${f.key}`,
+          label: baseLabel,
+          maxVisible: FILTER_OPTIONS_VISIBLE_LIMIT,
+          options: f.options.map((o) => ({
+            value: o.value,
+            label: getLabel(o.translations, locale),
+            count: o.count,
+          })),
+        });
+      } else if (f.type === "BOOLEAN") {
+        groups.push({
+          type: "checkbox",
+          key: `attr:${f.key}`,
+          label: baseLabel,
+          options: [{ value: "on", label: t("search.yes"), count: f.trueCount }],
+        });
+      } else if (f.type === "RANGE") {
+        groups.push({
+          type: "range",
+          key: `attr:${f.key}`,
+          label: f.unit ? `${baseLabel} (${f.unit})` : baseLabel,
+          min: f.bounds?.min ?? undefined,
+          max: f.bounds?.max ?? undefined,
+          step: 1,
+        });
+      }
+    }
+
     return groups;
-  }, [brands, lockedBrandId, t, currencySymbol, locale]);
+  }, [
+    brands,
+    lockedBrandId,
+    t,
+    currencySymbol,
+    locale,
+    facets,
+    countsReady,
+    brandCounts,
+    onSaleCount,
+    isDigitalCounts,
+    params.brandId,
+    params.onSale,
+    params.isDigital,
+  ]);
 
   // ---- Filter values ----
   // URL stores values as typed by user (in selected currency) - no conversion, no rounding.
@@ -178,12 +337,38 @@ export function PublicProductsPage({
     isDigital: params.isDigital != null ? [String(params.isDigital)] : [],
     brandId: params.brandId,
   };
+  for (const f of facets) {
+    const k = `attr:${f.key}`;
+    if (f.type === "RANGE") {
+      const [mn, mx] = findRangeFilter(attrFilters, f.key);
+      filterValues[k] = [mn ?? undefined, mx ?? undefined];
+    } else if (f.type === "BOOLEAN") {
+      filterValues[k] = hasBoolFilter(attrFilters, f.key) ? ["on"] : [];
+    } else {
+      filterValues[k] = findOptionFilter(attrFilters, f.key);
+    }
+  }
 
   // ---- Handlers ----
   const handleFilterChange = (
     key: string,
     value: string[] | [number?, number?] | number | null,
   ) => {
+    if (key.startsWith("attr:")) {
+      const fk = key.slice(5);
+      const facet = facets.find((f) => f.key === fk);
+      let next = attrFilters;
+      if (facet?.type === "RANGE") {
+        const [min, max] = value as [number?, number?];
+        next = setRangeFilter(attrFilters, fk, min ?? null, max ?? null);
+      } else if (facet?.type === "BOOLEAN") {
+        next = setBoolFilter(attrFilters, fk, (value as string[]).includes("on"));
+      } else {
+        next = setOptionFilter(attrFilters, fk, value as string[]);
+      }
+      setParams({ attrs: serializeAttrs(next) });
+      return;
+    }
     if (key === "price") {
       const [min, max] = value as [number?, number?];
       setParams({ minPrice: min ?? null, maxPrice: max ?? null });
@@ -209,11 +394,21 @@ export function PublicProductsPage({
       isDigital: null,
       brandId: [],
       minRating: null,
+      attrs: "",
     });
   };
 
-  const handleFilterRemove = (key: string) => {
-    if (key === "price") setParams({ minPrice: null, maxPrice: null });
+  const handleFilterRemove = (key: string, value?: string) => {
+    if (key.startsWith("attr:")) {
+      const fk = key.slice(5);
+      const facet = facets.find((f) => f.key === fk);
+      if (value && (facet?.type === "SELECT" || facet?.type === "MULTI_SELECT")) {
+        const nextVals = findOptionFilter(attrFilters, fk).filter((v) => v !== value);
+        setParams({ attrs: serializeAttrs(setOptionFilter(attrFilters, fk, nextVals)) });
+      } else {
+        setParams({ attrs: serializeAttrs(attrFilters.filter((f) => f.key !== fk)) });
+      }
+    } else if (key === "price") setParams({ minPrice: null, maxPrice: null });
     else if (key === "minRating") setParams({ minRating: null });
     else if (key === "onSale") setParams({ onSale: null });
     else if (key === "isDigital") setParams({ isDigital: null });
@@ -233,7 +428,8 @@ export function PublicProductsPage({
     // brand storefront / category page via URL tampering.
     brandId: lockedBrandId ? [lockedBrandId] : params.brandId,
     minRating: params.minRating,
-    dept: currentDept ?? params.dept,
+    dept,
+    attrs: params.attrs,
   };
 
   const outerScrollRef = useRef<HTMLDivElement>(null);

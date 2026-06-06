@@ -5,14 +5,23 @@ import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { CacheTags } from "@/lib/cache/tags";
-import { getAllCategoriesFlat } from "@/features/categories/db/categories";
+import {
+  getAllCategoriesFlat,
+  getCategoryAttributeMap,
+} from "@/features/categories/db/categories";
+import { getAttributeLibrary } from "@/features/attributes/db/attributes";
 import { CategoryForm } from "@/features/categories/components/CategoryForm";
 
 export default async function NewCategoryPage() {
   const t = await getTranslations("adminCategories");
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();
-  const allCategories = await fetchCategories();
+  const [allCategories, attributeLibrary, categoryAttributeMap] =
+    await Promise.all([
+      fetchCategories(),
+      fetchAttributeLibrary(),
+      fetchCategoryAttributeMap(),
+    ]);
 
   const parentOptions = allCategories.map((c) => ({
     id: c.id,
@@ -37,7 +46,12 @@ export default async function NewCategoryPage() {
         </PageHeader>
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
-        <CategoryForm mode="create" parentOptions={parentOptions} />
+        <CategoryForm
+          mode="create"
+          parentOptions={parentOptions}
+          attributeLibrary={attributeLibrary}
+          categoryAttributeMap={categoryAttributeMap}
+        />
       </div>
     </div>
   );
@@ -47,4 +61,16 @@ async function fetchCategories() {
   "use cache";
   cacheTag(CacheTags.categories.all());
   return getAllCategoriesFlat();
+}
+
+async function fetchAttributeLibrary() {
+  "use cache";
+  cacheTag(CacheTags.attributes.all());
+  return getAttributeLibrary();
+}
+
+async function fetchCategoryAttributeMap() {
+  "use cache";
+  cacheTag(CacheTags.categories.all());
+  return getCategoryAttributeMap();
 }

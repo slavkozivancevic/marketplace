@@ -34,6 +34,8 @@ import { useLocale } from "next-intl";
 import { NON_DEFAULT_LOCALES, LOCALE_LABELS, DEFAULT_LOCALE } from "@/i18n/config";
 import { CATEGORY_EXAMPLES, withEgPrefix } from "@/i18n/form-examples";
 import { SlugAvailabilityIndicator } from "@/components/admin/SlugAvailabilityIndicator";
+import { CategoryAttributesField } from "./CategoryAttributesField";
+import type { AttributeLibraryItem } from "@/features/attributes/db/attributes";
 
 function emptyCategoryTranslations(): NonNullable<CategoryInput["translations"]> {
   const out: Record<string, { name?: string; slug?: string; description?: string }> = {};
@@ -197,6 +199,10 @@ type EditMode = {
 type CategoryFormProps = (CreateMode | EditMode) & {
   /** All existing categories for the parent selector (excluding this category itself in edit mode). */
   parentOptions: ParentOption[];
+  /** Global attribute library for the assignment picker. */
+  attributeLibrary: AttributeLibraryItem[];
+  /** categoryId -> directly-assigned attribute ids, for inheritance display. */
+  categoryAttributeMap: Record<string, string[]>;
 };
 
 export function CategoryForm(props: CategoryFormProps) {
@@ -216,6 +222,7 @@ export function CategoryForm(props: CategoryFormProps) {
       order: 0,
       isActive: true,
       isFeatured: false,
+      attributes: [],
       ...props.defaultValues,
     }),
     [props.defaultValues],
@@ -519,6 +526,14 @@ export function CategoryForm(props: CategoryFormProps) {
             )}
           />
         )}
+
+        {/* Attribute filters assigned to this category */}
+        <CategoryAttributesField
+          form={form}
+          attributeLibrary={props.attributeLibrary}
+          categoryAttributeMap={props.categoryAttributeMap}
+          parentOptions={props.parentOptions}
+        />
 
         <Button type="submit" disabled={isPending} className="min-w-32">
           {isPending ? (

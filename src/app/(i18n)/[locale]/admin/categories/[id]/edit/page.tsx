@@ -9,7 +9,9 @@ import { CacheTags } from "@/lib/cache/tags";
 import {
   getCategoryById,
   getAllCategoriesFlat,
+  getCategoryAttributeMap,
 } from "@/features/categories/db/categories";
+import { getAttributeLibrary } from "@/features/attributes/db/attributes";
 import { CategoryForm } from "@/features/categories/components/CategoryForm";
 import { DEFAULT_LOCALE, NON_DEFAULT_LOCALES } from "@/i18n/config";
 import type { CategoryTranslations } from "@/features/categories/utils/translations";
@@ -24,10 +26,13 @@ export default async function EditCategoryPage({
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();
 
-  const [category, allCategories] = await Promise.all([
-    fetchCategory(id),
-    fetchCategories(),
-  ]);
+  const [category, allCategories, attributeLibrary, categoryAttributeMap] =
+    await Promise.all([
+      fetchCategory(id),
+      fetchCategories(),
+      fetchAttributeLibrary(),
+      fetchCategoryAttributeMap(),
+    ]);
 
   if (!category) notFound();
 
@@ -76,6 +81,8 @@ export default async function EditCategoryPage({
           mode="edit"
           categoryId={id}
           parentOptions={parentOptions}
+          attributeLibrary={attributeLibrary}
+          categoryAttributeMap={categoryAttributeMap}
           defaultValues={{
             name: en?.name ?? "",
             slug: en?.slug ?? "",
@@ -86,6 +93,11 @@ export default async function EditCategoryPage({
             isActive: category.isActive,
             isFeatured: category.isFeatured,
             translations: nonDefault,
+            attributes: category.attributes.map((a) => ({
+              attributeId: a.attributeId,
+              order: a.order,
+              isFilterable: a.isFilterable,
+            })),
           }}
         />
       </div>
@@ -103,4 +115,16 @@ async function fetchCategories() {
   "use cache";
   cacheTag(CacheTags.categories.all());
   return getAllCategoriesFlat();
+}
+
+async function fetchAttributeLibrary() {
+  "use cache";
+  cacheTag(CacheTags.attributes.all());
+  return getAttributeLibrary();
+}
+
+async function fetchCategoryAttributeMap() {
+  "use cache";
+  cacheTag(CacheTags.categories.all());
+  return getCategoryAttributeMap();
 }

@@ -126,6 +126,240 @@ const departments: Department[] = [
   },
 ];
 
+// ---------- Attribute library ----------
+
+type AttrType = "SELECT" | "MULTI_SELECT" | "RANGE" | "BOOLEAN";
+type AttrOption = { value: string; order: number; labels: LocaleNames };
+type AttrSeed = {
+  key: string;
+  type: AttrType;
+  unit?: string;
+  order: number;
+  labels: LocaleNames;
+  options?: AttrOption[];
+};
+
+/** Builds size options whose label is identical across locales (XS, 42, ...). */
+function uniformOptions(values: string[]): AttrOption[] {
+  return values.map((v, i) => ({
+    value: v.toLowerCase(),
+    order: i,
+    labels: { en: v, sr: v, de: v, es: v },
+  }));
+}
+
+const attributes: AttrSeed[] = [
+  {
+    key: "gender",
+    type: "SELECT",
+    order: 1,
+    labels: { en: "Gender", sr: "Pol", de: "Geschlecht", es: "Género" },
+    options: [
+      { value: "men", order: 0, labels: { en: "Men", sr: "Muško", de: "Herren", es: "Hombre" } },
+      { value: "women", order: 1, labels: { en: "Women", sr: "Žensko", de: "Damen", es: "Mujer" } },
+      { value: "boys", order: 2, labels: { en: "Boys", sr: "Dečaci", de: "Jungen", es: "Niños" } },
+      { value: "girls", order: 3, labels: { en: "Girls", sr: "Devojčice", de: "Mädchen", es: "Niñas" } },
+      { value: "babies", order: 4, labels: { en: "Babies", sr: "Bebe", de: "Babys", es: "Bebés" } },
+      { value: "unisex", order: 5, labels: { en: "Unisex", sr: "Uniseks", de: "Unisex", es: "Unisex" } },
+    ],
+  },
+  {
+    key: "clothing-size",
+    type: "SELECT",
+    order: 2,
+    labels: { en: "Clothing Size", sr: "Veličina odeće", de: "Kleidergröße", es: "Talla de ropa" },
+    options: uniformOptions(["XS", "S", "M", "L", "XL", "XXL"]),
+  },
+  {
+    key: "shoe-size",
+    type: "SELECT",
+    order: 3,
+    labels: { en: "Shoe Size", sr: "Broj obuće", de: "Schuhgröße", es: "Talla de calzado" },
+    options: uniformOptions(["38", "39", "40", "41", "42", "43", "44", "45"]),
+  },
+  {
+    key: "condition",
+    type: "SELECT",
+    order: 4,
+    labels: { en: "Condition", sr: "Stanje", de: "Zustand", es: "Estado" },
+    options: [
+      { value: "new", order: 0, labels: { en: "New", sr: "Novo", de: "Neu", es: "Nuevo" } },
+      { value: "used", order: 1, labels: { en: "Used", sr: "Polovno", de: "Gebraucht", es: "Usado" } },
+      { value: "refurbished", order: 2, labels: { en: "Refurbished", sr: "Renovirano", de: "Generalüberholt", es: "Reacondicionado" } },
+    ],
+  },
+  {
+    key: "color",
+    type: "MULTI_SELECT",
+    order: 5,
+    labels: { en: "Color", sr: "Boja", de: "Farbe", es: "Color" },
+    options: [
+      { value: "black", order: 0, labels: { en: "Black", sr: "Crna", de: "Schwarz", es: "Negro" } },
+      { value: "white", order: 1, labels: { en: "White", sr: "Bela", de: "Weiß", es: "Blanco" } },
+      { value: "red", order: 2, labels: { en: "Red", sr: "Crvena", de: "Rot", es: "Rojo" } },
+      { value: "blue", order: 3, labels: { en: "Blue", sr: "Plava", de: "Blau", es: "Azul" } },
+      { value: "green", order: 4, labels: { en: "Green", sr: "Zelena", de: "Grün", es: "Verde" } },
+      { value: "yellow", order: 5, labels: { en: "Yellow", sr: "Žuta", de: "Gelb", es: "Amarillo" } },
+      { value: "gray", order: 6, labels: { en: "Gray", sr: "Siva", de: "Grau", es: "Gris" } },
+    ],
+  },
+  {
+    key: "material",
+    type: "MULTI_SELECT",
+    order: 6,
+    labels: { en: "Material", sr: "Materijal", de: "Material", es: "Material" },
+    options: [
+      { value: "cotton", order: 0, labels: { en: "Cotton", sr: "Pamuk", de: "Baumwolle", es: "Algodón" } },
+      { value: "polyester", order: 1, labels: { en: "Polyester", sr: "Poliester", de: "Polyester", es: "Poliéster" } },
+      { value: "leather", order: 2, labels: { en: "Leather", sr: "Koža", de: "Leder", es: "Cuero" } },
+      { value: "wool", order: 3, labels: { en: "Wool", sr: "Vuna", de: "Wolle", es: "Lana" } },
+      { value: "silk", order: 4, labels: { en: "Silk", sr: "Svila", de: "Seide", es: "Seda" } },
+      { value: "denim", order: 5, labels: { en: "Denim", sr: "Teksas", de: "Denim", es: "Vaquero" } },
+    ],
+  },
+  {
+    key: "screen-size",
+    type: "RANGE",
+    unit: "inch",
+    order: 7,
+    labels: { en: "Screen Size", sr: "Dijagonala ekrana", de: "Bildschirmgröße", es: "Tamaño de pantalla" },
+  },
+  {
+    key: "ram",
+    type: "RANGE",
+    unit: "GB",
+    order: 8,
+    labels: { en: "RAM", sr: "RAM", de: "Arbeitsspeicher", es: "RAM" },
+  },
+  {
+    key: "storage",
+    type: "RANGE",
+    unit: "GB",
+    order: 9,
+    labels: { en: "Storage", sr: "Memorija", de: "Speicher", es: "Almacenamiento" },
+  },
+  {
+    key: "wireless",
+    type: "BOOLEAN",
+    order: 10,
+    labels: { en: "Wireless", sr: "Bežično", de: "Kabellos", es: "Inalámbrico" },
+  },
+  {
+    key: "waterproof",
+    type: "BOOLEAN",
+    order: 11,
+    labels: { en: "Waterproof", sr: "Vodootporno", de: "Wasserdicht", es: "Impermeable" },
+  },
+];
+
+function toLabelRows(labels: LocaleNames) {
+  return Object.entries(labels).map(([locale, label]) => ({ locale, label: label! }));
+}
+
+// Which attribute keys each department exposes as filters. Subcategories inherit
+// these automatically (the storefront unions the category's own + ancestor
+// assignments), so we only assign at the department (root) level.
+const departmentAttributes: Record<string, string[]> = {
+  fashion: ["gender", "clothing-size", "shoe-size", "color", "material", "condition"],
+  electronics: ["screen-size", "ram", "storage", "wireless", "color", "condition"],
+  "home-garden": ["material", "color", "condition"],
+  "sports-outdoors": ["gender", "color", "material", "waterproof", "condition"],
+  "health-beauty": ["condition"],
+  "toys-kids": ["gender", "condition"],
+  automotive: ["condition"],
+  "books-media": ["condition"],
+};
+
+async function seedCategoryAttributes() {
+  console.log("\n🔗 Assigning attributes to departments...\n");
+  let count = 0;
+
+  for (const [deptSlug, keys] of Object.entries(departmentAttributes)) {
+    const dept = await findCategoryByEnSlug(deptSlug);
+    if (!dept) {
+      console.log(`  ! skipped ${deptSlug} (department not found)`);
+      continue;
+    }
+
+    for (const [index, key] of keys.entries()) {
+      const attribute = await prisma.attribute.findUnique({ where: { key } });
+      if (!attribute) {
+        console.log(`  ! skipped ${deptSlug} -> ${key} (attribute not found)`);
+        continue;
+      }
+      await prisma.categoryAttribute.upsert({
+        where: {
+          categoryId_attributeId: {
+            categoryId: dept.id,
+            attributeId: attribute.id,
+          },
+        },
+        update: { order: index, isFilterable: true },
+        create: {
+          categoryId: dept.id,
+          attributeId: attribute.id,
+          order: index,
+          isFilterable: true,
+        },
+      });
+    }
+
+    console.log(`  ✓ ${deptSlug} (${keys.length} attributes)`);
+    count++;
+  }
+
+  console.log(`\n✅ Attribute assignments: ${count} departments configured.`);
+}
+
+async function seedAttributes() {
+  console.log("\n🏷️  Seeding attributes...\n");
+  let count = 0;
+
+  for (const a of attributes) {
+    const labelRows = toLabelRows(a.labels);
+    const attribute = await prisma.attribute.upsert({
+      where: { key: a.key },
+      update: {
+        type: a.type,
+        unit: a.unit ?? null,
+        order: a.order,
+        translations: { deleteMany: {}, create: labelRows },
+      },
+      create: {
+        key: a.key,
+        type: a.type,
+        unit: a.unit ?? null,
+        order: a.order,
+        translations: { create: labelRows },
+      },
+    });
+
+    for (const opt of a.options ?? []) {
+      await prisma.attributeOption.upsert({
+        where: {
+          attributeId_value: { attributeId: attribute.id, value: opt.value },
+        },
+        update: {
+          order: opt.order,
+          translations: { deleteMany: {}, create: toLabelRows(opt.labels) },
+        },
+        create: {
+          attributeId: attribute.id,
+          value: opt.value,
+          order: opt.order,
+          translations: { create: toLabelRows(opt.labels) },
+        },
+      });
+    }
+
+    const suffix = a.options ? ` (${a.options.length} options)` : a.unit ? ` (${a.unit})` : "";
+    console.log(`  ✓ ${a.labels.en} [${a.type}]${suffix}`);
+    count++;
+  }
+
+  console.log(`\n✅ Attributes: ${count} created/updated.`);
+}
+
 // ---------- Seed ----------
 
 /**
@@ -225,6 +459,9 @@ async function seed() {
   console.log(
     `\n✅ Done: ${deptCount} departments, ${subCount} subcategories created/updated.`,
   );
+
+  await seedAttributes();
+  await seedCategoryAttributes();
 }
 
 seed()

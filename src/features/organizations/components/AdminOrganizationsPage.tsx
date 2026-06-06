@@ -32,45 +32,62 @@ export function AdminOrganizationsPage({
 }) {
   const t = useTranslations();
 
-  const FILTER_GROUPS: FilterGroup[] = [
-    {
-      type: "checkbox",
-      key: "verified",
-      label: t("admin.verification"),
-      options: [
-        { value: "true", label: t("organization.verified") },
-        { value: "false", label: t("organization.unverified") },
-      ],
-    },
-  ];
-
   const [search, setSearch] = useState("");
   const [verifiedFilter, setVerifiedFilter] = useState<string[]>([]);
 
-  const filtered = useMemo(() => {
-    let result = organizations;
+  // Search-filtered set, shared by the visible list and the verified counts.
+  // Counts are disjunctive: they apply the search but ignore the verified
+  // filter, so both numbers stay meaningful while a value is selected.
+  const searchFiltered = useMemo(() => {
+    if (!search) return organizations;
+    const q = search.toLowerCase();
+    return organizations.filter(
+      (org) =>
+        org.name.toLowerCase().includes(q) ||
+        org.members.some(
+          (m) =>
+            m.user.name?.toLowerCase().includes(q) ||
+            m.user.email.toLowerCase().includes(q),
+        ),
+    );
+  }, [organizations, search]);
 
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (org) =>
-          org.name.toLowerCase().includes(q) ||
-          org.members.some(
-            (m) =>
-              m.user.name?.toLowerCase().includes(q) ||
-              m.user.email.toLowerCase().includes(q),
-          ),
-      );
+  const filtered = useMemo(
+    () =>
+      verifiedFilter.length > 0
+        ? searchFiltered.filter((org) =>
+            verifiedFilter.includes(String(org.verified)),
+          )
+        : searchFiltered,
+    [searchFiltered, verifiedFilter],
+  );
+
+  const verifiedCounts = useMemo(() => {
+    let verified = 0;
+    let unverified = 0;
+    for (const org of searchFiltered) {
+      if (org.verified) verified++;
+      else unverified++;
     }
+    return { verified, unverified };
+  }, [searchFiltered]);
 
-    if (verifiedFilter.length > 0) {
-      result = result.filter((org) =>
-        verifiedFilter.includes(String(org.verified)),
-      );
-    }
-
-    return result;
-  }, [organizations, search, verifiedFilter]);
+  // Admin filters keep both options visible (even at 0) so the filter set stays
+  // stable - the GitHub/Shopify convention for status-style admin facets.
+  const FILTER_GROUPS: FilterGroup[] = useMemo(
+    () => [
+      {
+        type: "checkbox",
+        key: "verified",
+        label: t("admin.verification"),
+        options: [
+          { value: "true", label: t("organization.verified"), count: verifiedCounts.verified },
+          { value: "false", label: t("organization.unverified"), count: verifiedCounts.unverified },
+        ],
+      },
+    ],
+    [t, verifiedCounts],
+  );
 
   const filterValues: FilterValues = { verified: verifiedFilter };
 

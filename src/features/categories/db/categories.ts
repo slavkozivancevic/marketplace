@@ -89,6 +89,39 @@ export function getDescendantIds(tree: CategoryTreeItem[], slug: string): string
   return collectIds(node);
 }
 
+/**
+ * Returns the category-id chain for a slug: the matched node itself followed by
+ * each of its ancestors up to the root. Used to resolve which attributes a
+ * category page should show as facets (own + inherited from parent departments).
+ */
+export function getChainIds(tree: CategoryTreeItem[], slug: string): string[] {
+  const parentOf = new Map<string, string | null>();
+  const nodeBySlug = new Map<string, CategoryTreeItem>();
+  const idToNode = new Map<string, CategoryTreeItem>();
+
+  const walk = (node: CategoryTreeItem, parentId: string | null) => {
+    parentOf.set(node.id, parentId);
+    idToNode.set(node.id, node);
+    for (const tr of node.translations) nodeBySlug.set(tr.slug, node);
+    for (const child of node.children) walk(child, node.id);
+  };
+  for (const root of tree) walk(root, null);
+
+  const start = nodeBySlug.get(slug);
+  if (!start) return [];
+
+  const chain: string[] = [];
+  let current: CategoryTreeItem | undefined = start;
+  const guard = new Set<string>();
+  while (current && !guard.has(current.id)) {
+    guard.add(current.id);
+    chain.push(current.id);
+    const pid: string | null = parentOf.get(current.id) ?? null;
+    current = pid ? idToNode.get(pid) : undefined;
+  }
+  return chain;
+}
+
 export function findCategoryBySlug(
   tree: CategoryTreeItem[],
   slug: string,
@@ -248,9 +281,36 @@ export async function getCategoryById(id: string) {
       isFeatured: true,
       translations: true,
       parentId: true,
+      attributes: {
+        orderBy: { order: "asc" },
+        select: { attributeId: true, order: true, isFilterable: true },
+      },
     },
   });
 }
+
+/**
+ * Maps every category id to the ids of the attributes assigned *directly* to
+ * it. The category form uses this to compute the inherited attribute set for a
+ * chosen parent (a department's attributes apply to all descendants).
+ */
+export async function getCategoryAttributeMap(): Promise<
+  Record<string, string[]>
+> {
+  const rows = await prisma.categoryAttribute.findMany({
+    orderBy: { order: "asc" },
+    select: { categoryId: true, attributeId: true },
+  });
+  const map: Record<string, string[]> = {};
+  for (const r of rows) (map[r.categoryId] ??= []).push(r.attributeId);
+  return map;
+}
+
+type CategoryAttributeAssignment = {
+  attributeId: string;
+  order: number;
+  isFilterable: boolean;
+};
 
 type CategoryMutationData = {
   name: string;
@@ -262,6 +322,7 @@ type CategoryMutationData = {
   order?: number;
   isActive?: boolean;
   isFeatured?: boolean;
+  attributes?: CategoryAttributeAssignment[];
 };
 
 function buildCategoryTranslationRows(
@@ -304,6 +365,13 @@ export async function createCategory(data: CategoryMutationData) {
         isActive: data.isActive ?? true,
         isFeatured: data.isFeatured ?? false,
         translations: { create: rows },
+        attributes: {
+          create: (data.attributes ?? []).map((a) => ({
+            attributeId: a.attributeId,
+            order: a.order,
+            isFilterable: a.isFilterable,
+          })),
+        },
       },
       include: { translations: true },
     });
@@ -351,6 +419,21 @@ export async function updateCategory(id: string, data: CategoryMutationData) {
       data: rows.map((r) => ({ ...r, categoryId: id })),
     });
 
+    // Replace-all the attribute assignments. CategoryAttribute has no FK
+    // fan-out (product values reference Attribute, not the assignment), so
+    // wiping and recreating is safe and simpler than a per-row diff.
+    await tx.categoryAttribute.deleteMany({ where: { categoryId: id } });
+    if (data.attributes?.length) {
+      await tx.categoryAttribute.createMany({
+        data: data.attributes.map((a) => ({
+          categoryId: id,
+          attributeId: a.attributeId,
+          order: a.order,
+          isFilterable: a.isFilterable,
+        })),
+      });
+    }
+
     await recordSlugChanges(
       tx,
       "CATEGORY",
@@ -390,7 +473,10 @@ export async function deleteCategory(id: string) {
 export async function duplicateCategory(id: string) {
   const source = await prisma.category.findUnique({
     where: { id },
-    include: { translations: true },
+    include: {
+      translations: true,
+      attributes: { select: { attributeId: true, order: true, isFilterable: true } },
+    },
   });
   if (!source) throw new NotFoundError(`Category ${id} not found`);
 
@@ -416,6 +502,13 @@ export async function duplicateCategory(id: string) {
         // homepage, so the copy always starts un-featured.
         isFeatured: false,
         translations: { create: rows },
+        attributes: {
+          create: source.attributes.map((a) => ({
+            attributeId: a.attributeId,
+            order: a.order,
+            isFilterable: a.isFilterable,
+          })),
+        },
       },
       include: { translations: true },
     });

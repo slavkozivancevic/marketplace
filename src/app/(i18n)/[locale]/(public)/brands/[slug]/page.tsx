@@ -211,6 +211,7 @@ export default async function BrandDetailPage({ params }: BrandPageProps) {
     brandId: [brand.id],
     minRating: null,
     dept: "",
+    attrs: "",
   };
 
   await queryClient.prefetchInfiniteQuery({

@@ -106,6 +106,54 @@ export type OrgOrderListItem = Awaited<
   ReturnType<typeof getOrgOrdersPage>
 >["items"][number];
 
+/**
+ * Disjunctive status counts for the org order list sidebar. Ignores the status
+ * selection itself (so every status stays countable while one is checked) but
+ * applies the active search and the org scope, matching the list query.
+ */
+export async function getOrgOrderStatusCounts({
+  organizationId,
+  search,
+}: {
+  organizationId: string;
+  search?: string;
+}): Promise<Record<string, number>> {
+  const orgCondition = { items: { some: { product: { organizationId } } } };
+
+  const searchConditions = search
+    ? [
+        {
+          OR: [
+            { id: { contains: search, mode: "insensitive" as const } },
+            { user: { name: { contains: search, mode: "insensitive" as const } } },
+            {
+              items: {
+                some: {
+                  product: {
+                    organizationId,
+                    translations: {
+                      some: { title: { contains: search, mode: "insensitive" as const } },
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ]
+    : [];
+
+  const groups = await prisma.order.groupBy({
+    by: ["status"],
+    where: { AND: [orgCondition, ...searchConditions] },
+    _count: { _all: true },
+  });
+
+  const counts: Record<string, number> = {};
+  for (const g of groups) counts[g.status] = g._count._all;
+  return counts;
+}
+
 // ─── Detail ───────────────────────────────────────────────────────────────────
 
 export async function getOrgOrderById(orderId: string, organizationId: string) {

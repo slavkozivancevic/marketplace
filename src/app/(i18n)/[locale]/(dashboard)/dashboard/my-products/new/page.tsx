@@ -8,12 +8,22 @@ import { Link, getPathname } from "@/i18n/navigation";
 import { CacheTags } from "@/lib/cache/tags";
 import { getCategoryTree } from "@/features/categories/db/categories";
 import { getAllBrands } from "@/features/brands/db/brands";
+import {
+  fetchAttributeSelector,
+  fetchCategoryAttributeMap,
+} from "@/features/attributes/db/formData";
 
 export default async function NewMyProductPage() {
   const t = await getTranslations();
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();
-  const [brands, categoryTree] = await Promise.all([fetchBrands(), fetchCategoryTree()]);
+  const [brands, categoryTree, attributeLibrary, categoryAttributeMap] =
+    await Promise.all([
+      fetchBrands(),
+      fetchCategoryTree(),
+      fetchAttributeSelector(),
+      fetchCategoryAttributeMap(),
+    ]);
 
   const breadcrumbItems = [
     { name: tCrumbs("dashboard"), href: getPathname({ href: "/dashboard", locale }) },
@@ -35,7 +45,14 @@ export default async function NewMyProductPage() {
         </PageHeader>
       </div>
       <div className="flex-1 flex flex-col min-h-0 px-6">
-        <ProductForm mode="create" redirectTo="/dashboard/my-products" brands={brands} categoryTree={categoryTree} />
+        <ProductForm
+          mode="create"
+          redirectTo="/dashboard/my-products"
+          brands={brands}
+          categoryTree={categoryTree}
+          attributeLibrary={attributeLibrary}
+          categoryAttributeMap={categoryAttributeMap}
+        />
       </div>
     </div>
   );

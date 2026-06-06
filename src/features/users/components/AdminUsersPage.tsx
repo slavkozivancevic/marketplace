@@ -32,40 +32,52 @@ interface SerializedUser {
 export function AdminUsersPage({ users }: { users: SerializedUser[] }) {
   const t = useTranslations();
 
-  const FILTER_GROUPS: FilterGroup[] = [
-    {
-      type: "checkbox",
-      key: "role",
-      label: t("users.role"),
-      options: [
-        { value: "USER", label: t("users.user") },
-        { value: "SELLER", label: t("users.seller") },
-        { value: "ADMIN", label: t("users.admin") },
-      ],
-    },
-  ];
-
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string[]>([]);
 
-  const filtered = useMemo(() => {
-    let result = users;
+  // Search-filtered set, shared by the visible list and the role counts. The
+  // counts are disjunctive: they apply the search but ignore the role filter,
+  // so each role's number stays meaningful while a role is selected.
+  const searchFiltered = useMemo(() => {
+    if (!search) return users;
+    const q = search.toLowerCase();
+    return users.filter(
+      (u) =>
+        u.name?.toLowerCase().includes(q) || u.email.toLowerCase().includes(q),
+    );
+  }, [users, search]);
 
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (u) =>
-          u.name?.toLowerCase().includes(q) ||
-          u.email.toLowerCase().includes(q),
-      );
-    }
+  const filtered = useMemo(
+    () =>
+      roleFilter.length > 0
+        ? searchFiltered.filter((u) => roleFilter.includes(u.role))
+        : searchFiltered,
+    [searchFiltered, roleFilter],
+  );
 
-    if (roleFilter.length > 0) {
-      result = result.filter((u) => roleFilter.includes(u.role));
-    }
+  const roleCounts = useMemo(() => {
+    const counts: Record<string, number> = { USER: 0, SELLER: 0, ADMIN: 0 };
+    for (const u of searchFiltered) counts[u.role] = (counts[u.role] ?? 0) + 1;
+    return counts;
+  }, [searchFiltered]);
 
-    return result;
-  }, [users, search, roleFilter]);
+  // Admin filters keep every option visible (even at 0) so the filter set stays
+  // stable - the GitHub/Shopify convention for status-style admin facets.
+  const FILTER_GROUPS: FilterGroup[] = useMemo(
+    () => [
+      {
+        type: "checkbox",
+        key: "role",
+        label: t("users.role"),
+        options: [
+          { value: "USER", label: t("users.user"), count: roleCounts.USER },
+          { value: "SELLER", label: t("users.seller"), count: roleCounts.SELLER },
+          { value: "ADMIN", label: t("users.admin"), count: roleCounts.ADMIN },
+        ],
+      },
+    ],
+    [t, roleCounts],
+  );
 
   const filterValues: FilterValues = { role: roleFilter };
 

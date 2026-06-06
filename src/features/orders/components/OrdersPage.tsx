@@ -1,7 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 import { useQueryStates } from "nuqs";
 import {
   orderSearchParams,
@@ -24,19 +27,6 @@ export function OrdersPage() {
     { value: "total", label: t("orders.total") },
   ];
 
-  const FILTER_GROUPS: FilterGroup[] = [
-    {
-      type: "checkbox",
-      key: "status",
-      label: t("orders.status"),
-      options: [
-        { value: "PENDING", label: t("orders.pending") },
-        { value: "COMPLETED", label: t("orders.completed") },
-        { value: "CANCELLED", label: t("orders.cancelled") },
-        { value: "REFUNDED", label: t("orders.refunded") },
-      ],
-    },
-  ];
   const [params, setParams] = useQueryStates(orderSearchParams, {
     shallow: false,
     throttleMs: 300,
@@ -47,6 +37,41 @@ export function OrdersPage() {
   // from the URL so navigating to a clean URL always starts empty.
   const urlSearchParams = useSearchParams();
   const search = urlSearchParams.get("search") ?? "";
+
+  // Disjunctive status counts for the sidebar. Server ignores the status
+  // selection (each status stays countable while one is checked) but applies
+  // the active search, matching the list.
+  const countsQuery = useQuery<{ status: Record<string, number> }>({
+    queryKey: ["orders", "counts", search],
+    queryFn: async () => {
+      const sp = new URLSearchParams();
+      if (search) sp.set("search", search);
+      const { data } = await axios.get(`/api/dashboard/orders/counts?${sp.toString()}`);
+      return data as { status: Record<string, number> };
+    },
+  });
+  const countsReady = countsQuery.isSuccess;
+  const statusCounts = useMemo(() => countsQuery.data?.status ?? {}, [countsQuery.data]);
+
+  // Status is a small fixed enum: every option stays visible (with a count,
+  // including 0) so the filter set is stable - GitHub/Shopify convention.
+  const FILTER_GROUPS: FilterGroup[] = useMemo(() => {
+    const opt = (value: string, label: string) =>
+      countsReady ? { value, label, count: statusCounts[value] ?? 0 } : { value, label };
+    return [
+      {
+        type: "checkbox",
+        key: "status",
+        label: t("orders.status"),
+        options: [
+          opt("PENDING", t("orders.pending")),
+          opt("COMPLETED", t("orders.completed")),
+          opt("CANCELLED", t("orders.cancelled")),
+          opt("REFUNDED", t("orders.refunded")),
+        ],
+      },
+    ];
+  }, [t, countsReady, statusCounts]);
 
   const filters: OrderFilters = {
     search,

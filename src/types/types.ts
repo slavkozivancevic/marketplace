@@ -198,6 +198,14 @@ export type ProductWithRelations = Prisma.ProductGetPayload<{
         };
       };
     };
+    attributeValues: {
+      select: {
+        attributeId: true;
+        optionId: true;
+        valueNumeric: true;
+        valueBool: true;
+      };
+    };
   };
 }>;
 

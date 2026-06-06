@@ -22,24 +22,24 @@ enum UserRole {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  clerkUserId  String   @unique
-  email        String   @unique
-  name         String?
-  imageUrl     String?
-  role         UserRole @default(USER)
-  activeOrgId  String?
+  id          String    @id @default(cuid())
+  clerkUserId String    @unique
+  email       String    @unique
+  name        String?
+  imageUrl    String?
+  role        UserRole  @default(USER)
+  activeOrgId String?
   // Preferred language for all outgoing communications addressed to this user.
   // Synced from the language switcher (setLocale action) and seeded at first
   // sign-in from the Clerk webhook. Recipient-targeted notifications
   // (role changes, seller order emails) read this value; buyer-facing order
   // emails use Order.locale (snapshot at checkout) so the language stays
   // consistent across the order's lifecycle even if the buyer later switches.
-  locale       String   @default("en")
-  deletedAt    DateTime?
+  locale      String    @default("en")
+  deletedAt   DateTime?
 
-  memberships  Membership[]
-  createdInvites Invite[] @relation("InviteCreatedBy")
+  memberships    Membership[]
+  createdInvites Invite[]        @relation("InviteCreatedBy")
   orders         Order[]
   reviews        ProductReview[]
 
@@ -48,10 +48,10 @@ model User {
 
   updatedHistories ProductHistory[] @relation("ProductHistoryUpdatedBy")
 
-  wishlists        Wishlist[]
+  wishlists Wishlist[]
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Organization {
@@ -148,6 +148,7 @@ model Category {
 
   translations CategoryTranslation[]
   products     ProductCategory[]
+  attributes   CategoryAttribute[]
 
   @@index([parentId])
   @@index([isActive, parentId])
@@ -254,12 +255,13 @@ model Product {
   avgRating   Float @default(0)
   ratingCount Int   @default(0)
 
-  histories  ProductHistory[]
-  orderItems OrderItem[]
-  reviews    ProductReview[]
-  categories ProductCategory[]
-  tags       ProductTag[]
-  wishlists  Wishlist[]
+  histories       ProductHistory[]
+  orderItems      OrderItem[]
+  reviews         ProductReview[]
+  categories      ProductCategory[]
+  tags            ProductTag[]
+  wishlists       Wishlist[]
+  attributeValues ProductAttributeValue[]
 
   @@index([organizationId, deletedAt])
   @@index([organizationId, status])
@@ -304,18 +306,18 @@ model ProductTranslation {
 // We snapshot only the default-locale title/description on the row directly
 // for fast list rendering; full per-locale data lives in `translationsSnap`.
 model ProductHistory {
-  id          String   @id @default(uuid())
-  productId   String
-  version     Int
-  title       String
-  description String
+  id               String        @id @default(uuid())
+  productId        String
+  version          Int
+  title            String
+  description      String
   // Per-locale snapshot of translatable fields at this version. Shape:
   //   { [locale]: { title, slug, description, shortDescription, metaTitle, metaDescription } }
   translationsSnap Json?
-  price       Int
-  status      ProductStatus
-  updatedById String?
-  createdAt   DateTime @default(now())
+  price            Int
+  status           ProductStatus
+  updatedById      String?
+  createdAt        DateTime      @default(now())
 
   product   Product @relation(fields: [productId], references: [id])
   updatedBy User?   @relation("ProductHistoryUpdatedBy", fields: [updatedById], references: [id])
@@ -339,7 +341,7 @@ model ProductVariant {
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
-  product      Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product      Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
   media        ProductVariantMedia[]
   optionValues VariantOptionValue[]
   orderItems   OrderItem[]
@@ -351,10 +353,11 @@ model ProductVariant {
 model ProductVariantMedia {
   variantId String
   mediaId   String
-  order     Int @default(0)
-  createdAt DateTime @default(now())
-  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
-  media   ProductMedia   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  order     Int            @default(0)
+  createdAt DateTime       @default(now())
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  media     ProductMedia   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
   @@id([variantId, mediaId])
   @@index([variantId])
   @@index([mediaId])
@@ -391,13 +394,14 @@ model VariantOptionTranslation {
 }
 
 model VariantOptionValue {
-  id String @id @default(uuid())
+  id        String         @id @default(uuid())
   optionId  String
   variantId String
-  value String
-  order Int @default(0)
-  option  VariantOption  @relation(fields: [optionId], references: [id], onDelete: Cascade)
-  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  value     String
+  order     Int            @default(0)
+  option    VariantOption  @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
   @@index([variantId])
   @@index([optionId])
 }
@@ -434,11 +438,11 @@ model ProductMedia {
 
   createdAt DateTime @default(now())
 
-  product       Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
-  variantMedia  ProductVariantMedia[]
+  product      Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantMedia ProductVariantMedia[]
 
-  @@index([productId, order])
   @@unique([productId, key])
+  @@index([productId, order])
 }
 
 enum InviteStatus {
@@ -446,26 +450,28 @@ enum InviteStatus {
   ACCEPTED
   CANCELED
 }
+
 model Invite {
-  id          String         @id @default(uuid())
-  email       String
-  orgId       String
-  role        MembershipRole @default(MEMBER)
-  token       String         @unique
-  status      InviteStatus   @default(PENDING)
-  expiresAt   DateTime
-  createdById String
-  createdAt   DateTime       @default(now())
-  organization Organization @relation(fields: [orgId], references: [id])
-  createdBy    User         @relation("InviteCreatedBy", fields: [createdById], references: [id])
+  id           String         @id @default(uuid())
+  email        String
+  orgId        String
+  role         MembershipRole @default(MEMBER)
+  token        String         @unique
+  status       InviteStatus   @default(PENDING)
+  expiresAt    DateTime
+  createdById  String
+  createdAt    DateTime       @default(now())
+  organization Organization   @relation(fields: [orgId], references: [id])
+  createdBy    User           @relation("InviteCreatedBy", fields: [createdById], references: [id])
+
   @@index([orgId])
   @@index([token])
   @@index([email])
 }
 
 model WebhookEvent {
-  id String @id
-  type String
+  id          String    @id
+  type        String
   processedAt DateTime?
 }
 
@@ -483,22 +489,22 @@ enum PaymentMethod {
 }
 
 model Order {
-  id              String        @id @default(uuid())
+  id              String          @id @default(uuid())
   userId          String
-  stripeSessionId String?       @unique
-  paymentMethod   PaymentMethod @default(STRIPE)
-  status          OrderStatus   @default(PENDING)
+  stripeSessionId String?         @unique
+  paymentMethod   PaymentMethod   @default(STRIPE)
+  status          OrderStatus     @default(PENDING)
   // Stored in the smallest unit of `currency` (cents, para, etc.)
   total           Int
   items           OrderItem[]
   reviews         ProductReview[]
 
   // Locale the buyer was using at checkout time - drives email language
-  locale          String      @default("en")
+  locale       String  @default("en")
   // Currency the buyer selected at checkout time - drives Stripe charge + email formatting
-  currency        String      @default("usd")
+  currency     String  @default("usd")
   // Exchange rate used at checkout (1 USD = X of currency). Always 1 for USD orders.
-  exchangeRate    Decimal     @default(1) @db.Decimal(12, 6)
+  exchangeRate Decimal @default(1) @db.Decimal(12, 6)
 
   // Shipping address (from Stripe Checkout or COD form)
   shippingName       String?
@@ -509,8 +515,8 @@ model Order {
   shippingPostalCode String?
   shippingCountry    String?
 
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id])
 
@@ -526,8 +532,8 @@ model OrderItem {
   // Stored in the smallest unit of the order's currency
   price     Int
 
-  order   Order          @relation(fields: [orderId], references: [id])
-  product Product        @relation(fields: [productId], references: [id])
+  order   Order           @relation(fields: [orderId], references: [id])
+  product Product         @relation(fields: [productId], references: [id])
   variant ProductVariant? @relation(fields: [variantId], references: [id])
 
   @@index([orderId])
@@ -547,12 +553,12 @@ model Wishlist {
 }
 
 model ProductReview {
-  id        String   @id @default(uuid())
+  id        String  @id @default(uuid())
   productId String
   userId    String
   orderId   String
   rating    Int
-  comment   String?  @db.Text
+  comment   String? @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -570,8 +576,8 @@ model ProductReview {
 // USD is always 1.0 (the base currency) and is not stored here.
 // Updated by admins or a scheduled refresh job.
 model CurrencyRate {
-  code      String   @id        // e.g. "eur", "rsd"
-  rate      Decimal  @db.Decimal(12, 6)  // 1 USD = `rate` of this currency
+  code      String   @id // e.g. "eur", "rsd"
+  rate      Decimal  @db.Decimal(12, 6) // 1 USD = `rate` of this currency
   updatedAt DateTime @updatedAt
 }
 
@@ -600,4 +606,124 @@ model SlugHistory {
   // (type, locale, slug) is unambiguous and reclaiming a slug is a clean upsert.
   @@unique([entityType, locale, slug])
   @@index([entityType, entityId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Catalog attribute system (Amazon-style faceting)
+//
+// A global library of filterable attributes (Attribute) that admins assign to
+// categories (CategoryAttribute). Products carry per-attribute values
+// (ProductAttributeValue). The storefront derives the left-rail facets for a
+// category from its assigned attributes (inherited down the tree) and computes
+// per-value counts over the current result set.
+//
+// Source of truth for FACETS only - independent of the purchasable
+// VariantOption system (size/color variations). A future enhancement may
+// auto-sync variant options into attribute values, but they stay decoupled here.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum AttributeType {
+  SELECT // single choice per product (e.g. Gender)
+  MULTI_SELECT // multiple choices per product (e.g. Material)
+  RANGE // numeric, filtered as a min/max range (e.g. Screen size)
+  BOOLEAN // yes/no (e.g. Wireless)
+}
+
+// A reusable, globally-defined attribute. `key` is a stable machine identifier
+// used in URL params (`attr_<key>`) and code; human labels live in translations.
+model Attribute {
+  id        String        @id @default(uuid())
+  key       String        @unique
+  type      AttributeType
+  // Unit suffix shown next to RANGE values, e.g. "inch", "GB". Null otherwise.
+  unit      String?
+  order     Int           @default(0)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  translations AttributeTranslation[]
+  options      AttributeOption[]
+  categories   CategoryAttribute[]
+  values       ProductAttributeValue[]
+
+  @@index([key])
+}
+
+model AttributeTranslation {
+  id          String @id @default(uuid())
+  attributeId String
+  locale      String
+  label       String // "Boja" / "Color"
+
+  attribute Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@unique([attributeId, locale])
+  @@index([attributeId])
+}
+
+// A predefined choice for a SELECT / MULTI_SELECT attribute. `value` is the
+// stable machine key (e.g. "red"); the localized display label lives in
+// translations.
+model AttributeOption {
+  id          String @id @default(uuid())
+  attributeId String
+  value       String
+  order       Int    @default(0)
+
+  attribute     Attribute                    @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  translations  AttributeOptionTranslation[]
+  productValues ProductAttributeValue[]
+
+  @@unique([attributeId, value])
+  @@index([attributeId])
+}
+
+model AttributeOptionTranslation {
+  id       String @id @default(uuid())
+  optionId String
+  locale   String
+  label    String // "Crvena" / "Red"
+
+  option AttributeOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([optionId, locale])
+  @@index([optionId])
+}
+
+// Assigns an attribute to a category. Assignments are inherited down the tree:
+// a department's attributes apply to all its descendant categories. `order`
+// controls facet ordering in the sidebar; `isFilterable` lets an attribute be
+// captured on products without (yet) appearing as a facet.
+model CategoryAttribute {
+  categoryId   String
+  attributeId  String
+  order        Int     @default(0)
+  isFilterable Boolean @default(true)
+
+  category  Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  attribute Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@id([categoryId, attributeId])
+  @@index([attributeId])
+}
+
+// A single attribute value on a product. Exactly one of optionId /
+// valueNumeric / valueBool is populated depending on the attribute's type.
+// MULTI_SELECT attributes produce one row per selected option.
+model ProductAttributeValue {
+  id           String   @id @default(uuid())
+  productId    String
+  attributeId  String
+  optionId     String? // SELECT / MULTI_SELECT
+  valueNumeric Float? // RANGE
+  valueBool    Boolean? // BOOLEAN
+
+  product   Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attribute Attribute        @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  option    AttributeOption? @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  // Facet count aggregation paths:
+  @@index([attributeId, optionId])
+  @@index([attributeId, valueNumeric])
 }
