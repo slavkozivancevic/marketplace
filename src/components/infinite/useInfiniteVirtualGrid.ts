@@ -72,7 +72,7 @@ export function useInfiniteVirtualGrid<TItem>({
   gap = 24,
   estimateRowHeight = 340,
   overscan = 4,
-  maxPages = 5,
+  maxPages,
   enabled = true,
   staleTime,
   refetchOnMount,
@@ -127,7 +127,11 @@ export function useInfiniteVirtualGrid<TItem>({
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     placeholderData: keepPreviousData,
-    maxPages,
+    // Only window when a cap is explicitly requested. Without it, react-query
+    // evicts the oldest page on forward scroll, which makes already-seen items
+    // vanish and the list visibly reshuffle. Virtualization keeps the DOM small
+    // regardless, so for our catalog sizes keeping all loaded pages is correct.
+    ...(maxPages !== undefined && { maxPages }),
     enabled,
     ...(staleTime !== undefined && { staleTime }),
     ...(refetchOnMount !== undefined && { refetchOnMount }),

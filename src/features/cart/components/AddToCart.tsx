@@ -92,8 +92,10 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
     product.options.every((opt) => Boolean(selectedValues[opt.id]));
 
   const price = activeVariant ? activeVariant.price : product.price;
+  // A variant without its own compareAtPrice still benefits from a
+  // product-level sale (the common case: one sale across all variants).
   const compareAtPrice = activeVariant
-    ? activeVariant.compareAtPrice
+    ? (activeVariant.compareAtPrice ?? product.compareAtPrice)
     : product.compareAtPrice;
   const isOnSale = compareAtPrice != null && compareAtPrice > price;
   const salePct = isOnSale

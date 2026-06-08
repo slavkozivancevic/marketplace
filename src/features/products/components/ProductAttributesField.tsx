@@ -81,7 +81,9 @@ export function ProductAttributesField({
         current = parentOf.get(current) ?? null;
       }
     }
-    return attributeLibrary.filter((a) => ids.has(a.id));
+    // Variant-defining attributes (Color, Size...) are captured per-variant in
+    // the Variants tab, not as product-level values - exclude them here.
+    return attributeLibrary.filter((a) => ids.has(a.id) && !a.isVariantDefining);
   }, [categoryIds, categoryAttributeMap, parentOf, attributeLibrary]);
 
   if (applicable.length === 0) return null;

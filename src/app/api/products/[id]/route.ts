@@ -1,7 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { connection } from "next/server";
 import { prisma } from "@/core/db/prisma";
-import { SerializedPublicProduct } from "@/types/types";
+import {
+  publicProductInclude,
+  serializePublicProduct,
+} from "@/features/products/db/variantCompat";
 
 export async function GET(
   _req: NextRequest,
@@ -12,25 +15,7 @@ export async function GET(
 
   const product = await prisma.product.findFirst({
     where: { id, status: "PUBLISHED", deletedAt: null },
-    include: {
-      translations: true,
-      media: { orderBy: { order: "asc" } },
-      variants: {
-        orderBy: { order: "asc" },
-        include: {
-          optionValues: true,
-          media: { include: { media: true }, orderBy: { order: "asc" } },
-        },
-      },
-      options: {
-        orderBy: { order: "asc" },
-        include: {
-          translations: true,
-          values: { orderBy: { order: "asc" } },
-        },
-      },
-      brand: { select: { id: true, logoUrl: true, translations: true } },
-    },
+    include: publicProductInclude,
   });
 
   if (!product) {
@@ -49,19 +34,8 @@ export async function GET(
     ratingBreakdown[row.rating] = row._count.rating;
   }
 
-  const serialized: SerializedPublicProduct & { ratingBreakdown: Record<number, number> } = {
-    ...product,
-    price: product.price,
-    compareAtPrice: product.compareAtPrice,
-    costPrice: product.costPrice,
-    variants: product.variants.map((v) => ({
-      ...v,
-      price: v.price,
-      compareAtPrice: v.compareAtPrice,
-      costPrice: v.costPrice,
-    })),
+  return NextResponse.json({
+    ...serializePublicProduct(product),
     ratingBreakdown,
-  };
-
-  return NextResponse.json(serialized);
+  });
 }

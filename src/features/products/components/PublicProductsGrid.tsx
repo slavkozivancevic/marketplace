@@ -35,7 +35,7 @@ import {
 import { getBrandName } from "@/features/brands/utils/translations";
 import { StarRating } from "@/features/reviews/components/StarRating";
 import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
-import { GRID_PAGE_SIZE, MAX_PAGES } from "@/constants/queryConstants";
+import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
 import type { ProductFilters } from "@/lib/query/searchParams";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
 import { useCurrencyStore } from "@/store/currency";
@@ -389,7 +389,6 @@ export function PublicProductsGrid({
     minCardWidth: 280,
     gap: 24,
     estimateRowHeight: 380,
-    maxPages: MAX_PAGES,
     scrollContainerRef,
     // Public listings reflect cross-tenant product status changes (publish /
     // unpublish / archive). Server actions revalidate the Next route, but the

@@ -10,7 +10,7 @@ import { ProductTableHeader, ProductTableRow } from "./ProductTable";
 import { SkeletonProductTableRow } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SerializedProductListItem } from "@/types/types";
-import { LIST_PAGE_SIZE, MAX_PAGES } from "@/constants/queryConstants";
+import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
 import type { AdminProductFilters } from "@/lib/query/searchParams";
 import { useCurrencyStore } from "@/store/currency";
@@ -61,7 +61,6 @@ export function AdminProductsList({
       queryKey: ["products", "admin", f, currency],
       queryFn: buildFetcher(f),
       estimateSize: 73,
-      maxPages: MAX_PAGES,
       // SSR prefetch uses ["products","admin",filters] (no currency), so
       // hydration cannot push fresh data into this cache after a server
       // revalidatePath. Refetch on every mount so status changes show up

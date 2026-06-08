@@ -40,7 +40,7 @@ export function useInfiniteVirtualList<TItem>({
   queryFn,
   estimateSize = 64,
   overscan = 8,
-  maxPages = 5,
+  maxPages,
   enabled = true,
   staleTime,
   refetchOnMount,
@@ -59,7 +59,9 @@ export function useInfiniteVirtualList<TItem>({
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     placeholderData: keepPreviousData,
-    maxPages,
+    // See useInfiniteVirtualGrid: only window when a cap is explicitly set, so
+    // forward scroll never evicts already-loaded pages and reshuffles the list.
+    ...(maxPages !== undefined && { maxPages }),
     enabled,
     ...(staleTime !== undefined && { staleTime }),
     ...(refetchOnMount !== undefined && { refetchOnMount }),

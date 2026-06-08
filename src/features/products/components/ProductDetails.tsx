@@ -12,7 +12,7 @@ import { ProductImageCarousel } from "@/components/product/ProductImageCarousel"
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
 import { getCategoryName } from "@/features/categories/utils/translations";
-import { getOptionName, getOptionValue } from "@/features/products/utils/optionTranslations";
+import { getLabel } from "@/features/attributes/utils/translations";
 import { getBrandName } from "@/features/brands/utils/translations";
 import {
   getProductTitle,
@@ -230,34 +230,6 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
         </>
       )}
 
-      {/* ── OPTIONS ── */}
-      {product.options?.length > 0 && (
-        <>
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("options")}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {product.options.map((option) => (
-                <div key={option.id} className="flex items-center gap-2">
-                  <span className="text-sm font-medium w-20">
-                    {getOptionName(option, locale)}:
-                  </span>
-                  <div className="flex flex-wrap gap-1">
-                    {Array.from(new Set(option.values.map((v) => v.value))).map((value) => (
-                      <Badge key={value} variant="secondary">
-                        {getOptionValue(option, value, locale)}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-          <Separator />
-        </>
-      )}
-
       {/* ── VARIANTS ── */}
       <Card>
         <CardHeader>
@@ -284,17 +256,13 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
                     <span><strong>{tf("weight")}</strong> {variant.weight} {variant.weightUnit ?? ""}</span>
                   )}
                 </div>
-                {variant.optionValues?.length > 0 && (
+                {variant.attributeValues?.length > 0 && (
                   <div className="flex flex-wrap gap-1">
-                    {variant.optionValues.map((ov) => {
-                      const opt = product.options.find((o) => o.id === ov.optionId);
-                      const translated = opt
-                        ? getOptionValue(opt, ov.value, locale)
-                        : ov.value;
-                      return (
-                        <Badge key={ov.id} variant="outline">{translated}</Badge>
-                      );
-                    })}
+                    {variant.attributeValues.map((av) => (
+                      <Badge key={av.id} variant="outline">
+                        {getLabel(av.option.translations, locale)}
+                      </Badge>
+                    ))}
                   </div>
                 )}
               </div>

@@ -39,9 +39,11 @@ export type ImageInput = {
   key: string;
 };
 
-export type VariantOptionValueInput = {
-  name: string;
-  value: string;
+// A single variant axis selection: which AttributeOption this variant has for
+// a variant-defining attribute (e.g. attribute "color" -> option "red").
+export type VariantAttributeValueInput = {
+  attributeId: string;
+  optionId: string;
 };
 
 export type ProductVariantInput = {
@@ -55,17 +57,8 @@ export type ProductVariantInput = {
   weightUnit?: string | null;
   id?: string;
   mediaKeys?: string[];
-  options?: VariantOptionValueInput[];
-};
-
-export type VariantOptionTranslations = Partial<
-  Record<Locale, { name?: string; values?: Record<string, string> }>
->;
-
-export type VariantOptionInput = {
-  name: string;
-  values: string[];
-  translations?: VariantOptionTranslations | null;
+  // The variant's value on each axis (variant-defining attribute).
+  options?: VariantAttributeValueInput[];
 };
 
 export type ProductTranslationsInput = Partial<
@@ -177,14 +170,13 @@ export type ProductWithRelations = Prisma.ProductGetPayload<{
     };
     variants: {
       include: {
-        optionValues: true;
+        attributeValues: {
+          include: {
+            attribute: { select: { id: true; key: true; type: true; translations: true } };
+            option: { select: { id: true; value: true; translations: true } };
+          };
+        };
         media: { include: { media: true } };
-      };
-    };
-    options: {
-      include: {
-        translations: true;
-        values: true;
       };
     };
     categories: {
@@ -255,35 +247,74 @@ export type SerializedProductHistory = Omit<ProductHistory, "price"> & {
   updatedBy: { id: string; name: string | null; email: string } | null;
 };
 
-export type PublicProduct = Prisma.ProductGetPayload<{
+// Raw DB payload for a public product under the unified model: variant axis
+// values live on `variants[].attributeValues` (controlled vocabulary). The
+// storefront serialization below projects these into a back-compat
+// `options` + `variants[].optionValues` shape so the existing detail / cart /
+// purchase UI keeps working unchanged.
+export type PublicProductRaw = Prisma.ProductGetPayload<{
   include: {
     translations: true;
     media: true;
-    variants: { include: { optionValues: true; media: { include: { media: true } } } };
-    options: { include: { translations: true; values: true } };
-    brand: {
-      select: {
-        id: true;
-        logoUrl: true;
-        translations: true;
+    variants: {
+      include: {
+        attributeValues: {
+          include: {
+            attribute: { select: { id: true; key: true; translations: true } };
+            option: { select: { id: true; value: true; translations: true } };
+          };
+        };
+        media: { include: { media: true } };
       };
     };
+    brand: { select: { id: true; logoUrl: true; translations: true } };
   };
 }>;
 
+// ----- Back-compat projected shape consumed by the storefront UI -----
+
+export type CompatOptionTranslation = {
+  locale: string;
+  name: string;
+  // Map of option value (slug) -> localized label, e.g. { red: "Crvena" }.
+  values: Record<string, string>;
+};
+export type CompatProductOption = {
+  id: string; // attributeId
+  translations: CompatOptionTranslation[];
+  // Distinct option values used by this product for this axis (mirrors the
+  // legacy VariantOptionValue[] shape the selector UI iterates over).
+  values: { value: string }[];
+};
+export type CompatVariantOptionValue = {
+  id: string;
+  optionId: string; // attributeId
+  value: string; // option value (slug)
+};
+
+type PublicVariantBase = Omit<
+  PublicProductRaw["variants"][number],
+  "price" | "compareAtPrice" | "costPrice" | "attributeValues"
+>;
+
 export type SerializedPublicProduct = Omit<
-  PublicProduct,
+  PublicProductRaw,
   "price" | "compareAtPrice" | "costPrice" | "variants"
 > & {
   price: number;
   compareAtPrice: number | null;
   costPrice: number | null;
-  variants: (Omit<PublicProduct["variants"][number], "price" | "compareAtPrice" | "costPrice"> & {
+  options: CompatProductOption[];
+  variants: (PublicVariantBase & {
     price: number;
     compareAtPrice: number | null;
     costPrice: number | null;
+    optionValues: CompatVariantOptionValue[];
   })[];
 };
+
+/** @deprecated kept as alias; use PublicProductRaw / SerializedPublicProduct. */
+export type PublicProduct = PublicProductRaw;
 
 export type SerializedProductReview = {
   id: string;

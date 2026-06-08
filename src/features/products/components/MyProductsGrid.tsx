@@ -8,7 +8,7 @@ import { MyProductCard } from "./MyProductCard";
 import { SkeletonProductGridCard } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SerializedProductListItem } from "@/types/types";
-import { GRID_PAGE_SIZE, MAX_PAGES } from "@/constants/queryConstants";
+import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
 import type { MyProductFilters } from "@/lib/query/searchParams";
 
@@ -102,7 +102,6 @@ export function MyProductsGrid({
     minCardWidth: 280,
     gap: 24,
     estimateRowHeight: 340,
-    maxPages: MAX_PAGES,
     // Force refetch on mount so product status changes (publish/unpublish/
     // archive) reflect immediately on soft-nav back to this view.
     refetchOnMount: "always",

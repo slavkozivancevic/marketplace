@@ -7,6 +7,7 @@ import { useTheme } from "@/providers/theme/ThemeProvider";
 import { useEffect, useState, useTransition } from "react";
 import { setCurrency } from "@/actions/setCurrency";
 import { useLocalePaths } from "@/i18n/LocalePathsContext";
+import { markLanguageSwitch, shouldHardSwitchLocale } from "@/lib/i18n/localeSwitch";
 import { useHardNav } from "@/components/layout/hard-nav-boundary";
 import type { Locale } from "@/i18n/config";
 import { VALID_CURRENCIES } from "@/lib/currency-config";
@@ -76,13 +77,22 @@ export function PreferencesPopover() {
   }, []);
 
   function handleLocale(newLocale: string) {
-    // On a not-found boundary, router.replace silently no-ops. There's no
-    // valid current page to translate anyway, so persist the choice and hard-
-    // navigate to the target locale's home.
-    if (hardNav) {
+    // Let any page with in-progress state (e.g. a product form) snapshot + restore
+    // itself across the remount this locale change triggers. Set before every
+    // navigation branch below so it fires regardless of which path we take.
+    markLanguageSwitch();
+    // Hard-navigate when:
+    //  - on a not-found boundary, where router.replace silently no-ops, or
+    //  - a page flagged in-progress state to preserve (forms / bulk panel).
+    // In the latter case a soft nav would let Next's Router Cache restore the
+    // previous locale's cached tree with STALE client state on back-navigation,
+    // bypassing the draft restore. A full reload drops that cache; sessionStorage
+    // survives it, so the page remounts fresh and restores its draft cleanly.
+    if (hardNav || shouldHardSwitchLocale()) {
       persistLocaleCookie(newLocale);
-      // Stay on the current (invalid) path but swap its locale prefix, so the
-      // 404 just re-renders in the chosen language instead of jumping home.
+      // Admin/passthrough paths aren't localized, so swapping the locale prefix
+      // is the correct target. (Storefront pages with translated slugs never set
+      // the preserve flag, so they fall through to the soft-nav branch below.)
       const segments = window.location.pathname.split("/");
       if (SUPPORTED_LOCALES.includes(segments[1] as Locale)) {
         segments[1] = newLocale;

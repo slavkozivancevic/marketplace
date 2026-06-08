@@ -49,7 +49,7 @@ export function ProductPurchaseSection({
 
   const displayPrice = activeVariant ? activeVariant.price : product.price;
   const displayCompareAt = activeVariant
-    ? activeVariant.compareAtPrice
+    ? (activeVariant.compareAtPrice ?? product.compareAtPrice)
     : product.compareAtPrice;
   const isOnSale = displayCompareAt != null && displayCompareAt > displayPrice;
 

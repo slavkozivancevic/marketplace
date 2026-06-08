@@ -10,7 +10,7 @@ import { SkeletonOrderRow } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Link } from "@/i18n/navigation";
 import type { UserOrderListItem } from "../db/orders";
-import { LIST_PAGE_SIZE, MAX_PAGES } from "@/constants/queryConstants";
+import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
 import type { OrderFilters } from "@/lib/query/searchParams";
 
@@ -66,7 +66,6 @@ export function OrdersList({ filters }: { filters?: OrderFilters }) {
       queryKey: ["orders", "user", f],
       queryFn: buildFetcher(f),
       estimateSize: 56,
-      maxPages: MAX_PAGES,
     });
 
   if (query.status === "pending") {

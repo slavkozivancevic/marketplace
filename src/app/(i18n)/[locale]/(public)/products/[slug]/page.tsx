@@ -17,6 +17,10 @@ import { PublishLocalePaths, type LocalePaths } from "@/i18n/LocalePathsContext"
 import type { Locale } from "@/i18n/config";
 import { ProductDetailLayout } from "@/features/products/components/ProductDetailLayout";
 import {
+  publicProductInclude,
+  serializePublicProduct,
+} from "@/features/products/db/variantCompat";
+import {
   getProductTitle,
   getProductShortDescription,
   getProductMetaTitle,
@@ -329,46 +333,12 @@ async function fetchPublicProductBySlug(
 
   const product = await prisma.product.findFirst({
     where: { id: translationRow.productId, status: "PUBLISHED", deletedAt: null },
-    include: {
-      translations: true,
-      media: { orderBy: { order: "asc" } },
-      variants: {
-        orderBy: { order: "asc" },
-        include: {
-          optionValues: {
-            orderBy: [{ option: { order: "asc" } }, { order: "asc" }],
-          },
-          media: {
-            orderBy: { order: "asc" },
-            include: { media: true },
-          },
-        },
-      },
-      options: {
-        orderBy: { order: "asc" },
-        include: {
-          translations: true,
-          values: { orderBy: { order: "asc" } },
-        },
-      },
-      brand: { select: { id: true, logoUrl: true, translations: true } },
-    },
+    include: publicProductInclude,
   });
 
   if (!product) return null;
 
-  return {
-    ...product,
-    price: Number(product.price),
-    compareAtPrice: product.compareAtPrice != null ? Number(product.compareAtPrice) : null,
-    costPrice: product.costPrice != null ? Number(product.costPrice) : null,
-    variants: product.variants.map((v) => ({
-      ...v,
-      price: Number(v.price),
-      compareAtPrice: v.compareAtPrice != null ? Number(v.compareAtPrice) : null,
-      costPrice: v.costPrice != null ? Number(v.costPrice) : null,
-    })),
-  };
+  return serializePublicProduct(product);
 }
 
 async function fetchRelatedProducts(productId: string): Promise<RelatedProduct[]> {

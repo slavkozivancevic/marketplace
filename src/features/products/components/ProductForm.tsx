@@ -1,9 +1,9 @@
 "use client";
 import axios from "axios";
 
-import { useEffect, useMemo, useRef, useState, useTransition, KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { useForm, useFieldArray, useWatch, Resolver, FieldErrors } from "react-hook-form";
+import { useForm, useWatch, Resolver, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/sonner";
@@ -43,13 +43,11 @@ import {
   ProductTranslationsInput,
   SerializedProductWithRelations,
   PresignedUploadedMedia,
-  VariantOptionTranslations,
 } from "@/types/types";
 import { NON_DEFAULT_LOCALES, LOCALE_LABELS, DEFAULT_LOCALE, SUPPORTED_LOCALES, type Locale } from "@/i18n/config";
 
 type NonDefaultLocale = (typeof NON_DEFAULT_LOCALES)[number];
-import { X, Plus, RefreshCw, ImageOff, AlertCircle } from "lucide-react";
-import Image from "next/image";
+import { X, RefreshCw, AlertCircle, Loader2 } from "lucide-react";
 import { cn, slugify } from "@/lib/utils";
 import { BrandSelect, type BrandOption } from "@/features/brands/components/BrandSelect";
 import { SlugAvailabilityIndicator } from "@/components/admin/SlugAvailabilityIndicator";
@@ -57,7 +55,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { getCategoryName } from "@/features/categories/utils/translations";
 import type { CategoryTreeItem } from "@/features/categories/db/categories";
+import { consumeLanguageSwitch, setPreserveAcrossLocaleSwitch } from "@/lib/i18n/localeSwitch";
 import { ProductAttributesField } from "./ProductAttributesField";
+import { VariantsEditor } from "./VariantsEditor";
 import type { AttributeSelectorItem } from "@/features/attributes/db/attributes";
 import { useCurrencyStore } from "@/store/currency";
 import { CURRENCIES } from "@/lib/currency";
@@ -174,13 +174,6 @@ type ProductTranslationsLocaleFields = {
 
 type ProductTranslationsForm = Record<NonDefaultLocale, ProductTranslationsLocaleFields>;
 
-type OptionTranslationsLocaleFields = {
-  name: string;
-  values: Record<string, string>;
-};
-
-type OptionTranslationsForm = Record<NonDefaultLocale, OptionTranslationsLocaleFields>;
-
 const PRODUCT_TRANSLATION_FIELDS = [
   "title",
   "slug",
@@ -205,16 +198,6 @@ function emptyProductTranslations(): ProductTranslationsForm {
   return Object.fromEntries(
     NON_DEFAULT_LOCALES.map((loc) => [loc, emptyProductLocaleFields()]),
   ) as ProductTranslationsForm;
-}
-
-function emptyOptionLocaleFields(): OptionTranslationsLocaleFields {
-  return { name: "", values: {} };
-}
-
-function emptyOptionTranslations(): OptionTranslationsForm {
-  return Object.fromEntries(
-    NON_DEFAULT_LOCALES.map((loc) => [loc, emptyOptionLocaleFields()]),
-  ) as OptionTranslationsForm;
 }
 
 /**
@@ -274,64 +257,11 @@ function buildProductTranslationsPayload(
   return hasAny ? out : null;
 }
 
-function buildOptionTranslationsPayload(
-  form: OptionTranslationsForm,
-): VariantOptionTranslations | null {
-  const out: VariantOptionTranslations = {};
-  let hasAny = false;
-  for (const loc of NON_DEFAULT_LOCALES) {
-    const slot = form[loc];
-    const name = slot.name.trim();
-    const values: Record<string, string> = {};
-    for (const [k, v] of Object.entries(slot.values)) {
-      const trimmed = typeof v === "string" ? v.trim() : "";
-      if (trimmed) values[k] = trimmed;
-    }
-    const localeHasAny = name.length > 0 || Object.keys(values).length > 0;
-    if (localeHasAny) {
-      out[loc] = {
-        ...(name ? { name } : {}),
-        ...(Object.keys(values).length > 0 ? { values } : {}),
-      };
-      hasAny = true;
-    }
-  }
-  return hasAny ? out : null;
-}
-
 /**
  * Always returns the full translation shape with each locale's `values` as a
  * record. Pre-initializing prevents RHF's `setValue` from creating an array
  * when a value key looks numeric (e.g. size "10").
  */
-function normalizeOptionTranslations(
-  rows: readonly {
-    locale: string;
-    name: string;
-    values: unknown;
-  }[] | null | undefined,
-): OptionTranslationsForm {
-  const result = emptyOptionTranslations();
-  if (!rows) return result;
-  for (const loc of NON_DEFAULT_LOCALES) {
-    const row = rows.find((r) => r.locale === loc);
-    if (!row) continue;
-    const slot = result[loc];
-    if (typeof row.name === "string") slot.name = row.name;
-    const vals = row.values;
-    if (Array.isArray(vals)) {
-      vals.forEach((v, i) => {
-        if (typeof v === "string") slot.values[String(i)] = v;
-      });
-    } else if (vals && typeof vals === "object") {
-      for (const [k, v] of Object.entries(vals as Record<string, unknown>)) {
-        if (typeof v === "string") slot.values[k] = v;
-      }
-    }
-  }
-  return result;
-}
-
 type ProductFormData = {
   title: string;
   slug: string;
@@ -366,7 +296,9 @@ type ProductFormData = {
     width?: number | null;
     height?: number | null;
   }[];
-  options: { name: string; values: string[]; translations: OptionTranslationsForm }[];
+  // Variant axes (variant-defining attributes) - managed locally by the
+  // VariantsEditor; not submitted directly (variants carry the values).
+  options: { attributeId: string; optionIds: string[] }[];
   variants: {
     sku: string;
     price: number;
@@ -377,7 +309,7 @@ type ProductFormData = {
     weight: number | null;
     weightUnit: "G" | "KG" | "LB" | "OZ" | null;
     mediaKeys: string[];
-    options: { name: string; value: string }[];
+    options: { attributeId: string; optionId: string }[];
   }[];
   attributes: {
     attributeId: string;
@@ -389,29 +321,6 @@ type ProductFormData = {
 };
 
 export type { ProductFormData };
-
-type OptionSnapshot = { name: string; values: string[] };
-
-function snapshotOptions(
-  options: { name: string; values: string[] }[],
-): OptionSnapshot[] {
-  return options.map((o) => ({ name: o.name, values: [...o.values].sort() }));
-}
-
-function optionsAreSynced(
-  current: { name: string; values: string[]; translations?: OptionTranslationsForm }[] | undefined,
-  snapshot: OptionSnapshot[],
-): boolean {
-  if (!current) return true;
-  if (current.length !== snapshot.length) return false;
-  return current.every((opt, i) => {
-    const snap = snapshot[i];
-    if (!snap || opt.name !== snap.name) return false;
-    const sorted = [...opt.values].sort();
-    if (sorted.length !== snap.values.length) return false;
-    return sorted.every((v, j) => v === snap.values[j]);
-  });
-}
 
 function collectErrorMessages(errors: unknown): string[] {
   const messages: string[] = [];
@@ -430,25 +339,6 @@ function collectErrorMessages(errors: unknown): string[] {
   };
   visit(errors);
   return messages;
-}
-
-function cartesianProduct(
-  options: { name: string; values: string[]; translations?: OptionTranslationsForm }[],
-): { name: string; value: string }[][] {
-  const valid = options.filter((o) => o.name.trim() && o.values.length > 0);
-  if (!valid.length) return [];
-  return valid.reduce<{ name: string; value: string }[][]>(
-    (acc, option) => {
-      const result: { name: string; value: string }[][] = [];
-      for (const combo of acc) {
-        for (const value of option.values) {
-          result.push([...combo, { name: option.name, value }]);
-        }
-      }
-      return result;
-    },
-    [[]],
-  );
 }
 
 interface ProductFormProps {
@@ -763,7 +653,7 @@ export function ProductForm({
   }, []);
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [previewLocale, setPreviewLocale] = useState<Locale>(locale);
-  const [activeTab, setActiveTab] = useState("details");
+  const [activeTab, setActiveTab] = useState<string>("details");
 
   // Mirror the SEO preview locale onto the app locale when the user switches
   // the app language. The toggle starts on the app locale (initial state) and
@@ -785,21 +675,6 @@ export function ProductForm({
       width: m.width ?? undefined,
       height: m.height ?? undefined,
     })) ?? [],
-  );
-
-  const [optionValueInputs, setOptionValueInputs] = useState<string[]>(
-    () => product?.options.map(() => "") ?? [],
-  );
-
-  const [syncedOptionsSnapshot, setSyncedOptionsSnapshot] = useState<OptionSnapshot[]>(
-    () =>
-      snapshotOptions(
-        product?.options.map((opt) => ({
-          name:
-            opt.translations.find((tr) => tr.locale === DEFAULT_LOCALE)?.name ?? "",
-          values: Array.from(new Set(opt.values.map((v) => v.value))),
-        })) ?? [],
-      ),
   );
 
   const schema = mode === "create" ? createProductSchema : updateProductSchema;
@@ -842,11 +717,6 @@ export function ProductForm({
     // the form's top-level fields are bound to. Falls back to an empty row when
     // - somehow - the product has no default-locale translation yet.
     const defaultProductT = product.translations.find((tr) => tr.locale === DEFAULT_LOCALE);
-    const optionDefaultName = (opt: { translations: { locale: string; name: string }[] }) =>
-      opt.translations.find((tr) => tr.locale === DEFAULT_LOCALE)?.name ?? "";
-    const optionById = new Map(
-      product.options.map((o) => [o.id, optionDefaultName(o)]),
-    );
     const mediaKeyById = new Map(product.media.map((m) => [m.id, m.key]));
     return {
       title: defaultProductT?.title ?? "",
@@ -882,20 +752,8 @@ export function ProductForm({
         width: m.width,
         height: m.height,
       })),
-      options: product.options.map((opt) => ({
-        name: optionDefaultName(opt),
-        values: Array.from(new Set(opt.values.map((v) => v.value))),
-        translations: normalizeOptionTranslations(opt.translations),
-      })),
+      options: [],
       variants: product.variants.map((v) => {
-        const seenOptionNames = new Set<string>();
-        const dedupedOptions: { name: string; value: string }[] = [];
-        for (const ov of v.optionValues) {
-          const name = optionById.get(ov.optionId) ?? "";
-          if (seenOptionNames.has(name)) continue;
-          seenOptionNames.add(name);
-          dedupedOptions.push({ name, value: ov.value });
-        }
         const mediaKeys = v.media
           .map((vm) => mediaKeyById.get(vm.mediaId))
           .filter((k): k is string => Boolean(k));
@@ -909,7 +767,10 @@ export function ProductForm({
           weight: v.weight ?? null,
           weightUnit: (v.weightUnit ?? null) as ProductFormData["weightUnit"],
           mediaKeys,
-          options: dedupedOptions,
+          options: v.attributeValues.map((av) => ({
+            attributeId: av.attributeId,
+            optionId: av.optionId,
+          })),
         };
       }),
       attributes: buildAttributeEntries(product.attributeValues ?? []),
@@ -917,33 +778,23 @@ export function ProductForm({
     };
   }, [product]);
 
+  // When a draft is restored after a language switch (see the draft block below)
+  // this holds the restored values and becomes the controlled `values` source, so
+  // the on-mount router.refresh() can't re-sync the form back to server data and
+  // wipe the user's in-progress edits.
+  const [restoredValues, setRestoredValues] = useState<ProductFormData | null>(null);
+
   const form = useForm<ProductFormData, unknown, ProductFormData>({
     resolver: zodResolver(schema) as unknown as Resolver<ProductFormData, unknown, ProductFormData>,
     defaultValues: derivedValues,
-    // In update mode, re-sync the form when the underlying product changes
-    // (e.g., user navigates away and returns - Next.js can preserve the React
-    // tree and form state in memory, so without this the unsaved edits would
-    // persist). keepDirtyValues lets the on-mount router.refresh() pull the
-    // fresh server `version` (and any other untouched fields) into the form
-    // without clobbering fields the user has already started editing.
-    values: mode === "update" ? derivedValues : undefined,
+    // In update mode, re-sync the form when the underlying product changes.
+    // keepDirtyValues lets the on-mount router.refresh() pull a fresh server
+    // `version` without clobbering in-progress typing. After a language-switch
+    // draft restore we pin `values` to the restored draft.
+    values: mode === "update" ? (restoredValues ?? derivedValues) : undefined,
     resetOptions: { keepDirtyValues: true },
   });
 
-  const {
-    fields: optionFields,
-    append: appendOption,
-    remove: removeOption,
-  } = useFieldArray({ control: form.control, name: "options" });
-
-  const {
-    fields: variantFields,
-    append: appendVariant,
-    remove: removeVariant,
-    replace: replaceVariants,
-  } = useFieldArray({ control: form.control, name: "variants" });
-
-  const watchedOptions = useWatch({ control: form.control, name: "options" });
   const watchedVariants = useWatch({ control: form.control, name: "variants" });
   const watchedTitle = useWatch({ control: form.control, name: "title" });
   const watchedRequiresShipping = useWatch({ control: form.control, name: "requiresShipping" });
@@ -957,6 +808,101 @@ export function ProductForm({
     prevTitleRef.current = watchedTitle;
     form.setValue("slug", slugify(watchedTitle), { shouldDirty: false });
   }, [watchedTitle, slugManuallyEdited, form]);
+
+  // --- Draft persistence across a language switch -----------------------------
+  // A locale change navigates /sr/... -> /en/... which remounts this whole subtree
+  // and would wipe every field, the active tab and uploaded media. The switcher
+  // leaves a one-shot marker; when we see it on mount we restore the snapshot from
+  // the previous (pre-switch) render. Any other navigation starts clean, and the
+  // draft is cleared on a successful save. Keyed per form instance so /new and each
+  // edited product never share a draft.
+  const draftKey = `productForm:${mode === "update" && product ? product.id : "new"}`;
+  const draftReady = useRef(false);
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+  const uploadedMediaRef = useRef(uploadedMedia);
+  uploadedMediaRef.current = uploadedMedia;
+  const slugEditedRef = useRef(slugManuallyEdited);
+  slugEditedRef.current = slugManuallyEdited;
+
+  const persistDraft = useCallback(() => {
+    if (!draftReady.current) return;
+    try {
+      sessionStorage.setItem(
+        draftKey,
+        JSON.stringify({
+          values: form.getValues(),
+          tab: activeTabRef.current,
+          media: uploadedMediaRef.current,
+          slugManuallyEdited: slugEditedRef.current,
+        }),
+      );
+    } catch {
+      // sessionStorage full / unavailable - draft is best-effort.
+    }
+  }, [draftKey, form]);
+
+  const clearDraft = useCallback(() => {
+    try {
+      sessionStorage.removeItem(draftKey);
+    } catch {
+      // ignore
+    }
+  }, [draftKey]);
+
+  // Restore on a language switch. Runs on mount AND whenever the locale changes,
+  // so it works whether the switch remounted the tree or (after the switcher's
+  // hard reload for form pages) mounted it fresh. consumeLanguageSwitch is
+  // one-shot + time-boxed, so only a real switch restores; a normal first entry
+  // just clears any stale draft.
+  const firstMountRef = useRef(true);
+  useEffect(() => {
+    if (consumeLanguageSwitch()) {
+      try {
+        const raw = sessionStorage.getItem(draftKey);
+        if (raw) {
+          const draft = JSON.parse(raw) as {
+            values: ProductFormData;
+            tab: string;
+            media: PresignedUploadedMedia[];
+            slugManuallyEdited: boolean;
+          };
+          form.reset(draft.values);
+          if (mode === "update") setRestoredValues(draft.values);
+          setActiveTab(draft.tab);
+          setUploadedMedia(draft.media);
+          setSlugManuallyEdited(draft.slugManuallyEdited);
+        }
+      } catch {
+        // malformed draft - fall back to server / default values.
+      }
+    } else if (firstMountRef.current) {
+      clearDraft();
+    }
+    firstMountRef.current = false;
+    draftReady.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey, locale]);
+
+  // Flag this page so the locale switcher does a hard navigation instead of a
+  // soft one - otherwise Next's Router Cache restores the previous locale's tree
+  // (with stale client state) on back-navigation and bypasses the restore above.
+  useEffect(() => {
+    setPreserveAcrossLocaleSwitch(true);
+    return () => setPreserveAcrossLocaleSwitch(false);
+  }, []);
+
+  // Mirror field edits into the draft (form.watch fires on change, not on mount).
+  useEffect(() => {
+    const sub = form.watch(() => persistDraft());
+    return () => sub.unsubscribe();
+  }, [form, persistDraft]);
+
+  // Mirror the non-RHF pieces (tab / media / slug flag) into the draft.
+  useEffect(() => {
+    persistDraft();
+  }, [activeTab, uploadedMedia, slugManuallyEdited, persistDraft]);
+  // ----------------------------------------------------------------------------
 
   useEffect(() => {
     if (mode !== "update" || !product) return;
@@ -1010,108 +956,7 @@ export function ProductForm({
         height: m.height ?? undefined,
       })),
     );
-    setOptionValueInputs(product.options.map(() => ""));
-    setSyncedOptionsSnapshot(
-      snapshotOptions(
-        product.options.map((opt) => ({
-          name:
-            opt.translations.find((tr) => tr.locale === DEFAULT_LOCALE)?.name ?? "",
-          values: Array.from(new Set(opt.values.map((v) => v.value))),
-        })),
-      ),
-    );
   }, [product]);
-
-  const optionsChanged = !optionsAreSynced(watchedOptions, syncedOptionsSnapshot);
-
-  const handleAddOptionValue = (optionIndex: number) => {
-    const input = optionValueInputs[optionIndex]?.trim();
-    if (!input) return;
-    const current = form.getValues(`options.${optionIndex}.values`) ?? [];
-    if (current.includes(input)) { toast.error(t("valueExists")); return; }
-    form.setValue(`options.${optionIndex}.values`, [...current, input], { shouldValidate: true });
-    setOptionValueInputs((prev) => { const next = [...prev]; next[optionIndex] = ""; return next; });
-  };
-
-  const handleRemoveOptionValue = (optionIndex: number, value: string) => {
-    const current = form.getValues(`options.${optionIndex}.values`) ?? [];
-    form.setValue(
-      `options.${optionIndex}.values`,
-      current.filter((v) => v !== value),
-      { shouldValidate: true },
-    );
-    // Also drop the per-locale value translation, if any.
-    for (const loc of NON_DEFAULT_LOCALES) {
-      const path = `options.${optionIndex}.translations.${loc}.values` as const;
-      const localizedValues = form.getValues(path);
-      if (localizedValues && value in localizedValues) {
-        const next = { ...localizedValues };
-        delete next[value];
-        form.setValue(path, next, { shouldValidate: false });
-      }
-    }
-  };
-
-  const handleOptionValueKeyDown = (e: KeyboardEvent<HTMLInputElement>, optionIndex: number) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      handleAddOptionValue(optionIndex);
-    }
-  };
-
-  const handleGenerateVariants = () => {
-    const options = form.getValues("options");
-    const combinations = cartesianProduct(options);
-    if (combinations.length === 0) {
-      // No options to expand. If the snapshot also has nothing, the user
-      // hasn't added options yet - nudge them. Otherwise the user just
-      // removed every option, so clear the now-orphaned generated variants.
-      if (syncedOptionsSnapshot.length === 0) {
-        toast.error(t("addOptionFirst"));
-        return;
-      }
-      replaceVariants([]);
-      setSyncedOptionsSnapshot([]);
-      toast.success(t("generated", { count: 0 }));
-      return;
-    }
-    const previousVariants = form.getValues("variants") ?? [];
-    const signatureOf = (opts: { name: string; value: string }[]) =>
-      [...opts].map((o) => `${o.name}\u0000${o.value}`).sort().join("\u0001");
-    const previousBySignature = new Map(
-      previousVariants.map((v) => [signatureOf(v.options), v]),
-    );
-    const usedSkus = new Set<string>();
-    const makeSku = (combo: { name: string; value: string }[]) => {
-      const base =
-        combo.map((o) => o.value.toUpperCase().replace(/[^A-Z0-9]+/g, "")).filter((s) => s.length > 0).join("-") || "VARIANT";
-      let sku = base;
-      let n = 2;
-      while (usedSkus.has(sku)) { sku = `${base}-${n++}`; }
-      usedSkus.add(sku);
-      return sku;
-    };
-    replaceVariants(
-      combinations.map((combo) => {
-        const sku = makeSku(combo);
-        const previous = previousBySignature.get(signatureOf(combo));
-        return {
-          sku,
-          price: previous?.price ?? form.getValues("price"),
-          compareAtPrice: previous?.compareAtPrice ?? null,
-          costPrice: previous?.costPrice ?? null,
-          stock: previous?.stock ?? 0,
-          barcode: previous?.barcode ?? "",
-          weight: previous?.weight ?? null,
-          weightUnit: previous?.weightUnit ?? null,
-          mediaKeys: previous?.mediaKeys ?? [],
-          options: combo,
-        };
-      }),
-    );
-    setSyncedOptionsSnapshot(snapshotOptions(options));
-    toast.success(t("generated", { count: combinations.length }));
-  };
 
   // Mirror uploadedMedia into the form value + prune any variant→media
   // references that point at removed keys. Driven by an effect so the upload
@@ -1149,17 +994,13 @@ export function ProductForm({
   const pricingHasError = !!(errors.price || errors.compareAtPrice || errors.costPrice || errors.stock || errors.barcode || errors.taxCode);
   const shippingHasError = !!(errors.weight || errors.length || errors.width || errors.height);
   const seoHasError = !!(errors.metaTitle || errors.metaDescription);
-  const variantsHasError = !!(errors.options || errors.variants);
+  const variantsHasError = !!errors.variants;
 
   const onSubmit = (data: ProductFormData) => {
     startTransition(async () => {
       let result;
 
       const translationsPayload = buildProductTranslationsPayload(data.translations);
-      const optionsPayload = data.options.map((opt) => ({
-        ...opt,
-        translations: buildOptionTranslationsPayload(opt.translations),
-      }));
 
       if (mode === "create") {
         const createData: CreateProductInput = {
@@ -1188,7 +1029,6 @@ export function ProductForm({
           brandId: data.brandId || undefined,
           categoryIds: data.categoryIds,
           media: data.media,
-          options: optionsPayload,
           variants: data.variants,
           attributes: data.attributes,
         };
@@ -1197,7 +1037,6 @@ export function ProductForm({
         const updateData: UpdateProductInput = {
           ...(data as UpdateProductInput),
           translations: translationsPayload,
-          options: optionsPayload,
         };
         result = await updateProduct(
           product!.id,
@@ -1209,6 +1048,7 @@ export function ProductForm({
       if (result && "error" in result) {
         toast.error(result.message);
       } else {
+        clearDraft();
         toast.success(mode === "create" ? t("created") : t("updated"));
         onSuccess?.();
       }
@@ -1221,7 +1061,7 @@ export function ProductForm({
     if (formErrors.price || formErrors.compareAtPrice || formErrors.costPrice || formErrors.stock || formErrors.barcode || formErrors.taxCode) tabs.push(t("tabPricing"));
     if (formErrors.weight || formErrors.length || formErrors.width || formErrors.height) tabs.push(t("tabShipping"));
     if (formErrors.metaTitle || formErrors.metaDescription) tabs.push(t("tabSeo"));
-    if (formErrors.options || formErrors.variants) tabs.push(t("tabOptions"));
+    if (formErrors.variants) tabs.push(t("tabOptions"));
 
     const messages = collectErrorMessages(formErrors);
     const first = messages[0];
@@ -1290,6 +1130,51 @@ export function ProductForm({
 
               <FormField
                 control={form.control}
+                name="slug"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("slug")}</FormLabel>
+                    <div className="flex gap-2">
+                      <FormControl>
+                        <Input
+                          placeholder={t("slugPlaceholder")}
+                          {...field}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            setSlugManuallyEdited(true);
+                          }}
+                        />
+                      </FormControl>
+                      {slugManuallyEdited && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            form.setValue("slug", slugify(form.getValues("title")));
+                            setSlugManuallyEdited(false);
+                          }}
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <FormDescription>{t("slugDesc")}</FormDescription>
+                      <SlugAvailabilityIndicator
+                        entity="product"
+                        locale={DEFAULT_LOCALE}
+                        slug={field.value}
+                        excludeId={product?.id}
+                      />
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="shortDescription"
                 render={({ field }) => (
                   <FormItem>
@@ -1337,51 +1222,6 @@ export function ProductForm({
                 t={t}
               />
             ))}
-
-            <FormField
-              control={form.control}
-              name="slug"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("slug")}</FormLabel>
-                  <div className="flex gap-2">
-                    <FormControl>
-                      <Input
-                        placeholder={t("slugPlaceholder")}
-                        {...field}
-                        onChange={(e) => {
-                          field.onChange(e);
-                          setSlugManuallyEdited(true);
-                        }}
-                      />
-                    </FormControl>
-                    {slugManuallyEdited && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          form.setValue("slug", slugify(form.getValues("title")));
-                          setSlugManuallyEdited(false);
-                        }}
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                      </Button>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <FormDescription>{t("slugDesc")}</FormDescription>
-                    <SlugAvailabilityIndicator
-                      entity="product"
-                      locale={DEFAULT_LOCALE}
-                      slug={field.value}
-                      excludeId={product?.id}
-                    />
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             {categoryTree.length > 0 && (
               <FormField
@@ -1954,487 +1794,33 @@ export function ProductForm({
             })()}
           </TabsContent>
 
-          {/* ── OPTIONS & VARIANTS TAB ── */}
-          <TabsContent value="variants" className="space-y-6 pt-4 overflow-y-auto min-h-0 pb-6">
-            {/* Options */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-semibold">{t("options")}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {t("optionsDesc")}
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    appendOption({ name: "", values: [], translations: emptyOptionTranslations() });
-                    setOptionValueInputs((prev) => [...prev, ""]);
-                  }}
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  {t("addOption")}
-                </Button>
-              </div>
-
-              {optionFields.length === 0 && (
-                <p className="text-sm text-muted-foreground py-6 text-center border rounded-md">
-                  {t("noOptions")}
-                </p>
-              )}
-
-              {optionFields.map((optionField, optionIndex) => {
-                const values = watchedOptions?.[optionIndex]?.values ?? [];
-                const uniqueValues = Array.from(new Set(values));
-                return (
-                  <div key={optionField.id} className="border rounded-md p-4 space-y-4 bg-background dark:bg-input/30">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium">{t("option")} {optionIndex + 1}</p>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          removeOption(optionIndex);
-                          setOptionValueInputs((prev) => prev.filter((_, i) => i !== optionIndex));
-                        }}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-
-                    {/* English (default) */}
-                    <div className="rounded-md border border-border/60 p-3 space-y-3">
-                      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                        {LOCALE_LABELS[DEFAULT_LOCALE].emoji} {LOCALE_LABELS[DEFAULT_LOCALE].label}
-                      </p>
-
-                      <FormField
-                        control={form.control}
-                        name={`options.${optionIndex}.name`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs">{t("optionName")}</FormLabel>
-                            <FormControl>
-                              <Input placeholder={t("optionNamePlaceholder")} {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <div className="space-y-2">
-                        <FormLabel className="text-xs text-muted-foreground">
-                          {t("valuesHint")}
-                        </FormLabel>
-                        {uniqueValues.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {uniqueValues.map((value: string) => (
-                              <Badge
-                                key={value}
-                                variant="secondary"
-                                className="gap-1 cursor-pointer"
-                                onClick={() => handleRemoveOptionValue(optionIndex, value)}
-                              >
-                                {value}
-                                <X className="w-3 h-3" />
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder={t("addValuePlaceholder")}
-                            value={optionValueInputs[optionIndex] ?? ""}
-                            onChange={(e) =>
-                              setOptionValueInputs((prev) => {
-                                const next = [...prev];
-                                next[optionIndex] = e.target.value;
-                                return next;
-                              })
-                            }
-                            onKeyDown={(e) => handleOptionValueKeyDown(e, optionIndex)}
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleAddOptionValue(optionIndex)}
-                          >
-                            {t("addValue")}
-                          </Button>
-                        </div>
-                        {form.formState.errors.options?.[optionIndex]?.values && (
-                          <p className="text-sm text-destructive">
-                            {form.formState.errors.options[optionIndex]?.values?.message}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Translation sections - one per non-default locale */}
-                    {NON_DEFAULT_LOCALES.map((loc) => (
-                      <div key={loc} className="rounded-md border border-border/60 p-3 space-y-3">
-                        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                          {LOCALE_LABELS[loc].emoji} {LOCALE_LABELS[loc].label}
-                        </p>
-
-                        <FormField
-                          control={form.control}
-                          name={`options.${optionIndex}.translations.${loc}.name` as const}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-xs">{t("optionName")}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder={watchedOptions?.[optionIndex]?.name || t("optionNamePlaceholder")}
-                                  {...field}
-                                  value={field.value ?? ""}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        {uniqueValues.length > 0 && (
-                          <div className="space-y-2">
-                            <FormLabel className="text-xs text-muted-foreground">
-                              {t("valueTranslations")}
-                            </FormLabel>
-                            <div className="space-y-1.5">
-                              {uniqueValues.map((value: string) => (
-                                <FormField
-                                  key={value}
-                                  control={form.control}
-                                  name={`options.${optionIndex}.translations.${loc}.values.${value}` as `options.${number}.translations.${typeof loc}.values.${string}`}
-                                  render={({ field }) => (
-                                    <FormItem className="flex items-center gap-2 space-y-0">
-                                      <span className="text-xs text-muted-foreground w-24 shrink-0 truncate">
-                                        {value}
-                                      </span>
-                                      <FormControl>
-                                        <Input
-                                          placeholder={value}
-                                          className="h-8 text-sm"
-                                          {...field}
-                                          value={(field.value as string | undefined) ?? ""}
-                                        />
-                                      </FormControl>
-                                    </FormItem>
-                                  )}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-
-            <Separator />
-
-            {/* Variants */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-semibold">{t("variants")}</h3>
-                  <p className="text-sm text-muted-foreground">{t("variantsDesc")}</p>
-                </div>
-                <div className="flex gap-2">
-                  {(optionFields.length > 0 || optionsChanged) && (
-                    <Button
-                      type="button"
-                      variant={optionsChanged ? "default" : "outline"}
-                      size="sm"
-                      onClick={handleGenerateVariants}
-                    >
-                      <RefreshCw className="w-4 h-4 mr-1" />
-                      {t("generateVariants")}
-                      {optionsChanged && ` ${t("required")}`}
-                    </Button>
-                  )}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      appendVariant({
-                        sku: "",
-                        price: form.getValues("price"),
-                        compareAtPrice: null,
-                        costPrice: null,
-                        stock: 0,
-                        barcode: "",
-                        weight: null,
-                        weightUnit: null,
-                        mediaKeys: [],
-                        options: [],
-                      })
-                    }
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    {t("addManually")}
-                  </Button>
-                </div>
-              </div>
-
-              {mode === "update" && optionsChanged && (
-                <Alert className="border-orange-200 bg-orange-50">
-                  <RefreshCw className="h-4 w-4 text-orange-600" />
-                  <AlertTitle className="text-orange-800">{t("optionsChanged")}</AlertTitle>
-                  <AlertDescription className="text-orange-700">
-                    {t("regenerateHint")}
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {variantFields.length === 0 && (
-                <p className="text-sm text-muted-foreground py-6 text-center border rounded-md">
-                  {t("noVariants")}
-                </p>
-              )}
-
-              {variantFields.map((variantField, variantIndex) => {
-                const variantOptions = watchedVariants?.[variantIndex]?.options ?? [];
-                const selectedMediaKeys = watchedVariants?.[variantIndex]?.mediaKeys ?? [];
-
-                return (
-                  <div key={variantField.id} className="border rounded-md p-4 space-y-3 bg-background dark:bg-input/30">
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-wrap gap-1">
-                        {variantOptions.length > 0 ? (
-                          variantOptions.map((opt: { name: string; value: string }, optIdx: number) => (
-                            <Badge key={`${optIdx}-${opt.name}`} variant="outline">
-                              {opt.name}: {opt.value}
-                            </Badge>
-                          ))
-                        ) : (
-                          <span className="text-sm text-muted-foreground">{t("manualVariant")}</span>
-                        )}
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeVariant(variantIndex)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-
-                    {/* Basic variant fields */}
-                    <div className="grid grid-cols-3 gap-3">
-                      <FormField
-                        control={form.control}
-                        name={`variants.${variantIndex}.sku`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs">{t("sku")}</FormLabel>
-                            <FormControl>
-                              <Input placeholder={t("skuPlaceholder")} {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`variants.${variantIndex}.price`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs">{t("price")}</FormLabel>
-                            <FormControl>
-                              <PriceInput value={field.value} onChange={field.onChange} rates={rates} inputClassName="text-sm" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`variants.${variantIndex}.stock`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs">{t("stock")}</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                placeholder="0"
-                                value={field.value}
-                                onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    {/* Extended variant fields */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <FormField
-                        control={form.control}
-                        name={`variants.${variantIndex}.compareAtPrice`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs">{t("compareAt")}</FormLabel>
-                            <FormControl>
-                              <PriceInput value={field.value ?? 0} onChange={(v) => field.onChange(v || null)} rates={rates} inputClassName="text-sm" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`variants.${variantIndex}.costPrice`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs">{t("cost")}</FormLabel>
-                            <FormControl>
-                              <PriceInput value={field.value ?? 0} onChange={(v) => field.onChange(v || null)} rates={rates} inputClassName="text-sm" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name={`variants.${variantIndex}.barcode`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs">{t("barcodeShort")}</FormLabel>
-                            <FormControl>
-                              <Input placeholder="-" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <div className="flex gap-1.5">
-                        <FormField
-                          control={form.control}
-                          name={`variants.${variantIndex}.weight`}
-                          render={({ field }) => (
-                            <FormItem className="flex-1 min-w-0">
-                              <FormLabel className="text-xs">{t("weight")}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  placeholder="-"
-                                  value={field.value ?? ""}
-                                  onChange={(e) =>
-                                    field.onChange(e.target.value === "" ? null : parseFloat(e.target.value))
-                                  }
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`variants.${variantIndex}.weightUnit`}
-                          render={({ field }) => (
-                            <FormItem className="w-16 shrink-0">
-                              <FormLabel className="text-xs">{t("unit")}</FormLabel>
-                              <Select
-                                value={field.value ?? ""}
-                                onValueChange={(val) => field.onChange(val || null)}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    {/* Explicit label so it shows pre-hydration. */}
-                                    <SelectValue placeholder="-">
-                                      {WEIGHT_UNITS.find((u) => u.value === field.value)?.label ?? "-"}
-                                    </SelectValue>
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {WEIGHT_UNITS.map((u) => (
-                                    <SelectItem key={u.value} value={u.value}>
-                                      {u.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Variant media */}
-                    <div className="space-y-2">
-                      <FormLabel className="text-xs text-muted-foreground">
-                        {t("variantMedia")}
-                      </FormLabel>
-                      {uploadedMedia.length === 0 ? (
-                        <div className="flex items-center gap-2 rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
-                          <ImageOff className="w-3.5 h-3.5" />
-                          {t("uploadFirst")}
-                        </div>
-                      ) : (
-                        <div className="flex flex-wrap gap-2">
-                          {uploadedMedia.map((m) => {
-                            const isSelected = selectedMediaKeys.includes(m.key);
-                            const isVideo = m.mediaType === "VIDEO";
-                            const thumbSrc = isVideo ? (m.posterUrl ?? m.url) : m.url;
-                            return (
-                              <button
-                                type="button"
-                                key={m.key}
-                                onClick={() => {
-                                  const next = isSelected
-                                    ? selectedMediaKeys.filter((k) => k !== m.key)
-                                    : [...selectedMediaKeys, m.key];
-                                  form.setValue(`variants.${variantIndex}.mediaKeys`, next, { shouldDirty: true });
-                                }}
-                                className={cn(
-                                  "relative w-16 h-16 rounded border-2 overflow-hidden shrink-0 transition-all cursor-pointer",
-                                  isSelected
-                                    ? "border-primary opacity-100 ring-2 ring-primary/30"
-                                    : "border-transparent opacity-60 hover:opacity-100",
-                                )}
-                              >
-                                {isVideo && !m.posterUrl ? (
-                                  <video src={thumbSrc} className="absolute inset-0 w-full h-full object-cover" muted playsInline preload="metadata" />
-                                ) : (
-                                  <Image src={thumbSrc} alt="Variant media" fill sizes="64px" className="object-cover" unoptimized={thumbSrc.startsWith("blob:")} />
-                                )}
-                                {isVideo && (
-                                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20">
-                                    <span className="text-white text-[10px] font-semibold">VIDEO</span>
-                                  </div>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          {/* ── VARIANTS TAB ── */}
+          {/* No pt-4 here: the VariantsEditor header is sticky and owns the top
+              spacing, so the scroll container must have no top padding (a
+              padding-top gap would let scrolled content show above the header). */}
+          <TabsContent value="variants" className="space-y-6 overflow-y-auto min-h-0 pb-6">
+            <VariantsEditor
+              form={form}
+              attributeLibrary={attributeLibrary}
+              categoryAttributeMap={categoryAttributeMap}
+              categoryTree={categoryTree}
+              uploadedMedia={uploadedMedia}
+            />
           </TabsContent>
         </Tabs>
 
         <div className="shrink-0 pt-4 pb-6 border-t">
-          <Button type="submit" disabled={isPending}>
-            {isPending
-              ? t("saving")
-              : mode === "create"
-                ? t("create")
-                : t("update")}
+          <Button type="submit" disabled={isPending} className="min-w-36">
+            {isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {t("saving")}
+              </>
+            ) : mode === "create" ? (
+              t("create")
+            ) : (
+              t("update")
+            )}
           </Button>
         </div>
       </form>

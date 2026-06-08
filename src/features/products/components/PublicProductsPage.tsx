@@ -126,16 +126,36 @@ export function PublicProductsPage({
     { value: "avgRating", label: t("products.rating") },
   ];
 
-  const [params, setParams] = useQueryStates(productSearchParams, {
+  const [, setParams] = useQueryStates(productSearchParams, {
     shallow: false,
     throttleMs: 300,
   });
 
-  // Bypass nuqs's internal pending-queue cache for the user-typed `search` field:
-  // it can leak across navigation (queue is a global singleton). Read directly
-  // from the URL so navigating to a clean URL always starts empty.
+  // Read EVERY filter from the committed URL, not from nuqs's returned state:
+  // nuqs keeps a global pending-queue singleton whose values otherwise leak
+  // across a route change (e.g. /products filters bleeding onto /admin/products).
+  // Writes still go through nuqs `setParams`; filter clicks pass `throttleMs: 0`
+  // (see handlers) so the URL commits at once with nothing left queued.
   const urlSearchParams = useSearchParams();
   const search = urlSearchParams.get("search") ?? "";
+  const params = useMemo(() => {
+    const boolParam = (k: string) => {
+      const v = urlSearchParams.get(k);
+      return v === "true" ? true : v === "false" ? false : null;
+    };
+    return {
+      sortBy: ((urlSearchParams.get("sortBy") as ProductFilters["sortBy"]) || "createdAt"),
+      sortOrder: (urlSearchParams.get("sortOrder") === "asc" ? "asc" : "desc") as "asc" | "desc",
+      minPrice: urlSearchParams.get("minPrice") ? Number(urlSearchParams.get("minPrice")) : null,
+      maxPrice: urlSearchParams.get("maxPrice") ? Number(urlSearchParams.get("maxPrice")) : null,
+      onSale: boolParam("onSale"),
+      isDigital: boolParam("isDigital"),
+      brandId: urlSearchParams.get("brandId")?.split(",").filter(Boolean) ?? [],
+      minRating: urlSearchParams.get("minRating") ? parseInt(urlSearchParams.get("minRating")!, 10) : null,
+      dept: urlSearchParams.get("dept") ?? "",
+      attrs: urlSearchParams.get("attrs") ?? "",
+    };
+  }, [urlSearchParams]);
 
   const dept = currentDept ?? params.dept;
   const attrFilters = useMemo(() => parseAttrs(params.attrs), [params.attrs]);
@@ -350,6 +370,10 @@ export function PublicProductsPage({
   }
 
   // ---- Handlers ----
+  // Filter writes commit immediately (no throttle) so nothing stays queued to
+  // leak into the next route, and the URL-derived read above updates at once.
+  const NOW = { throttleMs: 0 } as const;
+
   const handleFilterChange = (
     key: string,
     value: string[] | [number?, number?] | number | null,
@@ -366,23 +390,23 @@ export function PublicProductsPage({
       } else {
         next = setOptionFilter(attrFilters, fk, value as string[]);
       }
-      setParams({ attrs: serializeAttrs(next) });
+      setParams({ attrs: serializeAttrs(next) }, NOW);
       return;
     }
     if (key === "price") {
       const [min, max] = value as [number?, number?];
-      setParams({ minPrice: min ?? null, maxPrice: max ?? null });
+      setParams({ minPrice: min ?? null, maxPrice: max ?? null }, NOW);
     } else if (key === "minRating") {
-      setParams({ minRating: (value as number | null) ?? null });
+      setParams({ minRating: (value as number | null) ?? null }, NOW);
     } else if (key === "onSale") {
       const vals = value as string[];
-      setParams({ onSale: vals.includes("true") ? true : null });
+      setParams({ onSale: vals.includes("true") ? true : null }, NOW);
     } else if (key === "isDigital") {
       const vals = value as string[];
-      if (vals.length === 0 || vals.length === 2) setParams({ isDigital: null });
-      else setParams({ isDigital: vals[0] === "true" });
+      if (vals.length === 0 || vals.length === 2) setParams({ isDigital: null }, NOW);
+      else setParams({ isDigital: vals[0] === "true" }, NOW);
     } else if (key === "brandId") {
-      setParams({ brandId: value as string[] });
+      setParams({ brandId: value as string[] }, NOW);
     }
   };
 
@@ -395,7 +419,7 @@ export function PublicProductsPage({
       brandId: [],
       minRating: null,
       attrs: "",
-    });
+    }, NOW);
   };
 
   const handleFilterRemove = (key: string, value?: string) => {
@@ -404,15 +428,15 @@ export function PublicProductsPage({
       const facet = facets.find((f) => f.key === fk);
       if (value && (facet?.type === "SELECT" || facet?.type === "MULTI_SELECT")) {
         const nextVals = findOptionFilter(attrFilters, fk).filter((v) => v !== value);
-        setParams({ attrs: serializeAttrs(setOptionFilter(attrFilters, fk, nextVals)) });
+        setParams({ attrs: serializeAttrs(setOptionFilter(attrFilters, fk, nextVals)) }, NOW);
       } else {
-        setParams({ attrs: serializeAttrs(attrFilters.filter((f) => f.key !== fk)) });
+        setParams({ attrs: serializeAttrs(attrFilters.filter((f) => f.key !== fk)) }, NOW);
       }
-    } else if (key === "price") setParams({ minPrice: null, maxPrice: null });
-    else if (key === "minRating") setParams({ minRating: null });
-    else if (key === "onSale") setParams({ onSale: null });
-    else if (key === "isDigital") setParams({ isDigital: null });
-    else if (key === "brandId") setParams({ brandId: [] });
+    } else if (key === "price") setParams({ minPrice: null, maxPrice: null }, NOW);
+    else if (key === "minRating") setParams({ minRating: null }, NOW);
+    else if (key === "onSale") setParams({ onSale: null }, NOW);
+    else if (key === "isDigital") setParams({ isDigital: null }, NOW);
+    else if (key === "brandId") setParams({ brandId: [] }, NOW);
   };
 
   const filters: ProductFilters = {
@@ -447,8 +471,8 @@ export function PublicProductsPage({
           onSearchChange={(v) => setParams({ search: v })}
           sortBy={params.sortBy}
           sortOrder={params.sortOrder}
-          onSortByChange={(v) => setParams({ sortBy: v as ProductFilters["sortBy"] })}
-          onSortOrderChange={(v) => setParams({ sortOrder: v })}
+          onSortByChange={(v) => setParams({ sortBy: v as ProductFilters["sortBy"] }, NOW)}
+          onSortOrderChange={(v) => setParams({ sortOrder: v }, NOW)}
           sortOptions={SORT_OPTIONS}
           filterGroups={filterGroups}
           filterValues={filterValues}

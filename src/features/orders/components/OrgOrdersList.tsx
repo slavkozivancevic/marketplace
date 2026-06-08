@@ -9,7 +9,7 @@ import { SkeletonOrderRow } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Link } from "@/i18n/navigation";
 import type { OrgOrderListItem } from "../db/orgOrders";
-import { LIST_PAGE_SIZE, MAX_PAGES } from "@/constants/queryConstants";
+import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
 import type { OrgOrderFilters } from "@/lib/query/searchParams";
 
@@ -66,7 +66,6 @@ export function OrgOrdersList({ filters }: { filters?: OrgOrderFilters }) {
       queryKey: ["orders", "org", f],
       queryFn: buildFetcher(f),
       estimateSize: 56,
-      maxPages: MAX_PAGES,
     });
 
   if (query.status === "pending") {

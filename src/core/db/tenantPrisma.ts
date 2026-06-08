@@ -145,14 +145,14 @@ export function tenantPrisma({
       async findMany(productId: string) {
         return prisma.productVariant.findMany({
           where: { productId },
-          include: { optionValues: true },
+          include: { attributeValues: true },
         });
       },
 
       async findUnique(id: string) {
         const variant = await prisma.productVariant.findFirst({
           where: { id },
-          include: { optionValues: true },
+          include: { attributeValues: true },
         });
 
         if (!variant) throw new NotFoundError(`Variant ${id} not found`);
@@ -178,70 +178,6 @@ export function tenantPrisma({
 
       async delete(id: string) {
         await prisma.productVariant.delete({ where: { id } });
-      },
-    },
-
-    option: {
-      async findMany(productId: string) {
-        return prisma.variantOption.findMany({
-          where: { productId },
-          include: { values: true },
-        });
-      },
-
-      async findUnique(id: string) {
-        const option = await prisma.variantOption.findFirst({ where: { id } });
-
-        if (!option) {
-          throw new NotFoundError(`Option ${id} not found`);
-        }
-
-        return option;
-      },
-
-      async create(data: { productId: string }) {
-        return prisma.variantOption.create({ data });
-      },
-
-      async update(id: string, data: Partial<{ order: number }>) {
-        return prisma.variantOption.update({ where: { id }, data });
-      },
-
-      async delete(id: string) {
-        await prisma.variantOption.delete({ where: { id } });
-      },
-    },
-    optionValue: {
-      async findMany(optionId: string) {
-        return prisma.variantOptionValue.findMany({ where: { optionId } });
-      },
-
-      async findUnique(id: string) {
-        const value = await prisma.variantOptionValue.findFirst({
-          where: { id },
-        });
-
-        if (!value) {
-          throw new NotFoundError(`OptionValue ${id} not found`);
-        }
-
-        return value;
-      },
-
-      async create(data: {
-        optionId: string;
-        variantId: string;
-        value: string;
-      }) {
-        return prisma.variantOptionValue.create({ data });
-      },
-
-      async update(id: string, data: Partial<{ value: string }>) {
-        return prisma.variantOptionValue.update({ where: { id }, data });
-      },
-
-      async delete(id: string) {
-        await prisma.variantOptionValue.delete({ where: { id } });
       },
     },
   };

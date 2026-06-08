@@ -209,13 +209,14 @@ export async function getOrderById(id: string, userId: string) {
           variant: {
             select: {
               sku: true,
-              optionValues: {
-                // Pull each option's per-locale value map so the order page can
-                // localize the variant label instead of showing raw values.
-                include: {
+              attributeValues: {
+                // Pull each axis option's per-locale label so the order page can
+                // localize the variant label (controlled attribute vocabulary).
+                select: {
                   option: {
                     select: {
-                      translations: { select: { locale: true, values: true } },
+                      value: true,
+                      translations: { select: { locale: true, label: true } },
                     },
                   },
                 },

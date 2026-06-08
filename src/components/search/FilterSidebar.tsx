@@ -109,7 +109,7 @@ function CheckboxFilter({
       {showToggle && (
         <button
           onClick={() => setExpanded((p) => !p)}
-          className="flex items-center gap-1 text-xs text-primary hover:underline mt-1"
+          className="flex items-center gap-1 text-xs text-primary hover:underline mt-1 cursor-pointer"
         >
           {expanded ? (
             <>

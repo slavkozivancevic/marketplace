@@ -17,7 +17,7 @@ import {
   fetchAttributeSelector,
   fetchCategoryAttributeMap,
 } from "@/features/attributes/db/formData";
-import { ProductForm } from "@/features/products/components/ProductForm";
+import { ProductFormView } from "@/features/products/components/ProductFormView";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Button } from "@/components/ui/button";
@@ -96,13 +96,12 @@ async function ProductEditContent({ productId }: { productId: string }) {
 
   if (!productData) notFound();
 
-  // Keying on the product id (not a random value) remounts the form when the
-  // user switches products or returns to the page, while staying stable across
-  // the on-mount router.refresh() the form triggers - a random key here would
-  // change on every server render and put that refresh into an infinite loop.
+  // ProductFormView keys the form on the product id + a navigation counter: stable
+  // across the on-mount router.refresh() (no pathname change) but remounts fresh
+  // on navigating away and back, so Next's Router Cache can't reopen it with stale
+  // unsaved edits.
   return (
-    <ProductForm
-      key={productData.id}
+    <ProductFormView
       mode="update"
       product={productData}
       brands={brands}

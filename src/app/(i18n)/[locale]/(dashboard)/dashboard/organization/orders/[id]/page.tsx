@@ -17,7 +17,7 @@ import { MembershipRole } from "@/generated/prisma/client";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { formatPrice } from "@/lib/currency";
 import type { Currency } from "@/lib/currency-config";
-import { getOptionValue } from "@/features/products/utils/optionTranslations";
+import { getLabel } from "@/features/attributes/utils/translations";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -156,8 +156,8 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                   productMedia?.thumbUrl ??
                   productMedia?.url ??
                   null;
-                const variantLabel = item.variant?.optionValues
-                  .map((ov) => getOptionValue(ov.option, ov.value, order.locale))
+                const variantLabel = item.variant?.attributeValues
+                  .map((av) => getLabel(av.option.translations, order.locale))
                   .join(" / ");
                 const productTitle =
                   item.product.translations.find((tr) => tr.locale === order.locale)?.title ??

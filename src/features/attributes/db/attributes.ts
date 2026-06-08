@@ -109,6 +109,7 @@ export type AttributeSelectorItem = {
   key: string;
   type: AttributeType;
   unit: string | null;
+  isVariantDefining: boolean;
   translations: LabelRow[];
   options: { id: string; value: string; translations: LabelRow[] }[];
 };
@@ -122,6 +123,7 @@ export async function getAttributesForSelector(): Promise<AttributeSelectorItem[
       key: true,
       type: true,
       unit: true,
+      isVariantDefining: true,
       translations: { select: { locale: true, label: true } },
       options: {
         orderBy: { order: "asc" },

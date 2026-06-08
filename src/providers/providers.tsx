@@ -9,6 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ChatDrawerRoot } from "@/features/chat/components/ChatDrawer";
 import { LocalePathsHost } from "@/i18n/LocalePathsContext";
 import { LocaleSync } from "@/components/layout/locale-sync";
+import { NavigationGenerationTracker } from "@/components/layout/navigation-generation-tracker";
 import { ThemeProvider } from "@/providers/theme/ThemeProvider";
 import { type Locale } from "@/i18n/config";
 
@@ -85,6 +86,7 @@ export function InnerProviders({ children }: { children: React.ReactNode }) {
           both the header and the page so cross-tree state works. */}
       <LocalePathsHost>
         <LocaleSync />
+        <NavigationGenerationTracker />
         {children}
         <Toaster />
         <ChatDrawerRoot />

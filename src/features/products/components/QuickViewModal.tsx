@@ -104,7 +104,9 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
   }, [activeVariantId, carouselApi]);
 
   const displayPrice = activeVariant ? activeVariant.price : (product?.price ?? 0);
-  const displayCompareAt = activeVariant ? activeVariant.compareAtPrice : (product?.compareAtPrice ?? null);
+  const displayCompareAt = activeVariant
+    ? (activeVariant.compareAtPrice ?? product?.compareAtPrice ?? null)
+    : (product?.compareAtPrice ?? null);
   const isOnSale = displayCompareAt != null && displayCompareAt > displayPrice;
   const salePct = isOnSale ? Math.round(((displayCompareAt! - displayPrice) / displayCompareAt!) * 100) : 0;
 

@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { formatPrice } from "@/lib/currency";
 import type { Currency } from "@/lib/currency-config";
-import { getOptionValue } from "@/features/products/utils/optionTranslations";
+import { getLabel } from "@/features/attributes/utils/translations";
 
 interface OrderDetailPageProps {
   params: Promise<{ id: string }>;
@@ -130,8 +130,8 @@ export default async function OrderDetailPage({
                 null;
               // Localize each option value to the order's locale (the language
               // the buyer used), same as the title below.
-              const variantLabel = item.variant?.optionValues
-                .map((ov) => getOptionValue(ov.option, ov.value, order.locale))
+              const variantLabel = item.variant?.attributeValues
+                .map((av) => getLabel(av.option.translations, order.locale))
                 .join(" / ");
               // Order detail page is rendered server-side with no useLocale()
               // context wired through here yet - the email already captured

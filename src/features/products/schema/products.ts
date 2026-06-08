@@ -40,32 +40,11 @@ export const productTranslationsSchema = z
   .nullable()
   .optional();
 
-export const variantOptionTranslationsSchema = z
-  .record(
-    z.string(),
-    z
-      .object({
-        name: z.string().optional(),
-        // Individual entries are optional: an empty translation means "fall
-        // back to the canonical value", it must not block form submission.
-        values: z.record(z.string(), z.string().optional()).optional(),
-      })
-      .optional(),
-  )
-  .nullable()
-  .optional();
-
-export const productOptionSchema = z.object({
-  name: z.string().min(1, "Option name is required"),
-  values: z
-    .array(z.string().min(1, "Option value is required"))
-    .min(1, "At least one option value is required"),
-  translations: variantOptionTranslationsSchema,
-});
-
+// A variant axis selection: which AttributeOption this variant has for a
+// variant-defining attribute (controlled vocabulary, unified model).
 export const productVariantOptionSchema = z.object({
-  name: z.string().min(1, "Option name is required"),
-  value: z.string().min(1, "Option value is required"),
+  attributeId: z.string().min(1, "Attribute is required"),
+  optionId: z.string().min(1, "Option is required"),
 });
 
 export const productVariantSchema = z
@@ -96,23 +75,23 @@ export const productVariantSchema = z
   .superRefine((variant, ctx) => {
     const seen = new Set<string>();
     for (const [i, opt] of variant.options.entries()) {
-      if (seen.has(opt.name)) {
+      if (seen.has(opt.attributeId)) {
         ctx.addIssue({
           code: "custom",
-          message: `Variant has duplicate option "${opt.name}"`,
-          path: ["options", i, "name"],
+          message: `Variant has duplicate axis`,
+          path: ["options", i, "attributeId"],
         });
       }
-      seen.add(opt.name);
+      seen.add(opt.attributeId);
     }
   });
 
 function variantPayloadSignature(
-  options: { name: string; value: string }[],
+  options: { attributeId: string; optionId: string }[],
 ): string | null {
   if (options.length === 0) return null;
   return [...options]
-    .map((o) => `${o.name.trim()}\u0000${o.value.trim()}`)
+    .map((o) => `${o.attributeId.trim()}\u0000${o.optionId.trim()}`)
     .sort()
     .join("\u0001");
 }
@@ -180,7 +159,6 @@ export const createProductSchema = z
     categoryIds: z.array(z.string()).default([]),
 
     media: z.array(productMediaSchema).default([]),
-    options: z.array(productOptionSchema).default([]),
     variants: z.array(productVariantSchema).default([]),
 
     // Catalog attribute values. One entry per attribute the product has a

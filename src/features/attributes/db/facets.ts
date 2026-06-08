@@ -13,6 +13,7 @@ type FacetAttributeDef = {
   key: string;
   type: AttributeType;
   unit: string | null;
+  isVariantDefining: boolean;
   translations: LabelRow[];
   options: FacetOptionDef[];
 };
@@ -67,6 +68,7 @@ async function getFacetAttributes(
           type: true,
           unit: true,
           order: true,
+          isVariantDefining: true,
           translations: { select: { locale: true, label: true } },
           options: {
             orderBy: { order: "asc" },
@@ -91,6 +93,7 @@ async function getFacetAttributes(
       key: a.attribute.key,
       type: a.attribute.type,
       unit: a.attribute.unit,
+      isVariantDefining: a.attribute.isVariantDefining,
       translations: a.attribute.translations,
       options: a.attribute.options,
       sort: a.attribute.order,
@@ -101,6 +104,7 @@ async function getFacetAttributes(
     key: d.key,
     type: d.type,
     unit: d.unit,
+    isVariantDefining: d.isVariantDefining,
     translations: d.translations,
     options: d.options,
   }));
@@ -136,14 +140,33 @@ export async function getCategoryFacets(params: {
       });
 
       if (def.type === "SELECT" || def.type === "MULTI_SELECT") {
-        const grouped = await prisma.productAttributeValue.groupBy({
-          by: ["optionId"],
-          where: { attribute: { key: def.key }, optionId: { not: null }, product: where },
-          _count: { _all: true },
-        });
-        const countByOptionId = new Map(
-          grouped.map((g) => [g.optionId, g._count._all]),
-        );
+        const countByOptionId = new Map<string, number>();
+        if (def.isVariantDefining) {
+          // Variant axis values live on variants - count distinct PRODUCTS that
+          // have a variant with each option (a product may have many variants).
+          const rows = await prisma.productVariantAttributeValue.findMany({
+            where: { attribute: { key: def.key }, variant: { product: where } },
+            select: { optionId: true, variant: { select: { productId: true } } },
+          });
+          const productsByOption = new Map<string, Set<string>>();
+          for (const r of rows) {
+            let set = productsByOption.get(r.optionId);
+            if (!set) productsByOption.set(r.optionId, (set = new Set()));
+            set.add(r.variant.productId);
+          }
+          for (const [optionId, set] of productsByOption) {
+            countByOptionId.set(optionId, set.size);
+          }
+        } else {
+          const grouped = await prisma.productAttributeValue.groupBy({
+            by: ["optionId"],
+            where: { attribute: { key: def.key }, optionId: { not: null }, product: where },
+            _count: { _all: true },
+          });
+          for (const g of grouped) {
+            if (g.optionId) countByOptionId.set(g.optionId, g._count._all);
+          }
+        }
         const ownFilter = params.attributeFilters.find(
           (f) => f.key === def.key && f.kind === "option",
         );

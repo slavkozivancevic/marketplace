@@ -38,16 +38,28 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
     { value: "status", label: t("products.status") },
   ];
 
-  const [params, setParams] = useQueryStates(adminProductSearchParams, {
+  const [, setParams] = useQueryStates(adminProductSearchParams, {
     shallow: false,
     throttleMs: 300,
   });
 
-  // Bypass nuqs's internal pending-queue cache for the user-typed `search` field:
-  // it can leak across navigation (queue is a global singleton). Read directly
-  // from the URL so navigating to a clean URL always starts empty.
+  // Read EVERY filter from the URL, not from nuqs's returned state. nuqs keeps a
+  // global pending-queue singleton whose values leak across a route change
+  // (e.g. /products -> /admin/products briefly shows the other page's filters).
+  // The committed URL is the single source of truth and is always clean after a
+  // real navigation. Writes still go through nuqs `setParams`; filter clicks
+  // pass `throttleMs: 0` (see handlers) so the URL commits instantly with no
+  // pending value left to leak.
   const urlSearchParams = useSearchParams();
   const search = urlSearchParams.get("search") ?? "";
+  const params = useMemo(() => ({
+    sortBy: ((urlSearchParams.get("sortBy") as AdminProductFilters["sortBy"]) || "createdAt"),
+    sortOrder: (urlSearchParams.get("sortOrder") === "asc" ? "asc" : "desc") as "asc" | "desc",
+    status: urlSearchParams.get("status")?.split(",").filter(Boolean) ?? [],
+    minPrice: urlSearchParams.get("minPrice") ? Number(urlSearchParams.get("minPrice")) : null,
+    maxPrice: urlSearchParams.get("maxPrice") ? Number(urlSearchParams.get("maxPrice")) : null,
+    brandId: urlSearchParams.get("brandId")?.split(",").filter(Boolean) ?? [],
+  }), [urlSearchParams]);
 
   // Disjunctive facet counts (status + brand) for the sidebar. Mirrors the
   // list's filters so the numbers track the visible result set; each facet's
@@ -161,32 +173,36 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
     brandId: params.brandId,
   };
 
+  // Filter writes commit immediately (no throttle) so nothing stays queued to
+  // leak into the next route, and the URL-derived read above updates at once.
+  const NOW = { throttleMs: 0 } as const;
+
   const handleFilterChange = (
     key: string,
     value: string[] | [number?, number?] | number | null,
   ) => {
     if (key === "status") {
-      setParams({ status: value as string[] });
+      setParams({ status: value as string[] }, NOW);
     } else if (key === "price") {
       const [min, max] = value as [number?, number?];
-      setParams({ minPrice: min ?? null, maxPrice: max ?? null });
+      setParams({ minPrice: min ?? null, maxPrice: max ?? null }, NOW);
     } else if (key === "brandId") {
       const vals = value as string[];
-      setParams({ brandId: vals });
+      setParams({ brandId: vals }, NOW);
     }
   };
 
   const handleFilterClear = () => {
-    setParams({ status: [], minPrice: null, maxPrice: null, brandId: [] });
+    setParams({ status: [], minPrice: null, maxPrice: null, brandId: [] }, NOW);
   };
 
   const handleFilterRemove = (key: string, value?: string) => {
     if (key === "status" && value) {
-      setParams({ status: params.status.filter((s) => s !== value) });
+      setParams({ status: params.status.filter((s) => s !== value) }, NOW);
     } else if (key === "price") {
-      setParams({ minPrice: null, maxPrice: null });
+      setParams({ minPrice: null, maxPrice: null }, NOW);
     } else if (key === "brandId") {
-      setParams({ brandId: [] });
+      setParams({ brandId: [] }, NOW);
     }
   };
 
@@ -206,9 +222,9 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
           sortBy={params.sortBy}
           sortOrder={params.sortOrder}
           onSortByChange={(v) =>
-            setParams({ sortBy: v as AdminProductFilters["sortBy"] })
+            setParams({ sortBy: v as AdminProductFilters["sortBy"] }, NOW)
           }
-          onSortOrderChange={(v) => setParams({ sortOrder: v })}
+          onSortOrderChange={(v) => setParams({ sortOrder: v }, NOW)}
           sortOptions={SORT_OPTIONS}
           filterGroups={filterGroups}
           filterValues={filterValues}

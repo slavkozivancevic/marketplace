@@ -1,6 +1,6 @@
 import { cacheTag } from "next/cache";
 import { getLocale, getTranslations } from "next-intl/server";
-import { ProductForm } from "@/features/products/components/ProductForm";
+import { ProductFormView } from "@/features/products/components/ProductFormView";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,7 @@ export default async function NewProductPage() {
         </PageHeader>
       </div>
       <div className="flex-1 flex flex-col min-h-0 px-6">
-        <ProductForm
+        <ProductFormView
           mode="create"
           brands={brands}
           categoryTree={categoryTree}

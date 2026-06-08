@@ -23,10 +23,26 @@ export type PublicProductWhereParams = {
 function attributeClause(f: AttributeFilter): Prisma.ProductWhereInput | null {
   if (f.kind === "option") {
     if (!f.values.length) return null;
+    // Match either a product-level value (non-variant attribute) OR a variant
+    // axis value (variant-defining attribute) - the unified model stores the
+    // two in different places, so a facet selection checks both.
     return {
-      attributeValues: {
-        some: { attribute: { key: f.key }, option: { value: { in: f.values } } },
-      },
+      OR: [
+        {
+          attributeValues: {
+            some: { attribute: { key: f.key }, option: { value: { in: f.values } } },
+          },
+        },
+        {
+          variants: {
+            some: {
+              attributeValues: {
+                some: { attribute: { key: f.key }, option: { value: { in: f.values } } },
+              },
+            },
+          },
+        },
+      ],
     };
   }
   if (f.kind === "range") {
