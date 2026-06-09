@@ -5,6 +5,16 @@
  * triggering Turbopack's server-action re-export bug.
  */
 
+/**
+ * Hard ceiling for how many products a single filter-driven bulk category
+ * mutation may touch. Category writes rebuild each product's denormalized search
+ * text (an N+1 inside the transaction), so a broad filter could otherwise open a
+ * long-running, lock-heavy transaction. The server enforces this; the panel
+ * surfaces it as an upfront warning. Lives here (no "use server"/"use client")
+ * so both sides share one source of truth.
+ */
+export const BULK_CATEGORY_MUTATION_LIMIT = 500;
+
 export type BulkFilter = {
   /** Product brand must be one of these IDs. */
   brandId?: string[];

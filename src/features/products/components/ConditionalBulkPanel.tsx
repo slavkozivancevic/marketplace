@@ -40,6 +40,7 @@ import {
   type PreviewResult,
 } from "@/features/products/actions/products";
 import type { BulkFilter, BulkUpdateFields } from "@/features/products/types/bulk";
+import { BULK_CATEGORY_MUTATION_LIMIT } from "@/features/products/types/bulk";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -907,7 +908,24 @@ export function ConditionalBulkPanel({
 
   const hasConditions = conditions.length > 0;
   const effectivePreviewCount = preview?.count ?? 0;
-  const canExecute = hasConditions && isActionValid() && preview !== null && effectivePreviewCount > 0;
+
+  // Category writes rebuild search text per product (N+1 in-txn), so the server
+  // caps how many a single filter run may touch. Mirror that cap here so the
+  // user sees it before executing instead of hitting a server error.
+  const isCategoryMutationAction =
+    action.type === "setCategoriesReplace" ||
+    action.type === "addCategories" ||
+    action.type === "removeCategories" ||
+    action.type === "clearCategories";
+  const exceedsBulkCategoryLimit =
+    isCategoryMutationAction && effectivePreviewCount > BULK_CATEGORY_MUTATION_LIMIT;
+
+  const canExecute =
+    hasConditions &&
+    isActionValid() &&
+    preview !== null &&
+    effectivePreviewCount > 0 &&
+    !exceedsBulkCategoryLimit;
 
   const confirmDescription = () => {
     const count = effectivePreviewCount;
@@ -1054,6 +1072,19 @@ export function ConditionalBulkPanel({
         </Button>
 
         {preview && <PreviewCard preview={preview} />}
+
+        {exceedsBulkCategoryLimit && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>{t("bulkCategoryLimitTitle")}</AlertTitle>
+            <AlertDescription>
+              {t("bulkCategoryLimitDesc", {
+                count: effectivePreviewCount,
+                limit: BULK_CATEGORY_MUTATION_LIMIT,
+              })}
+            </AlertDescription>
+          </Alert>
+        )}
 
         {lastResult && (
           <Alert>

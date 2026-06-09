@@ -1,5 +1,6 @@
 "use server";
 
+import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
 import { redirect } from "next/navigation";
 import { getLocale } from "next-intl/server";
 import { createBrandSchema, updateBrandSchema, CreateBrandInput, UpdateBrandInput } from "../schema/brands";
@@ -23,7 +24,7 @@ export async function createBrandAction(
   try {
     await requireRole("ADMIN");
 
-    const parsed = createBrandSchema.safeParse(unsafeData);
+    const parsed = createBrandSchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
     if (!parsed.success) {
       return { error: true, message: parsed.error.issues.map((i) => i.message).join(", ") };
     }
@@ -50,7 +51,7 @@ export async function updateBrandAction(
   try {
     await requireRole("ADMIN");
 
-    const parsed = updateBrandSchema.safeParse(unsafeData);
+    const parsed = updateBrandSchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
     if (!parsed.success) {
       return { error: true, message: parsed.error.issues.map((i) => i.message).join(", ") };
     }

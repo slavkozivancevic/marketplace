@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useZodResolver } from "@/i18n/useZodResolver";
 import { z } from "zod/v4";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations, useLocale } from "next-intl";
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/sonner";
+import { useInvalidToast } from "@/lib/forms/useInvalidToast";
 import { useCartStore } from "../store/cartStore";
 import { localizedVariantLabel, pickLocalized } from "../utils/variantOptions";
 import { useCurrencyStore } from "@/store/currency";
@@ -37,6 +38,7 @@ type ShippingForm = z.infer<typeof shippingSchema>;
 
 export function CheckoutPage() {
   const t = useTranslations("checkout");
+  const onInvalid = useInvalidToast();
   const locale = useLocale();
   const router = useRouter();
   const { items, totalPrice } = useCartStore();
@@ -60,7 +62,10 @@ export function CheckoutPage() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<ShippingForm>({ resolver: zodResolver(shippingSchema) });
+  } = useForm<ShippingForm>({
+    mode: "onTouched",
+    resolver: useZodResolver(shippingSchema),
+  });
 
   if (items.length === 0) {
     if (hadItemsAtMount) return null;
@@ -228,7 +233,7 @@ export function CheckoutPage() {
 
           {/* COD - shipping form */}
           {method === "cod" && (
-            <form onSubmit={handleSubmit(handleCodSubmit)} className="space-y-4">
+            <form onSubmit={handleSubmit(handleCodSubmit, onInvalid)} className="space-y-4">
               <p className="text-sm font-semibold">{t("shippingDetails")}</p>
 
               <div className="space-y-1">

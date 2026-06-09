@@ -960,7 +960,9 @@
     "updateBulk": "{count, plural, one {1 Produkt} other {# Produkte}} aktualisieren",
     "previewFirst": "Führen Sie zuerst eine Vorschau aus, um zu sehen, wie viele Produkte betroffen sein werden.",
     "noMatches": "Keine Übereinstimmungen",
-    "noMatchesDesc": "Keine Produkte entsprechen den aktuellen Bedingungen. Filter anpassen und erneut Vorschau anzeigen."
+    "noMatchesDesc": "Keine Produkte entsprechen den aktuellen Bedingungen. Filter anpassen und erneut Vorschau anzeigen.",
+    "bulkCategoryLimitTitle": "Zu viele Produkte für eine Kategorieänderung",
+    "bulkCategoryLimitDesc": "Dieser Filter umfasst {count} Produkte, aber Kategorieänderungen sind auf {limit} gleichzeitig begrenzt. Fügen Sie weitere Bedingungen hinzu, um die Auswahl einzugrenzen, und zeigen Sie die Vorschau erneut an."
   },
   "chat": {
     "noConversationsFound": "Keine Konversationen gefunden",
@@ -1025,6 +1027,7 @@
     "hintSlug": "URL-Slug. Leer lassen zur automatischen Generierung aus dem Titel."
   },
   "common": {
+    "validationFailed": "Bitte korrigieren Sie die markierten Felder vor dem Absenden.",
     "loading": "Lade...",
     "error": "Etwas ist schiefgelaufen",
     "notFound": "Nicht gefunden",
@@ -1093,6 +1096,28 @@
     "eur": "Euro",
     "rsd": "Serbischer Dinar"
   },
+  "validation": {
+    "required": "Dieses Feld ist erforderlich",
+    "invalidType": "Ungültiger Wert",
+    "notInteger": "Muss eine ganze Zahl sein",
+    "tooSmallString": "Muss mindestens {min} Zeichen lang sein",
+    "tooBigString": "Höchstens {max} Zeichen",
+    "tooSmallArray": "Wählen Sie mindestens {min}",
+    "numberMin": "Muss {min} oder mehr sein",
+    "numberMax": "Muss {max} oder weniger sein",
+    "nonnegative": "Muss 0 oder größer sein",
+    "positive": "Muss größer als 0 sein",
+    "invalidEmail": "Geben Sie eine gültige E-Mail-Adresse ein",
+    "invalidUrl": "Geben Sie eine gültige URL ein",
+    "invalidUrlHttp": "Geben Sie eine gültige URL ein, die mit http:// oder https:// beginnt",
+    "invalidFormat": "Ungültiges Format",
+    "invalidOption": "Wählen Sie eine gültige Option",
+    "custom": "Ungültiger Wert",
+    "selectNeedsOption": "Fügen Sie mindestens eine Option für Auswahlattribute hinzu",
+    "duplicateAxis": "Diese Variante wiederholt dieselbe Achse",
+    "duplicateVariantCombo": "Gleiche Optionskombination wie Variante #{other}",
+    "duplicateSku": "Doppelte SKU \"{sku}\" (auch Variante #{other})"
+  },
   "actionErrors": {
     "forbidden": "Nicht erlaubt",
     "notFound": "Nicht gefunden",
@@ -1103,6 +1128,8 @@
     "versionRequired": "Eine gültige Version ist für die nebenläufige Bearbeitung erforderlich",
     "imageProcessingFailed": "Bildverarbeitung fehlgeschlagen",
     "videoProcessingFailed": "Videoverarbeitung fehlgeschlagen",
+    "bulkLimitExceeded": "Dieser Massenvorgang überschreitet das zulässige Limit",
+    "bulkCategoryLimit": "Der gewählte Filter umfasst {count} Produkte, aber Massenänderungen von Kategorien sind auf {limit} gleichzeitig begrenzt. Grenzen Sie den Filter ein und versuchen Sie es erneut.",
     "internalError": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
     "uniqueConstraint": "Ein Datensatz mit diesem {fields} existiert bereits",
     "uniqueConstraintNoFields": "Ein Datensatz mit diesen Werten existiert bereits",

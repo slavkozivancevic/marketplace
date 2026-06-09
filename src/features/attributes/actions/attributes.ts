@@ -1,5 +1,6 @@
 "use server";
 
+import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
 import { redirect } from "next/navigation";
 import { getLocale } from "next-intl/server";
 import { attributeSchema, type AttributeInput } from "../schema/attributes";
@@ -23,7 +24,7 @@ export async function createAttributeAction(
 ): Promise<void | ActionErrorResult> {
   try {
     await requireRole("ADMIN");
-    const parsed = attributeSchema.safeParse(unsafeData);
+    const parsed = attributeSchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
     if (!parsed.success) {
       return {
         error: true,
@@ -43,7 +44,7 @@ export async function updateAttributeAction(
 ): Promise<void | ActionErrorResult> {
   try {
     await requireRole("ADMIN");
-    const parsed = attributeSchema.safeParse(unsafeData);
+    const parsed = attributeSchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
     if (!parsed.success) {
       return {
         error: true,

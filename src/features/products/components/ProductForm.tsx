@@ -4,7 +4,7 @@ import axios from "axios";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useForm, useWatch, Resolver, FieldErrors } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useZodResolver } from "@/i18n/useZodResolver";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/sonner";
 import {
@@ -49,6 +49,7 @@ import { NON_DEFAULT_LOCALES, LOCALE_LABELS, DEFAULT_LOCALE, SUPPORTED_LOCALES, 
 type NonDefaultLocale = (typeof NON_DEFAULT_LOCALES)[number];
 import { X, RefreshCw, AlertCircle, Loader2 } from "lucide-react";
 import { cn, slugify } from "@/lib/utils";
+import { collectFormErrorMessages } from "@/lib/forms/formErrors";
 import { BrandSelect, type BrandOption } from "@/features/brands/components/BrandSelect";
 import { SlugAvailabilityIndicator } from "@/components/admin/SlugAvailabilityIndicator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -321,25 +322,6 @@ type ProductFormData = {
 };
 
 export type { ProductFormData };
-
-function collectErrorMessages(errors: unknown): string[] {
-  const messages: string[] = [];
-  const visit = (node: unknown) => {
-    if (!node || typeof node !== "object") return;
-    if (Array.isArray(node)) {
-      node.forEach(visit);
-      return;
-    }
-    const obj = node as Record<string, unknown>;
-    if (typeof obj.message === "string" && obj.message.length > 0) {
-      messages.push(obj.message);
-      return;
-    }
-    Object.values(obj).forEach(visit);
-  };
-  visit(errors);
-  return messages;
-}
 
 interface ProductFormProps {
   mode: "create" | "update";
@@ -785,7 +767,7 @@ export function ProductForm({
   const [restoredValues, setRestoredValues] = useState<ProductFormData | null>(null);
 
   const form = useForm<ProductFormData, unknown, ProductFormData>({
-    resolver: zodResolver(schema) as unknown as Resolver<ProductFormData, unknown, ProductFormData>,
+    resolver: useZodResolver(schema) as unknown as Resolver<ProductFormData, unknown, ProductFormData>,
     defaultValues: derivedValues,
     // In update mode, re-sync the form when the underlying product changes.
     // keepDirtyValues lets the on-mount router.refresh() pull a fresh server
@@ -1063,7 +1045,7 @@ export function ProductForm({
     if (formErrors.metaTitle || formErrors.metaDescription) tabs.push(t("tabSeo"));
     if (formErrors.variants) tabs.push(t("tabOptions"));
 
-    const messages = collectErrorMessages(formErrors);
+    const messages = collectFormErrorMessages(formErrors);
     const first = messages[0];
     const tabList = tabs.join(", ");
     if (first && tabList) {

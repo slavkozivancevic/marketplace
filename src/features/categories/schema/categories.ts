@@ -2,10 +2,9 @@ import { z } from "zod";
 
 const urlOrEmpty = z
   .string()
-  .refine(
-    (v) => v === "" || /^https?:\/\/.+/.test(v),
-    "Must be a valid URL starting with http:// or https://",
-  )
+  .refine((v) => v === "" || /^https?:\/\/.+/.test(v), {
+    params: { i18n: "invalidUrlHttp" },
+  })
   .optional();
 
 // Locale-keyed translations map. Any locale supported by the app may appear
@@ -37,7 +36,7 @@ const categoryAttributesSchema = z.array(
 );
 
 export const categorySchema = z.object({
-  name: z.string().min(1, "Name is required").max(100, "Name too long"),
+  name: z.string().min(1).max(100),
   slug: z.string().optional(),
   parentId: z.string().optional().nullable(),
   imageUrl: urlOrEmpty,

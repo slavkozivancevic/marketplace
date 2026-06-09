@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useZodResolver } from "@/i18n/useZodResolver";
 import { toast } from "@/components/ui/sonner";
+import { useInvalidToast } from "@/lib/forms/useInvalidToast";
 import {
   Form,
   FormControl,
@@ -207,6 +209,7 @@ type CategoryFormProps = (CreateMode | EditMode) & {
 
 export function CategoryForm(props: CategoryFormProps) {
   const t = useTranslations("adminCategories");
+  const onInvalid = useInvalidToast();
   const locale = useLocale();
   const [isPending, startTransition] = useTransition();
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
@@ -228,14 +231,25 @@ export function CategoryForm(props: CategoryFormProps) {
     [props.defaultValues],
   );
 
+  const pathname = usePathname();
+
   const form = useForm<CategoryInput>({
-    resolver: zodResolver(categorySchema),
+    // Validate on blur, then on change, so the message tracks the current value.
+    mode: "onTouched",
+    resolver: useZodResolver(categorySchema),
     defaultValues: derivedValues,
     // In edit mode, re-sync the form when the underlying category changes
     // (e.g., user navigates away from the edit page and returns - Next.js can
     // preserve the React tree, so without this the unsaved edits would persist).
     values: props.mode === "edit" ? derivedValues : undefined,
   });
+
+  // Create mode has no server `values` to re-sync against; reset to empty on
+  // entry so a half-filled form doesn't survive leave-and-return.
+  useEffect(() => {
+    if (props.mode === "create") form.reset(derivedValues);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const nameValue = useWatch({ control: form.control, name: "name" });
   const descriptionValue = useWatch({ control: form.control, name: "description" });
@@ -272,7 +286,7 @@ export function CategoryForm(props: CategoryFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-2xl">
+      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6 max-w-2xl">
 
         {/* ── Default locale (canonical) ── */}
         <div className="rounded-lg border border-border/60 p-4 space-y-4">

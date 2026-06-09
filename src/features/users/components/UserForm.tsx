@@ -4,8 +4,9 @@ import { useEffect, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useZodResolver } from "@/i18n/useZodResolver";
 import { toast } from "@/components/ui/sonner";
+import { useInvalidToast } from "@/lib/forms/useInvalidToast";
 import {
   Form,
   FormControl,
@@ -38,11 +39,13 @@ interface UserFormProps {
 
 export function UserForm({ userId, currentRole, onSuccess }: UserFormProps) {
   const t = useTranslations("users");
+  const onInvalid = useInvalidToast();
   const [isPending, startTransition] = useTransition();
   const pathname = usePathname();
 
   const form = useForm<UpdateUserRoleInput>({
-    resolver: zodResolver(updateUserRoleSchema),
+    mode: "onTouched",
+    resolver: useZodResolver(updateUserRoleSchema),
     defaultValues: { role: currentRole },
   });
 
@@ -70,7 +73,7 @@ export function UserForm({ userId, currentRole, onSuccess }: UserFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6">
         <FormField
           control={form.control}
           name="role"

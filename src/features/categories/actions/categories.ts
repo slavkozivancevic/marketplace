@@ -1,5 +1,6 @@
 "use server";
 
+import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
 import { redirect } from "next/navigation";
 import { getLocale } from "next-intl/server";
 import { categorySchema, type CategoryInput } from "../schema/categories";
@@ -24,7 +25,7 @@ export async function createCategoryAction(
   try {
     await requireRole("ADMIN");
 
-    const parsed = categorySchema.safeParse(unsafeData);
+    const parsed = categorySchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
     if (!parsed.success) {
       return {
         error: true,
@@ -55,7 +56,7 @@ export async function updateCategoryAction(
   try {
     await requireRole("ADMIN");
 
-    const parsed = categorySchema.safeParse(unsafeData);
+    const parsed = categorySchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
     if (!parsed.success) {
       return {
         error: true,

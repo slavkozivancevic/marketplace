@@ -1,5 +1,6 @@
 "use server";
 
+import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
@@ -20,7 +21,7 @@ export async function sendInviteAction(
   input: SendInviteInput,
 ): Promise<void | ActionErrorResult> {
   try {
-    const parsed = sendInviteSchema.safeParse(input);
+    const parsed = sendInviteSchema.safeParse(input, { error: await getServerZodErrorMap() });
 
     if (!parsed.success) {
       return {

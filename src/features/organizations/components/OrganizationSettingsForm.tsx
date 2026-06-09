@@ -4,8 +4,9 @@ import { useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useZodResolver } from "@/i18n/useZodResolver";
 import { toast } from "@/components/ui/sonner";
+import { useInvalidToast } from "@/lib/forms/useInvalidToast";
 import {
   Form,
   FormControl,
@@ -32,10 +33,12 @@ export function OrganizationSettingsForm({
   canEdit,
 }: OrganizationSettingsFormProps) {
   const t = useTranslations("organization");
+  const onInvalid = useInvalidToast();
   const [isPending, startTransition] = useTransition();
 
   const form = useForm<UpdateOrganizationNameInput>({
-    resolver: zodResolver(updateOrganizationNameSchema),
+    mode: "onTouched",
+    resolver: useZodResolver(updateOrganizationNameSchema),
     defaultValues: { name: currentName },
     // Re-sync when the server-supplied name changes - Next.js can preserve the
     // React tree across navigations, so without this the unsaved edits would
@@ -57,7 +60,7 @@ export function OrganizationSettingsForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-4">
         <FormField
           control={form.control}
           name="name"

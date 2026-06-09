@@ -1,5 +1,6 @@
 "use server";
 
+import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
 import { revalidatePath } from "next/cache";
 import {
   handleActionError,
@@ -29,7 +30,7 @@ export async function setOrganizationVerifiedAction(
   input: VerifyOrganizationInput,
 ): Promise<void | ActionErrorResult> {
   try {
-    const parsed = verifyOrganizationSchema.safeParse(input);
+    const parsed = verifyOrganizationSchema.safeParse(input, { error: await getServerZodErrorMap() });
 
     if (!parsed.success) {
       return {
@@ -53,7 +54,7 @@ export async function updateOrganizationNameAction(
   input: UpdateOrganizationNameInput,
 ): Promise<void | ActionErrorResult> {
   try {
-    const parsed = updateOrganizationNameSchema.safeParse(input);
+    const parsed = updateOrganizationNameSchema.safeParse(input, { error: await getServerZodErrorMap() });
 
     if (!parsed.success) {
       return {
@@ -98,7 +99,7 @@ export async function updateMemberRoleAction(
   role: MembershipRole,
 ): Promise<void | ActionErrorResult> {
   try {
-    const parsed = updateMemberRoleSchema.safeParse({ role });
+    const parsed = updateMemberRoleSchema.safeParse({ role }, { error: await getServerZodErrorMap() });
 
     if (!parsed.success) {
       return {

@@ -1,5 +1,6 @@
 "use server";
 
+import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
 import {
   createReviewSchema,
   CreateReviewInput,
@@ -40,7 +41,7 @@ export async function submitReview(
   unsafeData: CreateReviewInput,
 ): Promise<void | ActionErrorResult> {
   try {
-    const parsed = createReviewSchema.safeParse(unsafeData);
+    const parsed = createReviewSchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
 
     if (!parsed.success) {
       return {
@@ -80,7 +81,7 @@ export async function updateReview(
   unsafeData: UpdateReviewInput,
 ): Promise<void | ActionErrorResult> {
   try {
-    const parsed = updateReviewSchema.safeParse(unsafeData);
+    const parsed = updateReviewSchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
 
     if (!parsed.success) {
       return {

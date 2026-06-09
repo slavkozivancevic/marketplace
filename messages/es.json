@@ -960,7 +960,9 @@
     "updateBulk": "Actualizar {count, plural, one {1 producto} other {# productos}}",
     "previewFirst": "Ejecuta primero una vista previa para ver cuántos productos se verán afectados antes de ejecutar.",
     "noMatches": "Sin coincidencias",
-    "noMatchesDesc": "Ningún producto coincide con las condiciones actuales. Ajusta los filtros y vuelve a previsualizar."
+    "noMatchesDesc": "Ningún producto coincide con las condiciones actuales. Ajusta los filtros y vuelve a previsualizar.",
+    "bulkCategoryLimitTitle": "Demasiados productos para un cambio de categoría",
+    "bulkCategoryLimitDesc": "Este filtro coincide con {count} productos, pero los cambios de categoría están limitados a {limit} a la vez. Añade más condiciones para acotar la selección y vuelve a previsualizar."
   },
   "chat": {
     "noConversationsFound": "No se encontraron conversaciones",
@@ -1025,6 +1027,7 @@
     "hintSlug": "Slug de URL. Deja vacío para generar a partir del título."
   },
   "common": {
+    "validationFailed": "Corrige los campos marcados antes de enviar.",
     "loading": "Cargando...",
     "error": "Algo salió mal",
     "notFound": "No encontrado",
@@ -1093,6 +1096,28 @@
     "eur": "Euro",
     "rsd": "Dinar serbio"
   },
+  "validation": {
+    "required": "Este campo es obligatorio",
+    "invalidType": "Valor no válido",
+    "notInteger": "Debe ser un número entero",
+    "tooSmallString": "Debe tener al menos {min} caracteres",
+    "tooBigString": "Máximo {max} caracteres",
+    "tooSmallArray": "Selecciona al menos {min}",
+    "numberMin": "Debe ser {min} o mayor",
+    "numberMax": "Debe ser {max} o menor",
+    "nonnegative": "Debe ser 0 o mayor",
+    "positive": "Debe ser mayor que 0",
+    "invalidEmail": "Introduce un correo electrónico válido",
+    "invalidUrl": "Introduce una URL válida",
+    "invalidUrlHttp": "Introduce una URL válida que empiece por http:// o https://",
+    "invalidFormat": "Formato no válido",
+    "invalidOption": "Selecciona una opción válida",
+    "custom": "Valor no válido",
+    "selectNeedsOption": "Añade al menos una opción para los atributos de selección",
+    "duplicateAxis": "Esta variante repite el mismo eje",
+    "duplicateVariantCombo": "Misma combinación de opciones que la variante n.º {other}",
+    "duplicateSku": "SKU duplicado \"{sku}\" (también variante n.º {other})"
+  },
   "actionErrors": {
     "forbidden": "No permitido",
     "notFound": "No encontrado",
@@ -1103,6 +1128,8 @@
     "versionRequired": "Se requiere una versión válida para la seguridad concurrente",
     "imageProcessingFailed": "Fallo al procesar la imagen",
     "videoProcessingFailed": "Fallo al procesar el video",
+    "bulkLimitExceeded": "Esta operación masiva supera el límite permitido",
+    "bulkCategoryLimit": "El filtro seleccionado coincide con {count} productos, pero los cambios masivos de categorías están limitados a {limit} a la vez. Acota el filtro e inténtalo de nuevo.",
     "internalError": "Algo salió mal. Inténtalo de nuevo.",
     "uniqueConstraint": "Ya existe un registro con este {fields}",
     "uniqueConstraintNoFields": "Ya existe un registro con estos valores",

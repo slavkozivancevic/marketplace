@@ -960,7 +960,9 @@
     "updateBulk": "Ažuriraj {count, plural, one {1 proizvod} other {# proizvoda}}",
     "previewFirst": "Pokrenite pregled prvo da vidite koliko proizvoda će biti pogođeno pre izvršavanja.",
     "noMatches": "Nema podudaranja",
-    "noMatchesDesc": "Nijedan proizvod ne odgovara trenutnim uslovima. Prilagodite filtere i pokrenite pregled ponovo."
+    "noMatchesDesc": "Nijedan proizvod ne odgovara trenutnim uslovima. Prilagodite filtere i pokrenite pregled ponovo.",
+    "bulkCategoryLimitTitle": "Previše proizvoda za izmenu kategorija",
+    "bulkCategoryLimitDesc": "Ovaj filter obuhvata {count} proizvoda, a izmena kategorija je ograničena na {limit} odjednom. Dodajte još uslova da suzite izbor, pa pokrenite pregled ponovo."
   },
   "chat": {
     "noConversationsFound": "Nema razgovora",
@@ -1025,6 +1027,7 @@
     "hintSlug": "URL slug. Ostavite prazno da se generiše iz naziva."
   },
   "common": {
+    "validationFailed": "Ispravite označena polja pre slanja.",
     "loading": "Učitavanje...",
     "error": "Nešto je pošlo naopako",
     "notFound": "Nije pronađeno",
@@ -1093,6 +1096,28 @@
     "eur": "Evro",
     "rsd": "Srpski dinar"
   },
+  "validation": {
+    "required": "Ovo polje je obavezno",
+    "invalidType": "Neispravna vrednost",
+    "notInteger": "Mora biti ceo broj",
+    "tooSmallString": "Mora imati najmanje {min} znakova",
+    "tooBigString": "Najviše {max} znakova",
+    "tooSmallArray": "Izaberite najmanje {min}",
+    "numberMin": "Mora biti {min} ili više",
+    "numberMax": "Mora biti {max} ili manje",
+    "nonnegative": "Mora biti 0 ili više",
+    "positive": "Mora biti veće od 0",
+    "invalidEmail": "Unesite ispravnu imejl adresu",
+    "invalidUrl": "Unesite ispravan URL",
+    "invalidUrlHttp": "Unesite ispravan URL koji počinje sa http:// ili https://",
+    "invalidFormat": "Neispravan format",
+    "invalidOption": "Izaberite ispravnu opciju",
+    "custom": "Neispravna vrednost",
+    "selectNeedsOption": "Dodajte bar jednu opciju za atribute tipa izbor",
+    "duplicateAxis": "Ova varijanta ponavlja istu osu",
+    "duplicateVariantCombo": "Ista kombinacija opcija kao varijanta #{other}",
+    "duplicateSku": "Duplikat SKU \"{sku}\" (takođe varijanta #{other})"
+  },
   "actionErrors": {
     "forbidden": "Nije dozvoljeno",
     "notFound": "Nije pronađeno",
@@ -1103,6 +1128,8 @@
     "versionRequired": "Verzija je obavezna radi sigurne istovremene izmene",
     "imageProcessingFailed": "Obrada slike nije uspela",
     "videoProcessingFailed": "Obrada videa nije uspela",
+    "bulkLimitExceeded": "Ova masovna operacija prelazi dozvoljeni limit",
+    "bulkCategoryLimit": "Izabrani filter obuhvata {count} proizvoda, a masovna izmena kategorija je ograničena na {limit} odjednom. Suzite filter i pokušajte ponovo.",
     "internalError": "Nešto je pošlo po zlu. Pokušajte ponovo.",
     "uniqueConstraint": "Već postoji zapis sa ovom vrednošću ({fields})",
     "uniqueConstraintNoFields": "Već postoji zapis sa ovim vrednostima",

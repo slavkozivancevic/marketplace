@@ -1,11 +1,13 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useTransition } from "react";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useZodResolver } from "@/i18n/useZodResolver";
 import { toast } from "@/components/ui/sonner";
+import { useInvalidToast } from "@/lib/forms/useInvalidToast";
 import {
   Form,
   FormControl,
@@ -29,15 +31,27 @@ import { INVITABLE_ROLES } from "@/types/types";
 
 export function InviteForm() {
   const t = useTranslations("invite");
+  const onInvalid = useInvalidToast();
   const [isPending, startTransition] = useTransition();
 
+  const pathname = usePathname();
+
   const form = useForm<SendInviteInput>({
-    resolver: zodResolver(sendInviteSchema),
+    // Validate on blur, then on change, so the message tracks the current value.
+    mode: "onTouched",
+    resolver: useZodResolver(sendInviteSchema),
     defaultValues: {
       email: "",
       role: "MEMBER",
     },
   });
+
+  // Reset to empty on entry so a half-filled invite doesn't survive
+  // leave-and-return (Next.js keeps the route's React tree warm).
+  useEffect(() => {
+    form.reset({ email: "", role: "MEMBER" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const onSubmit = (data: SendInviteInput) => {
     startTransition(async () => {
@@ -54,7 +68,7 @@ export function InviteForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-4">
         <FormField
           control={form.control}
           name="email"

@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { tenantPrisma } from "@/core/db/tenantPrisma";
 import { revalidateProductCache, revalidateProductHistoryCache } from "./cache";
 import type { BulkFilter, BulkUpdateFields } from "../types/bulk";
+import { BULK_CATEGORY_MUTATION_LIMIT } from "../types/bulk";
 import {
   MediaInput,
   ProductListItem,
@@ -16,6 +17,7 @@ import {
   ProductStatus,
 } from "@/generated/prisma/client";
 import {
+  BulkLimitExceededError,
   ConcurrencyConflictError,
   NotFoundError,
   VersionRequiredError,
@@ -1750,6 +1752,18 @@ export function productRepository(
 
       const categoryMutationRequested =
         categories !== undefined && categories.mode !== undefined;
+
+      // Category mutations rebuild search text per product (N+1 in-txn). Guard
+      // against a broad filter opening a long, lock-heavy transaction.
+      if (
+        categoryMutationRequested &&
+        productIds.length > BULK_CATEGORY_MUTATION_LIMIT
+      ) {
+        throw new BulkLimitExceededError({
+          key: "bulkCategoryLimit",
+          params: { limit: BULK_CATEGORY_MUTATION_LIMIT, count: productIds.length },
+        });
+      }
 
       await db.prisma.$transaction(async (tx) => {
         const hasNonStockScalarUpdate =

@@ -70,6 +70,20 @@ export class ConcurrencyConflictError extends Error {
   }
 }
 
+export class BulkLimitExceededError extends Error {
+  readonly i18n: ErrorI18n;
+  constructor(arg: string | ErrorI18n = "Bulk operation exceeds the allowed limit") {
+    const { i18n, message } = normalizeI18n(
+      arg,
+      "bulkLimitExceeded",
+      "Bulk operation exceeds the allowed limit",
+    );
+    super(message);
+    this.i18n = i18n;
+    this.name = "BulkLimitExceededError";
+  }
+}
+
 export class NotFoundError extends Error {
   readonly i18n: ErrorI18n;
   constructor(arg: string | ErrorI18n = "Not found") {

@@ -1,5 +1,6 @@
 "use server";
 
+import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { decimalToCents } from "@/lib/currency";
@@ -78,7 +79,7 @@ export async function createProduct(
   redirectTo = "/admin/products",
 ): Promise<void | ActionErrorResult> {
   try {
-    const parsed = createProductSchema.safeParse(unsafeData);
+    const parsed = createProductSchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
 
     if (!parsed.success) {
       return {
@@ -118,7 +119,7 @@ export async function updateProduct(
   redirectTo = `/admin/products/${id}`,
 ): Promise<void | ActionErrorResult> {
   try {
-    const parsed = updateProductSchema.safeParse(unsafeData);
+    const parsed = updateProductSchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
 
     if (!parsed.success) {
       return {

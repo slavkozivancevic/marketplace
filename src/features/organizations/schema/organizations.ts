@@ -9,10 +9,7 @@ export const updateMemberRoleSchema = z.object({
 });
 
 export const updateOrganizationNameSchema = z.object({
-  name: z
-    .string()
-    .min(1, "Organization name is required")
-    .max(100, "Organization name is too long"),
+  name: z.string().min(1).max(100),
 });
 
 export type VerifyOrganizationInput = z.infer<typeof verifyOrganizationSchema>;

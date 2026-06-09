@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useZodResolver } from "@/i18n/useZodResolver";
 import { toast } from "@/components/ui/sonner";
+import { useInvalidToast } from "@/lib/forms/useInvalidToast";
 import {
   Form,
   FormControl,
@@ -178,6 +180,7 @@ type BrandFormProps = CreateMode | EditMode;
 
 export function BrandForm(props: BrandFormProps) {
   const t = useTranslations("brands");
+  const onInvalid = useInvalidToast();
   const locale = useLocale();
   const [isPending, startTransition] = useTransition();
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
@@ -194,14 +197,27 @@ export function BrandForm(props: BrandFormProps) {
     [props.defaultValues],
   );
 
+  const pathname = usePathname();
+
   const form = useForm<CreateBrandInput>({
-    resolver: zodResolver(props.mode === "create" ? createBrandSchema : updateBrandSchema),
+    // Validate on blur, then keep validating on change, so the error message
+    // tracks the current value instead of lagging a keystroke behind.
+    mode: "onTouched",
+    resolver: useZodResolver(props.mode === "create" ? createBrandSchema : updateBrandSchema),
     defaultValues: derivedValues,
     // In edit mode, re-sync the form when the underlying brand changes
     // (e.g., user navigates away from the edit page and returns - Next.js can
     // preserve the React tree, so without this the unsaved edits would persist).
     values: props.mode === "edit" ? derivedValues : undefined,
   });
+
+  // Create mode has no server-supplied `values` to re-sync against, so a
+  // half-filled form would otherwise survive when the user leaves and returns
+  // (Next.js keeps the route's React tree warm). Reset to empty on entry.
+  useEffect(() => {
+    if (props.mode === "create") form.reset(derivedValues);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const nameValue = useWatch({ control: form.control, name: "name" });
   const descriptionValue = useWatch({ control: form.control, name: "description" });
@@ -230,7 +246,7 @@ export function BrandForm(props: BrandFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-2xl">
+      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6 max-w-2xl">
         {/* ── Default locale (canonical) ── */}
         <div className="rounded-lg border border-border/60 p-4 space-y-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">

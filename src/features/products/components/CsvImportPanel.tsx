@@ -69,7 +69,28 @@ function downloadTemplate(exampleRow: string[]) {
 // CSV parser (RFC 4180-compatible, handles quoted fields)
 // ---------------------------------------------------------------------------
 
-function parseCsv(raw: string): string[][] {
+/**
+ * Sniffs the field delimiter from the header row. Excel saved under a European
+ * locale uses `;` (and German/French Excel may even use a tab), which would
+ * otherwise collapse the whole file into one column. We pick whichever of
+ * `, ; \t` appears most in the first line, defaulting to comma.
+ */
+function detectDelimiter(raw: string): "," | ";" | "\t" {
+  const firstLine = raw.split(/\r?\n/, 1)[0] ?? "";
+  const candidates: Array<"," | ";" | "\t"> = [",", ";", "\t"];
+  let best: "," | ";" | "\t" = ",";
+  let bestCount = 0;
+  for (const d of candidates) {
+    const count = firstLine.split(d).length - 1;
+    if (count > bestCount) {
+      bestCount = count;
+      best = d;
+    }
+  }
+  return best;
+}
+
+function parseCsv(raw: string, delimiter: string = ","): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = "";
@@ -96,7 +117,7 @@ function parseCsv(raw: string): string[][] {
       if (ch === '"') {
         inQuotes = true;
         i++;
-      } else if (ch === ",") {
+      } else if (ch === delimiter) {
         row.push(cell);
         cell = "";
         i++;
@@ -134,7 +155,11 @@ const VALID_WEIGHT_UNITS = new Set(["G", "KG", "LB", "OZ"]);
 const VALID_DIMENSION_UNITS = new Set(["CM", "IN"]);
 const VALID_STATUS_VALUES = new Set<ProductStatus>(["DRAFT", "PUBLISHED", "ARCHIVED"]);
 
-function parseRow(cells: string[], headerIndex: Map<string, number>): ParsedRow {
+function parseRow(
+  cells: string[],
+  headerIndex: Map<string, number>,
+  categorySeparator: string = ";",
+): ParsedRow {
   const get = (col: string) => cells[headerIndex.get(col) ?? -1]?.trim() ?? "";
 
   const errors: string[] = [];
@@ -201,10 +226,12 @@ function parseRow(cells: string[], headerIndex: Map<string, number>): ParsedRow 
     return v.toLowerCase() === "true";
   };
 
-  // `;`-separated category references (slug, "parent/child" path, or UUID).
+  // Category references (slug, "parent/child" path, or UUID). Separated by `;`
+  // for a comma-delimited file; when the file itself is `;`-delimited (EU Excel)
+  // the in-cell separator flips to `,` so the two never collide.
   const rawCategories = get("categories");
   const categoryRefs = rawCategories
-    ? rawCategories.split(";").map((s) => s.trim()).filter((s) => s.length > 0)
+    ? rawCategories.split(categorySeparator).map((s) => s.trim()).filter((s) => s.length > 0)
     : undefined;
 
   if (errors.length > 0) return { ok: false, errors };
@@ -304,7 +331,11 @@ export function CsvImportPanel() {
       return;
     }
 
-    const rows = parseCsv(text.trim());
+    const delimiter = detectDelimiter(text);
+    // When the file is `;`-delimited, multi-value cells (categories) use `,` so
+    // they don't clash with the field delimiter; otherwise the default `;`.
+    const categorySeparator = delimiter === ";" ? "," : ";";
+    const rows = parseCsv(text.trim(), delimiter);
     if (rows.length < 2) {
       setParsed([]);
       return;
@@ -322,7 +353,7 @@ export function CsvImportPanel() {
 
     const results = rows.slice(1).map((cells, i) => ({
       rowIndex: i + 2, // 1-based, +1 for header
-      result: parseRow(cells, ciHeaderIndex),
+      result: parseRow(cells, ciHeaderIndex, categorySeparator),
     }));
 
     setParsed(results);

@@ -6,7 +6,7 @@ export const dimensionUnitSchema = z.enum(["CM", "IN"]);
 export const mediaTypeSchema = z.enum(["IMAGE", "VIDEO"]);
 
 export const productMediaSchema = z.object({
-  key: z.string().min(1, "Media key is required"),
+  key: z.string().min(1),
   mediaType: mediaTypeSchema.default("IMAGE"),
   thumbKey: z.string().min(1).nullable().optional(),
   mimeType: z.string().nullable().optional(),
@@ -43,27 +43,27 @@ export const productTranslationsSchema = z
 // A variant axis selection: which AttributeOption this variant has for a
 // variant-defining attribute (controlled vocabulary, unified model).
 export const productVariantOptionSchema = z.object({
-  attributeId: z.string().min(1, "Attribute is required"),
-  optionId: z.string().min(1, "Option is required"),
+  attributeId: z.string().min(1),
+  optionId: z.string().min(1),
 });
 
 export const productVariantSchema = z
   .object({
-    sku: z.string().min(1, "SKU is required"),
-    price: z.coerce.number().nonnegative("Price must be 0 or greater"),
+    sku: z.string().min(1),
+    price: z.coerce.number().nonnegative(),
     compareAtPrice: z.preprocess(
       (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
-      z.number().nonnegative("Compare at price must be 0 or greater").nullable(),
+      z.number().nonnegative().nullable(),
     ).default(null),
     costPrice: z.preprocess(
       (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
-      z.number().nonnegative("Cost price must be 0 or greater").nullable(),
+      z.number().nonnegative().nullable(),
     ).default(null),
-    stock: z.coerce.number().int().nonnegative("Stock must be 0 or greater"),
+    stock: z.coerce.number().int().nonnegative(),
     barcode: z.string().optional(),
     weight: z.preprocess(
       (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
-      z.number().positive("Weight must be greater than 0").nullable(),
+      z.number().positive().nullable(),
     ).default(null),
     weightUnit: weightUnitSchema.nullable().default(null),
     // S3 keys into ProductMedia (image OR video). The server resolves keys to
@@ -78,7 +78,7 @@ export const productVariantSchema = z
       if (seen.has(opt.attributeId)) {
         ctx.addIssue({
           code: "custom",
-          message: `Variant has duplicate axis`,
+          params: { i18n: "duplicateAxis" },
           path: ["options", i, "attributeId"],
         });
       }
@@ -98,25 +98,25 @@ function variantPayloadSignature(
 
 export const createProductSchema = z
   .object({
-    title: z.string().min(1, "Title is required"),
+    title: z.string().min(1),
     slug: z.string().optional(),
-    description: z.string().min(1, "Description is required"),
+    description: z.string().min(1),
     shortDescription: z.string().optional(),
 
     // Pricing
-    price: z.coerce.number().nonnegative("Price must be 0 or greater"),
+    price: z.coerce.number().nonnegative(),
     compareAtPrice: z.preprocess(
       (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
-      z.number().nonnegative("Compare at price must be 0 or greater").nullable(),
+      z.number().nonnegative().nullable(),
     ).default(null),
     costPrice: z.preprocess(
       (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
-      z.number().nonnegative("Cost price must be 0 or greater").nullable(),
+      z.number().nonnegative().nullable(),
     ).default(null),
     stock: z
       .preprocess(
         (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
-        z.number().int().nonnegative("Stock must be 0 or greater").nullable(),
+        z.number().int().nonnegative().nullable(),
       )
       .default(null),
 
@@ -130,20 +130,20 @@ export const createProductSchema = z
     isDigital: z.boolean().default(false),
     weight: z.preprocess(
       (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
-      z.number().positive("Weight must be greater than 0").nullable(),
+      z.number().positive().nullable(),
     ).default(null),
     weightUnit: weightUnitSchema.nullable().default(null),
     length: z.preprocess(
       (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
-      z.number().positive("Length must be greater than 0").nullable(),
+      z.number().positive().nullable(),
     ).default(null),
     width: z.preprocess(
       (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
-      z.number().positive("Width must be greater than 0").nullable(),
+      z.number().positive().nullable(),
     ).default(null),
     height: z.preprocess(
       (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
-      z.number().positive("Height must be greater than 0").nullable(),
+      z.number().positive().nullable(),
     ).default(null),
     dimensionUnit: dimensionUnitSchema.nullable().default(null),
 
@@ -185,7 +185,10 @@ export const createProductSchema = z
         if (seenSignatures.has(sig)) {
           ctx.addIssue({
             code: "custom",
-            message: `Duplicate variant option combination (also at variant #${(seenSignatures.get(sig) ?? 0) + 1})`,
+            params: {
+              i18n: "duplicateVariantCombo",
+              other: (seenSignatures.get(sig) ?? 0) + 1,
+            },
             path: ["variants", i, "options"],
           });
         } else {
@@ -195,7 +198,11 @@ export const createProductSchema = z
       if (seenSkus.has(v.sku)) {
         ctx.addIssue({
           code: "custom",
-          message: `Duplicate SKU "${v.sku}" (also at variant #${(seenSkus.get(v.sku) ?? 0) + 1})`,
+          params: {
+            i18n: "duplicateSku",
+            sku: v.sku,
+            other: (seenSkus.get(v.sku) ?? 0) + 1,
+          },
           path: ["variants", i, "sku"],
         });
       } else {
@@ -205,7 +212,7 @@ export const createProductSchema = z
   });
 
 export const updateProductSchema = createProductSchema.extend({
-  version: z.coerce.number().int().positive("Version is required"),
+  version: z.coerce.number().int().positive(),
 });
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;

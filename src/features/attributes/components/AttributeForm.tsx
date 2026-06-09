@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { usePathname } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useZodResolver } from "@/i18n/useZodResolver";
 import { Loader2, RefreshCw, Plus, Trash2, GripVertical } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
+import { useInvalidToast } from "@/lib/forms/useInvalidToast";
 import {
   Form,
   FormControl,
@@ -161,6 +163,7 @@ function OptionRow({
 
 export function AttributeForm(props: AttributeFormProps) {
   const t = useTranslations("adminAttributes");
+  const onInvalid = useInvalidToast();
   const uiLocale = useLocale();
   const [isPending, startTransition] = useTransition();
   const [keyManuallyEdited, setKeyManuallyEdited] = useState(
@@ -181,11 +184,22 @@ export function AttributeForm(props: AttributeFormProps) {
     [props.defaultValues],
   );
 
+  const pathname = usePathname();
+
   const form = useForm<AttributeInput>({
-    resolver: zodResolver(attributeSchema),
+    // Validate on blur, then on change, so the message tracks the current value.
+    mode: "onTouched",
+    resolver: useZodResolver(attributeSchema),
     defaultValues: derivedValues,
     values: props.mode === "edit" ? derivedValues : undefined,
   });
+
+  // Create mode has no server `values` to re-sync against; reset to empty on
+  // entry so a half-filled form doesn't survive leave-and-return.
+  useEffect(() => {
+    if (props.mode === "create") form.reset(derivedValues);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -220,7 +234,7 @@ export function AttributeForm(props: AttributeFormProps) {
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={form.handleSubmit(onSubmit, onInvalid)}
         className="space-y-6 max-w-2xl"
       >
         {/* Default locale label + key */}

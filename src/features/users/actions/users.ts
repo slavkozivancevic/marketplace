@@ -1,5 +1,6 @@
 "use server";
 
+import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
 import { revalidatePath } from "next/cache";
 import { updateUserRoleSchema, UpdateUserRoleInput } from "../schema/users";
 import { handleActionError } from "@/features/common/errors/domainErrors";
@@ -12,7 +13,7 @@ export async function updateUserRoleAction(
   input: UpdateUserRoleInput,
 ): Promise<void | ActionErrorResult> {
   try {
-    const parsed = updateUserRoleSchema.safeParse(input);
+    const parsed = updateUserRoleSchema.safeParse(input, { error: await getServerZodErrorMap() });
 
     if (!parsed.success) {
       return {
