@@ -1,7 +1,8 @@
 import { headers } from "next/headers";
 import { stripe } from "@/services/stripe";
 import { env } from "@/env/server";
-import { fulfillOrder, refundOrder } from "@/features/orders/db/orders";
+import { fulfillOrder, reconcileStripeRefund } from "@/features/orders/db/orders";
+import { InsufficientStockError } from "@/features/common/errors/domainErrors";
 import { publishOrderCompleted, publishOrderRefunded } from "@/services/notifications";
 import {
   isWebhookProcessed,
@@ -73,11 +74,17 @@ export async function POST(req: Request) {
             }
           : undefined;
 
+        const paymentIntentId =
+          typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : session.payment_intent?.id;
+
         let order;
         try {
           order = await fulfillOrder({
             userId,
             stripeSessionId: session.id,
+            paymentIntentId,
             totalCents: session.amount_total ?? 0,
             currency,
             exchangeRate,
@@ -87,16 +94,7 @@ export async function POST(req: Request) {
           });
           console.log("Order fulfilled for session:", session.id);
         } catch (fulfillError) {
-          const isStockError =
-            fulfillError instanceof Error &&
-            fulfillError.message.startsWith("Insufficient stock");
-
-          if (isStockError) {
-            const paymentIntentId =
-              typeof session.payment_intent === "string"
-                ? session.payment_intent
-                : session.payment_intent?.id;
-
+          if (fulfillError instanceof InsufficientStockError) {
             if (paymentIntentId) {
               try {
                 await stripe.refunds.create({ payment_intent: paymentIntentId });
@@ -165,9 +163,16 @@ export async function POST(req: Request) {
           break;
         }
 
-        const refunded = await refundOrder(sessionId);
+        // Record any EXTERNAL refunds (e.g. a manual refund from the Stripe
+        // dashboard). Refunds the app created itself (the Return flow) are
+        // already in the ledger and are skipped, so nothing is double-counted.
+        const refunds = (charge.refunds?.data ?? []).map((r) => ({
+          id: r.id,
+          amount: r.amount,
+        }));
+        const refunded = await reconcileStripeRefund(sessionId, refunds);
         if (refunded) {
-          console.log("Order refunded for session:", sessionId);
+          console.log("Order fully refunded (external) for session:", sessionId);
           publishOrderRefunded(refunded.id, refunded.locale ?? "en").catch((err) =>
             console.error("[notifications] publishOrderRefunded failed", err)
           );

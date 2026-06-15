@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { Link, getPathname } from "@/i18n/navigation";
 import Image from "next/image";
 import { getTranslations, getLocale } from "next-intl/server";
-import { MapPin, Mail, Truck, CreditCard, ArrowLeft } from "lucide-react";
+import { MapPin, Mail, Truck, CreditCard, ArrowLeft, RotateCcw } from "lucide-react";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
 import { getOrgOrderById } from "@/features/orders/db/orgOrders";
@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { OrgOrderStatusManager } from "@/features/orders/components/OrgOrderStatusManager";
+import { getOrgOrderReturns } from "@/features/returns/db/returns";
+import { SellerReturns } from "@/features/returns/components/SellerReturns";
 import { MembershipRole } from "@/generated/prisma/client";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { formatPrice } from "@/lib/currency";
@@ -55,6 +57,40 @@ export default async function OrgOrderDetailPage({ params }: Props) {
   const order = await getOrgOrderById(id, ctx.organizationId);
   if (!order) notFound();
 
+  const rawReturns = await getOrgOrderReturns(order.id, ctx.organizationId);
+
+  // Attach localized titles to each return's lines (the order already carries
+  // this seller's items with translations).
+  const itemInfo = new Map(
+    order.items.map((it) => {
+      const title =
+        it.product.translations.find((tr) => tr.locale === order.locale)?.title ??
+        it.product.translations.find((tr) => tr.locale === "en")?.title ??
+        "";
+      const variantLabel =
+        it.variant?.attributeValues
+          .map((av) => getLabel(av.option.translations, order.locale))
+          .join(" / ") || null;
+      return [it.id, { title, variantLabel }] as const;
+    }),
+  );
+  const returns = rawReturns.map((r) => ({
+    ...r,
+    items: r.items.map((ri) => {
+      const info = itemInfo.get(ri.orderItemId);
+      return {
+        orderItemId: ri.orderItemId,
+        title: info?.title ?? "",
+        variantLabel: info?.variantLabel ?? null,
+        quantity: ri.quantity,
+      };
+    }),
+  }));
+
+  const hasActiveReturn = returns.some((r) =>
+    ["REQUESTED", "APPROVED", "SHIPPED"].includes(r.status),
+  );
+
   const canManage =
     ctx.membershipRole === MembershipRole.OWNER ||
     ctx.membershipRole === MembershipRole.ADMIN;
@@ -69,6 +105,21 @@ export default async function OrgOrderDetailPage({ params }: Props) {
       href: getPathname({ href: { pathname: "/dashboard/organization/orders/[id]", params: { id } }, locale }),
     },
   ];
+
+  const txTypeLabel: Record<string, string> = {
+    CHARGE: t("txType.charge"),
+    REFUND: t("txType.refund"),
+    PAYOUT: t("txType.payout"),
+  };
+  const txStatusLabel: Record<string, string> = {
+    PENDING: t("txStatus.pending"),
+    SUCCEEDED: t("txStatus.succeeded"),
+    FAILED: t("txStatus.failed"),
+  };
+  const txStatusVariant = (s: string) =>
+    s === "SUCCEEDED" ? ("default" as const)
+    : s === "FAILED" ? ("destructive" as const)
+    : ("secondary" as const);
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
@@ -99,6 +150,9 @@ export default async function OrgOrderDetailPage({ params }: Props) {
           {/* ── Action required (COD, OWNER/ADMIN only) ── */}
           {canManage && <OrgOrderStatusManager orderId={order.id} currentStatus={order.status} />}
 
+          {/* ── Returns (RMA) ── */}
+          {canManage && <SellerReturns returns={returns} currency={order.currency} />}
+
           {/* ── Order summary ── */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -115,8 +169,14 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                     {t("card")}
                   </Badge>
                 )}
+                {hasActiveReturn && (
+                  <Badge variant="outline" className="gap-1 text-xs" title={t("returnInProgress")}>
+                    <RotateCcw className="h-3 w-3" />
+                    {t("returnInProgress")}
+                  </Badge>
+                )}
                 <Badge variant={getStatusVariant(order.status)}>
-                  {t(order.status.toLowerCase() as "pending" | "pending_cod" | "completed" | "cancelled" | "refunded")}
+                  {t(order.status.toLowerCase() as "pending" | "pending_cod" | "completed" | "cancelled" | "refunded" | "awaiting_payment")}
                 </Badge>
               </div>
             </CardHeader>
@@ -139,6 +199,85 @@ export default async function OrgOrderDetailPage({ params }: Props) {
               </div>
             </CardContent>
           </Card>
+
+          {/* ── Payment history (ledger) ── */}
+          {order.paymentTransactions.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  {t("paymentHistory")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-0 text-sm">
+                {order.paymentTransactions.map((tx, index) => (
+                  <div key={tx.id}>
+                    {index > 0 && <Separator className="my-3" />}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant={tx.type === "REFUND" ? "destructive" : "secondary"}
+                            className="text-[10px]"
+                          >
+                            {txTypeLabel[tx.type] ?? tx.type}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                            {tx.provider === "COD" ? (
+                              <><Truck className="h-3 w-3" />{t("cashOnDelivery")}</>
+                            ) : (
+                              <><CreditCard className="h-3 w-3" />{t("card")}</>
+                            )}
+                          </span>
+                          {tx.type === "PAYOUT" && tx.refundState === "full" && (
+                            <Badge variant="destructive" className="text-[10px]">
+                              {t("refunded")}
+                            </Badge>
+                          )}
+                          {tx.type === "PAYOUT" && tx.refundState === "partial" && (
+                            <Badge variant="outline" className="text-[10px]">
+                              {t("partiallyRefunded")}
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(tx.createdAt).toLocaleString(dl, {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-end gap-0.5">
+                        <span
+                          className={`font-semibold tabular-nums ${
+                            tx.type === "REFUND"
+                              ? "text-destructive"
+                              : tx.type === "PAYOUT" && tx.refundState === "full"
+                                ? "text-muted-foreground line-through"
+                                : ""
+                          }`}
+                        >
+                          {tx.type === "REFUND" ? "-" : ""}
+                          {formatPrice(tx.amount, tx.currency as Currency)}
+                        </span>
+                        {tx.type === "PAYOUT" && tx.refundState === "partial" && (
+                          <span className="text-[11px] text-destructive tabular-nums">
+                            -{formatPrice(tx.reversedNet, tx.currency as Currency)}
+                          </span>
+                        )}
+                        <Badge variant={txStatusVariant(tx.status)} className="text-[10px]">
+                          {txStatusLabel[tx.status] ?? tx.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           {/* ── Your items ── */}
           <Card>

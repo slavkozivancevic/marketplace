@@ -847,13 +847,14 @@ async function seedTransactions(buyerIds: string[], products: SeededProduct[]) {
     const total = items.reduce((s, it) => s + it.price * it.quantity, 0);
 
     const status = chance(0.8) ? "COMPLETED" : pick(["PENDING", "CANCELLED"] as const);
+    const paymentMethod = chance(0.7) ? "STRIPE" : "COD";
 
     const order = await prisma.order.create({
       data: {
         userId,
         status,
         total,
-        paymentMethod: chance(0.7) ? "STRIPE" : "COD",
+        paymentMethod,
         locale: "en",
         currency: "usd",
         createdAt: new Date(Date.now() - randInt(0, 90) * 86400000),
@@ -865,6 +866,21 @@ async function seedTransactions(buyerIds: string[], products: SeededProduct[]) {
         items: { create: items.map((it) => ({ productId: it.productId, variantId: it.variantId, quantity: it.quantity, price: it.price })) },
       },
       select: { id: true },
+    });
+
+    // Ledger backfill: every order gets a CHARGE row matching the runtime flow.
+    // Stripe charges are captured up front (SUCCEEDED); COD cash is collected on
+    // delivery, so it is SUCCEEDED only once the order is COMPLETED, else PENDING.
+    await prisma.paymentTransaction.create({
+      data: {
+        orderId: order.id,
+        type: "CHARGE",
+        status: paymentMethod === "STRIPE" || status === "COMPLETED" ? "SUCCEEDED" : "PENDING",
+        provider: paymentMethod,
+        providerId: paymentMethod === "STRIPE" ? `seed_pi_${order.id}` : null,
+        amount: total,
+        currency: "usd",
+      },
     });
 
     // Reviews from completed orders (~70% of items), respecting uniqueness.

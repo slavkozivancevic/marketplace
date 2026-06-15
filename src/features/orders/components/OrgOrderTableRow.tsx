@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { dateLocale } from "@/lib/i18n/dateLocale";
-import { Truck, CreditCard } from "lucide-react";
+import { Truck, CreditCard, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { OrgOrderListItem } from "../db/orgOrders";
 import type { Currency } from "@/lib/currency-config";
@@ -48,7 +48,7 @@ export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
   return (
     <div
       role="row"
-      className="grid grid-cols-[100px_100px_80px_minmax(180px,2fr)_140px_120px_130px] items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors min-w-fit"
+      className="grid grid-cols-[100px_100px_80px_minmax(180px,2fr)_140px_120px_170px] items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors min-w-fit"
       onClick={() => router.push(`/${locale}/dashboard/organization/orders/${order.id}`)}
     >
       {/* Order ID */}
@@ -90,9 +90,19 @@ export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
 
       {/* Status */}
       <div role="cell" className="flex items-center justify-center gap-1.5">
+        {order.hasActiveReturn && (
+          <Badge
+            variant="outline"
+            className="gap-1 px-1.5 text-[10px]"
+            title={t("returnInProgress")}
+          >
+            <RotateCcw className="h-3 w-3" />
+            <span className="sr-only">{t("returnInProgress")}</span>
+          </Badge>
+        )}
         <PaymentMethodIcon method={order.paymentMethod} />
         <Badge variant={getStatusVariant(order.status)}>
-          {t(order.status.toLowerCase() as "pending" | "pending_cod" | "completed" | "cancelled" | "refunded")}
+          {t(order.status.toLowerCase() as "pending" | "pending_cod" | "completed" | "cancelled" | "refunded" | "awaiting_payment")}
         </Badge>
       </div>
     </div>

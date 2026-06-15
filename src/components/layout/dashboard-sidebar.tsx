@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   PackageCheck,
   Tag,
+  Wallet,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { OrganizationSwitcher } from "@/features/organizations/components/OrganizationSwitcher";
@@ -33,6 +34,12 @@ export function DashboardSidebar({
     icon: PackageCheck,
   };
 
+  const payoutsLink: SidebarLink = {
+    href: "/dashboard/organization/payouts",
+    label: t("payouts"),
+    icon: Wallet,
+  };
+
   const adminLinks: SidebarLink[] = [
     { href: "/admin", label: t("adminPanel"), icon: Shield },
   ];
@@ -43,7 +50,7 @@ export function DashboardSidebar({
     { href: "/brands", label: t("browseBrands"), icon: Tag },
     ...(userRole === "SELLER" ? [{ href: "/dashboard/my-products", label: t("myProducts"), icon: Package } as SidebarLink] : []),
     { href: "/dashboard/orders", label: t("myOrders"), icon: ClipboardList },
-    ...(currentOrgId ? [orgOrdersLink] : []),
+    ...(currentOrgId ? [orgOrdersLink, payoutsLink] : []),
     { href: "/dashboard/organization", label: t("organization"), icon: Building2 },
   ];
   const extras = userRole === "ADMIN" ? adminLinks : undefined;

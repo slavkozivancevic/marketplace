@@ -105,6 +105,7 @@ export const routing = defineRouting({
     "/dashboard/organization": "/dashboard/organization",
     "/dashboard/organization/orders": "/dashboard/organization/orders",
     "/dashboard/organization/orders/[id]": "/dashboard/organization/orders/[id]",
+    "/dashboard/organization/payouts": "/dashboard/organization/payouts",
 
     "/admin": "/admin",
     "/admin/products": "/admin/products",

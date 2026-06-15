@@ -1,11 +1,20 @@
 import { prisma } from "@/core/db/prisma";
 import { convertCents } from "@/lib/currency";
 import type { Currency } from "@/lib/currency-config";
-import { Prisma, OrderStatus, PaymentMethod } from "@/generated/prisma/client";
+import {
+  Prisma,
+  OrderStatus,
+  PaymentMethod,
+  PaymentTransactionType,
+  PaymentTransactionStatus,
+  ReturnStatus,
+} from "@/generated/prisma/client";
 import { cacheTag } from "next/cache";
 import { CacheTags } from "@/lib/cache/tags";
 import { revalidateOrderCache } from "./cache";
 import { revalidateProductCache } from "@/features/products/db/cache";
+import { InsufficientStockError } from "@/features/common/errors/domainErrors";
+import { transferOrderToSellers } from "@/features/payments/db/payouts";
 
 export async function getUserOrders(userId: string) {
   "use cache";
@@ -35,10 +44,6 @@ export async function getUserOrders(userId: string) {
   }));
 }
 
-export type UserOrderListItem = Awaited<
-  ReturnType<typeof getUserOrders>
->[number];
-
 /**
  * Cursor-paginated variant of {@link getUserOrders}.
  *
@@ -61,7 +66,7 @@ export async function getUserOrdersPage({
   status?: string[];
   sortBy?: "createdAt" | "total";
   sortOrder?: "asc" | "desc";
-}): Promise<{ items: UserOrderListItem[]; nextCursor?: string }> {
+}) {
   const where: Prisma.OrderWhereInput = {
     userId,
   };
@@ -112,10 +117,28 @@ export async function getUserOrdersPage({
     nextCursor = next?.id;
   }
 
+  // Flag orders with an in-flight return (REQUESTED/APPROVED/SHIPPED - i.e. not
+  // yet REFUNDED or REJECTED) so the list can show a "return in progress" hint
+  // without changing the order's own status.
+  const pageOrderIds = rows.map((o) => o.id);
+  const activeReturns = pageOrderIds.length
+    ? await prisma.return.findMany({
+        where: {
+          orderId: { in: pageOrderIds },
+          status: {
+            in: [ReturnStatus.REQUESTED, ReturnStatus.APPROVED, ReturnStatus.SHIPPED],
+          },
+        },
+        select: { orderId: true },
+      })
+    : [];
+  const ordersWithActiveReturn = new Set(activeReturns.map((r) => r.orderId));
+
   const items = rows.map((order) => ({
     ...order,
     total: Number(order.total),
     exchangeRate: order.exchangeRate != null ? Number(order.exchangeRate) : null,
+    hasActiveReturn: ordersWithActiveReturn.has(order.id),
     items: order.items.map((item) => ({
       ...item,
       price: Number(item.price),
@@ -124,6 +147,10 @@ export async function getUserOrdersPage({
 
   return { items, nextCursor };
 }
+
+export type UserOrderListItem = Awaited<
+  ReturnType<typeof getUserOrdersPage>
+>["items"][number];
 
 /**
  * Disjunctive status counts for the buyer's order list sidebar. Ignores the
@@ -184,10 +211,11 @@ export async function getOrderByStripeSessionId(stripeSessionId: string) {
   return order;
 }
 
+// Not cached: a buyer's order detail reflects live status (returns, refunds)
+// and must update on the next navigation without depending on tag revalidation
+// reaching the client Router Cache. Mirrors the (uncached) seller-side
+// getOrgOrderById so both order detail pages refresh consistently.
 export async function getOrderById(id: string, userId: string) {
-  "use cache";
-  cacheTag(CacheTags.orders.byId(id));
-
   const order = await prisma.order.findFirst({
     where: { id, userId },
     include: {
@@ -196,6 +224,8 @@ export async function getOrderById(id: string, userId: string) {
           product: {
             select: {
               id: true,
+              organizationId: true,
+              organization: { select: { name: true } },
               translations: { select: { locale: true, title: true } },
               media: {
                 orderBy: { order: "asc" },
@@ -265,6 +295,7 @@ export type ShippingAddress = {
 export async function fulfillOrder({
   userId,
   stripeSessionId,
+  paymentIntentId,
   totalCents,
   currency,
   exchangeRate,
@@ -274,6 +305,9 @@ export async function fulfillOrder({
 }: {
   userId: string;
   stripeSessionId: string;
+  // Stripe PaymentIntent id (pi_...), recorded as the CHARGE ledger row's
+  // provider id - also doubles as an idempotency key.
+  paymentIntentId?: string;
   totalCents: number;
   currency?: string;
   exchangeRate?: number;
@@ -338,7 +372,7 @@ export async function fulfillOrder({
           WHERE id = ${item.variantId} AND stock >= ${item.quantity}
         `;
         if (affected === 0) {
-          throw new Error(`Insufficient stock for variant ${item.variantId}`);
+          throw new InsufficientStockError(`Insufficient stock for variant ${item.variantId}`);
         }
       } else {
         const prod = productMap.get(item.productId)!;
@@ -349,7 +383,7 @@ export async function fulfillOrder({
             WHERE id = ${item.productId} AND stock >= ${item.quantity}
           `;
           if (affected === 0) {
-            throw new Error(`Insufficient stock for product ${item.productId}`);
+            throw new InsufficientStockError(`Insufficient stock for product ${item.productId}`);
           }
         }
       }
@@ -382,6 +416,19 @@ export async function fulfillOrder({
       },
     });
 
+    // Ledger: card payment was captured by Stripe before this webhook fired.
+    await tx.paymentTransaction.create({
+      data: {
+        orderId: order.id,
+        type: PaymentTransactionType.CHARGE,
+        status: PaymentTransactionStatus.SUCCEEDED,
+        provider: PaymentMethod.STRIPE,
+        providerId: paymentIntentId ?? null,
+        amount: totalCents,
+        currency: currency ?? "usd",
+      },
+    });
+
     revalidateOrderCache(userId, order.id);
     return order;
   });
@@ -392,6 +439,23 @@ export async function fulfillOrder({
     select: { id: true, organizationId: true },
   });
   allProducts.forEach((p) => revalidateProductCache(p.organizationId, p.id));
+
+  // Fan the captured payment out to each seller (separate charges + transfers).
+  // Runs after the order commits and is best-effort - a transfer hiccup must not
+  // undo an already-paid order; failures are recorded as FAILED payout rows.
+  try {
+    await transferOrderToSellers({
+      orderId: order.id,
+      items: itemsWithPrice.map((i) => ({
+        productId: i.productId,
+        price: i.price,
+        quantity: i.quantity,
+      })),
+      currency: currency ?? "usd",
+    });
+  } catch (err) {
+    console.error("[fulfillOrder] transferOrderToSellers failed", order.id, err);
+  }
 
   return order;
 }
@@ -454,7 +518,7 @@ export async function createCodOrder({
           WHERE id = ${item.variantId} AND stock >= ${item.quantity}
         `;
         if (affected === 0) {
-          throw new Error(`Insufficient stock for variant ${item.variantId}`);
+          throw new InsufficientStockError(`Insufficient stock for variant ${item.variantId}`);
         }
       } else {
         const prod = productMap.get(item.productId)!;
@@ -465,13 +529,13 @@ export async function createCodOrder({
             WHERE id = ${item.productId} AND stock >= ${item.quantity}
           `;
           if (affected === 0) {
-            throw new Error(`Insufficient stock for product ${item.productId}`);
+            throw new InsufficientStockError(`Insufficient stock for product ${item.productId}`);
           }
         }
       }
     }
 
-    return tx.order.create({
+    const created = await tx.order.create({
       data: {
         userId,
         paymentMethod: PaymentMethod.COD,
@@ -497,6 +561,21 @@ export async function createCodOrder({
         },
       },
     });
+
+    // Ledger: COD cash is collected on delivery, so the charge starts PENDING
+    // (no provider id - there is no PSP transaction for cash).
+    await tx.paymentTransaction.create({
+      data: {
+        orderId: created.id,
+        type: PaymentTransactionType.CHARGE,
+        status: PaymentTransactionStatus.PENDING,
+        provider: PaymentMethod.COD,
+        amount: totalInCurrency,
+        currency,
+      },
+    });
+
+    return created;
   });
 
   revalidateOrderCache(userId, order.id);
@@ -511,53 +590,108 @@ export async function createCodOrder({
   return order;
 }
 
-export async function refundOrder(stripeSessionId: string) {
+/**
+ * Reconciles Stripe refunds reported by a `charge.refunded` webhook against our
+ * ledger. Refunds the app itself created (the Return flow) are already recorded
+ * by their refund id and are skipped here, so they are never double-counted.
+ * Only EXTERNAL refunds - i.e. someone clicking Refund in the Stripe dashboard -
+ * are recorded. When cumulative refunds cover the order total the order is
+ * marked REFUNDED; stock is restocked only when no app return already did so
+ * (a return restocks the specific items it returned).
+ *
+ * Returns the order when it just became REFUNDED (so the caller emails the
+ * buyer), otherwise null.
+ */
+export async function reconcileStripeRefund(
+  stripeSessionId: string,
+  refunds: { id: string; amount: number }[],
+) {
   const order = await prisma.order.findUnique({
     where: { stripeSessionId },
     include: {
       items: { select: { productId: true, variantId: true, quantity: true } },
     },
   });
-
   if (!order) {
     console.log(`No order found for session ${stripeSessionId}, skipping refund`);
     return null;
   }
 
-  if (order.status === "REFUNDED") {
-    console.log(`Order ${order.id} already refunded, skipping`);
-    return order;
+  // Drop refunds already in our ledger (created by the app's own refund calls).
+  const ids = refunds.map((r) => r.id);
+  const known = ids.length
+    ? await prisma.paymentTransaction.findMany({
+        where: { providerId: { in: ids } },
+        select: { providerId: true },
+      })
+    : [];
+  const knownSet = new Set(known.map((k) => k.providerId));
+  const external = refunds.filter((r) => !knownSet.has(r.id));
+  if (external.length === 0) {
+    console.log(`charge.refunded for ${stripeSessionId} already recorded by app, skipping`);
+    return null;
   }
 
+  // If a return already refunded part of this order, it restocked its own items;
+  // don't restock again on a manual refund. Return refunds are org-scoped.
+  const returnRefunds = await prisma.paymentTransaction.count({
+    where: {
+      orderId: order.id,
+      type: PaymentTransactionType.REFUND,
+      organizationId: { not: null },
+    },
+  });
+
+  let becameRefunded = false;
   await prisma.$transaction(async (tx) => {
-    await tx.order.update({
-      where: { id: order.id },
-      data: { status: "REFUNDED" },
+    for (const r of external) {
+      await tx.paymentTransaction.create({
+        data: {
+          orderId: order.id,
+          type: PaymentTransactionType.REFUND,
+          status: PaymentTransactionStatus.SUCCEEDED,
+          provider: PaymentMethod.STRIPE,
+          providerId: r.id,
+          amount: r.amount,
+          currency: order.currency,
+        },
+      });
+    }
+
+    const agg = await tx.paymentTransaction.aggregate({
+      where: { orderId: order.id, type: PaymentTransactionType.REFUND },
+      _sum: { amount: true },
     });
 
-    for (const item of order.items) {
-      if (item.variantId) {
-        await tx.productVariant.update({
-          where: { id: item.variantId },
-          data: { stock: { increment: item.quantity } },
-        });
-      } else {
-        const product = await tx.product.findUnique({
-          where: { id: item.productId },
-          select: { stock: true },
-        });
-        if (product?.stock !== null && product?.stock !== undefined) {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { stock: { increment: item.quantity } },
-          });
+    if ((agg._sum.amount ?? 0) >= order.total && order.status !== "REFUNDED") {
+      await tx.order.update({ where: { id: order.id }, data: { status: "REFUNDED" } });
+      becameRefunded = true;
+
+      if (returnRefunds === 0) {
+        for (const item of order.items) {
+          if (item.variantId) {
+            await tx.productVariant.update({
+              where: { id: item.variantId },
+              data: { stock: { increment: item.quantity } },
+            });
+          } else {
+            const product = await tx.product.findUnique({
+              where: { id: item.productId },
+              select: { stock: true },
+            });
+            if (product?.stock !== null && product?.stock !== undefined) {
+              await tx.product.update({
+                where: { id: item.productId },
+                data: { stock: { increment: item.quantity } },
+              });
+            }
+          }
         }
       }
     }
   });
 
   revalidateOrderCache(order.userId, order.id);
-
   const productIds = [...new Set(order.items.map((i) => i.productId))];
   const products = await prisma.product.findMany({
     where: { id: { in: productIds } },
@@ -565,5 +699,5 @@ export async function refundOrder(stripeSessionId: string) {
   });
   products.forEach((p) => revalidateProductCache(p.organizationId, p.id));
 
-  return order;
+  return becameRefunded ? order : null;
 }

@@ -57,6 +57,7 @@ export function OrgOrdersPage() {
         label: t("status"),
         options: [
           opt("PENDING_COD", t("pending_cod")),
+          opt("AWAITING_PAYMENT", t("awaiting_payment")),
           opt("COMPLETED", t("completed")),
           opt("CANCELLED", t("cancelled")),
           opt("REFUNDED", t("refunded")),

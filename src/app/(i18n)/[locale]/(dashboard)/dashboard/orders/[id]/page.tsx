@@ -3,9 +3,11 @@ import { notFound } from "next/navigation";
 import { Link, getPathname } from "@/i18n/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
 import Image from "next/image";
-import { MapPin, Truck, CreditCard } from "lucide-react";
+import { MapPin, Truck, CreditCard, RotateCcw } from "lucide-react";
 import { prisma } from "@/core/db/prisma";
 import { getOrderById } from "@/features/orders/db/orders";
+import { getReturnedQuantities, getOrderReturns } from "@/features/returns/db/returns";
+import { BuyerReturns } from "@/features/returns/components/BuyerReturns";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +42,73 @@ export default async function OrderDetailPage({
 
   const order = await getOrderById(id, user.id);
   if (!order) notFound();
+
+  const returnEligible = order.status === "COMPLETED";
+  const [returnedQty, orderReturns] = await Promise.all([
+    getReturnedQuantities(order.id),
+    getOrderReturns(order.id),
+  ]);
+  const hasActiveReturn = orderReturns.some((r) =>
+    ["REQUESTED", "APPROVED", "SHIPPED"].includes(r.status),
+  );
+
+  // Per order item: localized title, variant label, owning seller.
+  const itemInfo = new Map(
+    order.items.map((it) => {
+      const title =
+        it.product.translations.find((tr) => tr.locale === order.locale)?.title ??
+        it.product.translations.find((tr) => tr.locale === "en")?.title ??
+        "";
+      const variantLabel =
+        it.variant?.attributeValues
+          .map((av) => getLabel(av.option.translations, order.locale))
+          .join(" / ") || null;
+      return [
+        it.id,
+        {
+          title,
+          variantLabel,
+          organizationId: it.product.organizationId,
+          orgName: it.product.organization.name,
+        },
+      ] as const;
+    }),
+  );
+
+  // Group the order's items by seller, with each item's still-returnable qty.
+  const returnSellerMap = new Map<
+    string,
+    { organizationId: string; name: string; items: { orderItemId: string; title: string; variantLabel: string | null; returnable: number }[] }
+  >();
+  for (const it of order.items) {
+    const info = itemInfo.get(it.id)!;
+    let group = returnSellerMap.get(info.organizationId);
+    if (!group) {
+      group = { organizationId: info.organizationId, name: info.orgName, items: [] };
+      returnSellerMap.set(info.organizationId, group);
+    }
+    group.items.push({
+      orderItemId: it.id,
+      title: info.title,
+      variantLabel: info.variantLabel,
+      returnable: it.quantity - (returnedQty[it.id] ?? 0),
+    });
+  }
+  const returnSellers = [...returnSellerMap.values()];
+
+  // Attach localized titles to each existing return's lines for display.
+  const returnsForDisplay = orderReturns.map((r) => ({
+    ...r,
+    items: r.items.map((ri) => {
+      const info = itemInfo.get(ri.orderItemId);
+      return {
+        orderItemId: ri.orderItemId,
+        title: info?.title ?? "",
+        variantLabel: info?.variantLabel ?? null,
+        quantity: ri.quantity,
+      };
+    }),
+  }));
 
   const isCod = order.paymentMethod === "COD";
   const shortId = `#${order.id.slice(-8).toUpperCase()}`;
@@ -86,6 +155,12 @@ export default async function OrderDetailPage({
                 <Badge variant="outline" className="gap-1 text-xs">
                   <CreditCard className="h-3 w-3" />
                   {t("orders.card")}
+                </Badge>
+              )}
+              {hasActiveReturn && (
+                <Badge variant="outline" className="gap-1 text-xs" title={t("orders.returnInProgress")}>
+                  <RotateCcw className="h-3 w-3" />
+                  {t("orders.returnInProgress")}
                 </Badge>
               )}
               <Badge variant={getStatusVariant(order.status)}>
@@ -209,6 +284,15 @@ export default async function OrderDetailPage({
               {order.shippingCountry && <p>{order.shippingCountry}</p>}
             </CardContent>
           </Card>
+        )}
+
+        {(returnEligible || orderReturns.length > 0) && (
+          <BuyerReturns
+            orderId={order.id}
+            eligible={returnEligible}
+            sellers={returnSellers}
+            returns={returnsForDisplay}
+          />
         )}
         </div>
       </div>

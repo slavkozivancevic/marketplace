@@ -16,6 +16,7 @@ import {
   Shield,
   ArrowRight,
   Tag,
+  Wallet,
 } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
@@ -76,6 +77,12 @@ export default async function DashboardPage() {
             title: t("dashboard.receivedOrders"),
             description: t("dashboard.receivedOrdersDesc"),
             icon: PackageCheck,
+          },
+          {
+            href: "/dashboard/organization/payouts",
+            title: t("dashboard.payouts"),
+            description: t("dashboard.payoutsDesc"),
+            icon: Wallet,
           },
         ]
       : []),

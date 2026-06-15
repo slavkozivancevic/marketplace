@@ -39,7 +39,7 @@ export async function createCheckoutSession(
 
     const user = await prisma.user.findUnique({
       where: { clerkUserId },
-      select: { id: true, email: true },
+      select: { id: true, email: true, locale: true },
     });
 
     if (!user) {
@@ -99,10 +99,13 @@ export async function createCheckoutSession(
         };
       }
 
-      // Stripe line items get the default-locale title - we don't know the
-      // buyer's UI language at this server-action layer; emails are sent in
-      // the order.locale captured at order creation.
+      // Stripe line items use the buyer's active checkout locale (read from
+      // the NEXT_LOCALE cookie above, e.g. "sr" on /sr/placanje) so the names
+      // match the currency and the language the buyer saw in the cart. Fall
+      // back to the user's saved locale, then English, then any row.
       const productTitle =
+        product.translations.find((tr) => tr.locale === locale)?.title ??
+        product.translations.find((tr) => tr.locale === user.locale)?.title ??
         product.translations.find((tr) => tr.locale === "en")?.title ??
         product.translations[0]?.title ??
         "";

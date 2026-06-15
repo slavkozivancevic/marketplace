@@ -1,0 +1,479 @@
+import { prisma } from "@/core/db/prisma";
+import { stripe } from "@/services/stripe";
+import {
+  ReturnStatus,
+  OrderStatus,
+  PaymentMethod,
+  PaymentTransactionType,
+  PaymentTransactionStatus,
+} from "@/generated/prisma/client";
+import { NotFoundError, ForbiddenError } from "@/features/common/errors/domainErrors";
+import { MOCK_CONNECT } from "@/features/payments/mock";
+import { sellerNetAmount } from "@/features/payments/config";
+import { revalidateOrderCache } from "@/features/orders/db/cache";
+import { revalidateProductCache } from "@/features/products/db/cache";
+import { getLabel } from "@/features/attributes/utils/translations";
+import {
+  publishReturnRequested,
+  publishReturnApproved,
+  publishReturnRejected,
+  publishReturnShipped,
+  publishReturnRefunded,
+} from "@/services/notifications";
+
+export type ReturnActor = "buyer" | "seller";
+
+/** Allowed status transitions and which side may perform each. */
+const TRANSITIONS: Record<ReturnStatus, { to: ReturnStatus; by: ReturnActor }[]> = {
+  REQUESTED: [
+    { to: ReturnStatus.APPROVED, by: "seller" },
+    { to: ReturnStatus.REJECTED, by: "seller" },
+  ],
+  APPROVED: [{ to: ReturnStatus.SHIPPED, by: "buyer" }],
+  SHIPPED: [{ to: ReturnStatus.REFUNDED, by: "seller" }],
+  REJECTED: [],
+  REFUNDED: [],
+};
+
+export type ReturnItemSelection = { orderItemId: string; quantity: number };
+
+/**
+ * Resolves a return's lines to `{ name, quantity }` for email notifications.
+ * Names are localized in the order's locale (a snapshot, matching how order
+ * emails render item names), with the variant label appended.
+ */
+async function getReturnLines(
+  returnId: string,
+  locale: string,
+): Promise<{ name: string; quantity: number }[]> {
+  const items = await prisma.returnItem.findMany({
+    where: { returnId },
+    select: {
+      quantity: true,
+      orderItem: {
+        select: {
+          product: { select: { translations: { select: { locale: true, title: true } } } },
+          variant: {
+            select: {
+              attributeValues: {
+                select: {
+                  option: { select: { translations: { select: { locale: true, label: true } } } },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+  return items.map((ri) => {
+    const title =
+      ri.orderItem.product.translations.find((t) => t.locale === locale)?.title ??
+      ri.orderItem.product.translations.find((t) => t.locale === "en")?.title ??
+      "";
+    const variantLabel = ri.orderItem.variant?.attributeValues
+      .map((av) => getLabel(av.option.translations, locale))
+      .join(" / ");
+    return { name: variantLabel ? `${title} (${variantLabel})` : title, quantity: ri.quantity };
+  });
+}
+
+/** Returns the org's gross subtotal + line items within an order (fallback). */
+async function orgPortionOfOrder(orderId: string, organizationId: string) {
+  const items = await prisma.orderItem.findMany({
+    where: { orderId, product: { organizationId } },
+    select: { productId: true, variantId: true, quantity: true, price: true },
+  });
+  const subtotal = items.reduce((s, it) => s + it.price * it.quantity, 0);
+  return { items, subtotal };
+}
+
+/**
+ * Units already returned per order item, across every non-rejected return. A
+ * rejected return frees its units back up. `ordered - returned` is the quantity
+ * still eligible for a new return.
+ */
+export async function getReturnedQuantities(
+  orderId: string,
+): Promise<Record<string, number>> {
+  const rows = await prisma.returnItem.findMany({
+    where: { return: { orderId, status: { not: ReturnStatus.REJECTED } } },
+    select: { orderItemId: true, quantity: true },
+  });
+  const out: Record<string, number> = {};
+  for (const r of rows) out[r.orderItemId] = (out[r.orderItemId] ?? 0) + r.quantity;
+  return out;
+}
+
+/**
+ * Buyer opens a partial return for selected items/quantities from one seller's
+ * share of an order. Guards: order is the buyer's, paid by card and COMPLETED;
+ * each selected item belongs to that seller in the order; and no quantity may
+ * exceed what is still returnable (ordered minus already-returned).
+ */
+export async function createReturn({
+  orderId,
+  organizationId,
+  userId,
+  reason,
+  items,
+}: {
+  orderId: string;
+  organizationId: string;
+  userId: string;
+  reason?: string;
+  items: ReturnItemSelection[];
+}) {
+  if (items.length === 0) throw new ForbiddenError({ key: "returnNoItems" });
+
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, userId },
+    select: { id: true, status: true, paymentMethod: true, locale: true },
+  });
+  if (!order) throw new NotFoundError("Order not found");
+  // Returns open once goods are delivered. Both card (COMPLETED at capture) and
+  // COD (COMPLETED when the seller marks it delivered) reach COMPLETED.
+  if (order.status !== OrderStatus.COMPLETED) {
+    throw new ForbiddenError({ key: "returnNotEligible" });
+  }
+
+  // The seller's order items (id -> ordered quantity) - bounds the selection.
+  const orgItems = await prisma.orderItem.findMany({
+    where: { orderId, product: { organizationId } },
+    select: { id: true, quantity: true },
+  });
+  const orderedById = new Map(orgItems.map((i) => [i.id, i.quantity]));
+  const returned = await getReturnedQuantities(orderId);
+
+  for (const sel of items) {
+    const ordered = orderedById.get(sel.orderItemId);
+    if (ordered === undefined) throw new ForbiddenError({ key: "returnInvalidItem" });
+    if (!Number.isInteger(sel.quantity) || sel.quantity < 1) {
+      throw new ForbiddenError({ key: "returnInvalidQuantity" });
+    }
+    const remaining = ordered - (returned[sel.orderItemId] ?? 0);
+    if (sel.quantity > remaining) throw new ForbiddenError({ key: "returnExceedsQuantity" });
+  }
+
+  const created = await prisma.$transaction(async (tx) => {
+    const r = await tx.return.create({
+      data: { orderId, organizationId, userId, reason: reason || null },
+      select: { id: true },
+    });
+    await tx.returnItem.createMany({
+      data: items.map((i) => ({
+        returnId: r.id,
+        orderItemId: i.orderItemId,
+        quantity: i.quantity,
+      })),
+    });
+    return r;
+  });
+  revalidateOrderCache(userId, orderId);
+
+  // Notify the seller (fire-and-forget - email failure must not block the return).
+  const lines = await getReturnLines(created.id, order.locale);
+  publishReturnRequested({
+    returnId: created.id,
+    orderId,
+    organizationId,
+    locale: order.locale,
+    reason: reason || undefined,
+    items: lines,
+  }).catch((err) => console.error("[returns] publishReturnRequested failed", err));
+
+  return created;
+}
+
+/**
+ * Money side of a refunded return: partial Stripe refund to the buyer for the
+ * seller's subtotal, restock that seller's items, reverse the seller's transfer
+ * (clawback), and write a REFUND ledger row. Mock mode skips every Stripe call.
+ * Runs inside the REFUNDED transition.
+ */
+async function settleReturnRefund(
+  returnId: string,
+  organizationId: string,
+  orderId: string,
+): Promise<number> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: { id: true, userId: true, currency: true, total: true, paymentMethod: true },
+  });
+  if (!order) throw new NotFoundError("Order not found");
+  const isStripe = order.paymentMethod === PaymentMethod.STRIPE;
+
+  // Can't refund money that was never collected. The order's CHARGE must be
+  // settled (SUCCEEDED) first: for card that's true at capture; for COD the
+  // seller must confirm "payment received" before a refund. Keeps the ledger
+  // consistent - a REFUND always follows a SUCCEEDED CHARGE.
+  const paidCharge = await prisma.paymentTransaction.findFirst({
+    where: {
+      orderId,
+      type: PaymentTransactionType.CHARGE,
+      status: PaymentTransactionStatus.SUCCEEDED,
+    },
+    select: { id: true },
+  });
+  if (!paidCharge) {
+    throw new ForbiddenError({ key: "returnRefundBeforePayment" });
+  }
+
+  // Refund exactly the units on this return. Legacy returns (created before the
+  // per-item model) have no ReturnItem rows - fall back to the whole org portion.
+  const retItems = await prisma.returnItem.findMany({
+    where: { returnId },
+    select: {
+      quantity: true,
+      orderItem: { select: { productId: true, variantId: true, price: true } },
+    },
+  });
+  const lines =
+    retItems.length > 0
+      ? retItems.map((ri) => ({
+          productId: ri.orderItem.productId,
+          variantId: ri.orderItem.variantId,
+          quantity: ri.quantity,
+          price: ri.orderItem.price,
+        }))
+      : (await orgPortionOfOrder(orderId, organizationId)).items;
+
+  const refundAmount = lines.reduce((s, l) => s + l.price * l.quantity, 0);
+  if (refundAmount <= 0) throw new NotFoundError("Nothing to refund");
+
+  // Refund handling differs by payment method: card refunds go back through
+  // Stripe; COD "refunds" are cash returned out of band, recorded for audit.
+  let refundProvider: PaymentMethod = PaymentMethod.COD;
+  let refundProviderId: string | null = null;
+
+  if (isStripe) {
+    refundProvider = PaymentMethod.STRIPE;
+
+    const charge = await prisma.paymentTransaction.findFirst({
+      where: { orderId, type: PaymentTransactionType.CHARGE, provider: PaymentMethod.STRIPE },
+      select: { providerId: true },
+    });
+    const payout = await prisma.paymentTransaction.findFirst({
+      where: {
+        orderId,
+        organizationId,
+        type: PaymentTransactionType.PAYOUT,
+        status: PaymentTransactionStatus.SUCCEEDED,
+      },
+      select: { providerId: true },
+    });
+
+    const mock = MOCK_CONNECT || !charge?.providerId || charge.providerId.startsWith("seed_pi_");
+
+    // Refund the buyer the gross amount of the returned units.
+    if (!mock && charge?.providerId) {
+      const refund = await stripe.refunds.create({
+        payment_intent: charge.providerId,
+        amount: refundAmount,
+      });
+      refundProviderId = refund.id;
+    } else {
+      refundProviderId = `re_mock_${returnId}`;
+    }
+
+    // Reverse the seller's NET share of the refunded amount (they only ever
+    // received subtotal minus the platform fee). Skip for mock transfers.
+    const realTransfer =
+      payout?.providerId && !MOCK_CONNECT && !payout.providerId.startsWith("tr_mock_");
+    if (realTransfer && payout?.providerId) {
+      try {
+        await stripe.transfers.createReversal(payout.providerId, {
+          amount: sellerNetAmount(refundAmount),
+        });
+      } catch (err) {
+        console.error("[settleReturnRefund] transfer reversal failed", err);
+      }
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // Restock the returned units.
+    for (const it of lines) {
+      if (it.variantId) {
+        await tx.productVariant.update({
+          where: { id: it.variantId },
+          data: { stock: { increment: it.quantity } },
+        });
+      } else {
+        const prod = await tx.product.findUnique({
+          where: { id: it.productId },
+          select: { stock: true },
+        });
+        if (prod?.stock !== null && prod?.stock !== undefined) {
+          await tx.product.update({
+            where: { id: it.productId },
+            data: { stock: { increment: it.quantity } },
+          });
+        }
+      }
+    }
+
+    // Ledger: buyer-facing REFUND, scoped to the seller org.
+    await tx.paymentTransaction.create({
+      data: {
+        orderId,
+        organizationId,
+        type: PaymentTransactionType.REFUND,
+        status: PaymentTransactionStatus.SUCCEEDED,
+        provider: refundProvider,
+        providerId: refundProviderId,
+        amount: refundAmount,
+        currency: order.currency,
+      },
+    });
+
+    await tx.return.update({
+      where: { id: returnId },
+      data: { status: ReturnStatus.REFUNDED, refundAmount },
+    });
+
+    // Mark the order REFUNDED only once cumulative refunds cover its total.
+    const agg = await tx.paymentTransaction.aggregate({
+      where: { orderId, type: PaymentTransactionType.REFUND },
+      _sum: { amount: true },
+    });
+    if ((agg._sum.amount ?? 0) >= order.total) {
+      await tx.order.update({
+        where: { id: orderId },
+        data: { status: OrderStatus.REFUNDED },
+      });
+    }
+  });
+
+  revalidateOrderCache(order.userId, orderId);
+  const productIds = [...new Set(lines.map((i) => i.productId))];
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, organizationId: true },
+  });
+  products.forEach((p) => revalidateProductCache(p.organizationId, p.id));
+
+  return refundAmount;
+}
+
+/**
+ * Advances a return to `to`, enforcing the status machine and which side may do
+ * it. `actorOrgId` is required for seller actions (must own the return's org);
+ * `actorUserId` for buyer actions (must own the return's order).
+ */
+export async function transitionReturn({
+  returnId,
+  to,
+  actor,
+  actorUserId,
+  actorOrgId,
+  note,
+}: {
+  returnId: string;
+  to: ReturnStatus;
+  actor: ReturnActor;
+  actorUserId: string;
+  actorOrgId?: string;
+  note?: string;
+}) {
+  const ret = await prisma.return.findUnique({
+    where: { id: returnId },
+    select: {
+      id: true,
+      orderId: true,
+      organizationId: true,
+      userId: true,
+      status: true,
+      order: { select: { locale: true, paymentMethod: true } },
+    },
+  });
+  if (!ret) throw new NotFoundError("Return not found");
+
+  if (actor === "buyer" && ret.userId !== actorUserId) throw new ForbiddenError();
+  if (actor === "seller" && ret.organizationId !== actorOrgId) throw new ForbiddenError();
+
+  const allowed = TRANSITIONS[ret.status].some((t) => t.to === to && t.by === actor);
+  if (!allowed) throw new ForbiddenError({ key: "returnInvalidTransition" });
+
+  const locale = ret.order.locale;
+  // Returned lines for the email body - fetched before refund deletes nothing
+  // (ReturnItems persist) so it is safe to read at any transition.
+  const lines = await getReturnLines(returnId, locale);
+  const base = {
+    returnId,
+    orderId: ret.orderId,
+    organizationId: ret.organizationId,
+    locale,
+    items: lines,
+  };
+
+  if (to === ReturnStatus.REFUNDED) {
+    const refundAmount = await settleReturnRefund(returnId, ret.organizationId, ret.orderId);
+    if (note) {
+      await prisma.return.update({ where: { id: returnId }, data: { resolutionNote: note } });
+    }
+    publishReturnRefunded({
+      ...base,
+      refundAmount,
+      cod: ret.order.paymentMethod === PaymentMethod.COD,
+    }).catch((err) => console.error("[returns] publishReturnRefunded failed", err));
+  } else {
+    await prisma.return.update({
+      where: { id: returnId },
+      data: { status: to, ...(note !== undefined ? { resolutionNote: note } : {}) },
+    });
+
+    // Fire-and-forget notifications - email failure must not block the action.
+    if (to === ReturnStatus.APPROVED) {
+      publishReturnApproved(base).catch((err) =>
+        console.error("[returns] publishReturnApproved failed", err),
+      );
+    } else if (to === ReturnStatus.REJECTED) {
+      publishReturnRejected({ ...base, note }).catch((err) =>
+        console.error("[returns] publishReturnRejected failed", err),
+      );
+    } else if (to === ReturnStatus.SHIPPED) {
+      publishReturnShipped(base).catch((err) =>
+        console.error("[returns] publishReturnShipped failed", err),
+      );
+    }
+  }
+
+  revalidateOrderCache(ret.userId, ret.orderId);
+  return { id: returnId, status: to };
+}
+
+/** Returns for an order, for the buyer's order page (all sellers, with lines). */
+export function getOrderReturns(orderId: string) {
+  return prisma.return.findMany({
+    where: { orderId },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      organizationId: true,
+      status: true,
+      reason: true,
+      resolutionNote: true,
+      refundAmount: true,
+      createdAt: true,
+      items: { select: { orderItemId: true, quantity: true } },
+    },
+  });
+}
+
+/** Returns for one seller within an order (for the org order page, with lines). */
+export function getOrgOrderReturns(orderId: string, organizationId: string) {
+  return prisma.return.findMany({
+    where: { orderId, organizationId },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      status: true,
+      reason: true,
+      resolutionNote: true,
+      refundAmount: true,
+      createdAt: true,
+      items: { select: { orderItemId: true, quantity: true } },
+    },
+  });
+}

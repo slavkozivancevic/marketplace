@@ -1,5 +1,11 @@
 import { prisma } from "@/core/db/prisma";
-import { Prisma, OrderStatus } from "@/generated/prisma/client";
+import {
+  Prisma,
+  OrderStatus,
+  ReturnStatus,
+  PaymentTransactionType,
+} from "@/generated/prisma/client";
+import { sellerNetAmount } from "@/features/payments/config";
 
 // ─── List ─────────────────────────────────────────────────────────────────────
 
@@ -84,11 +90,29 @@ export async function getOrgOrdersPage({
     nextCursor = rows.pop()!.id;
   }
 
+  // Flag orders with an in-flight return for THIS org (REQUESTED/APPROVED/
+  // SHIPPED) so the seller list can show a "return in progress" hint.
+  const pageOrderIds = rows.map((o) => o.id);
+  const activeReturns = pageOrderIds.length
+    ? await prisma.return.findMany({
+        where: {
+          orderId: { in: pageOrderIds },
+          organizationId,
+          status: {
+            in: [ReturnStatus.REQUESTED, ReturnStatus.APPROVED, ReturnStatus.SHIPPED],
+          },
+        },
+        select: { orderId: true },
+      })
+    : [];
+  const ordersWithActiveReturn = new Set(activeReturns.map((r) => r.orderId));
+
   return {
     items: rows.map((order) => ({
       ...order,
       total: Number(order.total),
       exchangeRate: order.exchangeRate != null ? Number(order.exchangeRate) : null,
+      hasActiveReturn: ordersWithActiveReturn.has(order.id),
       orgSubtotal: order.items.reduce(
         (sum, item) => sum + Number(item.price) * item.quantity,
         0,
@@ -202,13 +226,51 @@ export async function getOrgOrderById(orderId: string, organizationId: string) {
         },
       },
       user: { select: { name: true, email: true } },
+      paymentTransactions: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          type: true,
+          status: true,
+          provider: true,
+          amount: true,
+          currency: true,
+          createdAt: true,
+          organizationId: true,
+        },
+      },
     },
   });
 
   if (!order) return null;
 
+  // Annotate this org's PAYOUT row(s) with how much was clawed back by refunds,
+  // mirroring the payouts table: the payout is the seller's NET share, and a
+  // return reverses sellerNetAmount(refundedGross). Order-level (manual/external)
+  // refunds claw back the whole payout.
+  const txns = order.paymentTransactions;
+  const orgRefundGross = txns
+    .filter((t) => t.type === PaymentTransactionType.REFUND && t.organizationId === organizationId)
+    .reduce((sum, t) => sum + t.amount, 0);
+  const orderLevelRefunded = txns.some(
+    (t) => t.type === PaymentTransactionType.REFUND && t.organizationId === null,
+  );
+
+  const paymentTransactions = txns.map((t) => {
+    if (t.type !== PaymentTransactionType.PAYOUT || t.organizationId !== organizationId) {
+      return { ...t, refundState: "none" as const, reversedNet: 0 };
+    }
+    const reversedNet = orderLevelRefunded
+      ? t.amount
+      : Math.min(t.amount, sellerNetAmount(orgRefundGross));
+    const refundState =
+      reversedNet <= 0 ? ("none" as const) : reversedNet >= t.amount ? ("full" as const) : ("partial" as const);
+    return { ...t, refundState, reversedNet };
+  });
+
   return {
     ...order,
+    paymentTransactions,
     total: Number(order.total),
     exchangeRate: order.exchangeRate != null ? Number(order.exchangeRate) : null,
     orgSubtotal: order.items.reduce(

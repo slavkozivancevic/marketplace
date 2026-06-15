@@ -134,6 +134,25 @@ export type OrgOrderFilters = {
   status: string[];
 };
 
+// ---------- Org (seller) payouts ----------
+
+export const orgPayoutSearchParams = {
+  search: parseAsString.withDefault(""),
+  sortBy: parseAsStringEnum(["createdAt", "amount"] as const).withDefault("createdAt"),
+  sortOrder: parseAsStringEnum(["asc", "desc"] as const).withDefault("desc"),
+  status: parseAsArrayOf(parseAsString).withDefault([]),
+  // Derived facet: "refunded" / "active". Empty or both selected = no filter.
+  refunded: parseAsArrayOf(parseAsString).withDefault([]),
+};
+
+export type OrgPayoutFilters = {
+  search: string;
+  sortBy: "createdAt" | "amount";
+  sortOrder: "asc" | "desc";
+  status: string[];
+  refunded: string[];
+};
+
 // ---------- Admin organizations ----------
 
 export const adminOrgSearchParams = {

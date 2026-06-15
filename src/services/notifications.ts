@@ -98,6 +98,21 @@ export async function publishCodOrderFulfilled(orderId: string, locale = "en"): 
   );
 }
 
+export async function publishCodPaymentReceived(orderId: string, locale = "en"): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "order.cod_paid",
+        orderId,
+        locale,
+        eventId: `${orderId}:order.cod_paid`,
+      }),
+    })
+  );
+}
+
 export async function publishCodOrderCancelled(orderId: string, locale = "en"): Promise<void> {
   const topicArn = await getTopicArn();
   await sns.send(
@@ -158,6 +173,136 @@ export async function publishUserRoleChanged(params: {
         oldRole: params.oldRole,
         newRole: params.newRole,
         locale: params.locale,
+      }),
+    })
+  );
+}
+
+// ── Return / RMA publishers ─────────────────────────────────────────────
+// Each return transition fires once; eventId = `${returnId}:${type}` keeps the
+// notification idempotent. `locale` is the order's locale (buyer emails); seller
+// emails are dispatched per-member-locale by the notifications Lambda.
+
+type ReturnLineItem = { name: string; quantity: number };
+
+export async function publishReturnRequested(params: {
+  returnId: string;
+  orderId: string;
+  organizationId: string;
+  locale: string;
+  reason?: string;
+  items?: ReturnLineItem[];
+}): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "return.requested",
+        eventId: `${params.returnId}:return.requested`,
+        orderId: params.orderId,
+        organizationId: params.organizationId,
+        locale: params.locale,
+        reason: params.reason,
+        items: params.items,
+      }),
+    })
+  );
+}
+
+export async function publishReturnApproved(params: {
+  returnId: string;
+  orderId: string;
+  organizationId: string;
+  locale: string;
+  items?: ReturnLineItem[];
+}): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "return.approved",
+        eventId: `${params.returnId}:return.approved`,
+        orderId: params.orderId,
+        organizationId: params.organizationId,
+        locale: params.locale,
+        items: params.items,
+      }),
+    })
+  );
+}
+
+export async function publishReturnRejected(params: {
+  returnId: string;
+  orderId: string;
+  organizationId: string;
+  locale: string;
+  note?: string;
+  items?: ReturnLineItem[];
+}): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "return.rejected",
+        eventId: `${params.returnId}:return.rejected`,
+        orderId: params.orderId,
+        organizationId: params.organizationId,
+        locale: params.locale,
+        note: params.note,
+        items: params.items,
+      }),
+    })
+  );
+}
+
+export async function publishReturnShipped(params: {
+  returnId: string;
+  orderId: string;
+  organizationId: string;
+  locale: string;
+  items?: ReturnLineItem[];
+}): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "return.shipped",
+        eventId: `${params.returnId}:return.shipped`,
+        orderId: params.orderId,
+        organizationId: params.organizationId,
+        locale: params.locale,
+        items: params.items,
+      }),
+    })
+  );
+}
+
+export async function publishReturnRefunded(params: {
+  returnId: string;
+  orderId: string;
+  organizationId: string;
+  locale: string;
+  refundAmount: number;
+  items?: ReturnLineItem[];
+  cod?: boolean;
+}): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "return.refunded",
+        eventId: `${params.returnId}:return.refunded`,
+        orderId: params.orderId,
+        organizationId: params.organizationId,
+        locale: params.locale,
+        refundAmount: params.refundAmount,
+        items: params.items,
+        cod: params.cod,
       }),
     })
   );

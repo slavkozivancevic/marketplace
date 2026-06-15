@@ -49,6 +49,7 @@ model User {
   updatedHistories ProductHistory[] @relation("ProductHistoryUpdatedBy")
 
   wishlists Wishlist[]
+  returns   Return[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -60,9 +61,33 @@ model Organization {
 
   verified Boolean @default(false)
 
-  members  Membership[]
-  products Product[]
-  invites  Invite[]
+  members          Membership[]
+  products         Product[]
+  invites          Invite[]
+  connectedAccount ConnectedAccount?
+  payoutTransactions PaymentTransaction[]
+  returns          Return[]
+}
+
+// A seller organization's Stripe Connect (Express) account. Created during
+// onboarding; the boolean flags are synced from Stripe (account.updated /
+// on-demand retrieve). The platform uses separate charges + transfers, so this
+// account receives a Transfer for the org's share of each order. Payout ledger
+// rows live in PaymentTransaction (type PAYOUT) - this model is account state.
+model ConnectedAccount {
+  id              String @id @default(uuid())
+  organizationId  String @unique
+  stripeAccountId String @unique
+
+  // Synced from Stripe: can take charges, can receive payouts, finished KYC.
+  chargesEnabled   Boolean @default(false)
+  payoutsEnabled   Boolean @default(false)
+  detailsSubmitted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 enum MembershipRole {
@@ -458,11 +483,37 @@ enum OrderStatus {
   CANCELLED
   REFUNDED
   PENDING_COD
+  // COD: goods delivered, seller has not yet confirmed cash received. The order
+  // only reaches COMPLETED once payment is confirmed (markCodPaymentReceived).
+  AWAITING_PAYMENT
 }
 
 enum PaymentMethod {
   STRIPE
   COD
+}
+
+// Direction of a money movement on an order. Amount is always stored positive;
+// the type conveys whether money came in (CHARGE), went back to the buyer
+// (REFUND), or went out to the seller (PAYOUT).
+enum PaymentTransactionType {
+  CHARGE
+  REFUND
+  PAYOUT
+}
+
+enum PaymentTransactionStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum ReturnStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  SHIPPED
+  REFUNDED
 }
 
 model Order {
@@ -495,9 +546,94 @@ model Order {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  user                User                 @relation(fields: [userId], references: [id])
+  paymentTransactions PaymentTransaction[]
+  returns             Return[]
 
   @@index([userId])
+}
+
+// Return / RMA request, scoped to one seller org within an order (carts are
+// multi-seller, so a buyer returns one seller's items at a time). Covers that
+// org's whole share of the order - no per-item table yet. Status machine:
+// REQUESTED -> APPROVED|REJECTED ; APPROVED -> SHIPPED -> REFUNDED.
+model Return {
+  id             String       @id @default(uuid())
+  orderId        String
+  organizationId String
+  userId         String // buyer who requested the return
+  status         ReturnStatus @default(REQUESTED)
+  reason         String?      @db.Text
+  // Seller's note on the decision (e.g. why it was rejected).
+  resolutionNote String?      @db.Text
+  // Amount refunded to the buyer (smallest unit of the order currency), set when
+  // the return reaches REFUNDED.
+  refundAmount   Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order        Order        @relation(fields: [orderId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+  items        ReturnItem[]
+
+  @@index([orderId])
+  @@index([organizationId, status])
+  @@index([userId])
+}
+
+// One line of a return: which order item and how many units are being returned.
+// Enables partial returns - the buyer can return a subset of an order's items
+// and quantities. Returnable-quantity guards live in the app layer (an item's
+// remaining returnable = ordered qty - sum of non-rejected ReturnItem qty).
+model ReturnItem {
+  id          String @id @default(uuid())
+  returnId    String
+  orderItemId String
+  quantity    Int
+
+  return    Return    @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id])
+
+  @@unique([returnId, orderItemId])
+  @@index([returnId])
+  @@index([orderItemId])
+}
+
+// Append-only ledger of every money movement tied to an order: card charges and
+// refunds (Stripe) plus seller payouts (Stripe Connect, item #4) and COD cash
+// collection. Gives an audit trail and enables per-item / partial refunds.
+// No PSP abstraction - we stay on Stripe + COD (provider reuses PaymentMethod).
+model PaymentTransaction {
+  id       String                   @id @default(uuid())
+  orderId  String
+  type     PaymentTransactionType
+  status   PaymentTransactionStatus @default(SUCCEEDED)
+  provider PaymentMethod
+  // Provider's id for this movement: Stripe PaymentIntent (charge), Refund
+  // (refund) or Transfer/Payout (payout). Null for COD cash. Unique when set,
+  // which doubles as an idempotency key (Postgres treats NULLs as distinct).
+  providerId String? @unique
+  // Seller this movement belongs to. Set on PAYOUT rows (which org received the
+  // transfer) so the seller dashboard can list its payouts; null on CHARGE /
+  // REFUND, which are buyer-side and can span multiple orgs in one order.
+  organizationId String?
+  // Smallest unit of `currency` (cents, para...). Always positive.
+  amount   Int
+  currency String @default("usd")
+  // Provider metadata, failure reason, or COD note.
+  note     String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order        Order         @relation(fields: [orderId], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([organizationId])
+  @@index([type, status])
 }
 
 model OrderItem {
@@ -512,6 +648,7 @@ model OrderItem {
   order   Order           @relation(fields: [orderId], references: [id])
   product Product         @relation(fields: [productId], references: [id])
   variant ProductVariant? @relation(fields: [variantId], references: [id])
+  returnItems ReturnItem[]
 
   @@index([orderId])
 }

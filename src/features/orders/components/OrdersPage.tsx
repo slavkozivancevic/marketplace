@@ -64,7 +64,8 @@ export function OrdersPage() {
         key: "status",
         label: t("orders.status"),
         options: [
-          opt("PENDING", t("orders.pending")),
+          opt("PENDING_COD", t("orders.pending_cod")),
+          opt("AWAITING_PAYMENT", t("orders.awaiting_payment")),
           opt("COMPLETED", t("orders.completed")),
           opt("CANCELLED", t("orders.cancelled")),
           opt("REFUNDED", t("orders.refunded")),

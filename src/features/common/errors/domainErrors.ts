@@ -84,6 +84,20 @@ export class BulkLimitExceededError extends Error {
   }
 }
 
+export class InsufficientStockError extends Error {
+  readonly i18n: ErrorI18n;
+  constructor(arg: string | ErrorI18n = "Insufficient stock") {
+    const { i18n, message } = normalizeI18n(
+      arg,
+      "insufficientStock",
+      "Insufficient stock",
+    );
+    super(message);
+    this.i18n = i18n;
+    this.name = "InsufficientStockError";
+  }
+}
+
 export class NotFoundError extends Error {
   readonly i18n: ErrorI18n;
   constructor(arg: string | ErrorI18n = "Not found") {

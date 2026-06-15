@@ -14,6 +14,10 @@ export const env = createEnv({
     APP_URL: z.url(),
     STRIPE_SECRET_KEY: z.string().min(1),
     STRIPE_WEBHOOK_SECRET: z.string().min(1),
+    // Dev escape hatch: when "true", Stripe Connect onboarding and payout
+    // transfers are simulated locally (no real account / IBAN / transfer call).
+    // Leave unset in production to use the real Stripe Connect flow.
+    MOCK_STRIPE_CONNECT: z.enum(["true", "false"]).optional(),
     CHAT_HTTP_API_URL: z.string().min(1),
     CHAT_INTERNAL_API_KEY: z.string().min(1),
     CONVERSATION_SEARCH_API_URL: z.string().min(1),

@@ -6,8 +6,8 @@ import {
 } from "@/features/common/errors/domainErrors";
 
 const rolePermissions: Record<MembershipRole, Permission[]> = {
-  OWNER: ["product:create", "product:update", "product:delete", "product:read", "order:read", "order:manage"],
-  ADMIN: ["product:create", "product:update", "product:delete", "product:read", "order:read", "order:manage"],
+  OWNER: ["product:create", "product:update", "product:delete", "product:read", "order:read", "order:manage", "payout:manage"],
+  ADMIN: ["product:create", "product:update", "product:delete", "product:read", "order:read", "order:manage", "payout:manage"],
   MEMBER: ["product:read", "order:read"],
 };
 

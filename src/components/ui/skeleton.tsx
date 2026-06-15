@@ -189,6 +189,21 @@ export function SkeletonProductTableRow({
   );
 }
 
+export function SkeletonPayoutRow() {
+  return (
+    <div
+      role="row"
+      className="grid grid-cols-[minmax(120px,1fr)_120px_90px_150px_180px] items-center gap-4 border-b p-3"
+    >
+      <SkeletonText rows={1} size="md" className="w-24" />
+      <SkeletonText rows={1} size="md" className="w-20" />
+      <SkeletonText rows={1} size="md" className="w-12" />
+      <SkeletonText rows={1} size="md" className="w-20 ml-auto" />
+      <Skeleton className="h-5 w-20 rounded-full mx-auto" />
+    </div>
+  );
+}
+
 export function SkeletonOrderRow() {
   return (
     <div
