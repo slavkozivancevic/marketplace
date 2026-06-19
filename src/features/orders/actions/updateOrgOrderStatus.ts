@@ -3,192 +3,92 @@
 import { prisma } from "@/core/db/prisma";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
-import { OrderStatus, PaymentTransactionType, PaymentTransactionStatus, PaymentMethod } from "@/generated/prisma/client";
-import { ForbiddenError } from "@/features/common/errors/domainErrors";
 import {
-  publishCodOrderFulfilled,
+  FulfillmentStatus,
+  PaymentStatus,
+  PaymentTransactionType,
+  PaymentTransactionStatus,
+  PaymentMethod,
+  OrderStatus,
+} from "@/generated/prisma/client";
+import { ForbiddenError } from "@/features/common/errors/domainErrors";
+import { deriveOrderStatus } from "@/features/orders/status";
+import { platformFeeAmount } from "@/features/payments/config";
+import {
   publishCodOrderCancelled,
   publishCodPaymentReceived,
 } from "@/services/notifications";
 import { revalidateOrderCache } from "@/features/orders/db/cache";
 import { revalidateProductCache } from "@/features/products/db/cache";
 
-// Valid transitions a seller can make on their org's COD orders. COMPLETED is
-// reached only via markCodPaymentReceived (payment confirmed), never directly -
-// an order must be paid before it is complete.
-const ALLOWED_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
-  PENDING_COD: [OrderStatus.AWAITING_PAYMENT, OrderStatus.CANCELLED],
-  AWAITING_PAYMENT: [OrderStatus.CANCELLED],
+export type OrgOrderActionResult = { success: true } | { error: string };
+
+type AuthedOrder = {
+  ctx: Awaited<ReturnType<typeof resolveRequestContext>>;
 };
 
-export type UpdateOrgOrderStatusResult =
-  | { success: true; newStatus: OrderStatus }
-  | { error: string };
-
-export async function updateOrgOrderStatus(
-  orderId: string,
-  newStatus: string,
-): Promise<UpdateOrgOrderStatusResult> {
-  if (!Object.values(OrderStatus).includes(newStatus as OrderStatus)) {
-    return { error: "Invalid status" };
-  }
+async function authorize(): Promise<AuthedOrder | { error: string }> {
   let ctx;
   try {
     ctx = await resolveRequestContext();
   } catch {
     return { error: "Unauthorized" };
   }
-
-  // OWNER and ADMIN membership roles can manage orders; MEMBER is read-only
+  // OWNER and ADMIN membership roles can manage orders; MEMBER is read-only.
   try {
     requirePermission(ctx, "order:manage");
   } catch (e) {
     if (e instanceof ForbiddenError) return { error: "Forbidden" };
     throw e;
   }
-
-  // Fetch the order and verify it belongs to this org
-  const order = await prisma.order.findFirst({
-    where: {
-      id: orderId,
-      items: { some: { product: { organizationId: ctx.organizationId } } },
-    },
-    select: {
-      id: true,
-      status: true,
-      locale: true,
-      userId: true,
-      items: { select: { productId: true, variantId: true, quantity: true } },
-    },
-  });
-
-  if (!order) {
-    return { error: "Order not found" };
-  }
-
-  // Validate the requested status transition
-  const typedStatus = newStatus as OrderStatus;
-  const allowed = ALLOWED_TRANSITIONS[order.status] ?? [];
-  if (!allowed.includes(typedStatus)) {
-    return {
-      error: `Cannot transition from ${order.status} to ${newStatus}`,
-    };
-  }
-
-  await prisma.$transaction(async (tx) => {
-    await tx.order.update({
-      where: { id: orderId },
-      data: { status: typedStatus },
-    });
-
-    // Delivery (AWAITING_PAYMENT) does not mean the seller has the cash yet, so
-    // the COD charge stays PENDING until payment is confirmed separately
-    // (markCodPaymentReceived).
-    if (typedStatus === OrderStatus.CANCELLED) {
-      // A cancelled order is never paid - fail its charge.
-      await tx.paymentTransaction.updateMany({
-        where: {
-          orderId,
-          type: PaymentTransactionType.CHARGE,
-          provider: PaymentMethod.COD,
-        },
-        data: { status: PaymentTransactionStatus.FAILED },
-      });
-
-      // Return reserved inventory. Cancel is only reachable from PENDING_COD /
-      // AWAITING_PAYMENT (never after a refund), so no item was restocked yet -
-      // no double-restock risk. Null stock = unlimited, leave it.
-      for (const item of order.items) {
-        if (item.variantId) {
-          await tx.productVariant.update({
-            where: { id: item.variantId },
-            data: { stock: { increment: item.quantity } },
-          });
-        } else {
-          const product = await tx.product.findUnique({
-            where: { id: item.productId },
-            select: { stock: true },
-          });
-          if (product?.stock !== null && product?.stock !== undefined) {
-            await tx.product.update({
-              where: { id: item.productId },
-              data: { stock: { increment: item.quantity } },
-            });
-          }
-        }
-      }
-    }
-  });
-
-  revalidateOrderCache(order.userId, orderId);
-  if (typedStatus === OrderStatus.CANCELLED) {
-    const productIds = [...new Set(order.items.map((i) => i.productId))];
-    const products = await prisma.product.findMany({
-      where: { id: { in: productIds } },
-      select: { id: true, organizationId: true },
-    });
-    products.forEach((p) => revalidateProductCache(p.organizationId, p.id));
-  }
-
-  // Fire notification - best-effort (don't fail the action if SNS is down)
-  try {
-    if (typedStatus === OrderStatus.AWAITING_PAYMENT) {
-      await publishCodOrderFulfilled(orderId, order.locale ?? "en");
-    } else if (typedStatus === OrderStatus.CANCELLED) {
-      await publishCodOrderCancelled(orderId, order.locale ?? "en");
-    }
-  } catch (err) {
-    console.error(`[updateOrgOrderStatus] failed to publish notification for order ${orderId}:`, err);
-  }
-
-  return { success: true, newStatus: typedStatus };
+  return { ctx };
 }
-
-export type MarkCodPaidResult = { success: true } | { error: string };
 
 /**
  * Confirms the seller received the cash for a delivered COD order. This is what
- * completes the order: it moves AWAITING_PAYMENT -> COMPLETED and settles the
- * PENDING charge to SUCCEEDED in one transaction, so an order is never COMPLETED
- * while unpaid.
+ * completes a COD order: it sets paymentStatus PAID (derived COMPLETED) and
+ * settles the PENDING charge to SUCCEEDED in one transaction, so an order is
+ * never COMPLETED while unpaid.
  */
 export async function markCodPaymentReceived(
   orderId: string,
-): Promise<MarkCodPaidResult> {
-  let ctx;
-  try {
-    ctx = await resolveRequestContext();
-  } catch {
-    return { error: "Unauthorized" };
-  }
-
-  try {
-    requirePermission(ctx, "order:manage");
-  } catch (e) {
-    if (e instanceof ForbiddenError) return { error: "Forbidden" };
-    throw e;
-  }
+): Promise<OrgOrderActionResult> {
+  const auth = await authorize();
+  if ("error" in auth) return auth;
+  const { ctx } = auth;
 
   const order = await prisma.order.findFirst({
-    where: {
-      id: orderId,
-      items: { some: { product: { organizationId: ctx.organizationId } } },
+    where: { id: orderId, items: { some: { product: { organizationId: ctx.organizationId } } } },
+    select: {
+      id: true,
+      userId: true,
+      locale: true,
+      currency: true,
+      paymentMethod: true,
+      paymentStatus: true,
+      fulfillmentStatus: true,
+      cancelledAt: true,
     },
-    select: { id: true, status: true, paymentMethod: true, userId: true, locale: true },
   });
-
   if (!order) return { error: "Order not found" };
-  if (order.paymentMethod !== PaymentMethod.COD) {
-    return { error: "Not a COD order" };
-  }
-  if (order.status !== OrderStatus.AWAITING_PAYMENT) {
-    return { error: "Order is not awaiting payment" };
+  if (order.paymentMethod !== PaymentMethod.COD) return { error: "Not a COD order" };
+  if (order.cancelledAt) return { error: "Order is cancelled" };
+  if (order.paymentStatus !== PaymentStatus.UNPAID) return { error: "Order is already paid" };
+  if (order.fulfillmentStatus !== FulfillmentStatus.DELIVERED) {
+    return { error: "Order must be delivered before payment is confirmed" };
   }
 
   await prisma.$transaction(async (tx) => {
     await tx.order.update({
       where: { id: orderId },
-      data: { status: OrderStatus.COMPLETED },
+      data: {
+        paymentStatus: PaymentStatus.PAID,
+        status: deriveOrderStatus({
+          paymentStatus: PaymentStatus.PAID,
+          fulfillmentStatus: order.fulfillmentStatus,
+          cancelledAt: null,
+        }),
+      },
     });
     await tx.paymentTransaction.updateMany({
       where: {
@@ -199,15 +99,122 @@ export async function markCodPaymentReceived(
       },
       data: { status: PaymentTransactionStatus.SUCCEEDED },
     });
+
+    // Accrue the platform commission each seller now owes on this COD order. The
+    // seller collected the full cash, so the fee can't be netted from a transfer
+    // (as it is for card orders) - record it as a FEE owed per seller.
+    const orgItems = await tx.orderItem.findMany({
+      where: { orderId },
+      select: { price: true, quantity: true, product: { select: { organizationId: true } } },
+    });
+    const subtotalByOrg = new Map<string, number>();
+    for (const it of orgItems) {
+      const orgId = it.product.organizationId;
+      subtotalByOrg.set(orgId, (subtotalByOrg.get(orgId) ?? 0) + it.price * it.quantity);
+    }
+    for (const [organizationId, subtotal] of subtotalByOrg) {
+      const fee = platformFeeAmount(subtotal);
+      if (fee <= 0) continue;
+      await tx.paymentTransaction.create({
+        data: {
+          orderId,
+          organizationId,
+          type: PaymentTransactionType.FEE,
+          status: PaymentTransactionStatus.SUCCEEDED,
+          provider: PaymentMethod.COD,
+          amount: fee,
+          currency: order.currency,
+        },
+      });
+    }
   });
 
   revalidateOrderCache(order.userId, orderId);
 
-  // Buyer-facing COD payment receipt - best-effort, must not fail the action.
   try {
     await publishCodPaymentReceived(orderId, order.locale ?? "en");
   } catch (err) {
-    console.error(`[markCodPaymentReceived] failed to publish notification for order ${orderId}:`, err);
+    console.error(`[markCodPaymentReceived] notification failed for ${orderId}:`, err);
+  }
+
+  return { success: true };
+}
+
+/**
+ * Cancels an order before money changes hands. COD-only path: a paid (card)
+ * order must be refunded, not cancelled. Sets cancelledAt (derived CANCELLED),
+ * fails the pending COD charge and restocks the reserved inventory.
+ */
+export async function cancelOrder(
+  orderId: string,
+): Promise<OrgOrderActionResult> {
+  const auth = await authorize();
+  if ("error" in auth) return auth;
+  const { ctx } = auth;
+
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, items: { some: { product: { organizationId: ctx.organizationId } } } },
+    select: {
+      id: true,
+      userId: true,
+      locale: true,
+      paymentStatus: true,
+      cancelledAt: true,
+      items: { select: { productId: true, variantId: true, quantity: true } },
+    },
+  });
+  if (!order) return { error: "Order not found" };
+  if (order.cancelledAt) return { error: "Order is already cancelled" };
+  if (order.paymentStatus !== PaymentStatus.UNPAID) {
+    return { error: "Paid orders must be refunded, not cancelled" };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: orderId },
+      data: { cancelledAt: new Date(), status: OrderStatus.CANCELLED },
+    });
+
+    // A cancelled order is never paid - fail its pending COD charge.
+    await tx.paymentTransaction.updateMany({
+      where: { orderId, type: PaymentTransactionType.CHARGE, provider: PaymentMethod.COD },
+      data: { status: PaymentTransactionStatus.FAILED },
+    });
+
+    // Return reserved inventory (null stock = unlimited, leave it).
+    for (const item of order.items) {
+      if (item.variantId) {
+        await tx.productVariant.update({
+          where: { id: item.variantId },
+          data: { stock: { increment: item.quantity } },
+        });
+      } else {
+        const product = await tx.product.findUnique({
+          where: { id: item.productId },
+          select: { stock: true },
+        });
+        if (product?.stock !== null && product?.stock !== undefined) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } },
+          });
+        }
+      }
+    }
+  });
+
+  revalidateOrderCache(order.userId, orderId);
+  const productIds = [...new Set(order.items.map((i) => i.productId))];
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, organizationId: true },
+  });
+  products.forEach((p) => revalidateProductCache(p.organizationId, p.id));
+
+  try {
+    await publishCodOrderCancelled(orderId, order.locale ?? "en");
+  } catch (err) {
+    console.error(`[cancelOrder] notification failed for ${orderId}:`, err);
   }
 
   return { success: true };

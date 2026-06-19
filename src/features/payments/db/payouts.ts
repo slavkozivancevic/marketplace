@@ -8,8 +8,6 @@ import {
 import { sellerNetAmount } from "../config";
 import { MOCK_CONNECT, isMockAccount } from "../mock";
 
-export type TransferItem = { productId: string; price: number; quantity: number };
-
 /**
  * Cursor-paginated payout ledger for a seller org, newest first. Each row carries
  * a `refunded` flag set when the order behind it has a succeeded REFUND, so the UI
@@ -205,106 +203,112 @@ export async function getOrgPayoutFacetCounts({
 }
 
 /**
- * After a Stripe order is captured, transfer each seller org's net share (after
- * the platform fee) to its connected account and record a PAYOUT ledger row.
+ * Releases ONE seller's payout for a card order, called when that seller ships
+ * its portion - not at payment. The platform holds the captured funds until the
+ * seller fulfills, which protects against paying out an order that is refunded
+ * before it ever ships (standard marketplace risk management).
  *
- * Separate charges + transfers model: the platform already holds the full
- * payment, so this fans it out per seller. Mock mode skips the Stripe call and
- * uses a synthetic transfer id. Best-effort and per-org isolated: a missing
- * account or a failed transfer is recorded (PENDING / FAILED) and never thrown,
- * so it can't undo an already-captured order.
+ * Transfers the seller's net share (subtotal minus the platform fee) to its
+ * connected account and records a PAYOUT ledger row. Idempotent per (order,
+ * seller) so re-marking shipped / updating tracking never pays twice. COD orders
+ * have no platform-held funds (cash is collected on delivery) and are skipped.
+ *
+ * Best-effort: a missing account or a failed transfer is recorded (PENDING /
+ * FAILED) and never thrown, so it can't undo an already-shipped order.
  */
-export async function transferOrderToSellers({
+export async function releaseSellerPayout({
   orderId,
-  items,
-  currency,
+  organizationId,
 }: {
   orderId: string;
-  items: TransferItem[];
-  currency: string;
+  organizationId: string;
 }): Promise<void> {
-  const productIds = [...new Set(items.map((i) => i.productId))];
-  const products = await prisma.product.findMany({
-    where: { id: { in: productIds } },
-    select: { id: true, organizationId: true },
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: { paymentMethod: true, currency: true },
   });
-  const orgByProduct = new Map(products.map((p) => [p.id, p.organizationId]));
+  if (!order || order.paymentMethod !== PaymentMethod.STRIPE) return;
+  const currency = order.currency;
 
-  // Sum each org's gross subtotal across the order's items.
-  const subtotalByOrg = new Map<string, number>();
-  for (const it of items) {
-    const orgId = orgByProduct.get(it.productId);
-    if (!orgId) continue;
-    subtotalByOrg.set(orgId, (subtotalByOrg.get(orgId) ?? 0) + it.price * it.quantity);
+  // Idempotent: one payout per (order, seller). Re-shipping / tracking edits
+  // must never transfer again.
+  const existing = await prisma.paymentTransaction.findFirst({
+    where: { orderId, organizationId, type: PaymentTransactionType.PAYOUT },
+    select: { id: true },
+  });
+  if (existing) return;
+
+  // This seller's gross subtotal within the order (price stored in order currency).
+  const items = await prisma.orderItem.findMany({
+    where: { orderId, product: { organizationId } },
+    select: { price: true, quantity: true },
+  });
+  const subtotal = items.reduce((s, it) => s + it.price * it.quantity, 0);
+  const net = sellerNetAmount(subtotal);
+  if (net <= 0) return;
+
+  const account = await prisma.connectedAccount.findUnique({
+    where: { organizationId },
+  });
+
+  // Seller not onboarded or payouts not enabled: record what is owed as a
+  // PENDING payout so it surfaces in their dashboard and can be settled later.
+  if (!account || !account.payoutsEnabled) {
+    await prisma.paymentTransaction.create({
+      data: {
+        orderId,
+        organizationId,
+        type: PaymentTransactionType.PAYOUT,
+        status: PaymentTransactionStatus.PENDING,
+        provider: PaymentMethod.STRIPE,
+        amount: net,
+        currency,
+        note: account ? "Payouts not enabled yet" : "Seller not connected",
+      },
+    });
+    return;
   }
 
-  for (const [organizationId, subtotal] of subtotalByOrg) {
-    const net = sellerNetAmount(subtotal);
-    if (net <= 0) continue;
+  try {
+    let providerId: string;
+    if (MOCK_CONNECT || isMockAccount(account.stripeAccountId)) {
+      providerId = `tr_mock_${orderId}_${organizationId}`;
+    } else {
+      const transfer = await stripe.transfers.create({
+        amount: net,
+        currency,
+        destination: account.stripeAccountId,
+        transfer_group: orderId,
+        metadata: { orderId, organizationId },
+      });
+      providerId = transfer.id;
+    }
 
-    const account = await prisma.connectedAccount.findUnique({
-      where: { organizationId },
+    await prisma.paymentTransaction.create({
+      data: {
+        orderId,
+        organizationId,
+        type: PaymentTransactionType.PAYOUT,
+        status: PaymentTransactionStatus.SUCCEEDED,
+        provider: PaymentMethod.STRIPE,
+        providerId,
+        amount: net,
+        currency,
+      },
     });
-
-    // Seller not onboarded or payouts not enabled: record what is owed as a
-    // PENDING payout so it surfaces in their dashboard and can be settled later.
-    if (!account || !account.payoutsEnabled) {
-      await prisma.paymentTransaction.create({
-        data: {
-          orderId,
-          organizationId,
-          type: PaymentTransactionType.PAYOUT,
-          status: PaymentTransactionStatus.PENDING,
-          provider: PaymentMethod.STRIPE,
-          amount: net,
-          currency,
-          note: account ? "Payouts not enabled yet" : "Seller not connected",
-        },
-      });
-      continue;
-    }
-
-    try {
-      let providerId: string;
-      if (MOCK_CONNECT || isMockAccount(account.stripeAccountId)) {
-        providerId = `tr_mock_${orderId}_${organizationId}`;
-      } else {
-        const transfer = await stripe.transfers.create({
-          amount: net,
-          currency,
-          destination: account.stripeAccountId,
-          transfer_group: orderId,
-          metadata: { orderId, organizationId },
-        });
-        providerId = transfer.id;
-      }
-
-      await prisma.paymentTransaction.create({
-        data: {
-          orderId,
-          organizationId,
-          type: PaymentTransactionType.PAYOUT,
-          status: PaymentTransactionStatus.SUCCEEDED,
-          provider: PaymentMethod.STRIPE,
-          providerId,
-          amount: net,
-          currency,
-        },
-      });
-    } catch (err) {
-      console.error("[transferOrderToSellers] transfer failed", organizationId, err);
-      await prisma.paymentTransaction.create({
-        data: {
-          orderId,
-          organizationId,
-          type: PaymentTransactionType.PAYOUT,
-          status: PaymentTransactionStatus.FAILED,
-          provider: PaymentMethod.STRIPE,
-          amount: net,
-          currency,
-          note: err instanceof Error ? err.message.slice(0, 500) : "transfer failed",
-        },
-      });
-    }
+  } catch (err) {
+    console.error("[releaseSellerPayout] transfer failed", organizationId, err);
+    await prisma.paymentTransaction.create({
+      data: {
+        orderId,
+        organizationId,
+        type: PaymentTransactionType.PAYOUT,
+        status: PaymentTransactionStatus.FAILED,
+        provider: PaymentMethod.STRIPE,
+        amount: net,
+        currency,
+        note: err instanceof Error ? err.message.slice(0, 500) : "transfer failed",
+      },
+    });
   }
 }

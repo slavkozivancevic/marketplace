@@ -15,3 +15,13 @@ export function sellerNetAmount(subtotal: number): number {
   const fee = Math.round((subtotal * PLATFORM_FEE_PERCENT) / 100);
   return subtotal - fee;
 }
+
+/**
+ * Platform commission (smallest currency unit) on a given subtotal - the
+ * complement of {@link sellerNetAmount}, so the two always sum back to subtotal.
+ * For card orders this is kept implicitly (charge minus transfer); for COD it is
+ * recorded as a FEE owed by the seller, since the seller collects the cash.
+ */
+export function platformFeeAmount(subtotal: number): number {
+  return subtotal - sellerNetAmount(subtotal);
+}

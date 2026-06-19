@@ -2,7 +2,7 @@ import { prisma } from "@/core/db/prisma";
 import { stripe } from "@/services/stripe";
 import {
   ReturnStatus,
-  OrderStatus,
+  PaymentStatus,
   PaymentMethod,
   PaymentTransactionType,
   PaymentTransactionStatus,
@@ -10,6 +10,7 @@ import {
 import { NotFoundError, ForbiddenError } from "@/features/common/errors/domainErrors";
 import { MOCK_CONNECT } from "@/features/payments/mock";
 import { sellerNetAmount } from "@/features/payments/config";
+import { deriveOrderStatus } from "@/features/orders/status";
 import { revalidateOrderCache } from "@/features/orders/db/cache";
 import { revalidateProductCache } from "@/features/products/db/cache";
 import { getLabel } from "@/features/attributes/utils/translations";
@@ -128,14 +129,26 @@ export async function createReturn({
 
   const order = await prisma.order.findFirst({
     where: { id: orderId, userId },
-    select: { id: true, status: true, paymentMethod: true, locale: true },
+    select: { id: true, paymentStatus: true, paymentMethod: true, locale: true },
   });
   if (!order) throw new NotFoundError("Order not found");
-  // Returns open once goods are delivered. Both card (COMPLETED at capture) and
-  // COD (COMPLETED when the seller marks it delivered) reach COMPLETED.
-  if (order.status !== OrderStatus.COMPLETED) {
+  // The order must have collected money that can be returned. (Card is paid at
+  // capture; COD only once the seller confirms cash received.) A partially
+  // refunded order still has returnable items left.
+  if (
+    order.paymentStatus !== PaymentStatus.PAID &&
+    order.paymentStatus !== PaymentStatus.PARTIALLY_REFUNDED
+  ) {
     throw new ForbiddenError({ key: "returnNotEligible" });
   }
+  // ...and the buyer can only return goods they have actually received. So this
+  // seller's shipment must be marked DELIVERED - shipped-but-in-transit is not
+  // yet returnable (the buyer doesn't have the items).
+  const shipment = await prisma.shipment.findUnique({
+    where: { orderId_organizationId: { orderId, organizationId } },
+    select: { deliveredAt: true },
+  });
+  if (!shipment?.deliveredAt) throw new ForbiddenError({ key: "returnNotShipped" });
 
   // The seller's order items (id -> ordered quantity) - bounds the selection.
   const orgItems = await prisma.orderItem.findMany({
@@ -198,7 +211,15 @@ async function settleReturnRefund(
 ): Promise<number> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { id: true, userId: true, currency: true, total: true, paymentMethod: true },
+    select: {
+      id: true,
+      userId: true,
+      currency: true,
+      total: true,
+      paymentMethod: true,
+      fulfillmentStatus: true,
+      cancelledAt: true,
+    },
   });
   if (!order) throw new NotFoundError("Order not found");
   const isStripe = order.paymentMethod === PaymentMethod.STRIPE;
@@ -332,17 +353,26 @@ async function settleReturnRefund(
       data: { status: ReturnStatus.REFUNDED, refundAmount },
     });
 
-    // Mark the order REFUNDED only once cumulative refunds cover its total.
+    // Move the payment axis: fully REFUNDED once cumulative refunds cover the
+    // total, otherwise PARTIALLY_REFUNDED. Recompute the derived display status.
     const agg = await tx.paymentTransaction.aggregate({
       where: { orderId, type: PaymentTransactionType.REFUND },
       _sum: { amount: true },
     });
-    if ((agg._sum.amount ?? 0) >= order.total) {
-      await tx.order.update({
-        where: { id: orderId },
-        data: { status: OrderStatus.REFUNDED },
-      });
-    }
+    const refundedTotal = agg._sum.amount ?? 0;
+    const nextPayment =
+      refundedTotal >= order.total ? PaymentStatus.REFUNDED : PaymentStatus.PARTIALLY_REFUNDED;
+    await tx.order.update({
+      where: { id: orderId },
+      data: {
+        paymentStatus: nextPayment,
+        status: deriveOrderStatus({
+          paymentStatus: nextPayment,
+          fulfillmentStatus: order.fulfillmentStatus,
+          cancelledAt: order.cancelledAt,
+        }),
+      },
+    });
   });
 
   revalidateOrderCache(order.userId, orderId);

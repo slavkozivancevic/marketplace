@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { CheckCircle, XCircle, Loader2, BadgeDollarSign } from "lucide-react";
+import { XCircle, Loader2, BadgeDollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { updateOrgOrderStatus, markCodPaymentReceived } from "../actions/updateOrgOrderStatus";
+import { markCodPaymentReceived, cancelOrder } from "../actions/updateOrgOrderStatus";
 import { useRefreshOrderViews } from "../hooks/useRefreshOrderViews";
 
 function CancelOrderButton({
@@ -82,43 +82,40 @@ function CancelOrderButton({
 
 interface OrgOrderStatusManagerProps {
   orderId: string;
-  currentStatus: string;
+  paymentMethod: "STRIPE" | "COD";
+  paymentStatus: "UNPAID" | "PAID" | "PARTIALLY_REFUNDED" | "REFUNDED";
+  fulfillmentStatus: "UNFULFILLED" | "PARTIALLY_FULFILLED" | "FULFILLED" | "DELIVERED";
 }
 
 export function OrgOrderStatusManager({
   orderId,
-  currentStatus,
+  paymentMethod,
+  paymentStatus,
+  fulfillmentStatus,
 }: OrgOrderStatusManagerProps) {
   const t = useTranslations("orgOrders");
   const refreshOrderViews = useRefreshOrderViews();
   // The in-flight action drives the button spinners. Loading is NOT tied to a
   // useTransition flag, so it can't blink off before the component unmounts.
-  const [activeAction, setActiveAction] = useState<"complete" | "cancel" | "paid" | null>(null);
+  const [activeAction, setActiveAction] = useState<"cancel" | "paid" | null>(null);
   const busy = activeAction !== null;
 
-  // Delivery is marked while PENDING_COD; payment is confirmed while the order
-  // sits in AWAITING_PAYMENT (delivered, cash not yet confirmed). Confirming
-  // payment is what completes the order.
-  const showDelivery = currentStatus === "PENDING_COD";
-  const showPaymentReceived = currentStatus === "AWAITING_PAYMENT";
-  if (!showDelivery && !showPaymentReceived) return null;
-
-  // Delivery keeps the component mounted (the card swaps to the payment step), so
-  // we clear the spinner after success. Cancel and payment move the order out of
-  // this card entirely - leave the spinner on until the component unmounts so the
-  // button doesn't flash back to its idle state first.
-  const handleDeliver = async () => {
-    setActiveAction("complete");
-    const result = await updateOrgOrderStatus(orderId, "AWAITING_PAYMENT");
-    if ("error" in result) {
-      toast.error(result.error);
-      setActiveAction(null);
-      return;
-    }
-    toast.success(t("markedComplete"));
+  // Clear the spinner only once the refreshed axes have actually landed, so a
+  // button never blinks back to its idle state in the gap between the action
+  // finishing and router.refresh() re-rendering with the new state.
+  const stage = `${paymentStatus}:${fulfillmentStatus}`;
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveAction(null);
-    refreshOrderViews();
-  };
+  }, [stage]);
+
+  // Shipping + delivery live in the ShipmentManager (per-seller). This card is
+  // the order-level money step: collect COD cash once the whole order is
+  // delivered, and cancel an unpaid COD order.
+  const isCod = paymentMethod === "COD";
+  const showPaymentReceived = isCod && paymentStatus === "UNPAID" && fulfillmentStatus === "DELIVERED";
+  const showCancel = isCod && paymentStatus === "UNPAID";
+  if (!showPaymentReceived && !showCancel) return null;
 
   const handlePaymentReceived = async () => {
     setActiveAction("paid");
@@ -134,7 +131,7 @@ export function OrgOrderStatusManager({
 
   const handleCancel = async () => {
     setActiveAction("cancel");
-    const result = await updateOrgOrderStatus(orderId, "CANCELLED");
+    const result = await cancelOrder(orderId);
     if ("error" in result) {
       toast.error(result.error);
       setActiveAction(null);
@@ -152,61 +149,36 @@ export function OrgOrderStatusManager({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {showDelivery && (
-          <>
-            <p className="text-sm text-amber-700 dark:text-amber-400">
-              {t("codActionDescription")}
-            </p>
-            <div className="flex gap-3">
-              <Button
-                size="sm"
-                onClick={handleDeliver}
-                disabled={busy}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                {activeAction === "complete" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                )}
-                {t("markComplete")}
-              </Button>
-              <CancelOrderButton
-                onConfirm={handleCancel}
-                disabled={busy}
-                loading={activeAction === "cancel"}
-              />
-            </div>
-          </>
-        )}
-
         {showPaymentReceived && (
-          <>
-            <p className="text-sm text-amber-700 dark:text-amber-400">
-              {t("codPaymentDescription")}
-            </p>
-            <div className="flex gap-3">
-              <Button
-                size="sm"
-                onClick={handlePaymentReceived}
-                disabled={busy}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                {activeAction === "paid" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <BadgeDollarSign className="mr-2 h-4 w-4" />
-                )}
-                {t("markPaymentReceived")}
-              </Button>
-              <CancelOrderButton
-                onConfirm={handleCancel}
-                disabled={busy}
-                loading={activeAction === "cancel"}
-              />
-            </div>
-          </>
+          <p className="text-sm text-amber-700 dark:text-amber-400">
+            {t("codPaymentDescription")}
+          </p>
         )}
+        <div className="flex flex-wrap gap-3">
+          {showPaymentReceived && (
+            <Button
+              size="sm"
+              onClick={handlePaymentReceived}
+              disabled={busy}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {activeAction === "paid" ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <BadgeDollarSign className="mr-2 h-4 w-4" />
+              )}
+              {t("markPaymentReceived")}
+            </Button>
+          )}
+
+          {showCancel && (
+            <CancelOrderButton
+              onConfirm={handleCancel}
+              disabled={busy}
+              loading={activeAction === "cancel"}
+            />
+          )}
+        </div>
       </CardContent>
     </Card>
   );

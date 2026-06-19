@@ -5,7 +5,7 @@ import {
   ReturnStatus,
   PaymentTransactionType,
 } from "@/generated/prisma/client";
-import { sellerNetAmount } from "@/features/payments/config";
+import { sellerNetAmount, platformFeeAmount } from "@/features/payments/config";
 
 // ─── List ─────────────────────────────────────────────────────────────────────
 
@@ -257,12 +257,16 @@ export async function getOrgOrderById(orderId: string, organizationId: string) {
   );
 
   const paymentTransactions = txns.map((t) => {
-    if (t.type !== PaymentTransactionType.PAYOUT || t.organizationId !== organizationId) {
+    // PAYOUT (seller net) and FEE (platform commission) are both clawed back /
+    // credited proportionally when this org's items are refunded. A PAYOUT
+    // reverses sellerNetAmount(refundedGross); a FEE credits platformFeeAmount.
+    const isPayout = t.type === PaymentTransactionType.PAYOUT && t.organizationId === organizationId;
+    const isFee = t.type === PaymentTransactionType.FEE && t.organizationId === organizationId;
+    if (!isPayout && !isFee) {
       return { ...t, refundState: "none" as const, reversedNet: 0 };
     }
-    const reversedNet = orderLevelRefunded
-      ? t.amount
-      : Math.min(t.amount, sellerNetAmount(orgRefundGross));
+    const grossBack = isPayout ? sellerNetAmount(orgRefundGross) : platformFeeAmount(orgRefundGross);
+    const reversedNet = orderLevelRefunded ? t.amount : Math.min(t.amount, grossBack);
     const refundState =
       reversedNet <= 0 ? ("none" as const) : reversedNet >= t.amount ? ("full" as const) : ("partial" as const);
     return { ...t, refundState, reversedNet };

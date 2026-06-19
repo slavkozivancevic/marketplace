@@ -46,6 +46,11 @@ export function CheckoutPage() {
   const codAvailable = items.every((i) => i.requiresShipping);
   const [method, setMethod] = useState<PaymentMethod>("card");
   const [isPending, startTransition] = useTransition();
+  // Latches once the Stripe redirect is kicked off and never resets: the
+  // browser takes a moment to leave the page after setting location.href, and
+  // without this the transition ends first and the button flashes back to its
+  // idle state before the navigation visibly happens.
+  const [isRedirecting, setIsRedirecting] = useState(false);
   // Read localStorage synchronously at mount to know if items existed before zustand hydrates.
   // This prevents the empty-cart flash when navigating back from Stripe.
   const [hadItemsAtMount] = useState(() => {
@@ -95,7 +100,9 @@ export function CheckoutPage() {
         return;
       }
       // Stripe-hosted checkout - external URL. Bypass next-intl's typed
-      // router (it only accepts registered pathnames) with a hard nav.
+      // router (it only accepts registered pathnames) with a hard nav. Keep the
+      // button in its loading state until the browser actually leaves the page.
+      setIsRedirecting(true);
       window.location.href = result.url;
     });
   };
@@ -221,9 +228,9 @@ export function CheckoutPage() {
               className="w-full"
               size="lg"
               onClick={handleCardCheckout}
-              disabled={isPending}
+              disabled={isPending || isRedirecting}
             >
-              {isPending ? (
+              {isPending || isRedirecting ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("redirectingToStripe")}</>
               ) : (
                 <><CreditCard className="mr-2 h-4 w-4" />{t("payByCard")}</>

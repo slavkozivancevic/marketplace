@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
+import { usePathname } from "next/navigation";
 import { useRefreshOrderViews } from "@/features/orders/hooks/useRefreshOrderViews";
 import { useTranslations } from "next-intl";
 import { Loader2, RotateCcw, Truck } from "lucide-react";
@@ -20,7 +21,14 @@ type ItemRow = {
   returnable: number;
 };
 
-type Seller = { organizationId: string; name: string; items: ItemRow[] };
+type Seller = {
+  organizationId: string;
+  name: string;
+  shipped: boolean;
+  delivered: boolean;
+  canReturn: boolean;
+  items: ItemRow[];
+};
 
 type ReturnLine = {
   orderItemId: string;
@@ -47,12 +55,10 @@ function statusVariant(s: string) {
 
 export function BuyerReturns({
   orderId,
-  eligible,
   sellers,
   returns,
 }: {
   orderId: string;
-  eligible: boolean;
   sellers: Seller[];
   returns: ReturnRow[];
 }) {
@@ -62,6 +68,17 @@ export function BuyerReturns({
   const [openFor, setOpenFor] = useState<string | null>(null);
   const [sel, setSel] = useState<Record<string, number>>({});
   const [reason, setReason] = useState("");
+
+  // Reset the in-progress return form when the route changes - the client Router
+  // Cache (dynamicOnHover) would otherwise keep a half-filled form alive across
+  // instant back-navigation.
+  const pathname = usePathname();
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOpenFor(null);
+    setSel({});
+    setReason("");
+  }, [pathname]);
 
   const statusLabel: Record<string, string> = {
     REQUESTED: t("statusRequested"),
@@ -133,12 +150,22 @@ export function BuyerReturns({
               {index > 0 && <Separator className="my-3" />}
               <div className="flex items-center justify-between gap-3">
                 <span className="font-medium">{seller.name}</span>
-                {eligible && returnable.length > 0 && !formOpen && (
+                {seller.canReturn && returnable.length > 0 && !formOpen && (
                   <Button size="sm" variant="outline" onClick={() => openForm(seller.organizationId)}>
                     {t("requestReturn")}
                   </Button>
                 )}
               </div>
+              {!seller.canReturn && returnable.length > 0 && sellerReturns.length === 0 && (
+                <>
+                  {seller.shipped && !seller.delivered && (
+                    <p className="mt-1 text-xs text-muted-foreground">{t("returnAfterShip")}</p>
+                  )}
+                  {seller.delivered && (
+                    <p className="mt-1 text-xs text-muted-foreground">{t("notEligibleHint")}</p>
+                  )}
+                </>
+              )}
 
               {/* Existing returns for this seller */}
               {sellerReturns.map((ret) => (

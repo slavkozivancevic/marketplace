@@ -15,6 +15,10 @@ import { Separator } from "@/components/ui/separator";
 import { OrgOrderStatusManager } from "@/features/orders/components/OrgOrderStatusManager";
 import { getOrgOrderReturns } from "@/features/returns/db/returns";
 import { SellerReturns } from "@/features/returns/components/SellerReturns";
+import { getOrgShipment } from "@/features/shipments/db/shipments";
+import { ShipmentManager } from "@/features/shipments/components/ShipmentManager";
+import { deriveOrderStatus } from "@/features/orders/status";
+import { orderStatusKey, orderStatusVariant } from "@/features/orders/statusBadge";
 import { MembershipRole } from "@/generated/prisma/client";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { formatPrice } from "@/lib/currency";
@@ -23,15 +27,6 @@ import { getLabel } from "@/features/attributes/utils/translations";
 
 interface Props {
   params: Promise<{ id: string }>;
-}
-
-function getStatusVariant(status: string) {
-  switch (status) {
-    case "COMPLETED": return "default" as const;
-    case "CANCELLED":
-    case "REFUNDED": return "destructive" as const;
-    default: return "secondary" as const;
-  }
 }
 
 export default async function OrgOrderDetailPage({ params }: Props) {
@@ -57,7 +52,17 @@ export default async function OrgOrderDetailPage({ params }: Props) {
   const order = await getOrgOrderById(id, ctx.organizationId);
   if (!order) notFound();
 
+  // Display stage is derived from the two real axes, so legacy rows (whose
+  // stored status predates the axes) still render correctly.
+  const displayStatus = deriveOrderStatus({
+    paymentStatus: order.paymentStatus,
+    fulfillmentStatus: order.fulfillmentStatus,
+    cancelledAt: order.cancelledAt,
+  });
+  const isTerminal = order.cancelledAt != null || order.paymentStatus === "REFUNDED";
+
   const rawReturns = await getOrgOrderReturns(order.id, ctx.organizationId);
+  const shipment = await getOrgShipment(order.id, ctx.organizationId);
 
   // Attach localized titles to each return's lines (the order already carries
   // this seller's items with translations).
@@ -110,6 +115,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
     CHARGE: t("txType.charge"),
     REFUND: t("txType.refund"),
     PAYOUT: t("txType.payout"),
+    FEE: t("txType.fee"),
   };
   const txStatusLabel: Record<string, string> = {
     PENDING: t("txStatus.pending"),
@@ -147,12 +153,6 @@ export default async function OrgOrderDetailPage({ params }: Props) {
       <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
         <div className="max-w-2xl space-y-5">
 
-          {/* ── Action required (COD, OWNER/ADMIN only) ── */}
-          {canManage && <OrgOrderStatusManager orderId={order.id} currentStatus={order.status} />}
-
-          {/* ── Returns (RMA) ── */}
-          {canManage && <SellerReturns returns={returns} currency={order.currency} />}
-
           {/* ── Order summary ── */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -175,8 +175,13 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                     {t("returnInProgress")}
                   </Badge>
                 )}
-                <Badge variant={getStatusVariant(order.status)}>
-                  {t(order.status.toLowerCase() as "pending" | "pending_cod" | "completed" | "cancelled" | "refunded" | "awaiting_payment")}
+                {order.paymentStatus === "PARTIALLY_REFUNDED" && (
+                  <Badge variant="outline" className="gap-1 text-xs text-amber-600 border-amber-300">
+                    {t("partiallyRefunded")}
+                  </Badge>
+                )}
+                <Badge variant={orderStatusVariant(displayStatus)}>
+                  {t(orderStatusKey(displayStatus))}
                 </Badge>
               </div>
             </CardHeader>
@@ -199,6 +204,24 @@ export default async function OrgOrderDetailPage({ params }: Props) {
               </div>
             </CardContent>
           </Card>
+
+          {/* ── Action required (deliver / collect cash / cancel) ── */}
+          {canManage && !isTerminal && (
+            <OrgOrderStatusManager
+              orderId={order.id}
+              paymentMethod={order.paymentMethod}
+              paymentStatus={order.paymentStatus}
+              fulfillmentStatus={order.fulfillmentStatus}
+            />
+          )}
+
+          {/* ── Fulfillment / shipping ── */}
+          {canManage && !isTerminal && (
+            <ShipmentManager orderId={order.id} shipment={shipment} />
+          )}
+
+          {/* ── Returns (RMA) ── */}
+          {canManage && <SellerReturns returns={returns} currency={order.currency} />}
 
           {/* ── Payment history (ledger) ── */}
           {order.paymentTransactions.length > 0 && (
@@ -229,12 +252,12 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                               <><CreditCard className="h-3 w-3" />{t("card")}</>
                             )}
                           </span>
-                          {tx.type === "PAYOUT" && tx.refundState === "full" && (
+                          {(tx.type === "PAYOUT" || tx.type === "FEE") && tx.refundState === "full" && (
                             <Badge variant="destructive" className="text-[10px]">
                               {t("refunded")}
                             </Badge>
                           )}
-                          {tx.type === "PAYOUT" && tx.refundState === "partial" && (
+                          {(tx.type === "PAYOUT" || tx.type === "FEE") && tx.refundState === "partial" && (
                             <Badge variant="outline" className="text-[10px]">
                               {t("partiallyRefunded")}
                             </Badge>
@@ -253,19 +276,24 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                       <div className="flex flex-col items-end gap-0.5">
                         <span
                           className={`font-semibold tabular-nums ${
-                            tx.type === "REFUND"
-                              ? "text-destructive"
-                              : tx.type === "PAYOUT" && tx.refundState === "full"
-                                ? "text-muted-foreground line-through"
+                            (tx.type === "PAYOUT" || tx.type === "FEE") && tx.refundState === "full"
+                              ? "text-muted-foreground line-through"
+                              : tx.type === "REFUND" || tx.type === "FEE"
+                                ? "text-destructive"
                                 : ""
                           }`}
                         >
-                          {tx.type === "REFUND" ? "-" : ""}
+                          {tx.type === "REFUND" || tx.type === "FEE" ? "-" : ""}
                           {formatPrice(tx.amount, tx.currency as Currency)}
                         </span>
                         {tx.type === "PAYOUT" && tx.refundState === "partial" && (
                           <span className="text-[11px] text-destructive tabular-nums">
                             -{formatPrice(tx.reversedNet, tx.currency as Currency)}
+                          </span>
+                        )}
+                        {tx.type === "FEE" && tx.refundState === "partial" && (
+                          <span className="text-[11px] text-emerald-600 tabular-nums">
+                            +{formatPrice(tx.reversedNet, tx.currency as Currency)}
                           </span>
                         )}
                         <Badge variant={txStatusVariant(tx.status)} className="text-[10px]">

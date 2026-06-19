@@ -5,16 +5,18 @@ import {
   Prisma,
   OrderStatus,
   PaymentMethod,
+  PaymentStatus,
+  FulfillmentStatus,
   PaymentTransactionType,
   PaymentTransactionStatus,
   ReturnStatus,
 } from "@/generated/prisma/client";
+import { deriveOrderStatus } from "@/features/orders/status";
 import { cacheTag } from "next/cache";
 import { CacheTags } from "@/lib/cache/tags";
 import { revalidateOrderCache } from "./cache";
 import { revalidateProductCache } from "@/features/products/db/cache";
 import { InsufficientStockError } from "@/features/common/errors/domainErrors";
-import { transferOrderToSellers } from "@/features/payments/db/payouts";
 
 export async function getUserOrders(userId: string) {
   "use cache";
@@ -393,7 +395,15 @@ export async function fulfillOrder({
       data: {
         userId,
         stripeSessionId,
-        status: "COMPLETED",
+        // Card captured: paid, but nothing shipped yet -> derived PROCESSING
+        // (NOT "completed"; that only happens once it is delivered).
+        paymentStatus: PaymentStatus.PAID,
+        fulfillmentStatus: FulfillmentStatus.UNFULFILLED,
+        status: deriveOrderStatus({
+          paymentStatus: PaymentStatus.PAID,
+          fulfillmentStatus: FulfillmentStatus.UNFULFILLED,
+          cancelledAt: null,
+        }),
         total: totalCents,
         locale,
         currency: currency ?? "usd",
@@ -440,23 +450,9 @@ export async function fulfillOrder({
   });
   allProducts.forEach((p) => revalidateProductCache(p.organizationId, p.id));
 
-  // Fan the captured payment out to each seller (separate charges + transfers).
-  // Runs after the order commits and is best-effort - a transfer hiccup must not
-  // undo an already-paid order; failures are recorded as FAILED payout rows.
-  try {
-    await transferOrderToSellers({
-      orderId: order.id,
-      items: itemsWithPrice.map((i) => ({
-        productId: i.productId,
-        price: i.price,
-        quantity: i.quantity,
-      })),
-      currency: currency ?? "usd",
-    });
-  } catch (err) {
-    console.error("[fulfillOrder] transferOrderToSellers failed", order.id, err);
-  }
-
+  // NOTE: sellers are NOT paid here. The platform holds the captured funds and
+  // releases each seller's transfer when that seller ships (releaseSellerPayout),
+  // so an order refunded before fulfillment never pays out.
   return order;
 }
 
@@ -539,7 +535,14 @@ export async function createCodOrder({
       data: {
         userId,
         paymentMethod: PaymentMethod.COD,
-        status: OrderStatus.PENDING_COD,
+        // COD: cash collected on delivery, so unpaid + unfulfilled -> PENDING.
+        paymentStatus: PaymentStatus.UNPAID,
+        fulfillmentStatus: FulfillmentStatus.UNFULFILLED,
+        status: deriveOrderStatus({
+          paymentStatus: PaymentStatus.UNPAID,
+          fulfillmentStatus: FulfillmentStatus.UNFULFILLED,
+          cancelledAt: null,
+        }),
         total: totalInCurrency,
         locale: locale ?? "en",
         currency,
@@ -663,8 +666,12 @@ export async function reconcileStripeRefund(
       _sum: { amount: true },
     });
 
-    if ((agg._sum.amount ?? 0) >= order.total && order.status !== "REFUNDED") {
-      await tx.order.update({ where: { id: order.id }, data: { status: "REFUNDED" } });
+    const refundedTotal = agg._sum.amount ?? 0;
+    if (refundedTotal >= order.total && order.paymentStatus !== PaymentStatus.REFUNDED) {
+      await tx.order.update({
+        where: { id: order.id },
+        data: { paymentStatus: PaymentStatus.REFUNDED, status: OrderStatus.REFUNDED },
+      });
       becameRefunded = true;
 
       if (returnRefunds === 0) {
@@ -688,6 +695,24 @@ export async function reconcileStripeRefund(
           }
         }
       }
+    } else if (
+      refundedTotal > 0 &&
+      order.paymentStatus !== PaymentStatus.REFUNDED &&
+      order.paymentStatus !== PaymentStatus.PARTIALLY_REFUNDED
+    ) {
+      // External partial refund (Stripe dashboard): mark the payment axis but
+      // don't restock - we don't know which line items the manual refund covered.
+      await tx.order.update({
+        where: { id: order.id },
+        data: {
+          paymentStatus: PaymentStatus.PARTIALLY_REFUNDED,
+          status: deriveOrderStatus({
+            paymentStatus: PaymentStatus.PARTIALLY_REFUNDED,
+            fulfillmentStatus: order.fulfillmentStatus,
+            cancelledAt: order.cancelledAt,
+          }),
+        },
+      });
     }
   });
 

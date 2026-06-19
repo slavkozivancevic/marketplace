@@ -1,0 +1,188 @@
+import { renderToBuffer } from "@react-pdf/renderer";
+import { getTranslations } from "next-intl/server";
+import { PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { Prisma } from "@/generated/prisma/client";
+import { s3, S3_BUCKET } from "@/services/s3";
+import { prisma } from "@/core/db/prisma";
+import { formatPrice } from "@/lib/currency";
+import type { Currency } from "@/lib/currency-config";
+import { getLabel } from "@/features/attributes/utils/translations";
+import { dateLocale } from "@/lib/i18n/dateLocale";
+import { NotFoundError } from "@/features/common/errors/domainErrors";
+import { InvoiceDocument, type InvoiceData, type InvoiceLine } from "./InvoiceDocument";
+
+const INVOICE_PREFIX = "invoices";
+
+export function formatInvoiceNumber(n: number): string {
+  return `INV-${String(n).padStart(6, "0")}`;
+}
+
+async function s3GetBuffer(key: string): Promise<Buffer> {
+  const obj = await s3.send(new GetObjectCommand({ Bucket: S3_BUCKET, Key: key }));
+  const bytes = await obj.Body!.transformToByteArray();
+  return Buffer.from(bytes);
+}
+
+const orderInclude = {
+  invoice: true,
+  items: {
+    include: {
+      product: {
+        select: {
+          translations: { select: { locale: true, title: true } },
+          organization: { select: { name: true } },
+        },
+      },
+      variant: {
+        select: {
+          attributeValues: {
+            select: {
+              option: { select: { translations: { select: { locale: true, label: true } } } },
+            },
+          },
+        },
+      },
+    },
+  },
+} satisfies Prisma.OrderInclude;
+
+type OrderWithInvoice = Prisma.OrderGetPayload<{ include: typeof orderInclude }>;
+
+/** Builds the localized invoice document data for an order at issue time. */
+async function buildInvoiceData(order: OrderWithInvoice, number: number): Promise<InvoiceData> {
+  const locale = order.locale;
+  const t = await getTranslations({ locale, namespace: "invoice" });
+  const dl = dateLocale(locale);
+  const cur = order.currency as Currency;
+  const fmtDate = (d: Date) =>
+    new Date(d).toLocaleDateString(dl, { year: "numeric", month: "long", day: "numeric" });
+
+  const lines: InvoiceLine[] = order.items.map((item) => {
+    const title =
+      item.product.translations.find((tr) => tr.locale === locale)?.title ??
+      item.product.translations.find((tr) => tr.locale === "en")?.title ??
+      "";
+    const variantLabel =
+      item.variant?.attributeValues
+        .map((av) => getLabel(av.option.translations, locale))
+        .join(" / ") || null;
+    return {
+      title,
+      variantLabel,
+      sellerName: item.product.organization.name,
+      quantity: item.quantity,
+      unitPrice: formatPrice(item.price, cur),
+      lineTotal: formatPrice(item.price * item.quantity, cur),
+    };
+  });
+
+  return {
+    number: formatInvoiceNumber(number),
+    issuedAt: fmtDate(new Date()),
+    orderShortId: order.id.slice(-8).toUpperCase(),
+    orderDate: fmtDate(order.createdAt),
+    buyer: { name: null, email: "" }, // filled by caller (needs user)
+    shipping: order.shippingLine1 || order.shippingCity
+      ? {
+          name: order.shippingName,
+          line1: order.shippingLine1,
+          line2: order.shippingLine2,
+          city: order.shippingCity,
+          state: order.shippingState,
+          postalCode: order.shippingPostalCode,
+          country: order.shippingCountry,
+        }
+      : null,
+    lines,
+    total: formatPrice(order.total, cur),
+    labels: {
+      invoice: t("invoice"),
+      invoiceNo: t("invoiceNo"),
+      issued: t("issued"),
+      orderRef: t("orderRef"),
+      orderDate: t("orderDate"),
+      billTo: t("billTo"),
+      shipTo: t("shipTo"),
+      item: t("item"),
+      seller: t("seller"),
+      qty: t("qty"),
+      unitPrice: t("unitPrice"),
+      lineTotal: t("lineTotal"),
+      total: t("total"),
+      footer: t("footer"),
+    },
+  };
+}
+
+/**
+ * Returns the buyer's immutable invoice PDF for an order, issuing it on first
+ * request: assigns a sequential number, renders the PDF, stores it in S3, and
+ * records the Invoice. Concurrent issues are resolved by the unique constraints
+ * (retry / fall back to the winner's invoice). Once issued it is never re-rendered.
+ */
+export async function getOrIssueInvoicePdf(
+  orderId: string,
+  userId: string,
+): Promise<{ buffer: Buffer; number: number }> {
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, userId },
+    include: orderInclude,
+  });
+  if (!order) throw new NotFoundError("Order not found");
+  // An invoice documents a confirmed sale - only issue once the money was
+  // actually collected (card captured, or COD cash confirmed); stays available
+  // after a (partial) refund.
+  if (order.paymentStatus === "UNPAID") {
+    throw new NotFoundError("Order is not invoiceable yet");
+  }
+
+  if (order.invoice) {
+    return { buffer: await s3GetBuffer(order.invoice.pdfKey), number: order.invoice.number };
+  }
+
+  const buyer = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { name: true, email: true },
+  });
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const existing = await prisma.invoice.findUnique({ where: { orderId } });
+    if (existing) {
+      return { buffer: await s3GetBuffer(existing.pdfKey), number: existing.number };
+    }
+
+    const last = await prisma.invoice.findFirst({
+      orderBy: { number: "desc" },
+      select: { number: true },
+    });
+    const number = (last?.number ?? 0) + 1;
+
+    const data = await buildInvoiceData(order, number);
+    data.buyer = { name: buyer?.name ?? null, email: buyer?.email ?? "" };
+
+    const buffer = await renderToBuffer(<InvoiceDocument data={data} />);
+    const pdfKey = `${INVOICE_PREFIX}/${orderId}.pdf`;
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: pdfKey,
+        Body: buffer,
+        ContentType: "application/pdf",
+      }),
+    );
+
+    try {
+      await prisma.invoice.create({ data: { orderId, number, pdfKey } });
+      return { buffer, number };
+    } catch (e) {
+      // Lost a race (orderId or number already taken) - retry: pick up the
+      // winner's invoice or recompute the next number.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+        continue;
+      }
+      throw e;
+    }
+  }
+
+  throw new Error(`Could not issue invoice for order ${orderId}`);
+}

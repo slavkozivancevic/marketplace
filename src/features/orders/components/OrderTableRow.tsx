@@ -8,18 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import type { UserOrderListItem } from "../db/orders";
 import type { Currency } from "@/lib/currency-config";
 import { formatPrice } from "@/lib/currency";
-
-function getStatusVariant(status: string) {
-  switch (status) {
-    case "COMPLETED":
-      return "default" as const;
-    case "CANCELLED":
-    case "REFUNDED":
-      return "destructive" as const;
-    default:
-      return "secondary" as const;
-  }
-}
+import { deriveOrderStatus } from "../status";
+import { orderStatusKey, orderStatusVariant } from "../statusBadge";
 
 function PaymentMethodIcon({ method }: { method: string }) {
   if (method === "COD") return <Truck className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
@@ -93,9 +83,12 @@ export function OrderTableRow({ order }: { order: UserOrderListItem }) {
           </Badge>
         )}
         <PaymentMethodIcon method={order.paymentMethod} />
-        <Badge variant={getStatusVariant(order.status)}>
-          {t(order.status.toLowerCase() as "pending" | "pending_cod" | "completed" | "cancelled" | "refunded" | "awaiting_payment")}
-        </Badge>
+        {(() => {
+          const ds = deriveOrderStatus(order);
+          return (
+            <Badge variant={orderStatusVariant(ds)}>{t(orderStatusKey(ds))}</Badge>
+          );
+        })()}
       </div>
     </div>
   );

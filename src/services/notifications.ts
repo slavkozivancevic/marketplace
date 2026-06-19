@@ -178,6 +178,54 @@ export async function publishUserRoleChanged(params: {
   );
 }
 
+// ── Fulfillment publisher ───────────────────────────────────────────────
+
+export async function publishOrderShipped(params: {
+  shipmentId: string;
+  orderId: string;
+  organizationId: string;
+  locale: string;
+  trackingNumber?: string;
+  carrier?: string;
+}): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "order.shipped",
+        // One shipped email per shipment - re-marking tracking won't re-notify.
+        eventId: `${params.shipmentId}:order.shipped`,
+        orderId: params.orderId,
+        organizationId: params.organizationId,
+        locale: params.locale,
+        trackingNumber: params.trackingNumber,
+        carrier: params.carrier,
+      }),
+    })
+  );
+}
+
+/**
+ * Buyer "your order was delivered" email. Order-level (one per order) - fired
+ * once a card order is fully delivered. COD uses publishCodOrderFulfilled
+ * instead (it carries the "cash now due" message).
+ */
+export async function publishOrderDelivered(orderId: string, locale = "en"): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "order.delivered",
+        eventId: `${orderId}:order.delivered`,
+        orderId,
+        locale,
+      }),
+    })
+  );
+}
+
 // ── Return / RMA publishers ─────────────────────────────────────────────
 // Each return transition fires once; eventId = `${returnId}:${type}` keeps the
 // notification idempotent. `locale` is the order's locale (buyer emails); seller

@@ -67,6 +67,7 @@ model Organization {
   connectedAccount ConnectedAccount?
   payoutTransactions PaymentTransaction[]
   returns          Return[]
+  shipments        Shipment[]
 }
 
 // A seller organization's Stripe Connect (Express) account. Created during
@@ -477,15 +478,39 @@ model WebhookEvent {
   processedAt DateTime?
 }
 
+// Overall display stage, DERIVED from the two real axes (paymentStatus +
+// fulfillmentStatus + cancelledAt) and kept in sync so order lists/filters can
+// query a single column. PROCESSING = paid but not shipped; SHIPPED = fulfilled;
+// COMPLETED = paid AND delivered. Legacy PENDING_COD/AWAITING_PAYMENT are no
+// longer set on new orders (kept for old rows / enum-removal safety).
 enum OrderStatus {
   PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
   COMPLETED
   CANCELLED
   REFUNDED
   PENDING_COD
-  // COD: goods delivered, seller has not yet confirmed cash received. The order
-  // only reaches COMPLETED once payment is confirmed (markCodPaymentReceived).
   AWAITING_PAYMENT
+}
+
+// Money axis. Stripe -> PAID at capture; COD -> UNPAID until cash confirmed.
+enum PaymentStatus {
+  UNPAID
+  PAID
+  // Some money returned, but not the whole order total (one or more partial
+  // returns / refunds). The order is otherwise still an active, paid order.
+  PARTIALLY_REFUNDED
+  REFUNDED
+}
+
+// Goods axis, derived from per-seller Shipments + a delivery confirmation.
+enum FulfillmentStatus {
+  UNFULFILLED
+  PARTIALLY_FULFILLED
+  FULFILLED
+  DELIVERED
 }
 
 enum PaymentMethod {
@@ -500,6 +525,9 @@ enum PaymentTransactionType {
   CHARGE
   REFUND
   PAYOUT
+  // Platform commission owed by a seller. Recorded for COD orders (the seller
+  // collects the cash directly, so the fee can't be netted from a transfer).
+  FEE
 }
 
 enum PaymentTransactionStatus {
@@ -521,6 +549,11 @@ model Order {
   userId          String
   stripeSessionId String?         @unique
   paymentMethod   PaymentMethod   @default(STRIPE)
+  // Two orthogonal axes are the source of truth; `status` is derived from them.
+  paymentStatus     PaymentStatus     @default(UNPAID)
+  fulfillmentStatus FulfillmentStatus @default(UNFULFILLED)
+  cancelledAt       DateTime?
+  // Derived display stage (kept in sync from the axes + cancelledAt).
   status          OrderStatus     @default(PENDING)
   // Stored in the smallest unit of `currency` (cents, para, etc.)
   total           Int
@@ -549,8 +582,51 @@ model Order {
   user                User                 @relation(fields: [userId], references: [id])
   paymentTransactions PaymentTransaction[]
   returns             Return[]
+  shipments           Shipment[]
+  invoice             Invoice?
 
   @@index([userId])
+}
+
+// Immutable order invoice. Issued once (lazily, on first download or at payment
+// completion) with a stable sequential `number` and the S3 key of the rendered
+// PDF. The document never changes after issue - that is the point of an invoice.
+model Invoice {
+  id       String   @id @default(uuid())
+  orderId  String   @unique
+  // Human-readable sequential invoice number, assigned at issue time.
+  number   Int      @unique
+  // S3 object key of the rendered PDF (immutable once written).
+  pdfKey   String
+  issuedAt DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+}
+
+// Per-seller shipment within an order. Carts are multi-seller, so each seller
+// fulfills (ships) its own items independently - one row per (order, seller).
+// The presence of a row means that seller's portion is FULFILLED; there is no
+// separate status field. Tracking is optional (some sellers ship without it).
+model Shipment {
+  id             String   @id @default(uuid())
+  orderId        String
+  organizationId String
+  trackingNumber String?
+  carrier        String?
+  shippedAt      DateTime @default(now())
+  // Per-seller delivery confirmation. The order reaches fulfillmentStatus
+  // DELIVERED only once every seller's shipment is delivered.
+  deliveredAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order        Order        @relation(fields: [orderId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([orderId, organizationId])
+  @@index([orderId])
+  @@index([organizationId])
 }
 
 // Return / RMA request, scoped to one seller org within an order (carts are

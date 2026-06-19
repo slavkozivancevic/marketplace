@@ -3,11 +3,14 @@ import { notFound } from "next/navigation";
 import { Link, getPathname } from "@/i18n/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
 import Image from "next/image";
-import { MapPin, Truck, CreditCard, RotateCcw } from "lucide-react";
+import { MapPin, Truck, CreditCard, RotateCcw, FileText } from "lucide-react";
 import { prisma } from "@/core/db/prisma";
 import { getOrderById } from "@/features/orders/db/orders";
 import { getReturnedQuantities, getOrderReturns } from "@/features/returns/db/returns";
 import { BuyerReturns } from "@/features/returns/components/BuyerReturns";
+import { getOrderShipments } from "@/features/shipments/db/shipments";
+import { deriveOrderStatus } from "@/features/orders/status";
+import { orderStatusKey, orderStatusVariant } from "@/features/orders/statusBadge";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Badge } from "@/components/ui/badge";
@@ -43,11 +46,24 @@ export default async function OrderDetailPage({
   const order = await getOrderById(id, user.id);
   if (!order) notFound();
 
-  const returnEligible = order.status === "COMPLETED";
-  const [returnedQty, orderReturns] = await Promise.all([
+  // Display stage derived from the two real axes (legacy rows render correctly).
+  const displayStatus = deriveOrderStatus({
+    paymentStatus: order.paymentStatus,
+    fulfillmentStatus: order.fulfillmentStatus,
+    cancelledAt: order.cancelledAt,
+  });
+  // Returns need money collected (card captured / COD cash confirmed); per-seller
+  // shipment is checked below (you return received goods). A partially refunded
+  // order still has returnable items left.
+  const returnEligible =
+    order.paymentStatus === "PAID" || order.paymentStatus === "PARTIALLY_REFUNDED";
+  const invoiceable = order.paymentStatus !== "UNPAID";
+  const [returnedQty, orderReturns, orderShipments] = await Promise.all([
     getReturnedQuantities(order.id),
     getOrderReturns(order.id),
+    getOrderShipments(order.id),
   ]);
+  const shipmentByOrg = new Map(orderShipments.map((s) => [s.organizationId, s]));
   const hasActiveReturn = orderReturns.some((r) =>
     ["REQUESTED", "APPROVED", "SHIPPED"].includes(r.status),
   );
@@ -76,15 +92,26 @@ export default async function OrderDetailPage({
   );
 
   // Group the order's items by seller, with each item's still-returnable qty.
+  // A seller's items become returnable only once paid AND that seller's shipment
+  // is DELIVERED - you return goods you've received, not ones still in transit.
   const returnSellerMap = new Map<
     string,
-    { organizationId: string; name: string; items: { orderItemId: string; title: string; variantLabel: string | null; returnable: number }[] }
+    { organizationId: string; name: string; shipped: boolean; delivered: boolean; canReturn: boolean; items: { orderItemId: string; title: string; variantLabel: string | null; returnable: number }[] }
   >();
   for (const it of order.items) {
     const info = itemInfo.get(it.id)!;
     let group = returnSellerMap.get(info.organizationId);
     if (!group) {
-      group = { organizationId: info.organizationId, name: info.orgName, items: [] };
+      const sh = shipmentByOrg.get(info.organizationId);
+      const delivered = sh?.deliveredAt != null;
+      group = {
+        organizationId: info.organizationId,
+        name: info.orgName,
+        shipped: !!sh,
+        delivered,
+        canReturn: returnEligible && delivered,
+        items: [],
+      };
       returnSellerMap.set(info.organizationId, group);
     }
     group.items.push({
@@ -135,6 +162,18 @@ export default async function OrderDetailPage({
             }),
           })}
         >
+          {invoiceable && (
+            <Button asChild variant="outline">
+              <a
+                href={`/${locale}/dashboard/orders/${order.id}/invoice`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                {t("invoice.download")}
+              </a>
+            </Button>
+          )}
           <Button asChild variant="outline">
             <Link href="/dashboard/orders">{t("orders.backToOrders")}</Link>
           </Button>
@@ -163,8 +202,13 @@ export default async function OrderDetailPage({
                   {t("orders.returnInProgress")}
                 </Badge>
               )}
-              <Badge variant={getStatusVariant(order.status)}>
-                {t(`orders.${order.status.toLowerCase()}` as Parameters<typeof t>[0])}
+              {order.paymentStatus === "PARTIALLY_REFUNDED" && (
+                <Badge variant="outline" className="gap-1 text-xs text-amber-600 border-amber-300">
+                  {t("orders.partiallyRefunded")}
+                </Badge>
+              )}
+              <Badge variant={orderStatusVariant(displayStatus)}>
+                {t(`orders.${orderStatusKey(displayStatus)}` as Parameters<typeof t>[0])}
               </Badge>
             </div>
           </CardHeader>
@@ -187,6 +231,76 @@ export default async function OrderDetailPage({
             </div>
           </CardContent>
         </Card>
+
+        {/* ── Shipping / fulfillment ── */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Truck className="h-4 w-4" />
+              {t("shipments.title")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-0 text-sm">
+            {returnSellers.map((seller, i) => {
+              const sh = shipmentByOrg.get(seller.organizationId);
+              return (
+                <div key={seller.organizationId}>
+                  {i > 0 && <Separator className="my-3" />}
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-medium">{seller.name}</span>
+                    {sh?.deliveredAt ? (
+                      <Badge variant="default" className="text-[10px]">{t("shipments.delivered")}</Badge>
+                    ) : sh ? (
+                      <Badge variant="outline" className="text-[10px]">{t("shipments.shipped")}</Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-[10px]">{t("shipments.notShipped")}</Badge>
+                    )}
+                  </div>
+                  {sh && (
+                    <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
+                      <p>
+                        {t("shipments.shippedOn", {
+                          date: new Date(sh.shippedAt).toLocaleDateString(dl, {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          }),
+                        })}
+                      </p>
+                      {sh.deliveredAt && (
+                        <p>
+                          {t("shipments.deliveredOn", {
+                            date: new Date(sh.deliveredAt).toLocaleDateString(dl, {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            }),
+                          })}
+                        </p>
+                      )}
+                      {sh.carrier && <p>{t("shipments.carrier")}: {sh.carrier}</p>}
+                      {sh.trackingNumber && (
+                        <p>
+                          {t("shipments.tracking")}: <span className="font-mono">{sh.trackingNumber}</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+
+        {/* Show the returns card once anything has shipped (so a not-yet-returnable
+            seller can explain "available after delivery"), or there are returns. */}
+        {(returnEligible || orderReturns.length > 0 || orderShipments.length > 0) && (
+          <BuyerReturns
+            orderId={order.id}
+            sellers={returnSellers}
+            returns={returnsForDisplay}
+          />
+        )}
 
         <Card>
           <CardHeader className="pb-3">
@@ -286,28 +400,9 @@ export default async function OrderDetailPage({
           </Card>
         )}
 
-        {(returnEligible || orderReturns.length > 0) && (
-          <BuyerReturns
-            orderId={order.id}
-            eligible={returnEligible}
-            sellers={returnSellers}
-            returns={returnsForDisplay}
-          />
-        )}
         </div>
       </div>
     </div>
   );
 }
 
-function getStatusVariant(status: string) {
-  switch (status) {
-    case "COMPLETED":
-      return "default" as const;
-    case "CANCELLED":
-    case "REFUNDED":
-      return "destructive" as const;
-    default:
-      return "secondary" as const;
-  }
-}

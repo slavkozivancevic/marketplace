@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
     "ffmpeg-static",
     "@ffprobe-installer/ffprobe",
     "sharp",
+    "@react-pdf/renderer",
   ],
   cacheComponents: true,
   allowedDevOrigins: ["localhost", "*.ngrok-free.dev", "*.ngrok-free.app"],
