@@ -391,6 +391,9 @@ async function fetchRelatedProducts(productId: string): Promise<RelatedProduct[]
       brand: {
         select: {
           logoUrl: true,
+          logoUrlDark: true,
+          logoBackdrop: true,
+          logoBackdropDark: true,
           translations: { select: { locale: true, name: true } },
         },
       },

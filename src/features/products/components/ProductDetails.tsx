@@ -75,13 +75,14 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
           {product.brand && (
             <div className="flex items-center gap-2">
               <strong>{t("brandLabel")}</strong>
-              {product.brand.logoUrl && (
-                <BrandLogo
-                  src={product.brand.logoUrl}
-                  name={localBrandName}
-                  size={20}
-                />
-              )}
+              <BrandLogo
+                src={product.brand.logoUrl}
+                srcDark={product.brand.logoUrlDark}
+                backdrop={product.brand.logoBackdrop}
+                backdropDark={product.brand.logoBackdropDark}
+                name={localBrandName}
+                size={20}
+              />
               <span>{localBrandName}</span>
             </div>
           )}

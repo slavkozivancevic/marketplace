@@ -130,11 +130,28 @@ enum DimensionUnit {
   IN
 }
 
+/// Which backdrop a brand logo wants, decided from the logo's own luminance
+/// (not the active theme) so it never vanishes into a same-tone background.
+enum LogoBackdrop {
+  AUTO // not yet analyzed; rendered like LIGHT
+  LIGHT // dark/colored logo -> light tile
+  DARK // light/white logo -> dark tile
+  NEUTRAL // logo carries its own opaque background -> no tile
+}
+
 model Brand {
-  id        String   @id @default(uuid())
-  logoUrl   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String       @id @default(uuid())
+  logoUrl     String?
+  /// Optional second asset designed for dark surfaces (theme-following render).
+  logoUrlDark String?
+  /// Backdrop for `logoUrl`. Computed on save from that image; admins may
+  /// override AUTO manually.
+  logoBackdrop LogoBackdrop @default(AUTO)
+  /// Backdrop for `logoUrlDark`, computed from that image independently so each
+  /// asset gets the tile its own luminance needs.
+  logoBackdropDark LogoBackdrop @default(AUTO)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   translations BrandTranslation[]
   products     Product[]

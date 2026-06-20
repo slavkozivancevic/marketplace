@@ -726,7 +726,7 @@ async function syncProductAttributes(
 const productWithRelationsInclude = {
   translations: true,
   media: { orderBy: { order: "asc" } as const },
-  brand: { select: { id: true, logoUrl: true, translations: true } },
+  brand: { select: { id: true, logoUrl: true, logoUrlDark: true, logoBackdrop: true, logoBackdropDark: true, translations: true } },
   variants: {
     orderBy: { order: "asc" } as const,
     include: {
@@ -822,7 +822,7 @@ export function productRepository(
             orderBy: { order: "asc" },
           },
           brand: {
-            select: { id: true, logoUrl: true, translations: true },
+            select: { id: true, logoUrl: true, logoUrlDark: true, logoBackdrop: true, logoBackdropDark: true, translations: true },
           },
         },
       });

@@ -28,7 +28,7 @@ export const publicProductInclude = {
       media: { orderBy: { order: "asc" }, include: { media: true } },
     },
   },
-  brand: { select: { id: true, logoUrl: true, translations: true } },
+  brand: { select: { id: true, logoUrl: true, logoUrlDark: true, logoBackdrop: true, logoBackdropDark: true, translations: true } },
 } satisfies Prisma.ProductInclude;
 
 type RawVariant = PublicProductRaw["variants"][number];

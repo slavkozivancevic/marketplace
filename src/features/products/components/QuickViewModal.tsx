@@ -19,6 +19,7 @@ import {
   getProductShortDescription,
 } from "@/features/products/utils/translations";
 import { getBrandName } from "@/features/brands/utils/translations";
+import { BrandLogo } from "@/features/brands/components/BrandLogo";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Carousel,
@@ -352,7 +353,18 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                     <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">{localShortDescription}</p>
                   )}
                   {product.brand && (
-                    <p className="text-[11px] text-muted-foreground">{t("brandLabel")} {localBrandName}</p>
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <span>{t("brandLabel")}</span>
+                      <BrandLogo
+                        src={product.brand.logoUrl}
+                        srcDark={product.brand.logoUrlDark}
+                        backdrop={product.brand.logoBackdrop}
+                        backdropDark={product.brand.logoBackdropDark}
+                        name={localBrandName}
+                        size={18}
+                      />
+                      <span className="font-medium text-foreground">{localBrandName}</span>
+                    </div>
                   )}
                   {product.ratingCount > 0 && (
                     <div className="flex items-center gap-1">

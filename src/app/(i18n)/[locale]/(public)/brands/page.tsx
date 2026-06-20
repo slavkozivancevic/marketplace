@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Footer } from "@/components/layout/footer";
 import { absoluteUrl } from "@/lib/seo/jsonLd";
-import { BrandLogo } from "@/features/brands/components/BrandLogo";
+import { BrandLogo, type LogoBackdrop } from "@/features/brands/components/BrandLogo";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
@@ -37,6 +37,9 @@ export async function generateMetadata(): Promise<Metadata> {
 type BrandCard = {
   id: string;
   logoUrl: string | null;
+  logoUrlDark: string | null;
+  logoBackdrop: LogoBackdrop;
+  logoBackdropDark: LogoBackdrop;
   name: string;
   slug: string;
   productCount: number;
@@ -57,6 +60,9 @@ async function fetchAllBrandsRaw() {
     select: {
       id: true,
       logoUrl: true,
+      logoUrlDark: true,
+      logoBackdrop: true,
+      logoBackdropDark: true,
       translations: { select: { locale: true, name: true, slug: true } },
       _count: {
         select: {
@@ -90,6 +96,9 @@ export default async function BrandsPage() {
       return {
         id: b.id,
         logoUrl: b.logoUrl,
+        logoUrlDark: b.logoUrlDark,
+        logoBackdrop: b.logoBackdrop,
+        logoBackdropDark: b.logoBackdropDark,
         name: row.name,
         slug: row.slug,
         productCount: b._count.products,
@@ -124,7 +133,14 @@ export default async function BrandsPage() {
                   }}
                   className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-border/50 bg-card p-6 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5 hover:border-border"
                 >
-                  <BrandLogo src={b.logoUrl} name={b.name} size={64} />
+                  <BrandLogo
+                    src={b.logoUrl}
+                    srcDark={b.logoUrlDark}
+                    backdrop={b.logoBackdrop}
+                    backdropDark={b.logoBackdropDark}
+                    name={b.name}
+                    size={64}
+                  />
                   <div className="text-center">
                     <p className="text-sm font-semibold truncate max-w-35">
                       {b.name}

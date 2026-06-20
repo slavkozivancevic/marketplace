@@ -236,13 +236,14 @@ export default async function BrandDetailPage({ params }: BrandPageProps) {
         <Breadcrumbs items={breadcrumbItems} />
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mt-3">
           <div className="flex items-center gap-4 min-w-0">
-            {brand.logoUrl && (
-              <BrandLogo
-                src={brand.logoUrl}
-                name={localT?.name ?? ""}
-                size={64}
-              />
-            )}
+            <BrandLogo
+              src={brand.logoUrl}
+              srcDark={brand.logoUrlDark}
+              backdrop={brand.logoBackdrop}
+              backdropDark={brand.logoBackdropDark}
+              name={localT?.name ?? ""}
+              size={64}
+            />
             <div className="space-y-0.5 min-w-0">
               <h1 className="text-2xl font-bold text-foreground truncate">
                 {localT?.name ?? ""}

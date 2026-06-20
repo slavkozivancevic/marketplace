@@ -1,12 +1,14 @@
 import { prisma } from "@/core/db/prisma";
 import { NotFoundError } from "@/features/common/errors/domainErrors";
-import { revalidateBrandCache } from "./cache";
+import { revalidateBrandCache, revalidateBrandProductCaches } from "./cache";
 import { slugify } from "@/lib/utils";
 import { refreshProductSearchText } from "@/features/products/db/products";
 import { recordSlugChanges } from "@/lib/seo/slugHistory";
 import { DEFAULT_LOCALE, NON_DEFAULT_LOCALES } from "@/i18n/config";
 import { Prisma } from "@/generated/prisma/client";
 import type { BrandTranslations } from "../utils/translations";
+import type { LogoBackdrop } from "../components/BrandLogo";
+import { analyzeLogoBackdrop } from "../utils/analyzeLogo";
 
 export type { BrandTranslations } from "../utils/translations";
 export { getBrandName, getBrandSlug, getBrandDescription } from "../utils/translations";
@@ -21,6 +23,9 @@ type BrandTranslationRow = {
 export type BrandListItem = {
   id: string;
   logoUrl: string | null;
+  logoUrlDark: string | null;
+  logoBackdrop: LogoBackdrop;
+  logoBackdropDark: LogoBackdrop;
   createdAt: Date;
   translations: BrandTranslationRow[];
   _count: { products: number };
@@ -50,6 +55,9 @@ export async function getAllBrands(): Promise<BrandListItem[]> {
     .map((r) => ({
       id: r.id,
       logoUrl: r.logoUrl,
+      logoUrlDark: r.logoUrlDark,
+      logoBackdrop: r.logoBackdrop,
+      logoBackdropDark: r.logoBackdropDark,
       createdAt: r.createdAt,
       translations: r.translations,
       _count: r._count,
@@ -68,9 +76,42 @@ type BrandMutationData = {
   name: string;
   slug?: string;
   logoUrl?: string | null;
+  logoUrlDark?: string | null;
+  /** Admin-chosen treatment for `logoUrl`. `AUTO` defers to image analysis. */
+  logoBackdrop?: LogoBackdrop;
+  /** Admin-chosen treatment for `logoUrlDark`. `AUTO` defers to analysis. */
+  logoBackdropDark?: LogoBackdrop;
   description?: string | null;
   translations?: BrandTranslations | null;
 };
+
+/**
+ * Decides one asset's stored backdrop. A manual (non-AUTO) choice always wins
+ * and locks the value. AUTO re-detects from the current image on every save,
+ * so toggling back to AUTO after a manual override actually re-runs detection.
+ *
+ * `analyzeLogoBackdrop` returns AUTO only when it couldn't read the image
+ * (flaky host / timeout); in that case we keep a previously good value for the
+ * same URL rather than letting a transient failure wipe it.
+ */
+async function resolveLogoBackdrop(
+  analyzeUrl: string | null,
+  requested: LogoBackdrop | undefined,
+  previous?: { analyzeUrl: string | null; logoBackdrop: LogoBackdrop },
+): Promise<LogoBackdrop> {
+  // No asset -> no backdrop to compute, regardless of any stale manual choice.
+  if (!analyzeUrl) return "AUTO";
+  if (requested && requested !== "AUTO") return requested;
+  const detected = await analyzeLogoBackdrop(analyzeUrl);
+  if (
+    detected === "AUTO" &&
+    previous?.analyzeUrl === analyzeUrl &&
+    previous.logoBackdrop !== "AUTO"
+  ) {
+    return previous.logoBackdrop;
+  }
+  return detected;
+}
 
 /**
  * Builds the per-locale translation rows for a Brand from the legacy form
@@ -109,11 +150,18 @@ function buildBrandTranslationRows(data: BrandMutationData): BrandTranslationRow
 
 export async function createBrand(data: BrandMutationData) {
   const rows = buildBrandTranslationRows(data);
+  const [logoBackdrop, logoBackdropDark] = await Promise.all([
+    resolveLogoBackdrop(data.logoUrl ?? null, data.logoBackdrop),
+    resolveLogoBackdrop(data.logoUrlDark ?? null, data.logoBackdropDark),
+  ]);
 
   const brand = await prisma.$transaction(async (tx) => {
     const created = await tx.brand.create({
       data: {
         logoUrl: data.logoUrl ?? null,
+        logoUrlDark: data.logoUrlDark ?? null,
+        logoBackdrop,
+        logoBackdropDark,
         translations: { create: rows },
       },
       include: { translations: true },
@@ -148,10 +196,26 @@ export async function updateBrand(id: string, data: BrandMutationData) {
   const oldByLocale = new Map(existing.translations.map((t) => [t.locale, t.name]));
   const searchableChanged = rows.some((r) => oldByLocale.get(r.locale) !== r.name);
 
+  const [logoBackdrop, logoBackdropDark] = await Promise.all([
+    resolveLogoBackdrop(data.logoUrl ?? null, data.logoBackdrop, {
+      analyzeUrl: existing.logoUrl,
+      logoBackdrop: existing.logoBackdrop,
+    }),
+    resolveLogoBackdrop(data.logoUrlDark ?? null, data.logoBackdropDark, {
+      analyzeUrl: existing.logoUrlDark,
+      logoBackdrop: existing.logoBackdropDark,
+    }),
+  ]);
+
   const brand = await prisma.$transaction(async (tx) => {
     await tx.brand.update({
       where: { id },
-      data: { logoUrl: data.logoUrl ?? null },
+      data: {
+        logoUrl: data.logoUrl ?? null,
+        logoUrlDark: data.logoUrlDark ?? null,
+        logoBackdrop,
+        logoBackdropDark,
+      },
     });
 
     // Replace-all strategy on translations: simpler than per-locale diff and
@@ -175,17 +239,22 @@ export async function updateBrand(id: string, data: BrandMutationData) {
     });
   });
 
+  // Every product that references this brand embeds its logo/name, so their
+  // caches must be busted whenever the brand changes (logo edits included),
+  // and their searchText refreshed when a brand name changed.
+  const products = await prisma.product.findMany({
+    where: { brandId: id, deletedAt: null },
+    select: { id: true, organizationId: true },
+  });
+
   if (searchableChanged) {
-    const products = await prisma.product.findMany({
-      where: { brandId: id, deletedAt: null },
-      select: { id: true },
-    });
     for (const p of products) {
       await refreshProductSearchText(prisma as unknown as Prisma.TransactionClient, p.id);
     }
   }
 
   revalidateBrandCache(brand.id);
+  revalidateBrandProductCaches(products);
   return brand;
 }
 
@@ -219,6 +288,9 @@ export async function duplicateBrand(id: string) {
     const created = await tx.brand.create({
       data: {
         logoUrl: source.logoUrl,
+        logoUrlDark: source.logoUrlDark,
+        logoBackdrop: source.logoBackdrop,
+        logoBackdropDark: source.logoBackdropDark,
         translations: { create: rows },
       },
       include: { translations: true },

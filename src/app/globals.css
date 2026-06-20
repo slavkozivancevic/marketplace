@@ -59,6 +59,13 @@
   --color-hero-overlay: var(--hero-overlay);
   --color-glass: var(--glass);
   --color-glass-border: var(--glass-border);
+
+  /* Brand-logo chip surfaces - intentionally theme-INDEPENDENT so a logo's
+   * own luminance (not the active theme) decides its backdrop. See BrandLogo. */
+  --color-logo-light: var(--logo-light);
+  --color-logo-light-fg: var(--logo-light-fg);
+  --color-logo-dark: var(--logo-dark);
+  --color-logo-dark-fg: var(--logo-dark-fg);
 }
 
 /* ===== LIGHT THEME ===== */
@@ -104,6 +111,27 @@
   --hero-overlay: oklch(0 0 0 / 3%);
   --glass: oklch(1 0 0 / 70%);
   --glass-border: oklch(0 0 0 / 8%);
+
+  /* Logo chip surfaces. A "light" logo tile is near-white so dark/transparent
+   * logos always read; a "dark" tile is near-black for light/white logos. */
+  --logo-light: oklch(0.99 0 0);
+  --logo-light-fg: oklch(0.205 0 0);
+  --logo-dark: oklch(0.2 0 0);
+  --logo-dark-fg: oklch(0.985 0 0);
+}
+
+/* Explicit light scope. Mirrors the chip-relevant `:root` tokens so a subtree
+ * can be forced to the light theme even inside a `.dark`/`.cosmos` page - used
+ * by the brand form to show a true "light theme" logo preview regardless of
+ * the editor's active theme. */
+.light {
+  --background: oklch(0.94 0.008 240);
+  --foreground: oklch(0.145 0 0);
+  --muted: oklch(0.885 0.012 240);
+  --muted-foreground: oklch(0.46 0.012 240);
+  --border: oklch(0.855 0.014 240);
+  --logo-light: oklch(0.99 0 0);
+  --logo-dark: oklch(0.2 0 0);
 }
 
 /* ===== DARK THEME ===== */
@@ -147,6 +175,13 @@
   --hero-overlay: oklch(0 0 0 / 50%);
   --glass: oklch(0.13 0 0 / 70%);
   --glass-border: oklch(1 0 0 / 10%);
+
+  /* Slightly dim the light tile in dark themes so it reads as a card instead
+   * of a glaring white rectangle, while staying light enough for dark logos. */
+  --logo-light: oklch(0.93 0 0);
+  --logo-light-fg: oklch(0.205 0 0);
+  --logo-dark: oklch(0.18 0 0);
+  --logo-dark-fg: oklch(0.985 0 0);
 }
 
 /* ===== COSMOS THEME - Space / Universe ===== */
@@ -190,6 +225,12 @@
   --hero-overlay: oklch(0.1 0.04 275 / 60%);
   --glass: oklch(0.14 0.04 280 / 60%);
   --glass-border: oklch(0.55 0.15 290 / 25%);
+
+  /* Match the dark-theme treatment: dimmed light tile, deep dark tile. */
+  --logo-light: oklch(0.93 0.005 280);
+  --logo-light-fg: oklch(0.205 0 0);
+  --logo-dark: oklch(0.16 0.04 280);
+  --logo-dark-fg: oklch(0.985 0 0);
 }
 
 @layer base {
@@ -203,17 +244,23 @@
     @apply font-sans overflow-hidden;
   }
   /* Page-content wrapper. Sized like the old direct body child (h-screen) so
-     layouts using h-full / h-screen keep working. When a Radix Dialog opens
-     and locks body scroll, this wrapper and the background image both get
-     blurred via `filter: blur()`. Doing the blur on the underlying content
-     (instead of a `backdrop-filter` on the overlay) avoids the nested
-     backdrop-filter rendering glitches we hit with cards that have their
-     own `backdrop-blur-sm` brand badges. */
+     layouts using h-full / h-screen keep working. When a Radix Dialog opens,
+     this wrapper and the background image both get blurred via `filter:
+     blur()`. Doing the blur on the underlying content (instead of a
+     `backdrop-filter` on the overlay) avoids the nested backdrop-filter
+     rendering glitches we hit with cards that have their own `backdrop-blur-sm`
+     brand badges.
+
+     Scoped to a modal overlay's presence (not `data-scroll-locked`): Radix
+     Select / Popover / DropdownMenu also lock body scroll, and keying off the
+     lock blurred the whole page whenever any of those opened. Only modal
+     dialogs and sheets render an overlay element, so this targets those alone
+     (Dialog -> `dialog-overlay`, Sheet/drawer -> `sheet-overlay`). */
   .app-shell {
     height: 100vh;
   }
-  body[data-scroll-locked] > .page-background,
-  body[data-scroll-locked] > .app-shell {
+  body:has([data-slot="dialog-overlay"], [data-slot="sheet-overlay"]) > .page-background,
+  body:has([data-slot="dialog-overlay"], [data-slot="sheet-overlay"]) > .app-shell {
     filter: blur(4px);
   }
 }

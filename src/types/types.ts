@@ -166,6 +166,9 @@ export type ProductWithRelations = Prisma.ProductGetPayload<{
       select: {
         id: true;
         logoUrl: true;
+        logoUrlDark: true;
+        logoBackdrop: true;
+        logoBackdropDark: true;
         translations: true;
       };
     };
@@ -210,6 +213,9 @@ export type ProductListItem = Prisma.ProductGetPayload<{
       select: {
         id: true;
         logoUrl: true;
+        logoUrlDark: true;
+        logoBackdrop: true;
+        logoBackdropDark: true;
         translations: true;
       };
     };
@@ -268,7 +274,7 @@ export type PublicProductRaw = Prisma.ProductGetPayload<{
         media: { include: { media: true } };
       };
     };
-    brand: { select: { id: true; logoUrl: true; translations: true } };
+    brand: { select: { id: true; logoUrl: true; logoUrlDark: true; logoBackdrop: true; logoBackdropDark: true; translations: true } };
   };
 }>;
 

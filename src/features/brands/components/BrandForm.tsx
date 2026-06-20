@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { toast } from "@/components/ui/sonner";
@@ -20,6 +20,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { BrandLogo, type LogoBackdrop } from "./BrandLogo";
+import { detectLogoBackdropClient } from "../utils/detectBackdropClient";
 import { createBrandSchema, updateBrandSchema, CreateBrandInput, UpdateBrandInput } from "../schema/brands";
 import { createBrandAction, updateBrandAction } from "../actions/brands";
 import { slugify } from "@/lib/utils";
@@ -165,6 +174,77 @@ function PerLocaleSection({
   );
 }
 
+/**
+ * One theme's logo preview. For a manual backdrop it renders immediately. For
+ * AUTO it runs the same detection the server will (client-side via canvas) so
+ * the preview matches the saved result; when detection can't run (e.g. the
+ * image host blocks CORS) it shows a "computed on save" placeholder instead of
+ * a misleading tile.
+ */
+function LogoThemePreview({
+  src,
+  selected,
+  name,
+  label,
+  themeClass,
+}: {
+  src: string | null;
+  selected: LogoBackdrop;
+  name: string;
+  label: string;
+  themeClass: "light" | "dark";
+}) {
+  const t = useTranslations("brands");
+  const isAuto = selected === "AUTO";
+  const [detected, setDetected] = useState<{
+    status: "idle" | "loading" | "done" | "failed";
+    backdrop: LogoBackdrop | null;
+  }>({ status: "idle", backdrop: null });
+
+  useEffect(() => {
+    if (!isAuto || !src) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDetected({ status: "idle", backdrop: null });
+      return;
+    }
+    let cancelled = false;
+    setDetected({ status: "loading", backdrop: null });
+    detectLogoBackdropClient(src).then((bd) => {
+      if (cancelled) return;
+      setDetected(bd ? { status: "done", backdrop: bd } : { status: "failed", backdrop: null });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [src, isAuto]);
+
+  const resolved: LogoBackdrop | null = isAuto ? detected.backdrop : selected;
+  // AUTO with an image we couldn't analyze yet -> avoid a false tile.
+  const showPlaceholder = isAuto && Boolean(src) && resolved == null;
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className={themeClass}>
+        {showPlaceholder ? (
+          <div
+            className="flex h-11 w-11 items-center justify-center rounded-sm border border-dashed border-border bg-muted text-muted-foreground"
+            title={t("logoBackdropAutoPending")}
+          >
+            {detected.status === "loading" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+          </div>
+        ) : (
+          <BrandLogo src={src} backdrop={resolved ?? "AUTO"} name={name} size={44} />
+        )}
+      </div>
+      <span className="text-[10px] text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
 type CreateMode = {
   mode: "create";
   defaultValues?: Partial<CreateBrandInput>;
@@ -190,6 +270,9 @@ export function BrandForm(props: BrandFormProps) {
       name: "",
       slug: "",
       logoUrl: "",
+      logoUrlDark: "",
+      logoBackdrop: "AUTO",
+      logoBackdropDark: "AUTO",
       description: "",
       translations: emptyBrandTranslations(),
       ...props.defaultValues,
@@ -221,6 +304,37 @@ export function BrandForm(props: BrandFormProps) {
 
   const nameValue = useWatch({ control: form.control, name: "name" });
   const descriptionValue = useWatch({ control: form.control, name: "description" });
+  const logoUrlValue = useWatch({ control: form.control, name: "logoUrl" });
+  const logoUrlDarkValue = useWatch({ control: form.control, name: "logoUrlDark" });
+  const logoBackdropValue = useWatch({ control: form.control, name: "logoBackdrop" });
+  const logoBackdropDarkValue = useWatch({ control: form.control, name: "logoBackdropDark" });
+
+  // The preview can't run the server-side image analysis, so for AUTO it shows
+  // the default light tile. The real backdrop is computed from each image on
+  // save. Mirror BrandLogo's per-theme asset/backdrop pick so we can show each
+  // theme's result as its own preview (a single theme-following preview would
+  // only ever reveal one of the two assets at a time).
+  const previewBackdrop = (logoBackdropValue as LogoBackdrop | undefined) ?? "AUTO";
+  const previewBackdropDark = (logoBackdropDarkValue as LogoBackdrop | undefined) ?? "AUTO";
+  const pvLightSrc = logoUrlValue || logoUrlDarkValue || null;
+  const pvDarkSrc = logoUrlDarkValue || logoUrlValue || null;
+  const pvLightBackdrop = logoUrlValue ? previewBackdrop : previewBackdropDark;
+  const pvDarkBackdrop = logoUrlDarkValue ? previewBackdropDark : previewBackdrop;
+
+  // A backdrop is meaningless without its asset, so each select is disabled when
+  // its URL is empty. Keep the value on AUTO in that case so a disabled select
+  // never sits on a stale value the user can't change (and a leftover manual
+  // choice isn't persisted).
+  useEffect(() => {
+    if (!logoUrlValue && form.getValues("logoBackdrop") !== "AUTO") {
+      form.setValue("logoBackdrop", "AUTO");
+    }
+  }, [logoUrlValue, form]);
+  useEffect(() => {
+    if (!logoUrlDarkValue && form.getValues("logoBackdropDark") !== "AUTO") {
+      form.setValue("logoBackdropDark", "AUTO");
+    }
+  }, [logoUrlDarkValue, form]);
 
   // Auto-generate slug from name when not manually edited
   const prevNameRef = useRef(form.getValues("name"));
@@ -345,20 +459,122 @@ export function BrandForm(props: BrandFormProps) {
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="logoUrl"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t("logoUrl")}</FormLabel>
-              <FormControl>
-                <Input placeholder={t("logoPlaceholder")} {...field} />
-              </FormControl>
-              <FormDescription>{t("logoDesc")}</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {/* ── Logo & backdrop ── */}
+        <div className="rounded-lg border border-border/60 p-4 space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              {t("logoSection")}
+            </p>
+            {/* Always show one preview per theme so each logo's own backdrop is
+                visible at once. The theme class wraps only the logo (forcing the
+                real light/dark context regardless of the editor's theme); labels
+                stay outside so they read against the page. */}
+            <div className="flex items-start gap-3">
+              <LogoThemePreview
+                src={pvLightSrc}
+                selected={pvLightBackdrop}
+                name={nameValue || "?"}
+                label={t("logoPreviewLight")}
+                themeClass="light"
+              />
+              <LogoThemePreview
+                src={pvDarkSrc}
+                selected={pvDarkBackdrop}
+                name={nameValue || "?"}
+                label={t("logoPreviewDark")}
+                themeClass="dark"
+              />
+            </div>
+          </div>
+
+          <FormField
+            control={form.control}
+            name="logoUrl"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("logoUrl")}</FormLabel>
+                <FormControl>
+                  <Input placeholder={t("logoPlaceholder")} {...field} value={field.value ?? ""} />
+                </FormControl>
+                <FormDescription>{t("logoDesc")}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="logoBackdrop"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("logoBackdrop")}</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  value={logoUrlValue ? (field.value ?? "AUTO") : "AUTO"}
+                  disabled={!logoUrlValue}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="AUTO">{t("logoBackdropAuto")}</SelectItem>
+                    <SelectItem value="LIGHT">{t("logoBackdropLight")}</SelectItem>
+                    <SelectItem value="DARK">{t("logoBackdropDark")}</SelectItem>
+                    <SelectItem value="NEUTRAL">{t("logoBackdropNeutral")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormDescription>{t("logoBackdropDesc")}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="logoUrlDark"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("logoUrlDark")}</FormLabel>
+                <FormControl>
+                  <Input placeholder={t("logoPlaceholder")} {...field} value={field.value ?? ""} />
+                </FormControl>
+                <FormDescription>{t("logoUrlDarkDesc")}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="logoBackdropDark"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("logoBackdropForDark")}</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  value={logoUrlDarkValue ? (field.value ?? "AUTO") : "AUTO"}
+                  disabled={!logoUrlDarkValue}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="AUTO">{t("logoBackdropAuto")}</SelectItem>
+                    <SelectItem value="LIGHT">{t("logoBackdropLight")}</SelectItem>
+                    <SelectItem value="DARK">{t("logoBackdropDark")}</SelectItem>
+                    <SelectItem value="NEUTRAL">{t("logoBackdropNeutral")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormDescription>{t("logoBackdropForDarkDesc")}</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         <Button type="submit" disabled={isPending} className="min-w-32">
           {isPending ? (

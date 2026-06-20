@@ -33,6 +33,9 @@ export async function createBrandAction(
       name: parsed.data.name,
       slug: parsed.data.slug || undefined,
       logoUrl: parsed.data.logoUrl || null,
+      logoUrlDark: parsed.data.logoUrlDark || null,
+      logoBackdrop: parsed.data.logoBackdrop ?? "AUTO",
+      logoBackdropDark: parsed.data.logoBackdropDark ?? "AUTO",
       description: parsed.data.description || null,
       translations: parsed.data.translations ?? null,
     });
@@ -60,6 +63,9 @@ export async function updateBrandAction(
       name: parsed.data.name,
       slug: parsed.data.slug || undefined,
       logoUrl: parsed.data.logoUrl || null,
+      logoUrlDark: parsed.data.logoUrlDark || null,
+      logoBackdrop: parsed.data.logoBackdrop ?? "AUTO",
+      logoBackdropDark: parsed.data.logoBackdropDark ?? "AUTO",
       description: parsed.data.description || null,
       translations: parsed.data.translations ?? null,
     });

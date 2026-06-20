@@ -72,6 +72,9 @@ export default async function EditBrandPage({
             name: en?.name ?? "",
             slug: en?.slug ?? "",
             logoUrl: brand.logoUrl ?? "",
+            logoUrlDark: brand.logoUrlDark ?? "",
+            logoBackdrop: brand.logoBackdrop,
+            logoBackdropDark: brand.logoBackdropDark,
             description: en?.description ?? "",
             translations: nonDefault,
           }}

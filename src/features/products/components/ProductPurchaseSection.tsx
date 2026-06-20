@@ -80,13 +80,14 @@ export function ProductPurchaseSection({
           {product.brand && (
             <div className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground font-medium">{t("brandLabel")}</span>
-              {product.brand.logoUrl && (
-                <BrandLogo
-                  src={product.brand.logoUrl}
-                  name={localBrandName}
-                  size={20}
-                />
-              )}
+              <BrandLogo
+                src={product.brand.logoUrl}
+                srcDark={product.brand.logoUrlDark}
+                backdrop={product.brand.logoBackdrop}
+                backdropDark={product.brand.logoBackdropDark}
+                name={localBrandName}
+                size={20}
+              />
               <span className="font-medium">{localBrandName}</span>
             </div>
           )}

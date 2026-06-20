@@ -49,7 +49,7 @@ export async function getWishlistProducts(
         include: {
           translations: true,
           media: { orderBy: { order: "asc" }, take: 5 },
-          brand: { select: { id: true, logoUrl: true, translations: true } },
+          brand: { select: { id: true, logoUrl: true, logoUrlDark: true, logoBackdrop: true, logoBackdropDark: true, translations: true } },
         },
       },
     },

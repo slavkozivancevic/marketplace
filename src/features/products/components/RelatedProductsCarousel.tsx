@@ -10,7 +10,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { useCurrencyStore } from "@/store/currency";
 import { getProductTitle } from "@/features/products/utils/translations";
 import { getBrandName } from "@/features/brands/utils/translations";
-import { BrandLogo } from "@/features/brands/components/BrandLogo";
+import { BrandLogo, type LogoBackdrop } from "@/features/brands/components/BrandLogo";
 import { formatPrice, convertCents } from "@/lib/currency";
 import {
   Carousel,
@@ -36,6 +36,9 @@ export type RelatedProduct = {
   }[];
   brand: {
     logoUrl: string | null;
+    logoUrlDark: string | null;
+    logoBackdrop: LogoBackdrop;
+    logoBackdropDark: LogoBackdrop;
     translations: { locale: string; name: string }[];
   } | null;
 };
@@ -116,25 +119,20 @@ function RelatedProductCard({ product }: { product: RelatedProduct }) {
           {/* Brand badge */}
           {product.brand && (
             <div className="absolute top-2 right-2 pointer-events-none">
-              {product.brand.logoUrl ? (
-                <div className="flex items-center gap-1.5 bg-background/80 backdrop-blur-xs border border-border/50 rounded-full px-2 py-1 shadow-sm">
-                  <BrandLogo
-                    src={product.brand.logoUrl}
-                    name={localBrandName}
-                    size={16}
-                    shape="circle"
-                  />
-                  <span className="text-xs font-semibold leading-none">
-                    {localBrandName}
-                  </span>
-                </div>
-              ) : (
-                <div className="bg-background/80 backdrop-blur-xs border border-border/50 rounded-full px-2 py-1 shadow-sm">
-                  <span className="text-xs font-semibold leading-none">
-                    {localBrandName}
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center gap-1.5 bg-background/80 backdrop-blur-xs border border-border/50 rounded-full px-2 py-1 shadow-sm">
+                <BrandLogo
+                  src={product.brand.logoUrl}
+                  srcDark={product.brand.logoUrlDark}
+                  backdrop={product.brand.logoBackdrop}
+                  backdropDark={product.brand.logoBackdropDark}
+                  name={localBrandName}
+                  size={16}
+                  shape="circle"
+                />
+                <span className="text-xs font-semibold leading-none">
+                  {localBrandName}
+                </span>
+              </div>
             </div>
           )}
         </div>

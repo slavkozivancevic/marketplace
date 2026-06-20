@@ -215,25 +215,20 @@ function WishlistProductCard({
             )}
             {product.brand && (
               <div className="absolute top-2 right-2 pointer-events-none">
-                {product.brand.logoUrl ? (
-                  <div className="flex items-center gap-2 bg-background/85 backdrop-blur-xs border border-border/60 rounded-full px-2.5 py-1.5 shadow-sm">
-                    <BrandLogo
-                      src={product.brand.logoUrl}
-                      name={localBrandName}
-                      size={20}
-                      shape="circle"
-                    />
-                    <span className="text-xs font-semibold leading-none">
-                      {localBrandName}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="bg-background/85 backdrop-blur-xs border border-border/60 rounded-full px-2.5 py-1.5 shadow-sm">
-                    <span className="text-xs font-semibold leading-none">
-                      {localBrandName}
-                    </span>
-                  </div>
-                )}
+                <div className="flex items-center gap-2 bg-background/85 backdrop-blur-xs border border-border/60 rounded-full px-2.5 py-1.5 shadow-sm">
+                  <BrandLogo
+                    src={product.brand.logoUrl}
+                    srcDark={product.brand.logoUrlDark}
+                    backdrop={product.brand.logoBackdrop}
+                    backdropDark={product.brand.logoBackdropDark}
+                    name={localBrandName}
+                    size={20}
+                    shape="circle"
+                  />
+                  <span className="text-xs font-semibold leading-none">
+                    {localBrandName}
+                  </span>
+                </div>
               </div>
             )}
             <WishlistButton

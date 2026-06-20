@@ -90,7 +90,14 @@ function BrandTableRow({
       style={{ gridTemplateColumns: COLS }}
     >
       <div role="cell">
-        <BrandLogo src={brand.logoUrl} name={displayName} size={40} />
+        <BrandLogo
+          src={brand.logoUrl}
+          srcDark={brand.logoUrlDark}
+          backdrop={brand.logoBackdrop}
+          backdropDark={brand.logoBackdropDark}
+          name={displayName}
+          size={40}
+        />
       </div>
       <div role="cell" className="font-medium truncate">{displayName}</div>
       <div role="cell" className="text-muted-foreground font-mono text-xs truncate">
