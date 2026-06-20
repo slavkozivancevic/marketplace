@@ -7,6 +7,7 @@ import {
 } from "@/generated/prisma/client";
 import { sellerNetAmount } from "../config";
 import { MOCK_CONNECT, isMockAccount } from "../mock";
+import { publishPayoutReleased } from "@/services/notifications";
 
 /**
  * Cursor-paginated payout ledger for a seller org, newest first. Each row carries
@@ -18,26 +19,62 @@ import { MOCK_CONNECT, isMockAccount } from "../mock";
  * `nextCursor`, stable `[createdAt desc, id asc]` ordering for keyset paging.
  */
 /**
- * Order ids that (a) have a payout to this org and (b) carry a succeeded REFUND.
+ * Classifies every payout-bearing order for an org by how much of THIS org's
+ * payout was clawed back: `full` (entire payout reversed) vs `partial` (some,
+ * but not all). Orders with no reversal appear in neither set. Uses the exact
+ * same math as the per-row classification in `getOrgPayoutsPage` so the filter
+ * facet and the row badge always agree.
+ *
  * Scoped through the order's own payout rows so the set stays small (refunds are
- * rare), letting the list filter by a plain `orderId in / notIn` condition that
- * composes with cursor pagination.
+ * rare), letting the list filter by plain `orderId in / notIn` conditions that
+ * compose with cursor pagination.
  */
-async function getRefundedOrderIdsForOrg(organizationId: string): Promise<string[]> {
-  const rows = await prisma.paymentTransaction.findMany({
+async function getOrgPayoutRefundStates(
+  organizationId: string,
+): Promise<{ full: string[]; partial: string[] }> {
+  // This org's payout per order (one row per (order, seller); aggregate to be safe).
+  const payouts = await prisma.paymentTransaction.findMany({
+    where: { organizationId, type: PaymentTransactionType.PAYOUT },
+    select: { orderId: true, amount: true },
+  });
+  if (payouts.length === 0) return { full: [], partial: [] };
+  const payoutAmount = new Map<string, number>();
+  for (const p of payouts) {
+    payoutAmount.set(p.orderId, (payoutAmount.get(p.orderId) ?? 0) + p.amount);
+  }
+
+  const orderIds = [...payoutAmount.keys()];
+  const refunds = await prisma.paymentTransaction.findMany({
     where: {
+      orderId: { in: orderIds },
       type: PaymentTransactionType.REFUND,
       status: PaymentTransactionStatus.SUCCEEDED,
-      order: {
-        paymentTransactions: {
-          some: { organizationId, type: PaymentTransactionType.PAYOUT },
-        },
-      },
     },
-    select: { orderId: true },
-    distinct: ["orderId"],
+    select: { orderId: true, organizationId: true, amount: true },
   });
-  return rows.map((r) => r.orderId);
+
+  // org-scoped (return) refund gross per order, and whether an order-level
+  // (manual/external) refund exists - the latter claws back the whole payout.
+  const orgRefundGross = new Map<string, number>();
+  const orderLevelRefunded = new Set<string>();
+  for (const r of refunds) {
+    if (r.organizationId === organizationId) {
+      orgRefundGross.set(r.orderId, (orgRefundGross.get(r.orderId) ?? 0) + r.amount);
+    } else if (r.organizationId === null) {
+      orderLevelRefunded.add(r.orderId);
+    }
+  }
+
+  const full: string[] = [];
+  const partial: string[] = [];
+  for (const [orderId, amount] of payoutAmount) {
+    const reversedNet = orderLevelRefunded.has(orderId)
+      ? amount
+      : Math.min(amount, sellerNetAmount(orgRefundGross.get(orderId) ?? 0));
+    if (reversedNet <= 0) continue;
+    (reversedNet >= amount ? full : partial).push(orderId);
+  }
+  return { full, partial };
 }
 
 export async function getOrgPayoutsPage({
@@ -69,15 +106,24 @@ export async function getOrgPayoutsPage({
       ? [{ status: { in: status as PaymentTransactionStatus[] } }]
       : [];
 
-  // Only a single-sided selection narrows: empty or both ("refunded"+"active")
-  // means show everything.
-  const onlyRefunded = refunded?.length === 1 ? refunded[0] : null;
-  const refundedCondition =
-    onlyRefunded === "refunded"
-      ? [{ orderId: { in: await getRefundedOrderIdsForOrg(organizationId) } }]
-      : onlyRefunded === "active"
-        ? [{ orderId: { notIn: await getRefundedOrderIdsForOrg(organizationId) } }]
-        : [];
+  // Refund facet: "full" / "partial" / "active" (not refunded). Only a proper
+  // non-empty subset narrows - empty or all three selected means show everything.
+  const refundedSel = refunded ?? [];
+  let refundedCondition: { orderId?: object; OR?: object[] }[] = [];
+  if (refundedSel.length > 0 && refundedSel.length < 3) {
+    const { full, partial } = await getOrgPayoutRefundStates(organizationId);
+    const refundedIds = [...full, ...partial];
+    const inIds: string[] = [];
+    if (refundedSel.includes("full")) inIds.push(...full);
+    if (refundedSel.includes("partial")) inIds.push(...partial);
+    const clauses: { orderId: object }[] = [];
+    // "active" = not in any reversed order.
+    if (refundedSel.includes("active")) clauses.push({ orderId: { notIn: refundedIds } });
+    if (inIds.length > 0 || !refundedSel.includes("active")) {
+      clauses.push({ orderId: { in: inIds } });
+    }
+    refundedCondition = clauses.length === 1 ? [clauses[0]] : [{ OR: clauses }];
+  }
 
   const sortField =
     sortBy === "amount"
@@ -174,13 +220,13 @@ export async function getOrgPayoutFacetCounts({
     AND: [...searchConditions],
   };
 
-  const [groups, refundedOrderIds] = await Promise.all([
+  const [groups, refundStates] = await Promise.all([
     prisma.paymentTransaction.groupBy({
       by: ["status"],
       where: baseWhere,
       _count: { _all: true },
     }),
-    getRefundedOrderIdsForOrg(organizationId),
+    getOrgPayoutRefundStates(organizationId),
   ]);
 
   const status: Record<string, number> = {};
@@ -190,15 +236,27 @@ export async function getOrgPayoutFacetCounts({
     total += g._count._all;
   }
 
-  const refundedCount = refundedOrderIds.length
-    ? await prisma.paymentTransaction.count({
-        where: { ...baseWhere, orderId: { in: refundedOrderIds } },
-      })
-    : 0;
+  // Count payout rows (respecting search) whose order falls in each reversal set.
+  const [fullCount, partialCount] = await Promise.all([
+    refundStates.full.length
+      ? prisma.paymentTransaction.count({
+          where: { ...baseWhere, orderId: { in: refundStates.full } },
+        })
+      : 0,
+    refundStates.partial.length
+      ? prisma.paymentTransaction.count({
+          where: { ...baseWhere, orderId: { in: refundStates.partial } },
+        })
+      : 0,
+  ]);
 
   return {
     status,
-    refunded: { refunded: refundedCount, active: total - refundedCount },
+    refunded: {
+      full: fullCount,
+      partial: partialCount,
+      active: total - fullCount - partialCount,
+    },
   };
 }
 
@@ -225,7 +283,7 @@ export async function releaseSellerPayout({
 }): Promise<void> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { paymentMethod: true, currency: true },
+    select: { paymentMethod: true, currency: true, locale: true },
   });
   if (!order || order.paymentMethod !== PaymentMethod.STRIPE) return;
   const currency = order.currency;
@@ -296,6 +354,15 @@ export async function releaseSellerPayout({
         currency,
       },
     });
+
+    // Tell the seller they've been paid (best-effort - must not fail the payout).
+    publishPayoutReleased({
+      orderId,
+      organizationId,
+      amount: net,
+      currency,
+      locale: order.locale ?? "en",
+    }).catch((e) => console.error("[releaseSellerPayout] publishPayoutReleased failed", e));
   } catch (err) {
     console.error("[releaseSellerPayout] transfer failed", organizationId, err);
     await prisma.paymentTransaction.create({

@@ -141,7 +141,7 @@ export const orgPayoutSearchParams = {
   sortBy: parseAsStringEnum(["createdAt", "amount"] as const).withDefault("createdAt"),
   sortOrder: parseAsStringEnum(["asc", "desc"] as const).withDefault("desc"),
   status: parseAsArrayOf(parseAsString).withDefault([]),
-  // Derived facet: "refunded" / "active". Empty or both selected = no filter.
+  // Derived facet: "full" / "partial" / "active". Empty or all selected = no filter.
   refunded: parseAsArrayOf(parseAsString).withDefault([]),
 };
 

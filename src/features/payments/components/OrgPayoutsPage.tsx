@@ -71,7 +71,8 @@ export function OrgPayoutsPage() {
         key: "refunded",
         label: t("refund"),
         options: [
-          refundedOpt("refunded", t("refunded")),
+          refundedOpt("full", t("refunded")),
+          refundedOpt("partial", t("partiallyRefunded")),
           refundedOpt("active", t("notRefunded")),
         ],
       },

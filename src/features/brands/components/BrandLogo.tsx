@@ -1,4 +1,4 @@
-import { LoadingImage } from "@/components/ui/LoadingImage";
+import { BrandLogoLayer } from "./BrandLogoLayer";
 import { cn } from "@/lib/utils";
 
 /**
@@ -115,11 +115,12 @@ export function BrandLogo({
     );
   }
 
-  // One image layer. The tile background lives here (not on the outer frame) so
-  // each theme's asset gets its own surface, and the theme-visibility class on
-  // this wrapper hides the LoadingImage shimmer together with the image - a
-  // hidden (`display:none`) image never lazy-loads, so its onLoad would never
-  // fire to clear the shimmer if the shimmer stayed visible.
+  // One image layer. The tile background and inset live INSIDE the layer (see
+  // BrandLogoLayer) so that while loading only a full-bleed shimmer shows - the
+  // tile + padding ("frame") are revealed together with the image, never around
+  // a still-loading shimmer. The theme-visibility class on this wrapper hides
+  // the layer (and its shimmer) together with the image - a hidden
+  // (`display:none`) image never lazy-loads, so its onLoad would never fire.
   const layer = (assetSrc: string, assetBackdrop: LogoBackdrop, visibility?: string) => {
     const { surface, padded } =
       variant === "overlay"
@@ -129,18 +130,14 @@ export function BrandLogo({
     // rounded corners. Skip it for NEUTRAL logos that own their full canvas.
     const pad = padded ? Math.round(size * 0.12) : 0;
     return (
-      <div className={cn("absolute inset-0", surface, visibility)} style={{ padding: pad }}>
-        <div className="relative h-full w-full">
-          <LoadingImage
-            src={assetSrc}
-            alt={name}
-            fill
-            sizes={`${size}px`}
-            className="object-contain"
-            unoptimized
-          />
-        </div>
-      </div>
+      <BrandLogoLayer
+        src={assetSrc}
+        alt={name}
+        size={size}
+        surface={surface}
+        pad={pad}
+        visibility={visibility}
+      />
     );
   };
 

@@ -207,6 +207,35 @@ export async function publishOrderShipped(params: {
 }
 
 /**
+ * Seller "you've been paid" email. Fired when a seller's held payout is released
+ * on shipment (card orders only). One per (order, seller) - the eventId keeps it
+ * idempotent against re-ships. `amount` is the seller's net (after platform fee).
+ */
+export async function publishPayoutReleased(params: {
+  orderId: string;
+  organizationId: string;
+  amount: number;
+  currency: string;
+  locale: string;
+}): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "payout.released",
+        eventId: `${params.orderId}:${params.organizationId}:payout.released`,
+        orderId: params.orderId,
+        organizationId: params.organizationId,
+        amount: params.amount,
+        currency: params.currency,
+        locale: params.locale,
+      }),
+    })
+  );
+}
+
+/**
  * Buyer "your order was delivered" email. Order-level (one per order) - fired
  * once a card order is fully delivered. COD uses publishCodOrderFulfilled
  * instead (it carries the "cash now due" message).
