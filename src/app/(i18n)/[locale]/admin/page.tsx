@@ -14,6 +14,8 @@ import {
   Users,
   LayoutDashboard,
   LayoutGrid,
+  SlidersHorizontal,
+  ScrollText,
   ArrowRight,
 } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -54,6 +56,12 @@ export default async function AdminPage() {
       icon: LayoutGrid,
     },
     {
+      href: "/admin/attributes",
+      title: t("admin.attributes"),
+      description: t("admin.attributesDesc"),
+      icon: SlidersHorizontal,
+    },
+    {
       href: "/admin/organizations",
       title: t("admin.orgs"),
       description: t("admin.orgsDesc"),
@@ -64,6 +72,12 @@ export default async function AdminPage() {
       title: t("admin.users"),
       description: t("admin.usersDesc"),
       icon: Users,
+    },
+    {
+      href: "/admin/audit",
+      title: t("admin.audit.title"),
+      description: t("admin.audit.description"),
+      icon: ScrollText,
     },
   ];
 

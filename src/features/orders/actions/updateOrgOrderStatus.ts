@@ -14,6 +14,7 @@ import {
 import { ForbiddenError } from "@/features/common/errors/domainErrors";
 import { deriveOrderStatus } from "@/features/orders/status";
 import { platformFeeAmount } from "@/features/payments/config";
+import { recordAudit } from "@/features/audit/db/audit";
 import {
   publishCodOrderCancelled,
   publishCodPaymentReceived,
@@ -130,6 +131,7 @@ export async function markCodPaymentReceived(
   });
 
   revalidateOrderCache(order.userId, orderId);
+  await recordAudit({ action: "order.cod_paid", entityType: "Order", entityId: orderId });
 
   try {
     await publishCodPaymentReceived(orderId, order.locale ?? "en");
@@ -210,6 +212,7 @@ export async function cancelOrder(
     select: { id: true, organizationId: true },
   });
   products.forEach((p) => revalidateProductCache(p.organizationId, p.id));
+  await recordAudit({ action: "order.cancelled", entityType: "Order", entityId: orderId });
 
   try {
     await publishCodOrderCancelled(orderId, order.locale ?? "en");

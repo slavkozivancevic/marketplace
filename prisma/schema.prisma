@@ -788,6 +788,33 @@ model CurrencyRate {
   updatedAt DateTime @updatedAt
 }
 
+// Append-only record of who changed what. Written best-effort from server
+// actions for money/lifecycle, role and catalog mutations; never edited or
+// deleted. Actor is snapshotted (id + email) so the trail stays readable even if
+// the user is later removed. System actions (Stripe webhook) have a null actor.
+model AuditLog {
+  id         String   @id @default(uuid())
+  // Who: snapshot, not a FK, so deleting a user never rewrites history.
+  actorId    String?
+  actorEmail String?
+  // Org context the action happened in (seller actions); null for admin/system.
+  orgId      String?
+  // What: dotted action key (e.g. "order.shipped", "product.updated") + target.
+  action     String
+  entityType String
+  entityId   String
+  // Changed fields { field: { from, to } } for updates, or short metadata
+  // (e.g. status from->to) for transitions. Null when there's nothing to detail.
+  diff       Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+}
+
 enum SluggedEntityType {
   PRODUCT
   BRAND

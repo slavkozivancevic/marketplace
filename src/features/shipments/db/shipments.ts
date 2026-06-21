@@ -4,6 +4,7 @@ import { NotFoundError, ForbiddenError } from "@/features/common/errors/domainEr
 import { revalidateOrderCache } from "@/features/orders/db/cache";
 import { computeFulfillment, deriveOrderStatus } from "@/features/orders/status";
 import { releaseSellerPayout } from "@/features/payments/db/payouts";
+import { recordAudit } from "@/features/audit/db/audit";
 import {
   publishOrderShipped,
   publishCodOrderFulfilled,
@@ -71,6 +72,12 @@ export async function createShipment({
     throw new ForbiddenError({ key: "shipmentNotAllowed" });
   }
 
+  // First ship vs a later tracking edit - only the former is a fulfillment event.
+  const priorShipment = await prisma.shipment.findUnique({
+    where: { orderId_organizationId: { orderId, organizationId } },
+    select: { id: true },
+  });
+
   const shipment = await prisma.shipment.upsert({
     where: { orderId_organizationId: { orderId, organizationId } },
     create: {
@@ -89,6 +96,16 @@ export async function createShipment({
 
   // Recompute the order's fulfillment axis from all seller shipments.
   await syncOrderFulfillment(orderId);
+
+  // Audit the fulfillment milestone (not noisy tracking edits).
+  if (!priorShipment) {
+    await recordAudit({
+      action: "order.shipped",
+      entityType: "Order",
+      entityId: orderId,
+      diff: { seller: organizationId, carrier: carrier || null, tracking: trackingNumber || null },
+    });
+  }
 
   // Release this seller's held payout now that it has fulfilled (card orders
   // only; idempotent). Best-effort - a transfer hiccup must not block shipping.
@@ -145,6 +162,12 @@ export async function markShipmentDelivered({
     await prisma.shipment.update({
       where: { id: shipment.id },
       data: { deliveredAt: new Date() },
+    });
+    await recordAudit({
+      action: "order.delivered",
+      entityType: "Order",
+      entityId: orderId,
+      diff: { seller: organizationId },
     });
   }
 

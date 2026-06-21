@@ -48,7 +48,7 @@ import { NON_DEFAULT_LOCALES, LOCALE_LABELS, DEFAULT_LOCALE, SUPPORTED_LOCALES, 
 
 type NonDefaultLocale = (typeof NON_DEFAULT_LOCALES)[number];
 import { X, RefreshCw, AlertCircle, Loader2 } from "lucide-react";
-import { cn, slugify } from "@/lib/utils";
+import { slugify } from "@/lib/utils";
 import { collectFormErrorMessages } from "@/lib/forms/formErrors";
 import { BrandSelect, type BrandOption } from "@/features/brands/components/BrandSelect";
 import { SlugAvailabilityIndicator } from "@/components/admin/SlugAvailabilityIndicator";
@@ -61,101 +61,7 @@ import { ProductAttributesField } from "./ProductAttributesField";
 import { VariantsEditor } from "./VariantsEditor";
 import type { AttributeSelectorItem } from "@/features/attributes/db/attributes";
 import { useCurrencyStore } from "@/store/currency";
-import { CURRENCIES } from "@/lib/currency";
-import type { Currency } from "@/lib/currency-config";
-
-/**
- * Price input with inline currency selector.
- * The form field always stores USD decimal (e.g. 18.43).
- * Seller can switch to any supported currency and type in that currency -
- * the value is auto-converted to USD for the form field.
- */
-function PriceInput({
-  value,
-  onChange,
-  rates,
-  placeholder = "0.00",
-  className,
-  inputClassName,
-}: {
-  value: number;
-  onChange: (usd: number) => void;
-  rates: Record<string, number>;
-  placeholder?: string;
-  className?: string;
-  inputClassName?: string;
-}) {
-  const [inputCurrency, setInputCurrency] = useState<Currency>("usd");
-  const rate = inputCurrency === "usd" ? 1 : (rates[inputCurrency] ?? 1);
-
-  // What the seller sees in the input box (in their chosen currency)
-  const [displayValue, setDisplayValue] = useState<string>(value > 0 ? String(value) : "");
-
-  const symbol = CURRENCIES.find((c) => c.code === inputCurrency)?.symbol ?? "$";
-
-  const handleCurrencyChange = (newCurrency: Currency) => {
-    const newRate = newCurrency === "usd" ? 1 : (rates[newCurrency] ?? 1);
-    // Re-express the current USD form value in the new currency
-    if (value > 0) {
-      setDisplayValue((value * newRate).toFixed(2));
-    }
-    setInputCurrency(newCurrency);
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value;
-    setDisplayValue(raw);
-    const parsed = parseFloat(raw);
-    if (!isNaN(parsed) && parsed >= 0) {
-      onChange(parsed / rate);
-    } else {
-      onChange(0);
-    }
-  };
-
-  // Show the USD equivalent when seller is typing in a non-USD currency
-  const usdEquivalent = inputCurrency !== "usd" && parseFloat(displayValue) > 0
-    ? parseFloat(displayValue) / rate
-    : null;
-
-  return (
-    <div className={className}>
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm select-none pointer-events-none">
-            {symbol}
-          </span>
-          <Input
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder={placeholder}
-            className={cn(symbol.length <= 1 ? "pl-7" : symbol.length === 2 ? "pl-9" : "pl-12", inputClassName)}
-            value={displayValue}
-            onChange={handleChange}
-          />
-        </div>
-        <Select value={inputCurrency} onValueChange={(v) => handleCurrencyChange(v as Currency)}>
-          <SelectTrigger className="w-24 shrink-0">
-            {/* Explicit label so it shows pre-hydration (Radix SelectContent
-                is portaled and not yet available for value→item lookup). */}
-            <SelectValue>
-              {CURRENCIES.find((c) => c.code === inputCurrency)?.label ?? ""}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {CURRENCIES.map((c) => (
-              <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      {usdEquivalent !== null && (
-        <p className="text-xs text-muted-foreground mt-1">≈ ${usdEquivalent.toFixed(2)} USD</p>
-      )}
-    </div>
-  );
-}
+import { PriceInput } from "./PriceInput";
 
 // ── Translation form shape ───────────────────────────────────────────────
 //

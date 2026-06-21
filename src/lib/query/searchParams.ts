@@ -153,6 +153,20 @@ export type OrgPayoutFilters = {
   refunded: string[];
 };
 
+// ---------- Admin audit log ----------
+
+export const auditSearchParams = {
+  search: parseAsString.withDefault(""),
+  action: parseAsString.withDefault(""),
+  entityType: parseAsString.withDefault(""),
+};
+
+export type AuditFilters = {
+  search: string;
+  action: string;
+  entityType: string;
+};
+
 // ---------- Admin organizations ----------
 
 export const adminOrgSearchParams = {

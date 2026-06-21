@@ -32,6 +32,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/sonner";
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
+import { PriceInput } from "./PriceInput";
 
 import {
   previewBulkFilter,
@@ -243,6 +244,7 @@ function ConditionRow({
 }) {
   const t = useTranslations("bulkProducts");
   const id = useId();
+  const { rates, currency } = useCurrencyStore();
 
   const STATUS_LABELS: Record<string, string> = {
     DRAFT: t("draft"),
@@ -352,23 +354,18 @@ function ConditionRow({
         )}
 
         {(condition.type === "minPrice" || condition.type === "maxPrice") && (
-          <div className="relative w-36">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-            <Input
-              id={id}
-              type="number"
-              min="0"
-              step="0.01"
-              className="pl-7 h-8 text-sm"
-              value={condition.value}
-              onChange={(e) =>
-                onUpdate({
-                  type: condition.type as "minPrice" | "maxPrice",
-                  value: parseFloat(e.target.value) || 0,
-                })
-              }
-            />
-          </div>
+          <PriceInput
+            className="w-64"
+            value={Number(condition.value) || 0}
+            rates={rates}
+            defaultCurrency={currency}
+            onChange={(usd) =>
+              onUpdate({
+                type: condition.type as "minPrice" | "maxPrice",
+                value: usd,
+              })
+            }
+          />
         )}
 
         {(condition.type === "minStock" || condition.type === "maxStock") && (
@@ -453,6 +450,7 @@ function ActionEditor({
   categories: CategoryOption[];
 }) {
   const t = useTranslations("bulkProducts");
+  const { rates, currency } = useCurrencyStore();
 
   const STATUS_LABELS: Record<string, string> = {
     DRAFT: t("draft"),
@@ -597,17 +595,13 @@ function ActionEditor({
               ? t("newCompareAt")
               : t("newCost")}
           </Label>
-          <div className="relative w-36">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-            <Input
-              type="number"
-              min="0"
-              step="0.01"
-              className="pl-7 h-8 text-sm"
-              value={(action.value as number) ?? 0}
-              onChange={(e) => onChangeValue(parseFloat(e.target.value) || 0)}
-            />
-          </div>
+          <PriceInput
+            className="w-64"
+            value={(action.value as number) ?? 0}
+            rates={rates}
+            defaultCurrency={currency}
+            onChange={(usd) => onChangeValue(usd)}
+          />
         </div>
       )}
 

@@ -11,6 +11,7 @@ import { NotFoundError, ForbiddenError } from "@/features/common/errors/domainEr
 import { MOCK_CONNECT } from "@/features/payments/mock";
 import { sellerNetAmount } from "@/features/payments/config";
 import { deriveOrderStatus } from "@/features/orders/status";
+import { recordAudit } from "@/features/audit/db/audit";
 import { revalidateOrderCache } from "@/features/orders/db/cache";
 import { revalidateProductCache } from "@/features/products/db/cache";
 import { getLabel } from "@/features/attributes/utils/translations";
@@ -183,6 +184,12 @@ export async function createReturn({
     return r;
   });
   revalidateOrderCache(userId, orderId);
+  await recordAudit({
+    action: "return.requested",
+    entityType: "Return",
+    entityId: created.id,
+    diff: { orderId, seller: organizationId },
+  });
 
   // Notify the seller (fire-and-forget - email failure must not block the return).
   const lines = await getReturnLines(created.id, order.locale);
@@ -470,6 +477,12 @@ export async function transitionReturn({
   }
 
   revalidateOrderCache(ret.userId, ret.orderId);
+  await recordAudit({
+    action: `return.${to.toLowerCase()}`,
+    entityType: "Return",
+    entityId: returnId,
+    diff: { orderId: ret.orderId, status: { from: ret.status, to } },
+  });
   return { id: returnId, status: to };
 }
 

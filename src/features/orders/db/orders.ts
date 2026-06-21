@@ -12,6 +12,7 @@ import {
   ReturnStatus,
 } from "@/generated/prisma/client";
 import { deriveOrderStatus } from "@/features/orders/status";
+import { recordAudit, SYSTEM_ACTOR } from "@/features/audit/db/audit";
 import { cacheTag } from "next/cache";
 import { CacheTags } from "@/lib/cache/tags";
 import { revalidateOrderCache } from "./cache";
@@ -723,6 +724,16 @@ export async function reconcileStripeRefund(
     select: { id: true, organizationId: true },
   });
   products.forEach((p) => revalidateProductCache(p.organizationId, p.id));
+
+  // External (Stripe dashboard) refund - no signed-in actor, attribute to system.
+  const externalTotal = external.reduce((s, r) => s + r.amount, 0);
+  await recordAudit({
+    action: becameRefunded ? "order.refunded" : "order.partially_refunded",
+    entityType: "Order",
+    entityId: order.id,
+    diff: { external: true, amount: externalTotal, currency: order.currency },
+    actor: SYSTEM_ACTOR,
+  });
 
   return becameRefunded ? order : null;
 }

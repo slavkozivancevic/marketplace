@@ -24,6 +24,7 @@ import {
 import { MembershipRole } from "@/generated/prisma/client";
 import { ActionErrorResult } from "@/types/types";
 import { publishMemberRoleChanged } from "@/services/notifications";
+import { recordAudit } from "@/features/audit/db/audit";
 
 export async function setOrganizationVerifiedAction(
   organizationId: string,
@@ -42,6 +43,12 @@ export async function setOrganizationVerifiedAction(
     await requireRole("ADMIN");
 
     await setOrganizationVerified(organizationId, parsed.data.verified);
+    await recordAudit({
+      action: "organization.verified_changed",
+      entityType: "Organization",
+      entityId: organizationId,
+      diff: { verified: parsed.data.verified },
+    });
 
     revalidatePath("/[locale]/admin/organizations", "page");
     revalidatePath("/[locale]/dashboard/organization", "page");
@@ -89,6 +96,11 @@ export async function removeMemberAction(
     }
 
     await removeMember(targetUserId, ctx.organizationId);
+    await recordAudit({
+      action: "member.removed",
+      entityType: "Membership",
+      entityId: targetUserId,
+    });
   } catch (error) {
     return handleActionError(error);
   }
@@ -119,6 +131,13 @@ export async function updateMemberRoleAction(
       ctx.organizationId,
       parsed.data.role as MembershipRole,
     );
+
+    await recordAudit({
+      action: "member.role_changed",
+      entityType: "Membership",
+      entityId: targetUserId,
+      diff: { role: { from: updated.oldRole, to: updated.newRole }, member: updated.userEmail },
+    });
 
     // Recipient-targeted notification: the email goes to the member whose
     // role just changed, so it must render in THEIR preferred language,

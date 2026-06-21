@@ -33,13 +33,19 @@ export default async function DashboardPage() {
 
   const user = await prisma.user.findUnique({
     where: { clerkUserId: userId! },
-    select: { role: true, name: true },
+    select: {
+      role: true,
+      name: true,
+      activeOrgId: true,
+      memberships: { select: { orgId: true } },
+    },
   });
 
   const userRole = user?.role ?? "USER";
   const isAdmin = userRole === "ADMIN";
 
-  const showReceivedOrders = userRole === "SELLER" || isAdmin;
+  const currentOrgId = user?.activeOrgId ?? user?.memberships[0]?.orgId ?? "";
+  const showReceivedOrders = Boolean(currentOrgId);
 
   const cards = [
     {

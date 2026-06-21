@@ -12,6 +12,7 @@ import {
 } from "../db/attributes";
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import { requireRole } from "@/lib/auth/requireRole";
+import { recordAudit } from "@/features/audit/db/audit";
 import type { ActionErrorResult } from "@/types/types";
 
 async function localizedRedirect(redirectTo: string): Promise<never> {
@@ -31,7 +32,8 @@ export async function createAttributeAction(
         message: parsed.error.issues.map((i) => i.message).join(", "),
       };
     }
-    await createAttribute(parsed.data);
+    const created = await createAttribute(parsed.data);
+    await recordAudit({ action: "attribute.created", entityType: "Attribute", entityId: created.id });
   } catch (error) {
     return handleActionError(error);
   }
@@ -52,6 +54,7 @@ export async function updateAttributeAction(
       };
     }
     await updateAttribute(id, parsed.data);
+    await recordAudit({ action: "attribute.updated", entityType: "Attribute", entityId: id });
   } catch (error) {
     return handleActionError(error);
   }
@@ -64,6 +67,7 @@ export async function deleteAttributeAction(
   try {
     await requireRole("ADMIN");
     await deleteAttribute(id);
+    await recordAudit({ action: "attribute.deleted", entityType: "Attribute", entityId: id });
   } catch (error) {
     return handleActionError(error);
   }
@@ -76,6 +80,7 @@ export async function duplicateAttributeAction(
   try {
     await requireRole("ADMIN");
     const copy = await duplicateAttribute(id);
+    await recordAudit({ action: "attribute.duplicated", entityType: "Attribute", entityId: copy.id, diff: { from: id } });
     return { error: false, id: copy.id };
   } catch (error) {
     return handleActionError(error);

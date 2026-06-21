@@ -12,6 +12,7 @@ import {
 } from "../db/categories";
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import { requireRole } from "@/lib/auth/requireRole";
+import { recordAudit } from "@/features/audit/db/audit";
 import type { ActionErrorResult } from "@/types/types";
 
 async function localizedRedirect(redirectTo: string): Promise<never> {
@@ -34,7 +35,7 @@ export async function createCategoryAction(
     }
 
     const { slug, imageUrl, description, parentId, translations, ...rest } = parsed.data;
-    await createCategory({
+    const created = await createCategory({
       ...rest,
       slug: slug || undefined,
       imageUrl: imageUrl || null,
@@ -42,6 +43,7 @@ export async function createCategoryAction(
       parentId: parentId || null,
       translations: translations ?? null,
     });
+    await recordAudit({ action: "category.created", entityType: "Category", entityId: created.id });
   } catch (error) {
     return handleActionError(error);
   }
@@ -73,6 +75,7 @@ export async function updateCategoryAction(
       parentId: parentId ?? null,
       translations: translations ?? null,
     });
+    await recordAudit({ action: "category.updated", entityType: "Category", entityId: id });
   } catch (error) {
     return handleActionError(error);
   }
@@ -86,6 +89,7 @@ export async function deleteCategoryAction(
   try {
     await requireRole("ADMIN");
     await deleteCategory(id);
+    await recordAudit({ action: "category.deleted", entityType: "Category", entityId: id });
   } catch (error) {
     return handleActionError(error);
   }
@@ -99,6 +103,7 @@ export async function duplicateCategoryAction(
   try {
     await requireRole("ADMIN");
     const copy = await duplicateCategory(id);
+    await recordAudit({ action: "category.duplicated", entityType: "Category", entityId: copy.id, diff: { from: id } });
     return { error: false, id: copy.id };
   } catch (error) {
     return handleActionError(error);

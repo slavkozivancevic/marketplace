@@ -7,6 +7,7 @@ import { handleActionError } from "@/features/common/errors/domainErrors";
 import { updateUserRole } from "../db/users";
 import { ActionErrorResult } from "@/types/types";
 import { publishUserRoleChanged } from "@/services/notifications";
+import { recordAudit } from "@/features/audit/db/audit";
 
 export async function updateUserRoleAction(
   userId: string,
@@ -30,6 +31,12 @@ export async function updateUserRoleAction(
     revalidatePath("/[locale]/dashboard/organization", "page");
 
     if (result.roleChanged) {
+      await recordAudit({
+        action: "user.role_changed",
+        entityType: "User",
+        entityId: userId,
+        diff: { role: { from: result.oldRole, to: result.newRole } },
+      });
       // Recipient-targeted notification: render in the affected user's
       // preferred language, not the acting admin's session locale.
       publishUserRoleChanged({

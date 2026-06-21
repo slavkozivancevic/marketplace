@@ -8,6 +8,7 @@ import {
 import { sellerNetAmount } from "../config";
 import { MOCK_CONNECT, isMockAccount } from "../mock";
 import { publishPayoutReleased } from "@/services/notifications";
+import { recordAudit } from "@/features/audit/db/audit";
 
 /**
  * Cursor-paginated payout ledger for a seller org, newest first. Each row carries
@@ -363,6 +364,13 @@ export async function releaseSellerPayout({
       currency,
       locale: order.locale ?? "en",
     }).catch((e) => console.error("[releaseSellerPayout] publishPayoutReleased failed", e));
+
+    await recordAudit({
+      action: "payout.released",
+      entityType: "Order",
+      entityId: orderId,
+      diff: { seller: organizationId, amount: net, currency },
+    });
   } catch (err) {
     console.error("[releaseSellerPayout] transfer failed", organizationId, err);
     await prisma.paymentTransaction.create({

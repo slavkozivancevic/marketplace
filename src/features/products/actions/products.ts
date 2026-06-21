@@ -14,6 +14,7 @@ import {
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import { ProductStatus } from "@/generated/prisma/client";
 import { productRepository } from "../db/products";
+import { recordAudit } from "@/features/audit/db/audit";
 import { ActionErrorResult } from "@/types/types";
 import type { BulkFilter, BulkUpdateFields } from "../types/bulk";
 import { requirePermission } from "@/lib/auth/permissions";
@@ -93,7 +94,7 @@ export async function createProduct(
     const repo = productRepository(ctx);
 
     const { price, compareAtPrice, costPrice, variants, categoryIds, ...rest } = parsed.data;
-    await repo.create({
+    const created = await repo.create({
       ...rest,
       categoryIds,
       price: decimalToCents(price),
@@ -106,6 +107,7 @@ export async function createProduct(
         costPrice: v.costPrice != null ? decimalToCents(v.costPrice) : null,
       })),
     });
+    await recordAudit({ action: "product.created", entityType: "Product", entityId: created.id });
   } catch (error) {
     return handleActionError(error);
   }
@@ -148,6 +150,7 @@ export async function updateProduct(
         costPrice: v.costPrice != null ? decimalToCents(v.costPrice) : null,
       })),
     });
+    await recordAudit({ action: "product.updated", entityType: "Product", entityId: id });
   } catch (error) {
     return handleActionError(error);
   }
@@ -165,6 +168,7 @@ export async function deleteProduct(
     const repo = productRepository(ctx);
 
     await repo.delete(id);
+    await recordAudit({ action: "product.deleted", entityType: "Product", entityId: id });
   } catch (error) {
     return handleActionError(error);
   }
@@ -182,6 +186,12 @@ export async function rollbackProductVersion(
     const repo = productRepository(ctx);
 
     await repo.rollbackToVersion(productId, targetVersion);
+    await recordAudit({
+      action: "product.rolled_back",
+      entityType: "Product",
+      entityId: productId,
+      diff: { version: targetVersion },
+    });
   } catch (error) {
     return handleActionError(error);
   }
@@ -194,6 +204,7 @@ export async function publishProduct(
   try {
     const ctx = await resolveRequestContext();
     await workflowPublish(ctx, productId);
+    await recordAudit({ action: "product.published", entityType: "Product", entityId: productId });
   } catch (error) {
     return handleActionError(error);
   }
@@ -208,6 +219,7 @@ export async function unpublishProduct(
   try {
     const ctx = await resolveRequestContext();
     await workflowUnpublish(ctx, productId);
+    await recordAudit({ action: "product.unpublished", entityType: "Product", entityId: productId });
   } catch (error) {
     return handleActionError(error);
   }
@@ -222,6 +234,7 @@ export async function archiveProduct(
   try {
     const ctx = await resolveRequestContext();
     await workflowArchive(ctx, productId);
+    await recordAudit({ action: "product.archived", entityType: "Product", entityId: productId });
   } catch (error) {
     return handleActionError(error);
   }
@@ -236,6 +249,7 @@ export async function unarchiveProduct(
   try {
     const ctx = await resolveRequestContext();
     await workflowUnarchive(ctx, productId);
+    await recordAudit({ action: "product.unarchived", entityType: "Product", entityId: productId });
   } catch (error) {
     return handleActionError(error);
   }
@@ -253,6 +267,12 @@ export async function bulkUpdateProductStatus(
     const repo = productRepository(ctx);
 
     await repo.bulkUpdateStatus(productIds, status);
+    await recordAudit({
+      action: "product.bulk_status",
+      entityType: "Product",
+      entityId: "bulk",
+      diff: { status, count: productIds.length },
+    });
 
     const t = await getTranslations("actionErrors");
     return {
@@ -273,6 +293,12 @@ export async function bulkDeleteProducts(
     const repo = productRepository(ctx);
 
     await repo.bulkDelete(productIds);
+    await recordAudit({
+      action: "product.bulk_deleted",
+      entityType: "Product",
+      entityId: "bulk",
+      diff: { count: productIds.length },
+    });
 
     const t = await getTranslations("actionErrors");
     return {
@@ -295,6 +321,12 @@ export async function duplicateProduct(
     const repo = productRepository(ctx);
 
     const copy = await repo.duplicate(id);
+    await recordAudit({
+      action: "product.duplicated",
+      entityType: "Product",
+      entityId: copy.id,
+      diff: { from: id },
+    });
 
     const t = await getTranslations("actionErrors");
     return { error: false, id: copy.id, message: t("productDuplicated") };
@@ -560,6 +592,14 @@ export async function bulkCreateProducts(
       }
     }
 
+    if (result.created > 0) {
+      await recordAudit({
+        action: "product.bulk_created",
+        entityType: "Product",
+        entityId: "bulk",
+        diff: { created: result.created, totalRows: result.totalRows, errors: result.errors.length },
+      });
+    }
     return { error: false, result };
   } catch (error) {
     return handleActionError(error);
@@ -609,6 +649,14 @@ export async function bulkDeleteByFilter(
       ...(filter.maxPrice != null && { maxPrice: decimalToCents(filter.maxPrice) }),
     };
     const { count } = await repo.bulkDeleteByFilter(filterInCents);
+    if (count > 0) {
+      await recordAudit({
+        action: "product.bulk_deleted",
+        entityType: "Product",
+        entityId: "bulk",
+        diff: { count, byFilter: true },
+      });
+    }
     const t = await getTranslations("actionErrors");
     return {
       error: false,
@@ -646,6 +694,14 @@ export async function bulkUpdateByFilter(
       filterInCents,
       updatesInCents,
     );
+    if (count > 0) {
+      await recordAudit({
+        action: "product.bulk_updated",
+        entityType: "Product",
+        entityId: "bulk",
+        diff: { count, fields: Object.keys(updates), byFilter: true },
+      });
+    }
 
     // Compose a message that mentions the skipped count when relevant -
     // stock writes silently drop variant products and we want users to see why

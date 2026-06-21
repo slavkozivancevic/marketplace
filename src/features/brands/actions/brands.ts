@@ -7,6 +7,7 @@ import { createBrandSchema, updateBrandSchema, CreateBrandInput, UpdateBrandInpu
 import { createBrand, updateBrand, deleteBrand, duplicateBrand } from "../db/brands";
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import { requireRole } from "@/lib/auth/requireRole";
+import { recordAudit } from "@/features/audit/db/audit";
 import { ActionErrorResult } from "@/types/types";
 
 // Server-action callers pass unlocalized paths like "/admin/brands"; we
@@ -29,7 +30,7 @@ export async function createBrandAction(
       return { error: true, message: parsed.error.issues.map((i) => i.message).join(", ") };
     }
 
-    await createBrand({
+    const created = await createBrand({
       name: parsed.data.name,
       slug: parsed.data.slug || undefined,
       logoUrl: parsed.data.logoUrl || null,
@@ -39,6 +40,7 @@ export async function createBrandAction(
       description: parsed.data.description || null,
       translations: parsed.data.translations ?? null,
     });
+    await recordAudit({ action: "brand.created", entityType: "Brand", entityId: created.id });
   } catch (error) {
     return handleActionError(error);
   }
@@ -69,6 +71,7 @@ export async function updateBrandAction(
       description: parsed.data.description || null,
       translations: parsed.data.translations ?? null,
     });
+    await recordAudit({ action: "brand.updated", entityType: "Brand", entityId: id });
   } catch (error) {
     return handleActionError(error);
   }
@@ -83,6 +86,7 @@ export async function deleteBrandAction(
   try {
     await requireRole("ADMIN");
     await deleteBrand(id);
+    await recordAudit({ action: "brand.deleted", entityType: "Brand", entityId: id });
   } catch (error) {
     return handleActionError(error);
   }
@@ -96,6 +100,7 @@ export async function duplicateBrandAction(
   try {
     await requireRole("ADMIN");
     const copy = await duplicateBrand(id);
+    await recordAudit({ action: "brand.duplicated", entityType: "Brand", entityId: copy.id, diff: { from: id } });
     return { error: false, id: copy.id };
   } catch (error) {
     return handleActionError(error);
