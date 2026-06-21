@@ -12,6 +12,7 @@ import {
 } from "@/components/infinite/useInfiniteVirtualList";
 import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import { SearchInput } from "@/components/search/SearchInput";
+import { SortSelect } from "@/components/search/SortSelect";
 import {
   Select,
   SelectContent,
@@ -20,12 +21,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { AuditLogItem } from "../db/queries";
 
 // Radix Select can't use an empty-string item value, so "all" is the sentinel.
 const ALL = "__all__";
-const GRID = "grid grid-cols-[155px_minmax(160px,1.2fr)_minmax(170px,1.2fr)_minmax(150px,1fr)_minmax(180px,2fr)] items-center gap-4";
+const GRID = "grid grid-cols-[155px_minmax(160px,1.2fr)_minmax(170px,1.2fr)_minmax(150px,1fr)_minmax(180px,2fr)] gap-4";
 
 // Action keys we emit and have localized labels for. Unknown (future) keys fall
 // back to the raw identifier so the table never breaks on a missing translation.
@@ -64,6 +66,7 @@ function buildFetcher(f: AuditFilters) {
     if (f.search) params.set("search", f.search);
     if (f.action) params.set("action", f.action);
     if (f.entityType) params.set("entityType", f.entityType);
+    if (f.sortOrder) params.set("sortOrder", f.sortOrder);
     const { data } = await axios.get(`/api/admin/audit?${params.toString()}`);
     return data;
   };
@@ -86,11 +89,23 @@ function renderDiff(diff: AuditLogItem["diff"], labels: Labels): string | null {
     .join("  ·  ");
 }
 
+function SkeletonRow() {
+  return (
+    <div role="row" className={cn(GRID, "items-center border-b px-3 py-2.5 min-w-fit")}>
+      <Skeleton className="h-3 w-28" />
+      <Skeleton className="h-3 w-36" />
+      <Skeleton className="h-5 w-32 rounded-full" />
+      <Skeleton className="h-3 w-24" />
+      <Skeleton className="h-3 w-40" />
+    </div>
+  );
+}
+
 function Row({ row, dl, labels }: { row: AuditLogItem; dl: string; labels: Labels }) {
   const diff = renderDiff(row.diff, labels);
   const isBulk = row.entityId === "bulk";
   return (
-    <div role="row" className={cn(GRID, "border-b px-3 py-2.5 text-sm min-w-fit")}>
+    <div role="row" className={cn(GRID, "items-start border-b px-3 py-2.5 text-sm min-w-fit")}>
       <div className="text-muted-foreground text-xs whitespace-nowrap">
         {new Date(row.createdAt).toLocaleString(dl, {
           year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
@@ -112,7 +127,7 @@ function Row({ row, dl, labels }: { row: AuditLogItem; dl: string; labels: Label
           <span className="font-mono text-muted-foreground">#{row.entityId.slice(-8)}</span>
         )}
       </div>
-      <div className="text-xs text-muted-foreground truncate" title={diff ?? undefined}>{diff ?? "—"}</div>
+      <div className="text-xs text-muted-foreground line-clamp-2" title={diff ?? undefined}>{diff ?? "—"}</div>
     </div>
   );
 }
@@ -208,6 +223,7 @@ export function AuditLogView({
     search: params.search,
     action: params.action,
     entityType: params.entityType,
+    sortOrder: params.sortOrder,
   };
 
   const { parentRef, virtualizer, items, query, isSentinelIndex, isPlaceholderData } =
@@ -218,7 +234,7 @@ export function AuditLogView({
     });
 
   const Header = (
-    <div role="row" className={cn(GRID, "border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit")}>
+    <div role="row" className={cn(GRID, "items-center border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit")}>
       <div role="columnheader">{t("colTime")}</div>
       <div role="columnheader">{t("colActor")}</div>
       <div role="columnheader">{t("colAction")}</div>
@@ -262,6 +278,13 @@ export function AuditLogView({
           ))}
         </SelectContent>
       </Select>
+      <SortSelect
+        sortBy="createdAt"
+        sortOrder={f.sortOrder}
+        onSortByChange={() => {}}
+        onSortOrderChange={(order) => setParams({ sortOrder: order })}
+        options={[{ value: "createdAt", label: t("colTime") }]}
+      />
     </div>
   );
 
@@ -273,7 +296,14 @@ export function AuditLogView({
         <AlertDescription>{query.error.message}</AlertDescription>
       </Alert>
     );
-  } else if (query.status !== "pending" && items.length === 0) {
+  } else if (query.status === "pending") {
+    body = (
+      <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto">
+        {Header}
+        {Array.from({ length: 10 }).map((_, i) => <SkeletonRow key={i} />)}
+      </div>
+    );
+  } else if (items.length === 0) {
     body = <p className="text-sm text-muted-foreground py-10 text-center">{t("noLogs")}</p>;
   } else if (!query.hasNextPage) {
     body = (
@@ -297,9 +327,7 @@ export function AuditLogView({
                 data-index={vRow.index}
                 style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${vRow.start}px)` }}
               >
-                {sentinel
-                  ? <div className="px-3 py-3 text-xs text-muted-foreground">…</div>
-                  : <Row row={row!} dl={dl} labels={labels} />}
+                {sentinel ? <SkeletonRow /> : <Row row={row!} dl={dl} labels={labels} />}
               </div>
             );
           })}

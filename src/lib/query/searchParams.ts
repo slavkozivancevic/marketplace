@@ -159,12 +159,14 @@ export const auditSearchParams = {
   search: parseAsString.withDefault(""),
   action: parseAsString.withDefault(""),
   entityType: parseAsString.withDefault(""),
+  sortOrder: parseAsStringEnum(["asc", "desc"] as const).withDefault("desc"),
 };
 
 export type AuditFilters = {
   search: string;
   action: string;
   entityType: string;
+  sortOrder: "asc" | "desc";
 };
 
 // ---------- Admin organizations ----------

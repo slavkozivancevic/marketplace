@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get("search") ?? undefined;
   const action = searchParams.get("action");
   const entityType = searchParams.get("entityType");
+  const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
 
   try {
     const result = await getAuditLogsPage({
@@ -35,6 +36,7 @@ export async function GET(req: NextRequest) {
       search,
       action: action ? [action] : undefined,
       entityType: entityType ? [entityType] : undefined,
+      sortOrder,
     });
     return NextResponse.json(result);
   } catch (error) {

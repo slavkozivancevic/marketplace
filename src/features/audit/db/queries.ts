@@ -13,12 +13,14 @@ export async function getAuditLogsPage({
   search,
   action,
   entityType,
+  sortOrder = "desc",
 }: {
   take: number;
   cursor?: string;
   search?: string;
   action?: string[];
   entityType?: string[];
+  sortOrder?: "asc" | "desc";
 }) {
   const where: Prisma.AuditLogWhereInput = {};
   const and: Prisma.AuditLogWhereInput[] = [];
@@ -37,7 +39,7 @@ export async function getAuditLogsPage({
 
   const rows = await prisma.auditLog.findMany({
     where,
-    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    orderBy: [{ createdAt: sortOrder }, { id: "asc" }],
     take: take + 1,
     cursor: cursor ? { id: cursor } : undefined,
     skip: cursor ? 1 : 0,
@@ -45,6 +47,27 @@ export async function getAuditLogsPage({
 
   let nextCursor: string | undefined;
   if (rows.length > take) nextCursor = rows.pop()!.id;
+
+  // The diff stores a seller as the org id (stable); swap in the current org
+  // name for display. Batched so the page stays one extra query at most.
+  const orgIds = new Set<string>();
+  for (const r of rows) {
+    const seller = (r.diff as Record<string, unknown> | null)?.seller;
+    if (typeof seller === "string") orgIds.add(seller);
+  }
+  if (orgIds.size > 0) {
+    const orgs = await prisma.organization.findMany({
+      where: { id: { in: [...orgIds] } },
+      select: { id: true, name: true },
+    });
+    const nameById = new Map(orgs.map((o) => [o.id, o.name]));
+    for (const r of rows) {
+      const d = r.diff as Record<string, unknown> | null;
+      if (d && typeof d.seller === "string" && nameById.has(d.seller)) {
+        d.seller = nameById.get(d.seller)!;
+      }
+    }
+  }
 
   return { items: rows, nextCursor };
 }
