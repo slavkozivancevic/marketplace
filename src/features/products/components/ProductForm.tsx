@@ -17,6 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { NumberStepper } from "@/components/ui/number-stepper";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1243,13 +1244,12 @@ export function ProductForm({
                       <span className="ml-1.5 font-normal text-muted-foreground">- {t("unlimitedHint")}</span>
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
+                      <NumberStepper
+                        min={0}
+                        allowEmpty
                         placeholder={t("unlimited")}
-                        value={field.value ?? ""}
-                        onChange={(e) =>
-                          field.onChange(e.target.value === "" ? null : parseInt(e.target.value, 10))
-                        }
+                        value={field.value ?? null}
+                        onChange={(v) => field.onChange(v)}
                       />
                     </FormControl>
                     <FormMessage />

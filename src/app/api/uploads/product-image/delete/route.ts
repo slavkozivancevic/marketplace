@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteS3Object } from "@/services/s3Delete";
+import { toEmailThumbKey } from "@/services/s3Copy";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
 import { handleActionError } from "@/features/common/errors/domainErrors";
@@ -28,6 +29,9 @@ export async function POST(request: NextRequest) {
     // Delete thumbnail
     const thumbKey = key.replace("/products/", "/products/thumbs/") + ".webp";
     await deleteS3Object(thumbKey);
+
+    // Delete the email JPEG derivative if one was ever generated (best-effort).
+    await deleteS3Object(toEmailThumbKey(key)).catch(() => {});
 
     return NextResponse.json({ error: false });
   } catch (error) {

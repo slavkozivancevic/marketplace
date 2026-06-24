@@ -13,6 +13,7 @@ import {
 } from "@/generated/prisma/client";
 import { deriveOrderStatus } from "@/features/orders/status";
 import { recordAudit, SYSTEM_ACTOR } from "@/features/audit/db/audit";
+import { recordCouponUsage } from "@/features/coupons/db/coupons";
 import { cacheTag } from "next/cache";
 import { CacheTags } from "@/lib/cache/tags";
 import { revalidateOrderCache } from "./cache";
@@ -202,6 +203,11 @@ export async function getOrderByStripeSessionId(stripeSessionId: string) {
     where: { stripeSessionId },
     select: {
       id: true,
+      locale: true,
+      currency: true,
+      total: true,
+      discountAmount: true,
+      couponCode: true,
       shippingName: true,
       shippingLine1: true,
       shippingLine2: true,
@@ -209,9 +215,42 @@ export async function getOrderByStripeSessionId(stripeSessionId: string) {
       shippingState: true,
       shippingPostalCode: true,
       shippingCountry: true,
+      items: {
+        select: {
+          id: true,
+          quantity: true,
+          price: true,
+          product: {
+            select: {
+              translations: { select: { locale: true, title: true } },
+              media: {
+                orderBy: { order: "asc" },
+                take: 1,
+                where: { mediaType: "IMAGE" },
+                select: { url: true, thumbUrl: true },
+              },
+            },
+          },
+          variant: {
+            select: {
+              sku: true,
+              media: {
+                orderBy: { order: "asc" },
+                take: 1,
+                select: { media: { select: { url: true, thumbUrl: true, mediaType: true } } },
+              },
+            },
+          },
+        },
+      },
     },
   });
-  return order;
+  if (!order) return null;
+  return {
+    ...order,
+    total: Number(order.total),
+    items: order.items.map((item) => ({ ...item, price: Number(item.price) })),
+  };
 }
 
 // Not cached: a buyer's order detail reflects live status (returns, refunds)
@@ -305,6 +344,8 @@ export async function fulfillOrder({
   items,
   shipping,
   locale = "en",
+  couponId,
+  couponCode,
 }: {
   userId: string;
   stripeSessionId: string;
@@ -317,6 +358,8 @@ export async function fulfillOrder({
   items: FulfillOrderItem[];
   shipping?: ShippingAddress;
   locale?: string;
+  couponId?: string;
+  couponCode?: string;
 }) {
   const existing = await prisma.order.findUnique({
     where: { stripeSessionId },
@@ -364,6 +407,11 @@ export async function fulfillOrder({
     return { ...item, price: convertCents(Number(product.price), curr, rate) };
   });
 
+  // The charged `totalCents` is already net of any Stripe coupon discount;
+  // recover the discount as (full subtotal - charged) for display + the ledger.
+  const subtotalCents = itemsWithPrice.reduce((s, i) => s + i.price * i.quantity, 0);
+  const discountAmount = Math.max(0, subtotalCents - totalCents);
+
   const order = await prisma.$transaction(async (tx) => {
     // Atomic stock decrement - raw SQL WHERE stock >= quantity prevents overselling.
     // If affected rows = 0, another concurrent transaction already took the last unit.
@@ -406,6 +454,9 @@ export async function fulfillOrder({
           cancelledAt: null,
         }),
         total: totalCents,
+        couponId: couponId ?? null,
+        couponCode: couponCode ?? null,
+        discountAmount,
         locale,
         currency: currency ?? "usd",
         exchangeRate: exchangeRate ?? 1,
@@ -451,6 +502,8 @@ export async function fulfillOrder({
   });
   allProducts.forEach((p) => revalidateProductCache(p.organizationId, p.id));
 
+  if (couponId) await recordCouponUsage(couponId);
+
   // NOTE: sellers are NOT paid here. The platform holds the captured funds and
   // releases each seller's transfer when that seller ships (releaseSellerPayout),
   // so an order refunded before fulfillment never pays out.
@@ -465,6 +518,8 @@ export async function createCodOrder({
   items,
   shipping,
   locale,
+  couponId,
+  couponCode,
 }: {
   userId: string;
   totalInCurrency: number;
@@ -473,6 +528,8 @@ export async function createCodOrder({
   items: FulfillOrderItem[];
   shipping: ShippingAddress;
   locale?: string;
+  couponId?: string;
+  couponCode?: string;
 }) {
   const variantIds = items.filter((i) => i.variantId).map((i) => i.variantId!);
   const productOnlyIds = items.filter((i) => !i.variantId).map((i) => i.productId);
@@ -505,6 +562,11 @@ export async function createCodOrder({
     if (!product) throw new Error(`Product ${item.productId} not found`);
     return { ...item, price: convertCents(Number(product.price), currency as Currency, exchangeRate) };
   });
+
+  // `totalInCurrency` is already net of any coupon; recover the discount as
+  // (full subtotal - charged) for display + the ledger.
+  const subtotalCents = itemsWithPrice.reduce((s, i) => s + i.price * i.quantity, 0);
+  const discountAmount = Math.max(0, subtotalCents - totalInCurrency);
 
   const order = await prisma.$transaction(async (tx) => {
     for (const item of itemsWithPrice) {
@@ -545,6 +607,9 @@ export async function createCodOrder({
           cancelledAt: null,
         }),
         total: totalInCurrency,
+        couponId: couponId ?? null,
+        couponCode: couponCode ?? null,
+        discountAmount,
         locale: locale ?? "en",
         currency,
         exchangeRate,
@@ -583,6 +648,7 @@ export async function createCodOrder({
   });
 
   revalidateOrderCache(userId, order.id);
+  if (couponId) await recordCouponUsage(couponId);
 
   const uniqueProductIds = [...new Set(items.map((i) => i.productId))];
   const allProducts = await prisma.product.findMany({

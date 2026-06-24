@@ -55,6 +55,9 @@
     "editCategory": "Edit Category",
     "newAttribute": "New Attribute",
     "editAttribute": "Edit Attribute",
+    "coupons": "Coupons",
+    "newCoupon": "New Coupon",
+    "editCoupon": "Edit Coupon",
     "bulkOperations": "Bulk Operations",
     "history": "History"
   },
@@ -82,6 +85,7 @@
     "attributes": "Attributes",
     "organizations": "Organizations",
     "users": "Users",
+    "coupons": "Coupons",
     "audit": "Audit Log",
     "dashboard": "Dashboard",
     "quickLinks": "Quick Links"
@@ -288,13 +292,16 @@
     "card": "Card",
     "yourItems": "Your items",
     "yourTotal": "Your total",
+    "subtotal": "Subtotal",
+    "discount": "Discount",
     "error": "Error loading orders",
     "noOrders": "No orders found",
     "noOrdersYet": "No orders yet",
     "tryAdjusting": "Try adjusting your search or filters.",
     "noneYetDesc": "You haven't placed any orders yet.",
     "browse": "Browse products",
-    "searchPlaceholder": "Search by product name or order ID..."
+    "searchPlaceholder": "Search by product name or order ID...",
+    "paidAfterRefunds": "Paid after refunds"
   },
   "myProducts": {
     "title": "My Products",
@@ -383,6 +390,12 @@
     "placeOrder": "Place Order",
     "placingOrder": "Placing Order...",
     "redirectingToStripe": "Redirecting to payment...",
+    "subtotal": "Subtotal",
+    "discount": "Discount",
+    "couponPlaceholder": "Promo code",
+    "applyCoupon": "Apply",
+    "couponApplied": "Coupon {code} applied",
+    "removeCoupon": "Remove",
     "codOrderPlaced": "Order Placed",
     "codThankYou": "Thank you! Your order has been placed. You will pay upon delivery.",
     "codOrderNote": "Our team will contact you to confirm the delivery details.",
@@ -417,6 +430,7 @@
       "apply": "Apply",
       "reset": "Reset",
       "noLogs": "No audit entries match your filters.",
+      "noEntries": "No audit entries yet.",
       "colTime": "Time",
       "colActor": "Actor",
       "colAction": "Action",
@@ -434,7 +448,8 @@
         "return": "Return",
         "user": "User",
         "membership": "Membership",
-        "organization": "Organization"
+        "organization": "Organization",
+        "coupon": "Coupon"
       },
       "fields": {
         "count": "Count",
@@ -452,7 +467,8 @@
         "created": "Created",
         "totalRows": "Total rows",
         "errors": "Errors",
-        "external": "External"
+        "external": "External",
+        "from": "Copied from"
       },
       "values": {
         "USER": "User",
@@ -480,7 +496,9 @@
           "refunded": "Order refunded",
           "partially_refunded": "Order partially refunded"
         },
-        "payout": { "released": "Payout released" },
+        "payout": {
+          "released": "Payout released"
+        },
         "return": {
           "requested": "Return requested",
           "approved": "Return approved",
@@ -488,9 +506,16 @@
           "shipped": "Return shipped",
           "refunded": "Return refunded"
         },
-        "user": { "role_changed": "User role changed" },
-        "member": { "role_changed": "Member role changed", "removed": "Member removed" },
-        "organization": { "verified_changed": "Organization verification changed" },
+        "user": {
+          "role_changed": "User role changed"
+        },
+        "member": {
+          "role_changed": "Member role changed",
+          "removed": "Member removed"
+        },
+        "organization": {
+          "verified_changed": "Organization verification changed"
+        },
         "product": {
           "created": "Product created",
           "updated": "Product updated",
@@ -506,9 +531,29 @@
           "bulk_created": "Products bulk created",
           "bulk_updated": "Products bulk updated"
         },
-        "brand": { "created": "Brand created", "updated": "Brand updated", "deleted": "Brand deleted", "duplicated": "Brand duplicated" },
-        "category": { "created": "Category created", "updated": "Category updated", "deleted": "Category deleted", "duplicated": "Category duplicated" },
-        "attribute": { "created": "Attribute created", "updated": "Attribute updated", "deleted": "Attribute deleted", "duplicated": "Attribute duplicated" }
+        "brand": {
+          "created": "Brand created",
+          "updated": "Brand updated",
+          "deleted": "Brand deleted",
+          "duplicated": "Brand duplicated"
+        },
+        "category": {
+          "created": "Category created",
+          "updated": "Category updated",
+          "deleted": "Category deleted",
+          "duplicated": "Category duplicated"
+        },
+        "attribute": {
+          "created": "Attribute created",
+          "updated": "Attribute updated",
+          "deleted": "Attribute deleted",
+          "duplicated": "Attribute duplicated"
+        },
+        "coupon": {
+          "created": "Coupon created",
+          "updated": "Coupon updated",
+          "deleted": "Coupon deleted"
+        }
       },
       "columns": {
         "status": "Status",
@@ -1188,8 +1233,17 @@
   },
   "orgOrders": {
     "paymentHistory": "Payment history",
-    "txType": { "charge": "Charge", "refund": "Refund", "payout": "Payout", "fee": "Commission" },
-    "txStatus": { "pending": "Pending", "succeeded": "Succeeded", "failed": "Failed" },
+    "txType": {
+      "charge": "Charge",
+      "refund": "Refund",
+      "payout": "Payout",
+      "fee": "Commission"
+    },
+    "txStatus": {
+      "pending": "Pending",
+      "succeeded": "Succeeded",
+      "failed": "Failed"
+    },
     "pageTitle": "Received Orders",
     "pageDescription": "Orders placed for your organization's products.",
     "orderId": "Order ID",
@@ -1226,6 +1280,8 @@
     "orderSummary": "Order Summary",
     "yourItems": "Ordered items",
     "yourSubtotal": "Total",
+    "coupon": "Coupon",
+    "couponNote": "Platform-funded - doesn't affect your payout.",
     "buyerAndShipping": "Buyer & Shipping",
     "deliveryAddress": "Delivery address",
     "noShippingAddress": "No shipping address (digital product)",
@@ -1241,7 +1297,13 @@
     "cancelConfirmTitle": "Cancel this order?",
     "cancelConfirmDesc": "This can't be undone. Inventory is restocked and the buyer is notified of the cancellation.",
     "keepOrder": "Keep order",
-    "cancellingOrder": "Cancelling..."
+    "cancellingOrder": "Cancelling...",
+    "couponSellerNote": "Your payout is the full subtotal minus the standard {percent}% platform fee - exactly the same as without a coupon. The discount the buyer received (coupon {code}) is covered by the platform out of its fee, not taken from your payout.",
+    "paymentHistoryCouponNote": "The charge is what the buyer paid after coupon {code}. The discount is platform-funded and does not reduce your payout.",
+    "platformFee": "Platform fee ({percent}%)",
+    "yourPayout": "Your payout",
+    "payoutReversed": "Refund reversal",
+    "payoutAfterRefunds": "Net payout after refunds"
   },
   "relatedProducts": {
     "discoverMore": "Discover More",
@@ -1279,6 +1341,59 @@
     "duplicateVariantCombo": "Same option combination as variant #{other}",
     "duplicateSku": "Duplicate SKU \"{sku}\" (also variant #{other})"
   },
+  "coupons": {
+    "title": "Coupons",
+    "description": "Create and manage discount codes.",
+    "newCoupon": "New Coupon",
+    "editCoupon": "Edit Coupon",
+    "formDescription": "Set the discount, limits and validity.",
+    "empty": "No coupons yet.",
+    "noResults": "No coupons match your filters.",
+    "deleteConfirm": "Delete coupon {code}?",
+    "searchPlaceholder": "Search by code…",
+    "filterAll": "All",
+    "sortCreated": "Created",
+    "errors": {
+      "notFound": "This promo code isn't valid.",
+      "expired": "This promo code has expired.",
+      "usedUp": "This promo code has reached its usage limit.",
+      "minOrder": "This code requires a minimum order of {amount}.",
+      "cartEmpty": "Your cart is empty."
+    },
+    "form": {
+      "code": "Code",
+      "type": "Type",
+      "percent": "Percentage",
+      "fixed": "Fixed amount",
+      "valuePercent": "Percent off",
+      "valueFixed": "Amount off (USD)",
+      "minOrder": "Minimum order (USD)",
+      "usageLimit": "Usage limit",
+      "expiresAt": "Expires on",
+      "optional": "Optional",
+      "active": "Active",
+      "save": "Save changes",
+      "create": "Create coupon",
+      "activeDesc": "Inactive coupons can't be redeemed at checkout."
+    },
+    "table": {
+      "code": "Code",
+      "discount": "Discount",
+      "minOrder": "Min order",
+      "usage": "Usage",
+      "expires": "Expires",
+      "status": "Status",
+      "active": "Active",
+      "inactive": "Inactive",
+      "actions": "Actions",
+      "edit": "Edit",
+      "duplicate": "Duplicate"
+    },
+    "deleted": "Coupon deleted",
+    "duplicated": "Coupon duplicated",
+    "deleteDesc": "This action cannot be undone.",
+    "deleting": "Deleting..."
+  },
   "invoice": {
     "invoice": "Invoice",
     "invoiceNo": "Invoice no.",
@@ -1292,6 +1407,8 @@
     "qty": "Qty",
     "unitPrice": "Unit price",
     "lineTotal": "Amount",
+    "subtotal": "Subtotal",
+    "discount": "Discount",
     "total": "Total",
     "footer": "Thank you for your purchase. This invoice was generated by Marketplace.",
     "download": "Download invoice"
@@ -1347,7 +1464,8 @@
     "confirmReject": "Confirm rejection",
     "rejectReasonPlaceholder": "Reason for rejection (optional)",
     "markRefunded": "Mark refunded",
-    "refundDone": "Refund issued"
+    "refundDone": "Refund issued",
+    "returnAfterDelivery": "You can request a return once this item is delivered."
   },
   "payouts": {
     "pageTitle": "Payouts",
@@ -1407,6 +1525,7 @@
     "returnExceedsQuantity": "You can't return more than you purchased.",
     "shipmentNotAllowed": "This order can no longer be marked as shipped.",
     "shipmentNotShippedYet": "Mark this order as shipped before marking it delivered.",
+    "couponCodeTaken": "A coupon with this code already exists.",
     "returnRefundBeforePayment": "Confirm the payment was received before refunding this order.",
     "uniqueConstraint": "A record with this {fields} already exists",
     "uniqueConstraintNoFields": "A record with these values already exists",

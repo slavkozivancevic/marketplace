@@ -1,4 +1,5 @@
 import { renderToBuffer } from "@react-pdf/renderer";
+import sharp from "sharp";
 import { getTranslations } from "next-intl/server";
 import { PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { Prisma } from "@/generated/prisma/client";
@@ -23,6 +24,25 @@ async function s3GetBuffer(key: string): Promise<Buffer> {
   return Buffer.from(bytes);
 }
 
+/**
+ * Fetches a product image and normalizes it to a small PNG data-URI. @react-pdf
+ * only decodes JPG/PNG, so we run every source (incl. WebP) through sharp to PNG.
+ * Best-effort: any fetch/decode failure returns null so one bad asset can never
+ * block invoice generation (the line just renders without a thumbnail).
+ */
+async function fetchThumb(url: string | null): Promise<string | null> {
+  if (!url) return null;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return null;
+    const input = Buffer.from(await res.arrayBuffer());
+    const png = await sharp(input).resize(80, 80, { fit: "cover" }).png().toBuffer();
+    return `data:image/png;base64,${png.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 const orderInclude = {
   invoice: true,
   items: {
@@ -31,10 +51,21 @@ const orderInclude = {
         select: {
           translations: { select: { locale: true, title: true } },
           organization: { select: { name: true } },
+          media: {
+            orderBy: { order: "asc" },
+            take: 1,
+            where: { mediaType: "IMAGE" },
+            select: { url: true, thumbUrl: true },
+          },
         },
       },
       variant: {
         select: {
+          media: {
+            orderBy: { order: "asc" },
+            take: 1,
+            select: { media: { select: { url: true, thumbUrl: true } } },
+          },
           attributeValues: {
             select: {
               option: { select: { translations: { select: { locale: true, label: true } } } },
@@ -57,24 +88,31 @@ async function buildInvoiceData(order: OrderWithInvoice, number: number): Promis
   const fmtDate = (d: Date) =>
     new Date(d).toLocaleDateString(dl, { year: "numeric", month: "long", day: "numeric" });
 
-  const lines: InvoiceLine[] = order.items.map((item) => {
-    const title =
-      item.product.translations.find((tr) => tr.locale === locale)?.title ??
-      item.product.translations.find((tr) => tr.locale === "en")?.title ??
-      "";
-    const variantLabel =
-      item.variant?.attributeValues
-        .map((av) => getLabel(av.option.translations, locale))
-        .join(" / ") || null;
-    return {
-      title,
-      variantLabel,
-      sellerName: item.product.organization.name,
-      quantity: item.quantity,
-      unitPrice: formatPrice(item.price, cur),
-      lineTotal: formatPrice(item.price * item.quantity, cur),
-    };
-  });
+  const lines: InvoiceLine[] = await Promise.all(
+    order.items.map(async (item) => {
+      const title =
+        item.product.translations.find((tr) => tr.locale === locale)?.title ??
+        item.product.translations.find((tr) => tr.locale === "en")?.title ??
+        "";
+      const variantLabel =
+        item.variant?.attributeValues
+          .map((av) => getLabel(av.option.translations, locale))
+          .join(" / ") || null;
+      const variantImg = item.variant?.media[0]?.media;
+      const productImg = item.product.media[0];
+      const imageUrl =
+        variantImg?.thumbUrl ?? variantImg?.url ?? productImg?.thumbUrl ?? productImg?.url ?? null;
+      return {
+        title,
+        variantLabel,
+        sellerName: item.product.organization.name,
+        quantity: item.quantity,
+        unitPrice: formatPrice(item.price, cur),
+        lineTotal: formatPrice(item.price * item.quantity, cur),
+        image: await fetchThumb(imageUrl),
+      };
+    }),
+  );
 
   return {
     number: formatInvoiceNumber(number),
@@ -94,6 +132,9 @@ async function buildInvoiceData(order: OrderWithInvoice, number: number): Promis
         }
       : null,
     lines,
+    subtotal: order.discountAmount > 0 ? formatPrice(order.total + order.discountAmount, cur) : null,
+    discount: order.discountAmount > 0 ? formatPrice(order.discountAmount, cur) : null,
+    couponCode: order.couponCode,
     total: formatPrice(order.total, cur),
     labels: {
       invoice: t("invoice"),
@@ -108,6 +149,8 @@ async function buildInvoiceData(order: OrderWithInvoice, number: number): Promis
       qty: t("qty"),
       unitPrice: t("unitPrice"),
       lineTotal: t("lineTotal"),
+      subtotal: t("subtotal"),
+      discount: t("discount"),
       total: t("total"),
       footer: t("footer"),
     },

@@ -8,7 +8,7 @@ import { Loader2, RotateCcw, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { NumberStepper } from "@/components/ui/number-stepper";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/sonner";
@@ -156,15 +156,14 @@ export function BuyerReturns({
                   </Button>
                 )}
               </div>
+              {/* No return button yet - always explain why. Until this seller's
+                  shipment is delivered (covers not-shipped AND in-transit) a
+                  return can't be opened; once delivered but still not eligible
+                  it's awaiting collected payment (COD cash confirmation). */}
               {!seller.canReturn && returnable.length > 0 && sellerReturns.length === 0 && (
-                <>
-                  {seller.shipped && !seller.delivered && (
-                    <p className="mt-1 text-xs text-muted-foreground">{t("returnAfterShip")}</p>
-                  )}
-                  {seller.delivered && (
-                    <p className="mt-1 text-xs text-muted-foreground">{t("notEligibleHint")}</p>
-                  )}
-                </>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {!seller.delivered ? t("returnAfterDelivery") : t("notEligibleHint")}
+                </p>
               )}
 
               {/* Existing returns for this seller */}
@@ -186,6 +185,11 @@ export function BuyerReturns({
                       <li key={l.orderItemId}>{lineLabel(l)} × {l.quantity}</li>
                     ))}
                   </ul>
+                  {ret.reason && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t("reasonLabel")}: {ret.reason}
+                    </p>
+                  )}
                   {ret.status === "REJECTED" && ret.resolutionNote && (
                     <p className="mt-1 text-xs text-muted-foreground">{ret.resolutionNote}</p>
                   )}
@@ -201,15 +205,13 @@ export function BuyerReturns({
                         <p className="truncate">{lineLabel(item)}</p>
                         <p className="text-xs text-muted-foreground">{t("returnQtyMax", { max: item.returnable })}</p>
                       </div>
-                      <Input
-                        type="number"
+                      <NumberStepper
                         min={0}
                         max={item.returnable}
                         className="h-8 w-20 text-sm"
                         value={sel[item.orderItemId] ?? 0}
-                        onChange={(e) => {
-                          const raw = parseInt(e.target.value, 10);
-                          const q = Number.isNaN(raw) ? 0 : Math.max(0, Math.min(item.returnable, raw));
+                        onChange={(v) => {
+                          const q = Math.max(0, Math.min(item.returnable, v ?? 0));
                           setSel((s) => ({ ...s, [item.orderItemId]: q }));
                         }}
                       />

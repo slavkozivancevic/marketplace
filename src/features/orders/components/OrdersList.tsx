@@ -38,7 +38,7 @@ function OrderTableHeader({ t }: { t: ReturnType<typeof useTranslations> }) {
   return (
     <div
       role="row"
-      className="grid grid-cols-[100px_100px_80px_minmax(200px,2fr)_120px_170px] items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit"
+      className="grid grid-cols-[100px_100px_80px_minmax(200px,2fr)_120px_230px] items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit"
     >
       <div role="columnheader">{t("orders.orderId")}</div>
       <div role="columnheader">{t("orders.date")}</div>

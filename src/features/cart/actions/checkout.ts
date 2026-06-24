@@ -13,6 +13,9 @@ import { convertCents } from "@/lib/currency";
 import { VALID_CURRENCIES, type Currency } from "@/lib/currency-config";
 import { asLocale } from "@/i18n/config";
 import { getPathname } from "@/i18n/navigation";
+import { validateCoupon } from "@/features/coupons/db/coupons";
+import { CouponType } from "@/generated/prisma/client";
+import type Stripe from "stripe";
 
 export type CheckoutCartItem = {
   productId: string;
@@ -22,6 +25,7 @@ export type CheckoutCartItem = {
 
 export async function createCheckoutSession(
   items: CheckoutCartItem[],
+  couponCode?: string,
 ): Promise<{ url: string } | ActionErrorResult> {
   try {
     const { userId: clerkUserId } = await auth();
@@ -64,6 +68,7 @@ export async function createCheckoutSession(
     }[] = [];
 
     let needsShipping = false;
+    let subtotalUsd = 0;
 
     for (const item of items) {
       const product = await prisma.product.findFirst({
@@ -134,6 +139,8 @@ export async function createCheckoutSession(
         needsShipping = true;
       }
 
+      subtotalUsd += unitPriceUsdCents * item.quantity;
+
       // Convert from USD cents to target currency's smallest unit
       const unitAmountInCurrency = convertCents(unitPriceUsdCents, currency, exchangeRate);
 
@@ -159,10 +166,36 @@ export async function createCheckoutSession(
       });
     }
 
+    // Coupon: re-validate server-side against the DB subtotal (never trust the
+    // client) and translate it into a one-off Stripe discount. Stripe reduces
+    // `amount_total`, which the webhook already reads - so the charged amount is
+    // automatically net of the discount.
+    let discounts: Stripe.Checkout.SessionCreateParams.Discount[] | undefined;
+    const couponMeta: Record<string, string> = {};
+    if (couponCode) {
+      const res = await validateCoupon(couponCode, subtotalUsd);
+      if (res.ok && res.discountUsd > 0) {
+        const stripeCoupon = await stripe.coupons.create(
+          res.type === CouponType.PERCENT
+            ? { percent_off: res.value, duration: "once", max_redemptions: 1 }
+            : {
+                amount_off: convertCents(res.value, currency, exchangeRate),
+                currency,
+                duration: "once",
+                max_redemptions: 1,
+              },
+        );
+        discounts = [{ coupon: stripeCoupon.id }];
+        couponMeta.couponId = res.couponId;
+        couponMeta.couponCode = res.code;
+      }
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: lineItems,
       customer_email: user.email,
+      ...(discounts && { discounts }),
       ...(needsShipping && {
         shipping_address_collection: {
           allowed_countries: ["US", "CA", "GB", "DE", "FR", "AU", "NL", "SE", "NO", "DK", "FI", "IT", "ES", "PT", "BE", "AT", "CH", "PL", "RS", "HR", "BA", "ME", "SI", "MK", "AL"],
@@ -173,6 +206,7 @@ export async function createCheckoutSession(
         locale,
         currency,
         exchangeRate: String(exchangeRate),
+        ...couponMeta,
         items: JSON.stringify(
           items.map((i) => ({
             productId: i.productId,

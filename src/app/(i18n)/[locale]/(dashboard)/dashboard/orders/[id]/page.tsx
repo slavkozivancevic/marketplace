@@ -67,6 +67,12 @@ export default async function OrderDetailPage({
   const hasActiveReturn = orderReturns.some((r) =>
     ["REQUESTED", "APPROVED", "SHIPPED"].includes(r.status),
   );
+  // Total refunded to the buyer (each return's refundAmount is the discounted
+  // amount they actually got back), and what remains paid after refunds.
+  const buyerRefunded = orderReturns
+    .filter((r) => r.status === "REFUNDED")
+    .reduce((sum, r) => sum + (r.refundAmount ?? 0), 0);
+  const netPaid = order.total - buyerRefunded;
 
   // Per order item: localized title, variant label, owning seller.
   const itemInfo = new Map(
@@ -370,9 +376,38 @@ export default async function OrderDetailPage({
             })}
 
             <Separator className="my-4" />
-            <div className="flex justify-between font-semibold">
-              <span>{t("orders.yourTotal")}</span>
-              <span>{formatPrice(order.total, order.currency as Currency)}</span>
+            <div className="space-y-1.5">
+              {order.discountAmount > 0 && (
+                <>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>{t("orders.subtotal")}</span>
+                    <span>{formatPrice(order.total + order.discountAmount, order.currency as Currency)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-emerald-600">
+                    <span>{t("orders.discount")}{order.couponCode ? ` (${order.couponCode})` : ""}</span>
+                    <span>-{formatPrice(order.discountAmount, order.currency as Currency)}</span>
+                  </div>
+                </>
+              )}
+              {/* When items were refunded, "Your total" becomes the order's
+                  original charge, then show the refunded amount and what stays
+                  paid - mirrors the seller payout breakdown on the org page. */}
+              <div className={`flex justify-between ${buyerRefunded > 0 ? "text-sm text-muted-foreground" : "font-semibold"}`}>
+                <span>{t("orders.yourTotal")}</span>
+                <span>{formatPrice(order.total, order.currency as Currency)}</span>
+              </div>
+              {buyerRefunded > 0 && (
+                <>
+                  <div className="flex justify-between text-sm text-amber-600">
+                    <span>{t("orders.refunded")}</span>
+                    <span>-{formatPrice(buyerRefunded, order.currency as Currency)}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold">
+                    <span>{t("orders.paidAfterRefunds")}</span>
+                    <span>{formatPrice(netPaid, order.currency as Currency)}</span>
+                  </div>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>

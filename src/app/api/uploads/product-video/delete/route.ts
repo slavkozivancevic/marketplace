@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteS3Object } from "@/services/s3Delete";
+import { toEmailThumbKey } from "@/services/s3Copy";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
 import { handleActionError } from "@/features/common/errors/domainErrors";
@@ -33,6 +34,10 @@ export async function POST(request: NextRequest) {
     // Poster lives under the standard thumbs path.
     const thumbKey = key.replace("/products/", "/products/thumbs/") + ".webp";
     await deleteS3Object(thumbKey).catch(() => {});
+
+    // A variant whose first media is this video can produce an email JPEG from
+    // its poster - clean that up too if present (best-effort).
+    await deleteS3Object(toEmailThumbKey(key)).catch(() => {});
 
     return NextResponse.json({ error: false });
   } catch (error) {

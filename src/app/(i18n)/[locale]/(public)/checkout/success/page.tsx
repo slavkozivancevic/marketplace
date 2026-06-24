@@ -1,4 +1,5 @@
 import { connection } from "next/server";
+import Image from "next/image";
 import { Link, getPathname } from "@/i18n/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
@@ -97,11 +98,32 @@ export default async function CheckoutSuccessPage({
                     item.product.translations.find((tr) => tr.locale === order.locale)?.title ??
                     item.product.translations.find((tr) => tr.locale === "en")?.title ??
                     "";
+                  const variantMedia = item.variant?.media[0]?.media ?? null;
+                  const variantImageUrl =
+                    variantMedia && variantMedia.mediaType === "IMAGE"
+                      ? variantMedia.thumbUrl ?? variantMedia.url
+                      : null;
+                  const productMedia = item.product.media[0] ?? null;
+                  const imageUrl =
+                    variantImageUrl ?? productMedia?.thumbUrl ?? productMedia?.url ?? null;
                   return (
                   <div key={item.id}>
                     {index > 0 && <Separator className="my-3" />}
-                    <div className="flex justify-between items-center text-sm">
-                      <div>
+                    <div className="flex gap-4 items-center text-sm">
+                      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded border">
+                        {imageUrl ? (
+                          <Image
+                            src={imageUrl}
+                            alt={productTitle}
+                            fill
+                            sizes="56px"
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="h-full w-full bg-muted" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
                         <p className="font-medium">{productTitle}</p>
                         {item.variant && (
                           <p className="text-muted-foreground text-xs">{item.variant.sku}</p>
@@ -118,6 +140,19 @@ export default async function CheckoutSuccessPage({
                   );
                 })}
                 <Separator className="my-4" />
+                {order.discountAmount > 0 && (
+                  <>
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>{t("checkout.subtotal")}</span>
+                      <span>{formatPrice(order.total + order.discountAmount, order.currency as Currency)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-emerald-600 mt-1.5">
+                      <span>{t("checkout.discount")}{order.couponCode ? ` (${order.couponCode})` : ""}</span>
+                      <span>-{formatPrice(order.discountAmount, order.currency as Currency)}</span>
+                    </div>
+                    <Separator className="my-3" />
+                  </>
+                )}
                 <div className="flex justify-between font-semibold text-sm">
                   <span>{t("checkout.total")}</span>
                   <span>{formatPrice(order.total, order.currency as Currency)}</span>
@@ -169,7 +204,7 @@ export default async function CheckoutSuccessPage({
   const [session, order] = await Promise.all([
     session_id
       ? stripe.checkout.sessions
-          .retrieve(session_id, { expand: ["line_items", "payment_intent.latest_charge"] })
+          .retrieve(session_id, { expand: ["payment_intent.latest_charge"] })
           .catch(() => null)
       : Promise.resolve(null),
     session_id
@@ -177,8 +212,7 @@ export default async function CheckoutSuccessPage({
       : Promise.resolve(null),
   ]);
 
-  const lineItems = session?.line_items?.data ?? [];
-    const hasShipping = !!order?.shippingLine1;
+  const hasShipping = !!order?.shippingLine1;
 
   const paymentIntent = session?.payment_intent as Stripe.PaymentIntent | null | undefined;
   const latestCharge = paymentIntent?.latest_charge as Stripe.Charge | null | undefined;
@@ -254,6 +288,10 @@ export default async function CheckoutSuccessPage({
     );
   }
 
+  // Unreachable when status === "success" (set only when `order` is non-null),
+  // but narrows `order` from nullable for the success render below.
+  if (!order) return null;
+
   return (
     <>
       <div className="shrink-0 px-6 pt-2">
@@ -272,7 +310,7 @@ export default async function CheckoutSuccessPage({
           </p>
         </div>
 
-        {lineItems.length > 0 && (
+        {order.items.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -281,26 +319,69 @@ export default async function CheckoutSuccessPage({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-0">
-              {lineItems.map((item, index) => (
+              {order.items.map((item, index) => {
+                const productTitle =
+                  item.product.translations.find((tr) => tr.locale === order.locale)?.title ??
+                  item.product.translations.find((tr) => tr.locale === "en")?.title ??
+                  "";
+                const variantMedia = item.variant?.media[0]?.media ?? null;
+                const variantImageUrl =
+                  variantMedia && variantMedia.mediaType === "IMAGE"
+                    ? variantMedia.thumbUrl ?? variantMedia.url
+                    : null;
+                const productMedia = item.product.media[0] ?? null;
+                const imageUrl =
+                  variantImageUrl ?? productMedia?.thumbUrl ?? productMedia?.url ?? null;
+                return (
                 <div key={item.id}>
                   {index > 0 && <Separator className="my-3" />}
-                  <div className="flex justify-between items-center text-sm">
-                    <div>
-                      <p className="font-medium">{item.description}</p>
+                  <div className="flex gap-4 items-center text-sm">
+                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded border">
+                      {imageUrl ? (
+                        <Image
+                          src={imageUrl}
+                          alt={productTitle}
+                          fill
+                          sizes="56px"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="h-full w-full bg-muted" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium">{productTitle}</p>
+                      {item.variant?.sku && (
+                        <p className="text-muted-foreground text-xs">{item.variant.sku}</p>
+                      )}
                       <p className="text-muted-foreground text-xs">
-                        {formatPrice(Math.round((item.amount_total ?? 0) / (item.quantity ?? 1)), (session?.currency ?? "usd") as Currency)} × {item.quantity}
+                        {formatPrice(item.price, order.currency as Currency)} × {item.quantity}
                       </p>
                     </div>
                     <p className="font-semibold">
-                      {formatPrice(item.amount_total ?? 0, (session?.currency ?? "usd") as Currency)}
+                      {formatPrice(item.price * item.quantity, order.currency as Currency)}
                     </p>
                   </div>
                 </div>
-              ))}
+                );
+              })}
               <Separator className="my-4" />
+              {order.discountAmount > 0 && (
+                <>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>{t("checkout.subtotal")}</span>
+                    <span>{formatPrice(order.total + order.discountAmount, order.currency as Currency)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-emerald-600 mt-1.5">
+                    <span>{t("checkout.discount")}{order.couponCode ? ` (${order.couponCode})` : ""}</span>
+                    <span>-{formatPrice(order.discountAmount, order.currency as Currency)}</span>
+                  </div>
+                  <Separator className="my-3" />
+                </>
+              )}
               <div className="flex justify-between font-semibold text-sm">
                 <span>{t("checkout.total")}</span>
-                <span>{formatPrice(session?.amount_total ?? 0, (session?.currency ?? "usd") as Currency)}</span>
+                <span>{formatPrice(order.total, order.currency as Currency)}</span>
               </div>
             </CardContent>
           </Card>

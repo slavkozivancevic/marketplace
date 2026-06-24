@@ -55,6 +55,9 @@
     "editCategory": "Izmena kategorije",
     "newAttribute": "Novi atribut",
     "editAttribute": "Izmena atributa",
+    "coupons": "Kuponi",
+    "newCoupon": "Novi kupon",
+    "editCoupon": "Izmena kupona",
     "bulkOperations": "Masovne operacije",
     "history": "Istorija"
   },
@@ -81,6 +84,7 @@
     "attributes": "Atributi",
     "organizations": "Organizacije",
     "users": "Korisnici",
+    "coupons": "Kuponi",
     "audit": "Dnevnik izmena",
     "dashboard": "Kontrolna tabla",
     "quickLinks": "Brzi linkovi",
@@ -288,13 +292,16 @@
     "card": "Kartica",
     "yourItems": "Vaši artikli",
     "yourTotal": "Vaš iznos",
+    "subtotal": "Međuzbir",
+    "discount": "Popust",
     "error": "Greška pri učitavanju narudžbina",
     "noOrders": "Nema narudžbina",
     "noOrdersYet": "Još nema narudžbina",
     "tryAdjusting": "Pokušajte da prilagodite pretragu ili filtere.",
     "noneYetDesc": "Još niste napravili nijednu narudžbinu.",
     "browse": "Pregledaj proizvode",
-    "searchPlaceholder": "Pretraži po nazivu proizvoda ili ID narudžbine..."
+    "searchPlaceholder": "Pretraži po nazivu proizvoda ili ID narudžbine...",
+    "paidAfterRefunds": "Plaćeno (nakon povraćaja)"
   },
   "myProducts": {
     "title": "Moji proizvodi",
@@ -383,6 +390,12 @@
     "placeOrder": "Naruči",
     "placingOrder": "Slanje narudžbine...",
     "redirectingToStripe": "Preusmeravanje na plaćanje...",
+    "subtotal": "Međuzbir",
+    "discount": "Popust",
+    "couponPlaceholder": "Promo kod",
+    "applyCoupon": "Primeni",
+    "couponApplied": "Kupon {code} primenjen",
+    "removeCoupon": "Ukloni",
     "codOrderPlaced": "Narudžbina primljena",
     "codThankYou": "Hvala! Vaša narudžbina je primljena. Plaćanje će biti izvršeno pri isporuci.",
     "codOrderNote": "Naš tim će Vas kontaktirati radi potvrde detalja isporuke.",
@@ -417,6 +430,7 @@
       "apply": "Primeni",
       "reset": "Poništi",
       "noLogs": "Nema zapisa koji odgovaraju filterima.",
+      "noEntries": "Još nema zapisa.",
       "colTime": "Vreme",
       "colActor": "Akter",
       "colAction": "Akcija",
@@ -434,7 +448,8 @@
         "return": "Povraćaj",
         "user": "Korisnik",
         "membership": "Članstvo",
-        "organization": "Organizacija"
+        "organization": "Organizacija",
+        "coupon": "Kupon"
       },
       "fields": {
         "count": "Broj",
@@ -452,7 +467,8 @@
         "created": "Kreirano",
         "totalRows": "Ukupno redova",
         "errors": "Greške",
-        "external": "Eksterno"
+        "external": "Eksterno",
+        "from": "Kopirano iz"
       },
       "values": {
         "USER": "Korisnik",
@@ -480,7 +496,9 @@
           "refunded": "Porudžbina refundirana",
           "partially_refunded": "Porudžbina delimično refundirana"
         },
-        "payout": { "released": "Isplata poslata" },
+        "payout": {
+          "released": "Isplata poslata"
+        },
         "return": {
           "requested": "Povraćaj zatražen",
           "approved": "Povraćaj odobren",
@@ -488,9 +506,16 @@
           "shipped": "Povraćaj poslat",
           "refunded": "Povraćaj refundiran"
         },
-        "user": { "role_changed": "Promenjena uloga korisnika" },
-        "member": { "role_changed": "Promenjena uloga člana", "removed": "Član uklonjen" },
-        "organization": { "verified_changed": "Promenjena verifikacija organizacije" },
+        "user": {
+          "role_changed": "Promenjena uloga korisnika"
+        },
+        "member": {
+          "role_changed": "Promenjena uloga člana",
+          "removed": "Član uklonjen"
+        },
+        "organization": {
+          "verified_changed": "Promenjena verifikacija organizacije"
+        },
         "product": {
           "created": "Proizvod kreiran",
           "updated": "Proizvod izmenjen",
@@ -506,9 +531,29 @@
           "bulk_created": "Masovno kreiranje proizvoda",
           "bulk_updated": "Masovna izmena proizvoda"
         },
-        "brand": { "created": "Brend kreiran", "updated": "Brend izmenjen", "deleted": "Brend obrisan", "duplicated": "Brend dupliran" },
-        "category": { "created": "Kategorija kreirana", "updated": "Kategorija izmenjena", "deleted": "Kategorija obrisana", "duplicated": "Kategorija duplirana" },
-        "attribute": { "created": "Atribut kreiran", "updated": "Atribut izmenjen", "deleted": "Atribut obrisan", "duplicated": "Atribut dupliran" }
+        "brand": {
+          "created": "Brend kreiran",
+          "updated": "Brend izmenjen",
+          "deleted": "Brend obrisan",
+          "duplicated": "Brend dupliran"
+        },
+        "category": {
+          "created": "Kategorija kreirana",
+          "updated": "Kategorija izmenjena",
+          "deleted": "Kategorija obrisana",
+          "duplicated": "Kategorija duplirana"
+        },
+        "attribute": {
+          "created": "Atribut kreiran",
+          "updated": "Atribut izmenjen",
+          "deleted": "Atribut obrisan",
+          "duplicated": "Atribut dupliran"
+        },
+        "coupon": {
+          "created": "Kupon kreiran",
+          "updated": "Kupon izmenjen",
+          "deleted": "Kupon obrisan"
+        }
       },
       "columns": {
         "status": "Status",
@@ -1188,8 +1233,17 @@
   },
   "orgOrders": {
     "paymentHistory": "Istorija plaćanja",
-    "txType": { "charge": "Naplata", "refund": "Povraćaj", "payout": "Isplata", "fee": "Provizija" },
-    "txStatus": { "pending": "Na čekanju", "succeeded": "Uspešno", "failed": "Neuspešno" },
+    "txType": {
+      "charge": "Naplata",
+      "refund": "Povraćaj",
+      "payout": "Isplata",
+      "fee": "Provizija"
+    },
+    "txStatus": {
+      "pending": "Na čekanju",
+      "succeeded": "Uspešno",
+      "failed": "Neuspešno"
+    },
     "pageTitle": "Primljene narudžbine",
     "pageDescription": "Narudžbine za proizvode vaše organizacije.",
     "orderId": "ID narudžbine",
@@ -1226,6 +1280,8 @@
     "orderSummary": "Pregled narudžbine",
     "yourItems": "Naručeni artikli",
     "yourSubtotal": "Ukupno",
+    "coupon": "Kupon",
+    "couponNote": "Platforma snosi popust - ne utiče na vašu isplatu.",
     "buyerAndShipping": "Kupac i dostava",
     "deliveryAddress": "Adresa za dostavu",
     "noShippingAddress": "Nema adrese za dostavu (digitalni proizvod)",
@@ -1241,7 +1297,13 @@
     "cancelConfirmTitle": "Otkazati narudžbinu?",
     "cancelConfirmDesc": "Ovo se ne može poništiti. Zaliha se vraća, a kupac dobija obaveštenje o otkazivanju.",
     "keepOrder": "Zadrži narudžbinu",
-    "cancellingOrder": "Otkazivanje..."
+    "cancellingOrder": "Otkazivanje...",
+    "couponSellerNote": "Vaša isplata je pun međuzbir umanjen za standardnu proviziju ({percent}%) - isto kao i bez kupona. Popust koji je kupac dobio (kupon {code}) snosi platforma iz svoje provizije, a ne iz vaše isplate.",
+    "paymentHistoryCouponNote": "Naplata je iznos koji je kupac platio nakon kupona {code}. Popust finansira platforma i ne umanjuje vašu isplatu.",
+    "platformFee": "Provizija platforme ({percent}%)",
+    "yourPayout": "Vaša isplata",
+    "payoutReversed": "Storno isplate (povraćaji)",
+    "payoutAfterRefunds": "Konačna isplata"
   },
   "relatedProducts": {
     "discoverMore": "Otkrijte više",
@@ -1279,6 +1341,59 @@
     "duplicateVariantCombo": "Ista kombinacija opcija kao varijanta #{other}",
     "duplicateSku": "Duplikat SKU \"{sku}\" (takođe varijanta #{other})"
   },
+  "coupons": {
+    "title": "Kuponi",
+    "description": "Kreiraj i upravljaj kodovima za popust.",
+    "newCoupon": "Novi kupon",
+    "editCoupon": "Izmena kupona",
+    "formDescription": "Podesi popust, ograničenja i važenje.",
+    "empty": "Još nema kupona.",
+    "noResults": "Nema kupona koji odgovaraju filterima.",
+    "deleteConfirm": "Obrisati kupon {code}?",
+    "searchPlaceholder": "Pretraga po kodu…",
+    "filterAll": "Svi",
+    "sortCreated": "Kreirano",
+    "errors": {
+      "notFound": "Ovaj promo kod nije važeći.",
+      "expired": "Ovaj promo kod je istekao.",
+      "usedUp": "Ovaj promo kod je dostigao limit korišćenja.",
+      "minOrder": "Ovaj kod zahteva minimalnu porudžbinu od {amount}.",
+      "cartEmpty": "Vaša korpa je prazna."
+    },
+    "form": {
+      "code": "Kod",
+      "type": "Tip",
+      "percent": "Procenat",
+      "fixed": "Fiksni iznos",
+      "valuePercent": "Procenat popusta",
+      "valueFixed": "Iznos popusta (USD)",
+      "minOrder": "Minimalna porudžbina (USD)",
+      "usageLimit": "Limit korišćenja",
+      "expiresAt": "Ističe",
+      "optional": "Opciono",
+      "active": "Aktivan",
+      "save": "Sačuvaj izmene",
+      "create": "Kreiraj kupon",
+      "activeDesc": "Neaktivni kuponi se ne mogu iskoristiti pri plaćanju."
+    },
+    "table": {
+      "code": "Kod",
+      "discount": "Popust",
+      "minOrder": "Min. porudžbina",
+      "usage": "Korišćenje",
+      "expires": "Ističe",
+      "status": "Status",
+      "active": "Aktivan",
+      "inactive": "Neaktivan",
+      "actions": "Akcije",
+      "edit": "Izmeni",
+      "duplicate": "Dupliraj"
+    },
+    "deleted": "Kupon obrisan",
+    "duplicated": "Kupon dupliran",
+    "deleteDesc": "Ova radnja se ne može opozvati.",
+    "deleting": "Brisanje..."
+  },
   "invoice": {
     "invoice": "Faktura",
     "invoiceNo": "Br. fakture",
@@ -1292,6 +1407,8 @@
     "qty": "Kol.",
     "unitPrice": "Cena",
     "lineTotal": "Iznos",
+    "subtotal": "Međuzbir",
+    "discount": "Popust",
     "total": "Ukupno",
     "footer": "Hvala na kupovini. Ovu fakturu je generisao Marketplace.",
     "download": "Preuzmi fakturu"
@@ -1347,7 +1464,8 @@
     "confirmReject": "Potvrdi odbijanje",
     "rejectReasonPlaceholder": "Razlog odbijanja (opciono)",
     "markRefunded": "Označi vraćeno",
-    "refundDone": "Refundacija izvršena"
+    "refundDone": "Refundacija izvršena",
+    "returnAfterDelivery": "Povraćaj možeš zatražiti nakon što proizvod bude isporučen."
   },
   "payouts": {
     "pageTitle": "Isplate",
@@ -1407,6 +1525,7 @@
     "returnExceedsQuantity": "Ne možete vratiti više nego što ste kupili.",
     "shipmentNotAllowed": "Ova porudžbina više ne može da se označi kao poslata.",
     "shipmentNotShippedYet": "Označite porudžbinu kao poslatu pre nego što je označite kao isporučenu.",
+    "couponCodeTaken": "Kupon sa ovim kodom već postoji.",
     "returnRefundBeforePayment": "Potvrdite da je naplata primljena pre nego što refundirate ovu porudžbinu.",
     "uniqueConstraint": "Već postoji zapis sa ovom vrednošću ({fields})",
     "uniqueConstraintNoFields": "Već postoji zapis sa ovim vrednostima",

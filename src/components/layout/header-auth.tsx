@@ -18,17 +18,14 @@ interface HeaderAuthProps {
 }
 
 /**
- * Renders Clerk's auth UI in the header. Wrapped in a `mounted` guard
- * because Clerk's `<SignInButton>` / `<SignUpButton>` use
- * `React.cloneElement` to inject an `onClick` modal-opener onto their
- * child `<Button>` ONLY after the Clerk client SDK has loaded. On a cold
- * dev start the server-side render and the client-side first render don't
- * agree on those cloned props, which produces the exact hydration
- * mismatch React was reporting against the Sign-In button.
+ * Renders Clerk's auth UI in the header.
  *
- * Until the client mounts, we render a stable placeholder with the same
- * outer dimensions, so server and first-client renders match and there's
- * no visible layout shift when the real auth controls swap in.
+ * Gated behind a `mounted` flag: Clerk renders the `<SignedIn>`/`<UserButton>`
+ * branch on the server (it has the session from middleware) but its client
+ * host element doesn't match on the first client render before clerk-js loads,
+ * producing a hydration mismatch. Rendering nothing until mounted keeps server
+ * and first-client renders identical. The visual flash is separately hidden by
+ * the full-page `<ClerkGate>` loader, which stays up until Clerk is ready.
  */
 export function HeaderAuth({
   mode = "modal",
@@ -49,14 +46,8 @@ export function HeaderAuth({
   }, []);
 
   if (!mounted) {
-    // Placeholder reserves the same visual footprint as the real controls
-    // so neither layout shift nor a hydration diff fires.
     return (
-      <div
-        className="flex items-center gap-4"
-        aria-hidden
-        suppressHydrationWarning
-      />
+      <div className="flex items-center gap-4" aria-hidden suppressHydrationWarning />
     );
   }
 

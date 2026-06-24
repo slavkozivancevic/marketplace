@@ -49,6 +49,8 @@ export async function POST(req: Request) {
         const locale = session.metadata?.locale ?? "en";
         const currency = session.metadata?.currency ?? "usd";
         const exchangeRate = parseFloat(session.metadata?.exchangeRate ?? "1");
+        const couponId = session.metadata?.couponId;
+        const couponCode = session.metadata?.couponCode;
 
         if (!userId || !itemsJson) {
           console.error("Missing metadata in checkout session", session.id);
@@ -91,6 +93,8 @@ export async function POST(req: Request) {
             items,
             shipping,
             locale,
+            couponId,
+            couponCode,
           });
           console.log("Order fulfilled for session:", session.id);
         } catch (fulfillError) {

@@ -15,6 +15,7 @@ import { recordAudit } from "@/features/audit/db/audit";
 import { revalidateOrderCache } from "@/features/orders/db/cache";
 import { revalidateProductCache } from "@/features/products/db/cache";
 import { getLabel } from "@/features/attributes/utils/translations";
+import { getEmailThumbUrl } from "@/services/emailThumb";
 import {
   publishReturnRequested,
   publishReturnApproved,
@@ -40,23 +41,41 @@ const TRANSITIONS: Record<ReturnStatus, { to: ReturnStatus; by: ReturnActor }[]>
 export type ReturnItemSelection = { orderItemId: string; quantity: number };
 
 /**
- * Resolves a return's lines to `{ name, quantity }` for email notifications.
- * Names are localized in the order's locale (a snapshot, matching how order
- * emails render item names), with the variant label appended.
+ * Resolves a return's lines to `{ name, quantity, imageUrl }` for email
+ * notifications. Names are localized in the order's locale (a snapshot, matching
+ * how order emails render item names), with the variant label appended. The
+ * image is an email-renderable JPEG (variant image, else product image).
  */
 async function getReturnLines(
   returnId: string,
   locale: string,
-): Promise<{ name: string; quantity: number }[]> {
+): Promise<{ name: string; quantity: number; price: number; imageUrl: string | null }[]> {
+  const mediaSelect = { url: true, thumbUrl: true, key: true, thumbKey: true } as const;
   const items = await prisma.returnItem.findMany({
     where: { returnId },
     select: {
       quantity: true,
       orderItem: {
         select: {
-          product: { select: { translations: { select: { locale: true, title: true } } } },
+          price: true,
+          product: {
+            select: {
+              translations: { select: { locale: true, title: true } },
+              media: {
+                orderBy: { order: "asc" },
+                take: 1,
+                where: { mediaType: "IMAGE" },
+                select: mediaSelect,
+              },
+            },
+          },
           variant: {
             select: {
+              media: {
+                orderBy: { order: "asc" },
+                take: 1,
+                select: { media: { select: mediaSelect } },
+              },
               attributeValues: {
                 select: {
                   option: { select: { translations: { select: { locale: true, label: true } } } },
@@ -68,16 +87,27 @@ async function getReturnLines(
       },
     },
   });
-  return items.map((ri) => {
-    const title =
-      ri.orderItem.product.translations.find((t) => t.locale === locale)?.title ??
-      ri.orderItem.product.translations.find((t) => t.locale === "en")?.title ??
-      "";
-    const variantLabel = ri.orderItem.variant?.attributeValues
-      .map((av) => getLabel(av.option.translations, locale))
-      .join(" / ");
-    return { name: variantLabel ? `${title} (${variantLabel})` : title, quantity: ri.quantity };
-  });
+  return Promise.all(
+    items.map(async (ri) => {
+      const title =
+        ri.orderItem.product.translations.find((t) => t.locale === locale)?.title ??
+        ri.orderItem.product.translations.find((t) => t.locale === "en")?.title ??
+        "";
+      const variantLabel = ri.orderItem.variant?.attributeValues
+        .map((av) => getLabel(av.option.translations, locale))
+        .join(" / ");
+      const src = ri.orderItem.variant?.media[0]?.media ?? ri.orderItem.product.media[0] ?? null;
+      const imageUrl = src
+        ? await getEmailThumbUrl(src.key, src.thumbKey, src.thumbUrl ?? src.url)
+        : null;
+      return {
+        name: variantLabel ? `${title} (${variantLabel})` : title,
+        quantity: ri.quantity,
+        price: ri.orderItem.price,
+        imageUrl,
+      };
+    }),
+  );
 }
 
 /** Returns the org's gross subtotal + line items within an order (fallback). */
@@ -223,6 +253,7 @@ async function settleReturnRefund(
       userId: true,
       currency: true,
       total: true,
+      discountAmount: true,
       paymentMethod: true,
       fulfillmentStatus: true,
       cancelledAt: true,
@@ -266,8 +297,31 @@ async function settleReturnRefund(
         }))
       : (await orgPortionOfOrder(orderId, organizationId)).items;
 
+  // Gross subtotal of the returned units. The seller was paid on the full gross
+  // (platform-funded coupon model), so the clawback and the REFUND ledger row
+  // stay on this number - that's what the payout/payment-history views net.
   const refundAmount = lines.reduce((s, l) => s + l.price * l.quantity, 0);
   if (refundAmount <= 0) throw new NotFoundError("Nothing to refund");
+
+  // What the BUYER actually gets back. With a platform-funded coupon the buyer
+  // only paid (gross - discount), so refunding the full gross would exceed the
+  // captured amount (Stripe rejects it) and over-count toward "fully refunded".
+  // Scale the buyer refund to their paid share; cumulative proportional rounding
+  // makes the per-return refunds sum to exactly order.total once all is returned.
+  const orderGross = order.total + order.discountAmount;
+  const priorAgg = await prisma.paymentTransaction.aggregate({
+    where: { orderId, type: PaymentTransactionType.REFUND },
+    _sum: { amount: true },
+  });
+  const priorRefundedGross = priorAgg._sum.amount ?? 0;
+  const grossToPaid = (gross: number) =>
+    order.discountAmount > 0 && orderGross > 0
+      ? Math.round((gross * order.total) / orderGross)
+      : gross;
+  const buyerRefund = Math.max(
+    0,
+    grossToPaid(priorRefundedGross + refundAmount) - grossToPaid(priorRefundedGross),
+  );
 
   // Refund handling differs by payment method: card refunds go back through
   // Stripe; COD "refunds" are cash returned out of band, recorded for audit.
@@ -293,11 +347,12 @@ async function settleReturnRefund(
 
     const mock = MOCK_CONNECT || !charge?.providerId || charge.providerId.startsWith("seed_pi_");
 
-    // Refund the buyer the gross amount of the returned units.
-    if (!mock && charge?.providerId) {
+    // Refund the buyer what they paid for the returned units (gross less their
+    // share of the platform-funded discount).
+    if (!mock && charge?.providerId && buyerRefund > 0) {
       const refund = await stripe.refunds.create({
         payment_intent: charge.providerId,
-        amount: refundAmount,
+        amount: buyerRefund,
       });
       refundProviderId = refund.id;
     } else {
@@ -357,18 +412,21 @@ async function settleReturnRefund(
 
     await tx.return.update({
       where: { id: returnId },
-      data: { status: ReturnStatus.REFUNDED, refundAmount },
+      // Buyer-facing: store what the buyer actually got back (discounted), so the
+      // order page / email match the money returned, not the gross.
+      data: { status: ReturnStatus.REFUNDED, refundAmount: buyerRefund },
     });
 
     // Move the payment axis: fully REFUNDED once cumulative refunds cover the
-    // total, otherwise PARTIALLY_REFUNDED. Recompute the derived display status.
+    // order's gross subtotal (the ledger rows are gross), otherwise
+    // PARTIALLY_REFUNDED. Recompute the derived display status.
     const agg = await tx.paymentTransaction.aggregate({
       where: { orderId, type: PaymentTransactionType.REFUND },
       _sum: { amount: true },
     });
     const refundedTotal = agg._sum.amount ?? 0;
     const nextPayment =
-      refundedTotal >= order.total ? PaymentStatus.REFUNDED : PaymentStatus.PARTIALLY_REFUNDED;
+      refundedTotal >= orderGross ? PaymentStatus.REFUNDED : PaymentStatus.PARTIALLY_REFUNDED;
     await tx.order.update({
       where: { id: orderId },
       data: {
@@ -390,7 +448,9 @@ async function settleReturnRefund(
   });
   products.forEach((p) => revalidateProductCache(p.organizationId, p.id));
 
-  return refundAmount;
+  // Return the buyer-facing amount so the "return refunded" email shows what the
+  // buyer actually received.
+  return buyerRefund;
 }
 
 /**

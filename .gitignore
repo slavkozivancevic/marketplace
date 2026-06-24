@@ -44,3 +44,8 @@ next-env.d.ts
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# local email/template previews (rendered ad-hoc for visual QA, never committed)
+_email_preview.html
+*.preview.html
+/previews/

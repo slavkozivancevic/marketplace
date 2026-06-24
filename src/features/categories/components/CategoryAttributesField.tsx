@@ -7,7 +7,7 @@ import { Lock, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
+import { NumberStepper } from "@/components/ui/number-stepper";
 import {
   Select,
   SelectContent,
@@ -155,14 +155,13 @@ export function CategoryAttributesField({
                 </span>
 
                 {/* Order */}
-                <Input
-                  type="number"
+                <NumberStepper
                   min={0}
-                  className="w-16 h-8"
-                  {...form.register(`attributes.${index}.order`, {
-                    valueAsNumber: true,
-                  })}
-                  title={t("attributeOrder")}
+                  className="w-16"
+                  value={form.watch(`attributes.${index}.order`)}
+                  onChange={(v) =>
+                    form.setValue(`attributes.${index}.order`, v ?? 0, { shouldDirty: true })
+                  }
                 />
 
                 {/* Filterable toggle */}

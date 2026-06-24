@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { QueryProvider } from "./QueryProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ChatDrawerRoot } from "@/features/chat/components/ChatDrawer";
+import { ClerkGate } from "@/components/layout/app-loader";
 import { LocalePathsHost } from "@/i18n/LocalePathsContext";
 import { LocaleSync } from "@/components/layout/locale-sync";
 import { NavigationGenerationTracker } from "@/components/layout/navigation-generation-tracker";
@@ -87,7 +88,7 @@ export function InnerProviders({ children }: { children: React.ReactNode }) {
       <LocalePathsHost>
         <LocaleSync />
         <NavigationGenerationTracker />
-        {children}
+        <ClerkGate>{children}</ClerkGate>
         <Toaster />
         <ChatDrawerRoot />
       </LocalePathsHost>

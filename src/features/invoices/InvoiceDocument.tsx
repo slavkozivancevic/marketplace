@@ -4,6 +4,7 @@ import {
   Page,
   View,
   Text,
+  Image,
   StyleSheet,
   Font,
   Svg,
@@ -36,6 +37,8 @@ export type InvoiceLabels = {
   qty: string;
   unitPrice: string;
   lineTotal: string;
+  subtotal: string;
+  discount: string;
   total: string;
   footer: string;
 };
@@ -47,6 +50,8 @@ export type InvoiceLine = {
   quantity: number;
   unitPrice: string;
   lineTotal: string;
+  // PNG data-URI thumbnail (normalized server-side), or null if unavailable.
+  image: string | null;
 };
 
 export type InvoiceData = {
@@ -65,6 +70,10 @@ export type InvoiceData = {
     country: string | null;
   } | null;
   lines: InvoiceLine[];
+  // Subtotal + discount are present only when a coupon was applied.
+  subtotal: string | null;
+  discount: string | null;
+  couponCode: string | null;
   total: string;
   labels: InvoiceLabels;
 };
@@ -113,7 +122,9 @@ const styles = StyleSheet.create({
   th: { fontSize: 7.5, color: MUTED, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 },
   row: { flexDirection: "row", paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: "#f1f1f3" },
 
-  cItem: { width: "39%", paddingRight: 6 },
+  cItem: { width: "39%", paddingRight: 6, flexDirection: "row", alignItems: "center" },
+  itemThumb: { width: 26, height: 26, borderRadius: 4, marginRight: 7, objectFit: "cover" },
+  itemTextCol: { flex: 1 },
   cSeller: { width: "21%", paddingRight: 6 },
   cQty: { width: "8%", textAlign: "center" },
   cPrice: { width: "16%", textAlign: "right", paddingLeft: 4 },
@@ -128,6 +139,9 @@ const styles = StyleSheet.create({
   // Totals
   totals: { flexDirection: "row", justifyContent: "flex-end", marginTop: 18 },
   totalBox: { width: "42%" },
+  subtotalRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingBottom: 6 },
+  subtotalLabel: { fontSize: 9.5, color: MUTED },
+  subtotalValue: { fontSize: 9.5, color: "#27272a" },
   totalRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderTopWidth: 2, borderTopColor: INK, paddingTop: 9 },
   totalLabel: { fontSize: 11, fontWeight: 700, color: INK },
   totalValue: { fontSize: 13, fontWeight: 700, color: INK },
@@ -226,8 +240,15 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
           {data.lines.map((line, i) => (
             <View style={styles.row} key={i} wrap={false}>
               <View style={styles.cItem}>
-                <Text style={styles.itemTitle}>{line.title}</Text>
-                {line.variantLabel ? <Text style={styles.itemVariant}>{line.variantLabel}</Text> : null}
+                {line.image ? (
+                  // @react-pdf's Image is not an HTML img and has no alt prop.
+                  // eslint-disable-next-line jsx-a11y/alt-text
+                  <Image src={line.image} style={styles.itemThumb} />
+                ) : null}
+                <View style={styles.itemTextCol}>
+                  <Text style={styles.itemTitle}>{line.title}</Text>
+                  {line.variantLabel ? <Text style={styles.itemVariant}>{line.variantLabel}</Text> : null}
+                </View>
               </View>
               <Text style={[styles.sellerText, styles.cSeller]}>{line.sellerName}</Text>
               <Text style={[styles.num, styles.cQty]}>{line.quantity}</Text>
@@ -240,6 +261,20 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
         {/* Total */}
         <View style={styles.totals}>
           <View style={styles.totalBox}>
+            {data.discount ? (
+              <>
+                <View style={styles.subtotalRow}>
+                  <Text style={styles.subtotalLabel}>{l.subtotal}</Text>
+                  <Text style={styles.subtotalValue}>{data.subtotal}</Text>
+                </View>
+                <View style={styles.subtotalRow}>
+                  <Text style={styles.subtotalLabel}>
+                    {l.discount}{data.couponCode ? ` (${data.couponCode})` : ""}
+                  </Text>
+                  <Text style={styles.subtotalValue}>-{data.discount}</Text>
+                </View>
+              </>
+            ) : null}
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>{l.total}</Text>
               <Text style={styles.totalValue}>{data.total}</Text>

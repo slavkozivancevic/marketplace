@@ -9,6 +9,7 @@ import { publishCodOrderPlaced } from "@/services/notifications";
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import { getCurrencyRate } from "@/features/currency/db/currencyRates";
 import { convertCents } from "@/lib/currency";
+import { validateCoupon } from "@/features/coupons/db/coupons";
 import type { ActionErrorResult } from "@/types/types";
 import type { CheckoutCartItem } from "./checkout";
 import { VALID_CURRENCIES, type Currency } from "@/lib/currency-config";
@@ -26,6 +27,7 @@ export type CodShippingInput = {
 export async function createCodCheckout(
   items: CheckoutCartItem[],
   shipping: CodShippingInput,
+  couponCode?: string,
 ): Promise<{ orderId: string } | ActionErrorResult> {
   try {
     const { userId: clerkUserId } = await auth();
@@ -75,11 +77,13 @@ export async function createCodCheckout(
     const variantMap = new Map(dbVariants.map((v) => [v.id, v]));
 
     let totalInCurrency = 0;
+    let subtotalUsd = 0;
     for (const item of items) {
       if (item.variantId) {
         const v = variantMap.get(item.variantId);
         if (!v) return { error: true, message: t("itemNoLongerAvailable") };
         if (v.stock < item.quantity) return { error: true, message: t("insufficientStock") };
+        subtotalUsd += Number(v.price) * item.quantity;
         const unitCents = convertCents(Number(v.price), currency, exchangeRate);
         totalInCurrency += unitCents * item.quantity;
       } else {
@@ -87,8 +91,23 @@ export async function createCodCheckout(
         if (!p) return { error: true, message: t("itemNoLongerAvailable") };
         if (p.stock !== null && p.stock < item.quantity)
           return { error: true, message: t("insufficientStock") };
+        subtotalUsd += Number(p.price) * item.quantity;
         const unitCents = convertCents(Number(p.price), currency, exchangeRate);
         totalInCurrency += unitCents * item.quantity;
+      }
+    }
+
+    // Coupon: re-validate server-side and subtract the discount from the COD
+    // total (the item prices stay at full value, so subtotal - total = discount).
+    let appliedCouponId: string | undefined;
+    let appliedCouponCode: string | undefined;
+    if (couponCode) {
+      const res = await validateCoupon(couponCode, subtotalUsd);
+      if (res.ok && res.discountUsd > 0) {
+        const discountInCurrency = convertCents(res.discountUsd, currency, exchangeRate);
+        totalInCurrency = Math.max(0, totalInCurrency - discountInCurrency);
+        appliedCouponId = res.couponId;
+        appliedCouponCode = res.code;
       }
     }
 
@@ -98,6 +117,8 @@ export async function createCodCheckout(
       currency,
       exchangeRate,
       items,
+      couponId: appliedCouponId,
+      couponCode: appliedCouponCode,
       shipping: {
         name: shipping.name,
         line1: shipping.line1,

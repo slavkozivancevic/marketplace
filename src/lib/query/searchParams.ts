@@ -169,6 +169,22 @@ export type AuditFilters = {
   sortOrder: "asc" | "desc";
 };
 
+// ---------- Admin coupons ----------
+
+export const couponSearchParams = {
+  search: parseAsString.withDefault(""),
+  status: parseAsStringEnum(["", "active", "inactive"] as const).withDefault(""),
+  sortBy: parseAsStringEnum(["createdAt", "code"] as const).withDefault("createdAt"),
+  sortOrder: parseAsStringEnum(["asc", "desc"] as const).withDefault("desc"),
+};
+
+export type CouponFilters = {
+  search: string;
+  status: "" | "active" | "inactive";
+  sortBy: "createdAt" | "code";
+  sortOrder: "asc" | "desc";
+};
+
 // ---------- Admin organizations ----------
 
 export const adminOrgSearchParams = {

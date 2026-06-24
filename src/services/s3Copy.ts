@@ -28,6 +28,18 @@ export function toThumbKey(originalKey: string): string {
 }
 
 /**
+ * Derives the email-thumbnail S3 key (small JPEG) from a product image key.
+ * Emails can't render our WebP thumbnails, so a JPEG is generated on demand
+ * (see emailThumb.ts) at this key, alongside the WebP thumb (same prefix, so it
+ * inherits the same public-read policy). Deterministic from the source keys so
+ * the delete paths can clean it up.
+ */
+export function toEmailThumbKey(key: string, thumbKey?: string | null): string {
+  const webpKey = thumbKey ?? toThumbKey(key);
+  return webpKey.replace(/\.webp$/i, "") + ".email.jpg";
+}
+
+/**
  * Copies both the original image and its thumbnail to new keys.
  * Thumbnail copy errors are silently swallowed - the original is authoritative.
  *

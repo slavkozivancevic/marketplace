@@ -43,6 +43,7 @@ const KNOWN_ACTIONS = new Set([
   "brand.created", "brand.updated", "brand.deleted", "brand.duplicated",
   "category.created", "category.updated", "category.deleted", "category.duplicated",
   "attribute.created", "attribute.updated", "attribute.deleted", "attribute.duplicated",
+  "coupon.created", "coupon.updated", "coupon.deleted",
 ]);
 
 type Labels = {
@@ -70,6 +71,16 @@ function buildFetcher(f: AuditFilters) {
     const { data } = await axios.get(`/api/admin/audit?${params.toString()}`);
     return data;
   };
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Safety net so a raw UUID never surfaces in the details column: anything that
+ *  looks like one is shortened to a #last8 handle (matching the entity column).
+ *  Human-readable values are recorded at the source where possible (e.g. a
+ *  coupon's code), and fall straight through here. */
+function humanizeValue(s: string): string {
+  return UUID_RE.test(s) ? `#${s.slice(-8)}` : s;
 }
 
 /** Human-readable summary of the diff: translated keys and enum values,
@@ -152,10 +163,12 @@ export function AuditLogView({
     User: t("entities.user"),
     Membership: t("entities.membership"),
     Organization: t("entities.organization"),
+    Coupon: t("entities.coupon"),
   };
   const fieldLabels: Record<string, string> = {
     count: t("fields.count"),
     fields: t("fields.fields"),
+    from: t("fields.from"),
     amount: t("fields.amount"),
     currency: t("fields.currency"),
     seller: t("fields.seller"),
@@ -209,7 +222,7 @@ export function AuditLogView({
     value: (v) =>
       Array.isArray(v)
         ? v.map((x) => columnLabels[String(x)] ?? String(x)).join(", ")
-        : valueLabels[String(v)] ?? String(v ?? "∅"),
+        : valueLabels[String(v)] ?? humanizeValue(String(v ?? "∅")),
     action: (a) => (KNOWN_ACTIONS.has(a) ? t(`actions.${a}` as Parameters<typeof t>[0]) : a),
     bulk: t("bulk"),
     system: t("system"),
@@ -231,6 +244,11 @@ export function AuditLogView({
       queryKey: ["audit", f],
       queryFn: buildFetcher(f),
       estimateSize: 49,
+      // Audit rows are written by recordAudit as a side effect of actions across
+      // the app, none of which invalidate ["audit"]. Without this, returning to
+      // this view within the global 60s staleTime would hide the newest entries.
+      // Refetch on every mount so the log is current on soft-nav back.
+      refetchOnMount: "always",
     });
 
   const Header = (
@@ -304,7 +322,12 @@ export function AuditLogView({
       </div>
     );
   } else if (items.length === 0) {
-    body = <p className="text-sm text-muted-foreground py-10 text-center">{t("noLogs")}</p>;
+    const hasFilters = !!f.search || !!f.action || !!f.entityType;
+    body = (
+      <p className="text-sm text-muted-foreground py-10 text-center">
+        {hasFilters ? t("noLogs") : t("noEntries")}
+      </p>
+    );
   } else if (!query.hasNextPage) {
     body = (
       <div role="table" className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}>

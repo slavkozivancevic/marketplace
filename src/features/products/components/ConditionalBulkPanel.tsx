@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberStepper } from "@/components/ui/number-stepper";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import {
@@ -370,17 +371,15 @@ function ConditionRow({
 
         {(condition.type === "minStock" || condition.type === "maxStock") && (
           <div className="flex flex-col gap-1">
-            <Input
+            <NumberStepper
               id={id}
-              type="number"
-              min="0"
-              step="1"
+              min={0}
               className="h-8 text-sm w-36"
-              value={condition.value}
-              onChange={(e) =>
+              value={condition.value as number}
+              onChange={(v) =>
                 onUpdate({
                   type: condition.type as "minStock" | "maxStock",
-                  value: parseInt(e.target.value, 10) || 0,
+                  value: v ?? 0,
                 })
               }
             />
@@ -608,13 +607,11 @@ function ActionEditor({
       {action.type === "setStock" && (
         <div className="flex flex-col gap-1.5">
           <Label className="text-xs text-muted-foreground">{t("newStock")}</Label>
-          <Input
-            type="number"
-            min="0"
-            step="1"
+          <NumberStepper
+            min={0}
             className="h-8 text-sm w-36"
             value={(action.value as number) ?? 0}
-            onChange={(e) => onChangeValue(parseInt(e.target.value, 10) || 0)}
+            onChange={(v) => onChangeValue(v ?? 0)}
           />
           <p className="text-xs text-muted-foreground">{t("stockSimpleOnlyHint")}</p>
         </div>

@@ -19,9 +19,10 @@ import { getOrgShipment } from "@/features/shipments/db/shipments";
 import { ShipmentManager } from "@/features/shipments/components/ShipmentManager";
 import { deriveOrderStatus } from "@/features/orders/status";
 import { orderStatusKey, orderStatusVariant } from "@/features/orders/statusBadge";
-import { MembershipRole } from "@/generated/prisma/client";
+import { MembershipRole, PaymentTransactionType } from "@/generated/prisma/client";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { formatPrice } from "@/lib/currency";
+import { sellerNetAmount, platformFeeAmount, PLATFORM_FEE_PERCENT } from "@/features/payments/config";
 import type { Currency } from "@/lib/currency-config";
 import { getLabel } from "@/features/attributes/utils/translations";
 
@@ -99,6 +100,16 @@ export default async function OrgOrderDetailPage({ params }: Props) {
   const canManage =
     ctx.membershipRole === MembershipRole.OWNER ||
     ctx.membershipRole === MembershipRole.ADMIN;
+
+  // Refund-aware payout: a return reverses sellerNetAmount(refundedGross) from
+  // this org's payout. Sum this org's REFUND ledger rows (gross) to show the
+  // clawback and the resulting net, so the breakdown matches the payment history.
+  const orgRefundGross = order.paymentTransactions
+    .filter((tx) => tx.type === PaymentTransactionType.REFUND && tx.organizationId === ctx.organizationId)
+    .reduce((sum, tx) => sum + tx.amount, 0);
+  const orgPayout = sellerNetAmount(order.orgSubtotal);
+  const payoutReversed = sellerNetAmount(orgRefundGross);
+  const netPayoutAfterRefunds = orgPayout - payoutReversed;
 
   const shortId = `#${order.id.slice(-8).toUpperCase()}`;
   const breadcrumbItems = [
@@ -202,6 +213,14 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                   })}
                 </span>
               </div>
+              {order.discountAmount > 0 && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>{t("coupon")}</span>
+                  <Badge variant="secondary" className="font-mono text-[10px]">
+                    {order.couponCode}
+                  </Badge>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -303,6 +322,14 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                     </div>
                   </div>
                 ))}
+                {/* The CHARGE is what the buyer actually paid - already reduced by
+                    the platform-funded coupon. Clarify so the seller doesn't read
+                    the lower charge as a cut to their payout. */}
+                {order.discountAmount > 0 && (
+                  <p className="mt-3 pt-3 border-t text-[11px] text-muted-foreground/80">
+                    {t("paymentHistoryCouponNote", { code: order.couponCode ?? "" })}
+                  </p>
+                )}
               </CardContent>
             </Card>
           )}
@@ -361,10 +388,54 @@ export default async function OrgOrderDetailPage({ params }: Props) {
               })}
 
               <Separator className="my-4" />
-              <div className="flex justify-between font-semibold text-sm">
-                <span>{t("yourSubtotal")}</span>
-                <span>{formatPrice(order.orgSubtotal, order.currency as Currency)}</span>
+              {/* Full payout breakdown: the seller is paid on the gross subtotal
+                  minus the standard platform fee. Showing the fee explains why the
+                  payout (also in the ledger) is less than the subtotal - it's the
+                  commission, NOT the buyer's coupon. */}
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>{t("yourSubtotal")}</span>
+                  <span className="tabular-nums">{formatPrice(order.orgSubtotal, order.currency as Currency)}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>{t("platformFee", { percent: PLATFORM_FEE_PERCENT })}</span>
+                  <span className="tabular-nums">
+                    -{formatPrice(platformFeeAmount(order.orgSubtotal), order.currency as Currency)}
+                  </span>
+                </div>
+                <div className={`flex justify-between ${orgRefundGross > 0 ? "text-muted-foreground" : "font-semibold"}`}>
+                  <span>{t("yourPayout")}</span>
+                  <span className="tabular-nums">
+                    {formatPrice(orgPayout, order.currency as Currency)}
+                  </span>
+                </div>
+                {/* If items were refunded, show the payout clawback and the net
+                    actually kept - matching the PAYOUT row in the ledger above. */}
+                {orgRefundGross > 0 && (
+                  <>
+                    <div className="flex justify-between text-destructive">
+                      <span>{t("payoutReversed")}</span>
+                      <span className="tabular-nums">
+                        -{formatPrice(payoutReversed, order.currency as Currency)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between font-semibold">
+                      <span>{t("payoutAfterRefunds")}</span>
+                      <span className="tabular-nums">
+                        {formatPrice(netPayoutAfterRefunds, order.currency as Currency)}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
+              {/* Buyer used a platform-funded coupon: the seller is still paid on
+                  the full gross subtotal above, so make clear the coupon never
+                  touches this breakdown. */}
+              {order.discountAmount > 0 && (
+                <p className="mt-3 text-[11px] text-muted-foreground/80">
+                  {t("couponSellerNote", { code: order.couponCode ?? "", percent: PLATFORM_FEE_PERCENT })}
+                </p>
+              )}
             </CardContent>
           </Card>
 

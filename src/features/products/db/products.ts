@@ -25,7 +25,7 @@ import {
 import { emitProductEvent } from "@/features/webhooks/productEvents";
 import { recordSlugChanges } from "@/lib/seo/slugHistory";
 import { deleteS3Object } from "@/services/s3Delete";
-import { copyProductImage, toThumbKey } from "@/services/s3Copy";
+import { copyProductImage, toThumbKey, toEmailThumbKey } from "@/services/s3Copy";
 import { commitProductMedia } from "@/services/s3Tagging";
 import { env } from "@/env/server";
 import { slugify } from "@/lib/utils";
@@ -148,6 +148,7 @@ async function syncProductMedia(
         return [
           deleteS3Object(m.key).catch(() => {}),
           deleteS3Object(thumbKey).catch(() => {}),
+          deleteS3Object(toEmailThumbKey(m.key, m.thumbKey)).catch(() => {}),
         ];
       }),
     );
@@ -1286,6 +1287,7 @@ export function productRepository(
           product.media.flatMap((m) => [
             deleteS3Object(m.key).catch(() => {}),
             deleteS3Object(m.thumbKey ?? toThumbKey(m.key)).catch(() => {}),
+            deleteS3Object(toEmailThumbKey(m.key, m.thumbKey)).catch(() => {}),
           ]),
         );
       }
@@ -1649,7 +1651,11 @@ export function productRepository(
 
       const ids = products.map((p) => p.id);
       const mediaKeys = products.flatMap((p) =>
-        p.media.flatMap((m) => [m.key, m.thumbKey ?? toThumbKey(m.key)]),
+        p.media.flatMap((m) => [
+          m.key,
+          m.thumbKey ?? toThumbKey(m.key),
+          toEmailThumbKey(m.key, m.thumbKey),
+        ]),
       );
 
       await db.prisma.$transaction(async (tx) => {
@@ -1894,7 +1900,11 @@ export function productRepository(
 
       const validProductIds = products.map((product) => product.id);
       const mediaKeys = products.flatMap((product) =>
-        product.media.flatMap((m) => [m.key, m.thumbKey ?? toThumbKey(m.key)]),
+        product.media.flatMap((m) => [
+          m.key,
+          m.thumbKey ?? toThumbKey(m.key),
+          toEmailThumbKey(m.key, m.thumbKey),
+        ]),
       );
 
       await db.prisma.$transaction(async (tx) => {

@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { z } from "zod/v4";
@@ -20,6 +22,7 @@ import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
 import { createCheckoutSession } from "../actions/checkout";
 import { createCodCheckout } from "../actions/codCheckout";
+import { validateCouponAction } from "@/features/coupons/actions/validateCoupon";
 import { Link } from "@/i18n/navigation";
 
 type PaymentMethod = "card" | "cod";
@@ -46,22 +49,44 @@ export function CheckoutPage() {
   const codAvailable = items.every((i) => i.requiresShipping);
   const [method, setMethod] = useState<PaymentMethod>("card");
   const [isPending, startTransition] = useTransition();
+  // Applied coupon (discount is in the display currency, from the server check).
+  const [couponInput, setCouponInput] = useState("");
+  const [applied, setApplied] = useState<{ code: string; discount: number } | null>(null);
+  const [couponBusy, setCouponBusy] = useState(false);
   // Latches once the Stripe redirect is kicked off and never resets: the
   // browser takes a moment to leave the page after setting location.href, and
   // without this the transition ends first and the button flashes back to its
   // idle state before the navigation visibly happens.
   const [isRedirecting, setIsRedirecting] = useState(false);
-  // Read localStorage synchronously at mount to know if items existed before zustand hydrates.
-  // This prevents the empty-cart flash when navigating back from Stripe.
-  const [hadItemsAtMount] = useState(() => {
-    if (typeof window === "undefined") return true;
-    try {
-      const raw = localStorage.getItem("cart-storage");
-      return (JSON.parse(raw ?? "{}").state?.items?.length ?? 0) > 0;
-    } catch {
-      return true;
-    }
-  });
+  // Track persist rehydration so we can tell "store not loaded yet" (show
+  // nothing, avoids the empty-cart flash on back-nav from Stripe) apart from
+  // "cart genuinely empty" (show the empty state, e.g. after clearing the cart).
+  const [hydrated, setHydrated] = useState(() => useCartStore.persist.hasHydrated());
+  useEffect(() => {
+    // Sync once at mount in case hydration finished between render and effect,
+    // then subscribe for the completion event.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHydrated(useCartStore.persist.hasHydrated());
+    return useCartStore.persist.onFinishHydration(() => setHydrated(true));
+  }, []);
+
+  // An applied coupon was validated against a specific cart - clear it whenever
+  // the cart contents change so a stale discount can't carry to checkout.
+  const itemsSig = items.map((i) => `${i.productId}:${i.variantId}:${i.quantity}`).join("|");
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setApplied(null);
+  }, [itemsSig]);
+
+  // Reset the coupon field on route change - the client Router Cache
+  // (dynamicOnHover) can keep this page warm, so a typed-but-not-applied code
+  // (or an applied discount) would otherwise survive a back-navigation here.
+  const pathname = usePathname();
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCouponInput("");
+    setApplied(null);
+  }, [pathname]);
 
   const {
     register,
@@ -73,7 +98,7 @@ export function CheckoutPage() {
   });
 
   if (items.length === 0) {
-    if (hadItemsAtMount) return null;
+    if (!hydrated) return null; // still rehydrating - avoid empty-cart flash
     return (
       <div className="flex flex-col items-center justify-center flex-1 gap-4 py-24 text-center">
         <ShoppingBag className="h-16 w-16 text-muted-foreground/40" />
@@ -86,15 +111,26 @@ export function CheckoutPage() {
     );
   }
 
+  const cartItems = () =>
+    items.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity }));
+
+  const applyCoupon = async () => {
+    const code = couponInput.trim();
+    if (!code) return;
+    setCouponBusy(true);
+    const res = await validateCouponAction(code, cartItems());
+    setCouponBusy(false);
+    if (!res.ok) {
+      toast.error(res.message);
+      return;
+    }
+    setApplied({ code: res.code, discount: res.discount });
+    setCouponInput("");
+  };
+
   const handleCardCheckout = () => {
     startTransition(async () => {
-      const result = await createCheckoutSession(
-        items.map((i) => ({
-          productId: i.productId,
-          variantId: i.variantId,
-          quantity: i.quantity,
-        })),
-      );
+      const result = await createCheckoutSession(cartItems(), applied?.code);
       if ("error" in result) {
         toast.error(result.message);
         return;
@@ -109,14 +145,7 @@ export function CheckoutPage() {
 
   const handleCodSubmit = (data: ShippingForm) => {
     startTransition(async () => {
-      const result = await createCodCheckout(
-        items.map((i) => ({
-          productId: i.productId,
-          variantId: i.variantId,
-          quantity: i.quantity,
-        })),
-        data,
-      );
+      const result = await createCodCheckout(cartItems(), data, applied?.code);
       if ("error" in result) {
         toast.error(result.message);
         return;
@@ -155,8 +184,21 @@ export function CheckoutPage() {
               return (
               <div key={`${item.productId}-${item.variantId}`}>
                 {i > 0 && <Separator className="mb-3" />}
-                <div className="flex justify-between text-sm">
-                  <div>
+                <div className="flex gap-3 items-center text-sm">
+                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded border">
+                    {item.productImage ? (
+                      <Image
+                        src={item.productImage}
+                        alt={title}
+                        fill
+                        sizes="56px"
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="h-full w-full bg-muted" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
                     <p className="font-medium">{title}</p>
                     {variantText && (
                       <p className="text-xs text-muted-foreground">{variantText}</p>
@@ -173,10 +215,69 @@ export function CheckoutPage() {
               );
             })}
             <Separator />
-            <div className="flex justify-between font-semibold text-sm">
-              <span>{t("total")}</span>
-              <span>{formatPrice(convertCents(totalPrice(), currency, currentRate()), currency)}</span>
-            </div>
+
+            {/* Coupon */}
+            {applied ? (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">{t("couponApplied", { code: applied.code })}</span>
+                <button
+                  type="button"
+                  onClick={() => setApplied(null)}
+                  className="text-xs text-destructive hover:underline cursor-pointer"
+                >
+                  {t("removeCoupon")}
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  value={couponInput}
+                  onChange={(e) => setCouponInput(e.target.value)}
+                  placeholder={t("couponPlaceholder")}
+                  className="h-9"
+                  autoComplete="off"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 shrink-0"
+                  disabled={couponBusy || !couponInput.trim()}
+                  onClick={applyCoupon}
+                >
+                  {couponBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("applyCoupon")}
+                </Button>
+              </div>
+            )}
+
+            <Separator />
+
+            {applied ? (
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>{t("subtotal")}</span>
+                  <span>{formatPrice(convertCents(totalPrice(), currency, currentRate()), currency)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-emerald-600">
+                  <span>{t("discount")}</span>
+                  <span>-{formatPrice(applied.discount, currency)}</span>
+                </div>
+                <div className="flex justify-between font-semibold text-sm">
+                  <span>{t("total")}</span>
+                  <span>
+                    {formatPrice(
+                      Math.max(0, convertCents(totalPrice(), currency, currentRate()) - applied.discount),
+                      currency,
+                    )}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-between font-semibold text-sm">
+                <span>{t("total")}</span>
+                <span>{formatPrice(convertCents(totalPrice(), currency, currentRate()), currency)}</span>
+              </div>
+            )}
           </CardContent>
         </Card>
 

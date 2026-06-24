@@ -260,7 +260,7 @@ export async function publishOrderDelivered(orderId: string, locale = "en"): Pro
 // notification idempotent. `locale` is the order's locale (buyer emails); seller
 // emails are dispatched per-member-locale by the notifications Lambda.
 
-type ReturnLineItem = { name: string; quantity: number };
+type ReturnLineItem = { name: string; quantity: number; price?: number; imageUrl?: string | null };
 
 export async function publishReturnRequested(params: {
   returnId: string;

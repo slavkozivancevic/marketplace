@@ -8,6 +8,7 @@ import Image from "next/image";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberStepper } from "@/components/ui/number-stepper";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
@@ -354,10 +355,10 @@ export function VariantsEditor({
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium">{t("stock")}</label>
-                <Input
-                  type="number"
+                <NumberStepper
+                  min={0}
                   value={v.stock}
-                  onChange={(e) => setField(i, { stock: parseInt(e.target.value) || 0 })}
+                  onChange={(val) => setField(i, { stock: val ?? 0 })}
                 />
               </div>
             </div>

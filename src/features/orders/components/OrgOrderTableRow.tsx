@@ -38,7 +38,7 @@ export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
   return (
     <div
       role="row"
-      className="grid grid-cols-[100px_100px_80px_minmax(180px,2fr)_140px_120px_170px] items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors min-w-fit"
+      className="grid grid-cols-[100px_100px_80px_minmax(180px,2fr)_140px_120px_230px] items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors min-w-fit"
       onClick={() => router.push(`/${locale}/dashboard/organization/orders/${order.id}`)}
     >
       {/* Order ID */}
@@ -88,6 +88,14 @@ export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
           >
             <RotateCcw className="h-3 w-3" />
             <span className="sr-only">{t("returnInProgress")}</span>
+          </Badge>
+        )}
+        {/* Partial refund: the derived status still reads e.g. "Completed", so
+            flag it here (full refunds already show as the main "Refunded").
+            Amber text pill - consistent with the order detail + payouts pages. */}
+        {order.paymentStatus === "PARTIALLY_REFUNDED" && (
+          <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">
+            {t("partiallyRefunded")}
           </Badge>
         )}
         <PaymentMethodIcon method={order.paymentMethod} />

@@ -572,8 +572,15 @@ model Order {
   cancelledAt       DateTime?
   // Derived display stage (kept in sync from the axes + cancelledAt).
   status          OrderStatus     @default(PENDING)
-  // Stored in the smallest unit of `currency` (cents, para, etc.)
+  // Stored in the smallest unit of `currency` (cents, para, etc.). `total` is the
+  // amount actually charged (already net of any coupon discount).
   total           Int
+  // Coupon applied at checkout. `couponCode` is a snapshot (survives coupon edits/
+  // deletes); `discountAmount` is in the order currency. Platform-funded: sellers
+  // still receive their full net, the platform absorbs the discount.
+  couponId        String?
+  couponCode      String?
+  discountAmount  Int             @default(0)
   items           OrderItem[]
   reviews         ProductReview[]
 
@@ -601,8 +608,38 @@ model Order {
   returns             Return[]
   shipments           Shipment[]
   invoice             Invoice?
+  coupon              Coupon?               @relation(fields: [couponId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([couponId])
+}
+
+enum CouponType {
+  PERCENT // value = percent off (1-100)
+  FIXED // value = fixed amount off in USD base cents (converted per order currency)
+}
+
+// Platform-wide discount code applied at checkout. Validation (active window,
+// usage cap, minimum order) lives in the app layer; `usageCount` is incremented
+// atomically when an order that used the coupon is created.
+model Coupon {
+  id         String     @id @default(uuid())
+  // Stored uppercase; matched case-insensitively.
+  code       String     @unique
+  type       CouponType
+  value      Int
+  // Minimum order subtotal (USD base cents) required to apply; null = none.
+  minOrder   Int?
+  // Total redemptions allowed across all buyers; null = unlimited.
+  usageLimit Int?
+  usageCount Int        @default(0)
+  expiresAt  DateTime?
+  active     Boolean    @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
 }
 
 // Immutable order invoice. Issued once (lazily, on first download or at payment

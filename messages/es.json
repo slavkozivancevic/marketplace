@@ -55,6 +55,9 @@
     "editCategory": "Editar categoría",
     "newAttribute": "Nuevo atributo",
     "editAttribute": "Editar atributo",
+    "coupons": "Cupones",
+    "newCoupon": "Nuevo cupón",
+    "editCoupon": "Editar cupón",
     "bulkOperations": "Operaciones masivas",
     "history": "Historial"
   },
@@ -82,6 +85,7 @@
     "attributes": "Atributos",
     "organizations": "Organizaciones",
     "users": "Usuarios",
+    "coupons": "Cupones",
     "audit": "Registro de auditoría",
     "dashboard": "Panel",
     "quickLinks": "Enlaces rápidos"
@@ -288,13 +292,16 @@
     "card": "Tarjeta",
     "yourItems": "Tus artículos",
     "yourTotal": "Tu total",
+    "subtotal": "Subtotal",
+    "discount": "Descuento",
     "error": "Error al cargar pedidos",
     "noOrders": "No se encontraron pedidos",
     "noOrdersYet": "Aún no hay pedidos",
     "tryAdjusting": "Intenta ajustar tu búsqueda o filtros.",
     "noneYetDesc": "Aún no has realizado ningún pedido.",
     "browse": "Explorar productos",
-    "searchPlaceholder": "Buscar por nombre de producto o ID de pedido..."
+    "searchPlaceholder": "Buscar por nombre de producto o ID de pedido...",
+    "paidAfterRefunds": "Pagado tras reembolsos"
   },
   "myProducts": {
     "title": "Mis productos",
@@ -383,6 +390,12 @@
     "placeOrder": "Realizar pedido",
     "placingOrder": "Realizando pedido...",
     "redirectingToStripe": "Redirigiendo al pago...",
+    "subtotal": "Subtotal",
+    "discount": "Descuento",
+    "couponPlaceholder": "Código promocional",
+    "applyCoupon": "Aplicar",
+    "couponApplied": "Cupón {code} aplicado",
+    "removeCoupon": "Quitar",
     "codOrderPlaced": "Pedido realizado",
     "codThankYou": "¡Gracias! Tu pedido ha sido realizado. Pagarás al recibir el envío.",
     "codOrderNote": "Nuestro equipo se pondrá en contacto contigo para confirmar los detalles de la entrega.",
@@ -417,6 +430,7 @@
       "apply": "Aplicar",
       "reset": "Restablecer",
       "noLogs": "Ningún registro coincide con tus filtros.",
+      "noEntries": "Aún no hay registros.",
       "colTime": "Hora",
       "colActor": "Actor",
       "colAction": "Acción",
@@ -434,7 +448,8 @@
         "return": "Devolución",
         "user": "Usuario",
         "membership": "Membresía",
-        "organization": "Organización"
+        "organization": "Organización",
+        "coupon": "Cupón"
       },
       "fields": {
         "count": "Cantidad",
@@ -452,7 +467,8 @@
         "created": "Creados",
         "totalRows": "Filas totales",
         "errors": "Errores",
-        "external": "Externo"
+        "external": "Externo",
+        "from": "Copiado de"
       },
       "values": {
         "USER": "Usuario",
@@ -480,7 +496,9 @@
           "refunded": "Pedido reembolsado",
           "partially_refunded": "Pedido parcialmente reembolsado"
         },
-        "payout": { "released": "Pago liberado" },
+        "payout": {
+          "released": "Pago liberado"
+        },
         "return": {
           "requested": "Devolución solicitada",
           "approved": "Devolución aprobada",
@@ -488,9 +506,16 @@
           "shipped": "Devolución enviada",
           "refunded": "Devolución reembolsada"
         },
-        "user": { "role_changed": "Rol de usuario cambiado" },
-        "member": { "role_changed": "Rol de miembro cambiado", "removed": "Miembro eliminado" },
-        "organization": { "verified_changed": "Verificación de organización cambiada" },
+        "user": {
+          "role_changed": "Rol de usuario cambiado"
+        },
+        "member": {
+          "role_changed": "Rol de miembro cambiado",
+          "removed": "Miembro eliminado"
+        },
+        "organization": {
+          "verified_changed": "Verificación de organización cambiada"
+        },
         "product": {
           "created": "Producto creado",
           "updated": "Producto actualizado",
@@ -506,9 +531,29 @@
           "bulk_created": "Productos creados en masa",
           "bulk_updated": "Productos actualizados en masa"
         },
-        "brand": { "created": "Marca creada", "updated": "Marca actualizada", "deleted": "Marca eliminada", "duplicated": "Marca duplicada" },
-        "category": { "created": "Categoría creada", "updated": "Categoría actualizada", "deleted": "Categoría eliminada", "duplicated": "Categoría duplicada" },
-        "attribute": { "created": "Atributo creado", "updated": "Atributo actualizado", "deleted": "Atributo eliminado", "duplicated": "Atributo duplicado" }
+        "brand": {
+          "created": "Marca creada",
+          "updated": "Marca actualizada",
+          "deleted": "Marca eliminada",
+          "duplicated": "Marca duplicada"
+        },
+        "category": {
+          "created": "Categoría creada",
+          "updated": "Categoría actualizada",
+          "deleted": "Categoría eliminada",
+          "duplicated": "Categoría duplicada"
+        },
+        "attribute": {
+          "created": "Atributo creado",
+          "updated": "Atributo actualizado",
+          "deleted": "Atributo eliminado",
+          "duplicated": "Atributo duplicado"
+        },
+        "coupon": {
+          "created": "Cupón creado",
+          "updated": "Cupón actualizado",
+          "deleted": "Cupón eliminado"
+        }
       },
       "columns": {
         "status": "Estado",
@@ -1188,8 +1233,17 @@
   },
   "orgOrders": {
     "paymentHistory": "Historial de pagos",
-    "txType": { "charge": "Cargo", "refund": "Reembolso", "payout": "Pago", "fee": "Comisión" },
-    "txStatus": { "pending": "Pendiente", "succeeded": "Completado", "failed": "Fallido" },
+    "txType": {
+      "charge": "Cargo",
+      "refund": "Reembolso",
+      "payout": "Pago",
+      "fee": "Comisión"
+    },
+    "txStatus": {
+      "pending": "Pendiente",
+      "succeeded": "Completado",
+      "failed": "Fallido"
+    },
     "pageTitle": "Pedidos recibidos",
     "pageDescription": "Pedidos realizados para los productos de tu organización.",
     "orderId": "ID del pedido",
@@ -1226,6 +1280,8 @@
     "orderSummary": "Resumen del pedido",
     "yourItems": "Artículos pedidos",
     "yourSubtotal": "Total",
+    "coupon": "Cupón",
+    "couponNote": "Financiado por la plataforma; no afecta tu pago.",
     "buyerAndShipping": "Comprador y envío",
     "deliveryAddress": "Dirección de entrega",
     "noShippingAddress": "Sin dirección de envío (producto digital)",
@@ -1241,7 +1297,13 @@
     "cancelConfirmTitle": "¿Cancelar este pedido?",
     "cancelConfirmDesc": "Esto no se puede deshacer. El inventario se reabastece y se notifica al comprador de la cancelación.",
     "keepOrder": "Mantener pedido",
-    "cancellingOrder": "Cancelando..."
+    "cancellingOrder": "Cancelando...",
+    "couponSellerNote": "Tu pago es el subtotal completo menos la comisión estándar de la plataforma ({percent}%) - igual que sin cupón. El descuento que recibió el comprador (cupón {code}) lo cubre la plataforma con su comisión, no se descuenta de tu pago.",
+    "paymentHistoryCouponNote": "El cargo es lo que el comprador pagó tras el cupón {code}. El descuento lo financia la plataforma y no reduce tu pago.",
+    "platformFee": "Comisión de la plataforma ({percent}%)",
+    "yourPayout": "Tu pago",
+    "payoutReversed": "Reverso del pago (reembolsos)",
+    "payoutAfterRefunds": "Pago neto tras reembolsos"
   },
   "relatedProducts": {
     "discoverMore": "Descubre más",
@@ -1279,6 +1341,59 @@
     "duplicateVariantCombo": "Misma combinación de opciones que la variante n.º {other}",
     "duplicateSku": "SKU duplicado \"{sku}\" (también variante n.º {other})"
   },
+  "coupons": {
+    "title": "Cupones",
+    "description": "Crea y gestiona códigos de descuento.",
+    "newCoupon": "Nuevo cupón",
+    "editCoupon": "Editar cupón",
+    "formDescription": "Define el descuento, los límites y la validez.",
+    "empty": "Aún no hay cupones.",
+    "noResults": "Ningún cupón coincide con tus filtros.",
+    "deleteConfirm": "¿Eliminar el cupón {code}?",
+    "searchPlaceholder": "Buscar por código…",
+    "filterAll": "Todos",
+    "sortCreated": "Creado",
+    "errors": {
+      "notFound": "Este código promocional no es válido.",
+      "expired": "Este código promocional ha caducado.",
+      "usedUp": "Este código promocional alcanzó su límite de uso.",
+      "minOrder": "Este código requiere un pedido mínimo de {amount}.",
+      "cartEmpty": "Tu carrito está vacío."
+    },
+    "form": {
+      "code": "Código",
+      "type": "Tipo",
+      "percent": "Porcentaje",
+      "fixed": "Importe fijo",
+      "valuePercent": "Porcentaje de descuento",
+      "valueFixed": "Importe de descuento (USD)",
+      "minOrder": "Pedido mínimo (USD)",
+      "usageLimit": "Límite de uso",
+      "expiresAt": "Caduca el",
+      "optional": "Opcional",
+      "active": "Activo",
+      "save": "Guardar cambios",
+      "create": "Crear cupón",
+      "activeDesc": "Los cupones inactivos no se pueden canjear al pagar."
+    },
+    "table": {
+      "code": "Código",
+      "discount": "Descuento",
+      "minOrder": "Pedido mín.",
+      "usage": "Uso",
+      "expires": "Caduca",
+      "status": "Estado",
+      "active": "Activo",
+      "inactive": "Inactivo",
+      "actions": "Acciones",
+      "edit": "Editar",
+      "duplicate": "Duplicar"
+    },
+    "deleted": "Cupón eliminado",
+    "duplicated": "Cupón duplicado",
+    "deleteDesc": "Esta acción no se puede deshacer.",
+    "deleting": "Eliminando..."
+  },
   "invoice": {
     "invoice": "Factura",
     "invoiceNo": "N.º de factura",
@@ -1292,6 +1407,8 @@
     "qty": "Cant.",
     "unitPrice": "Precio unitario",
     "lineTotal": "Importe",
+    "subtotal": "Subtotal",
+    "discount": "Descuento",
     "total": "Total",
     "footer": "Gracias por tu compra. Esta factura fue generada por Marketplace.",
     "download": "Descargar factura"
@@ -1347,7 +1464,8 @@
     "confirmReject": "Confirmar rechazo",
     "rejectReasonPlaceholder": "Motivo del rechazo (opcional)",
     "markRefunded": "Marcar como reembolsada",
-    "refundDone": "Reembolso emitido"
+    "refundDone": "Reembolso emitido",
+    "returnAfterDelivery": "Puedes solicitar una devolución una vez que este artículo sea entregado."
   },
   "payouts": {
     "pageTitle": "Pagos",
@@ -1407,6 +1525,7 @@
     "returnExceedsQuantity": "No puedes devolver más de lo que compraste.",
     "shipmentNotAllowed": "Este pedido ya no se puede marcar como enviado.",
     "shipmentNotShippedYet": "Marca el pedido como enviado antes de marcarlo como entregado.",
+    "couponCodeTaken": "Ya existe un cupón con este código.",
     "returnRefundBeforePayment": "Confirma que se recibió el pago antes de reembolsar este pedido.",
     "uniqueConstraint": "Ya existe un registro con este {fields}",
     "uniqueConstraintNoFields": "Ya existe un registro con estos valores",

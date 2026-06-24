@@ -282,6 +282,37 @@
   animation: skeleton-shimmer 1.5s ease-in-out infinite;
 }
 
+/* ===== APP LOADER (full-page boot spinner) ===== */
+/* A thin conic-gradient ring carved out with a radial mask, spun with
+   Tailwind's `animate-spin`. Sweeps from transparent to the brand colour. */
+.app-loader-ring {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0%,
+    oklch(from var(--color-primary) l c h / 0.1) 30%,
+    var(--color-primary) 100%
+  );
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 4px),
+    #000 calc(100% - 3px)
+  );
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 4px),
+    #000 calc(100% - 3px)
+  );
+}
+
+@keyframes app-loader-dot {
+  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-4px); }
+}
+
+.app-loader-dot {
+  animation: app-loader-dot 1.2s ease-in-out infinite;
+}
+
 /* ===== SUBTLE GLOBAL BACKGROUND IMAGE ===== */
 .page-background {
   position: fixed;
@@ -603,4 +634,18 @@ input[type="number"] {
 .cosmos .hover-glow:hover {
   box-shadow: 0 0 40px oklch(0.6 0.2 290 / 25%),
               0 0 80px oklch(0.7 0.15 60 / 10%);
+}
+
+/* Hide the native number-input steppers app-wide. Chromium ignores `cursor` on
+   ::-webkit-*-spin-button, so the native arrows can never get a pointer cursor.
+   Where ±1 nudging matters we render the themed <NumberStepper> (custom arrows
+   with a real pointer); every other number field just takes typed input. */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
 }

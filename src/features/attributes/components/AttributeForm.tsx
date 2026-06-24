@@ -18,6 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { NumberStepper } from "@/components/ui/number-stepper";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -422,19 +423,11 @@ export function AttributeForm(props: AttributeFormProps) {
             <FormItem>
               <FormLabel>{t("order")}</FormLabel>
               <FormControl>
-                <Input
-                  type="number"
+                <NumberStepper
                   min={0}
                   className="w-32"
                   value={field.value}
-                  onChange={(e) =>
-                    field.onChange(
-                      e.target.value === "" ? 0 : e.target.valueAsNumber,
-                    )
-                  }
-                  onBlur={field.onBlur}
-                  name={field.name}
-                  ref={field.ref}
+                  onChange={(v) => field.onChange(v ?? 0)}
                 />
               </FormControl>
               <FormDescription>{t("orderDesc")}</FormDescription>

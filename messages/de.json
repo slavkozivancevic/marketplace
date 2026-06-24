@@ -55,6 +55,9 @@
     "editCategory": "Kategorie bearbeiten",
     "newAttribute": "Neues Attribut",
     "editAttribute": "Attribut bearbeiten",
+    "coupons": "Gutscheine",
+    "newCoupon": "Neuer Gutschein",
+    "editCoupon": "Gutschein bearbeiten",
     "bulkOperations": "Massenoperationen",
     "history": "Verlauf"
   },
@@ -82,6 +85,7 @@
     "attributes": "Attribute",
     "organizations": "Organisationen",
     "users": "Benutzer",
+    "coupons": "Gutscheine",
     "audit": "Audit-Protokoll",
     "dashboard": "Dashboard",
     "quickLinks": "Schnellzugriff"
@@ -288,13 +292,16 @@
     "card": "Karte",
     "yourItems": "Ihre Artikel",
     "yourTotal": "Ihre Summe",
+    "subtotal": "Zwischensumme",
+    "discount": "Rabatt",
     "error": "Fehler beim Laden der Bestellungen",
     "noOrders": "Keine Bestellungen gefunden",
     "noOrdersYet": "Noch keine Bestellungen",
     "tryAdjusting": "Passen Sie Ihre Suche oder Filter an.",
     "noneYetDesc": "Sie haben noch keine Bestellungen aufgegeben.",
     "browse": "Produkte durchsuchen",
-    "searchPlaceholder": "Nach Produktname oder Bestell-ID suchen..."
+    "searchPlaceholder": "Nach Produktname oder Bestell-ID suchen...",
+    "paidAfterRefunds": "Bezahlt nach Rückerstattungen"
   },
   "myProducts": {
     "title": "Meine Produkte",
@@ -383,6 +390,12 @@
     "placeOrder": "Bestellung aufgeben",
     "placingOrder": "Bestellung wird aufgegeben...",
     "redirectingToStripe": "Weiterleitung zur Zahlung...",
+    "subtotal": "Zwischensumme",
+    "discount": "Rabatt",
+    "couponPlaceholder": "Gutscheincode",
+    "applyCoupon": "Anwenden",
+    "couponApplied": "Gutschein {code} angewendet",
+    "removeCoupon": "Entfernen",
     "codOrderPlaced": "Bestellung aufgegeben",
     "codThankYou": "Vielen Dank! Ihre Bestellung wurde aufgegeben. Sie zahlen bei Lieferung.",
     "codOrderNote": "Unser Team wird Sie zur Bestätigung der Lieferdetails kontaktieren.",
@@ -417,6 +430,7 @@
       "apply": "Anwenden",
       "reset": "Zurücksetzen",
       "noLogs": "Keine Einträge entsprechen Ihren Filtern.",
+      "noEntries": "Noch keine Einträge.",
       "colTime": "Zeit",
       "colActor": "Akteur",
       "colAction": "Aktion",
@@ -434,7 +448,8 @@
         "return": "Rücksendung",
         "user": "Benutzer",
         "membership": "Mitgliedschaft",
-        "organization": "Organisation"
+        "organization": "Organisation",
+        "coupon": "Gutschein"
       },
       "fields": {
         "count": "Anzahl",
@@ -452,7 +467,8 @@
         "created": "Erstellt",
         "totalRows": "Zeilen gesamt",
         "errors": "Fehler",
-        "external": "Extern"
+        "external": "Extern",
+        "from": "Kopiert von"
       },
       "values": {
         "USER": "Benutzer",
@@ -480,7 +496,9 @@
           "refunded": "Bestellung erstattet",
           "partially_refunded": "Bestellung teilweise erstattet"
         },
-        "payout": { "released": "Auszahlung veranlasst" },
+        "payout": {
+          "released": "Auszahlung veranlasst"
+        },
         "return": {
           "requested": "Rücksendung angefragt",
           "approved": "Rücksendung genehmigt",
@@ -488,9 +506,16 @@
           "shipped": "Rücksendung versendet",
           "refunded": "Rücksendung erstattet"
         },
-        "user": { "role_changed": "Benutzerrolle geändert" },
-        "member": { "role_changed": "Mitgliederrolle geändert", "removed": "Mitglied entfernt" },
-        "organization": { "verified_changed": "Organisationsverifizierung geändert" },
+        "user": {
+          "role_changed": "Benutzerrolle geändert"
+        },
+        "member": {
+          "role_changed": "Mitgliederrolle geändert",
+          "removed": "Mitglied entfernt"
+        },
+        "organization": {
+          "verified_changed": "Organisationsverifizierung geändert"
+        },
         "product": {
           "created": "Produkt erstellt",
           "updated": "Produkt aktualisiert",
@@ -506,9 +531,29 @@
           "bulk_created": "Produkte massenhaft erstellt",
           "bulk_updated": "Produkte massenhaft aktualisiert"
         },
-        "brand": { "created": "Marke erstellt", "updated": "Marke aktualisiert", "deleted": "Marke gelöscht", "duplicated": "Marke dupliziert" },
-        "category": { "created": "Kategorie erstellt", "updated": "Kategorie aktualisiert", "deleted": "Kategorie gelöscht", "duplicated": "Kategorie dupliziert" },
-        "attribute": { "created": "Attribut erstellt", "updated": "Attribut aktualisiert", "deleted": "Attribut gelöscht", "duplicated": "Attribut dupliziert" }
+        "brand": {
+          "created": "Marke erstellt",
+          "updated": "Marke aktualisiert",
+          "deleted": "Marke gelöscht",
+          "duplicated": "Marke dupliziert"
+        },
+        "category": {
+          "created": "Kategorie erstellt",
+          "updated": "Kategorie aktualisiert",
+          "deleted": "Kategorie gelöscht",
+          "duplicated": "Kategorie dupliziert"
+        },
+        "attribute": {
+          "created": "Attribut erstellt",
+          "updated": "Attribut aktualisiert",
+          "deleted": "Attribut gelöscht",
+          "duplicated": "Attribut dupliziert"
+        },
+        "coupon": {
+          "created": "Gutschein erstellt",
+          "updated": "Gutschein aktualisiert",
+          "deleted": "Gutschein gelöscht"
+        }
       },
       "columns": {
         "status": "Status",
@@ -1188,8 +1233,17 @@
   },
   "orgOrders": {
     "paymentHistory": "Zahlungsverlauf",
-    "txType": { "charge": "Belastung", "refund": "Erstattung", "payout": "Auszahlung", "fee": "Provision" },
-    "txStatus": { "pending": "Ausstehend", "succeeded": "Erfolgreich", "failed": "Fehlgeschlagen" },
+    "txType": {
+      "charge": "Belastung",
+      "refund": "Erstattung",
+      "payout": "Auszahlung",
+      "fee": "Provision"
+    },
+    "txStatus": {
+      "pending": "Ausstehend",
+      "succeeded": "Erfolgreich",
+      "failed": "Fehlgeschlagen"
+    },
     "pageTitle": "Erhaltene Bestellungen",
     "pageDescription": "Bestellungen für die Produkte Ihrer Organisation.",
     "orderId": "Bestell-ID",
@@ -1226,6 +1280,8 @@
     "orderSummary": "Bestellübersicht",
     "yourItems": "Bestellte Artikel",
     "yourSubtotal": "Gesamt",
+    "coupon": "Gutschein",
+    "couponNote": "Von der Plattform getragen - beeinflusst Ihre Auszahlung nicht.",
     "buyerAndShipping": "Käufer & Versand",
     "deliveryAddress": "Lieferadresse",
     "noShippingAddress": "Keine Lieferadresse (digitales Produkt)",
@@ -1241,7 +1297,13 @@
     "cancelConfirmTitle": "Bestellung stornieren?",
     "cancelConfirmDesc": "Dies kann nicht rückgängig gemacht werden. Der Bestand wird zurückgebucht und der Käufer wird über die Stornierung benachrichtigt.",
     "keepOrder": "Bestellung behalten",
-    "cancellingOrder": "Wird storniert..."
+    "cancellingOrder": "Wird storniert...",
+    "couponSellerNote": "Ihre Auszahlung ist die volle Zwischensumme abzüglich der standardmäßigen {percent}%-Plattformgebühr - genau wie ohne Gutschein. Der Rabatt des Käufers (Gutschein {code}) wird von der Plattform aus ihrer Gebühr getragen, nicht von Ihrer Auszahlung abgezogen.",
+    "paymentHistoryCouponNote": "Die Belastung ist der vom Käufer nach Gutschein {code} gezahlte Betrag. Der Rabatt wird von der Plattform finanziert und mindert Ihre Auszahlung nicht.",
+    "platformFee": "Plattformgebühr ({percent}%)",
+    "yourPayout": "Ihre Auszahlung",
+    "payoutReversed": "Auszahlungsstorno (Rückerstattungen)",
+    "payoutAfterRefunds": "Auszahlung nach Rückerstattungen"
   },
   "relatedProducts": {
     "discoverMore": "Mehr entdecken",
@@ -1279,6 +1341,59 @@
     "duplicateVariantCombo": "Gleiche Optionskombination wie Variante #{other}",
     "duplicateSku": "Doppelte SKU \"{sku}\" (auch Variante #{other})"
   },
+  "coupons": {
+    "title": "Gutscheine",
+    "description": "Rabattcodes erstellen und verwalten.",
+    "newCoupon": "Neuer Gutschein",
+    "editCoupon": "Gutschein bearbeiten",
+    "formDescription": "Rabatt, Limits und Gültigkeit festlegen.",
+    "empty": "Noch keine Gutscheine.",
+    "noResults": "Keine Gutscheine entsprechen Ihren Filtern.",
+    "deleteConfirm": "Gutschein {code} löschen?",
+    "searchPlaceholder": "Nach Code suchen…",
+    "filterAll": "Alle",
+    "sortCreated": "Erstellt",
+    "errors": {
+      "notFound": "Dieser Promo-Code ist ungültig.",
+      "expired": "Dieser Promo-Code ist abgelaufen.",
+      "usedUp": "Dieser Promo-Code hat sein Nutzungslimit erreicht.",
+      "minOrder": "Dieser Code erfordert einen Mindestbestellwert von {amount}.",
+      "cartEmpty": "Ihr Warenkorb ist leer."
+    },
+    "form": {
+      "code": "Code",
+      "type": "Typ",
+      "percent": "Prozentual",
+      "fixed": "Fester Betrag",
+      "valuePercent": "Prozent Rabatt",
+      "valueFixed": "Betrag Rabatt (USD)",
+      "minOrder": "Mindestbestellwert (USD)",
+      "usageLimit": "Nutzungslimit",
+      "expiresAt": "Läuft ab am",
+      "optional": "Optional",
+      "active": "Aktiv",
+      "save": "Änderungen speichern",
+      "create": "Gutschein erstellen",
+      "activeDesc": "Inaktive Gutscheine können beim Checkout nicht eingelöst werden."
+    },
+    "table": {
+      "code": "Code",
+      "discount": "Rabatt",
+      "minOrder": "Mindestbestellung",
+      "usage": "Nutzung",
+      "expires": "Läuft ab",
+      "status": "Status",
+      "active": "Aktiv",
+      "inactive": "Inaktiv",
+      "actions": "Aktionen",
+      "edit": "Bearbeiten",
+      "duplicate": "Duplizieren"
+    },
+    "deleted": "Gutschein gelöscht",
+    "duplicated": "Gutschein dupliziert",
+    "deleteDesc": "Diese Aktion kann nicht rückgängig gemacht werden.",
+    "deleting": "Wird gelöscht..."
+  },
   "invoice": {
     "invoice": "Rechnung",
     "invoiceNo": "Rechnungsnr.",
@@ -1292,6 +1407,8 @@
     "qty": "Anz.",
     "unitPrice": "Stückpreis",
     "lineTotal": "Betrag",
+    "subtotal": "Zwischensumme",
+    "discount": "Rabatt",
     "total": "Gesamt",
     "footer": "Vielen Dank für Ihren Einkauf. Diese Rechnung wurde von Marketplace erstellt.",
     "download": "Rechnung herunterladen"
@@ -1347,7 +1464,8 @@
     "confirmReject": "Ablehnung bestätigen",
     "rejectReasonPlaceholder": "Grund für die Ablehnung (optional)",
     "markRefunded": "Als erstattet markieren",
-    "refundDone": "Erstattung ausgeführt"
+    "refundDone": "Erstattung ausgeführt",
+    "returnAfterDelivery": "Sie können eine Rücksendung anfordern, sobald dieser Artikel zugestellt wurde."
   },
   "payouts": {
     "pageTitle": "Auszahlungen",
@@ -1407,6 +1525,7 @@
     "returnExceedsQuantity": "Sie können nicht mehr zurückgeben, als Sie gekauft haben.",
     "shipmentNotAllowed": "Diese Bestellung kann nicht mehr als versendet markiert werden.",
     "shipmentNotShippedYet": "Markieren Sie die Bestellung als versendet, bevor Sie sie als geliefert markieren.",
+    "couponCodeTaken": "Ein Gutschein mit diesem Code existiert bereits.",
     "returnRefundBeforePayment": "Bestätigen Sie den Zahlungseingang, bevor Sie diese Bestellung erstatten.",
     "uniqueConstraint": "Ein Datensatz mit diesem {fields} existiert bereits",
     "uniqueConstraintNoFields": "Ein Datensatz mit diesen Werten existiert bereits",

@@ -3,7 +3,7 @@
 import { Link } from "@/i18n/navigation";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { SignedIn } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
 import { HeaderAuth } from "./header-auth";
 import { PreferencesPopover } from "./preferences-popover";
 import { CartButton } from "@/features/cart/components/CartButton";
@@ -26,11 +26,14 @@ interface NavLink {
 
 export function PublicHeader({ showAdminLink = false }: PublicHeaderProps) {
   const t = useTranslations();
+  const { isSignedIn } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  // mounted + <SignedIn> pattern: avoids hydration mismatch on cold dev
-  // start where SSR doesn't know the session yet but the client hydrate
-  // already does. See header-auth.tsx for the same pattern.
+  // mounted + useAuth pattern: avoids a hydration mismatch (SSR may know the
+  // session while the first client render, before clerk-js loads, does not).
+  // Reading `isSignedIn` from the same `useAuth()` hook the boot loader
+  // (<ClerkGate>) gates on means these auth-only links resolve in the exact
+  // same render commit the loader reveals on - no post-loader pop-in.
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -101,8 +104,8 @@ export function PublicHeader({ showAdminLink = false }: PublicHeaderProps) {
                   </Link>
                 );
                 if (!link.authGated) return linkEl;
-                if (!mounted) return null;
-                return <SignedIn key={link.href}>{linkEl}</SignedIn>;
+                if (!mounted || !isSignedIn) return null;
+                return linkEl;
               })}
             </nav>
 
@@ -154,8 +157,8 @@ export function PublicHeader({ showAdminLink = false }: PublicHeaderProps) {
                 </Link>
               );
               if (!link.authGated) return linkEl;
-              if (!mounted) return null;
-              return <SignedIn key={link.href}>{linkEl}</SignedIn>;
+              if (!mounted || !isSignedIn) return null;
+              return linkEl;
             })}
             <div className="pt-2 px-3 sm:hidden">
               <HeaderAuth mode="modal" showDashboardLink={false} />
