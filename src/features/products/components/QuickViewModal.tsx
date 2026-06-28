@@ -66,7 +66,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [activeVariantId, setActiveVariantId] = useState<string | null>(null);
 
-  const { data: product, isLoading, error } = useQuery({
+  const { data: product, isLoading, error, refetch } = useQuery({
     queryKey: ["product", "quick-view", productId],
     queryFn: () => fetchProduct(productId!),
     enabled: productId != null,
@@ -93,6 +93,15 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
     setCurrentSlide(api.selectedScrollSnap());
     api.on("select", () => setCurrentSlide(api.selectedScrollSnap()));
   }, []);
+
+  // The modal stays mounted (productId just toggles it open), so
+  // refetchOnMount fires only once on the grid's initial render. Refetch
+  // explicitly each time it opens so freshly-added variants/options show up
+  // without a hard reload (matters most for a product that had no variants
+  // until the seller added them - its stale payload would otherwise win).
+  useEffect(() => {
+    if (productId != null) refetch();
+  }, [productId, refetch]);
 
   // Jump to this variant's first media item when selection changes.
   useEffect(() => {

@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useTransition } from "react";
-import { usePathname } from "next/navigation";
+import { useNavigationGeneration } from "@/lib/navigation/navGeneration";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
+import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
+import { FieldChangedHint } from "@/components/forms/FieldChangedHint";
 import {
   Form,
   FormControl,
@@ -39,12 +41,13 @@ interface UserFormProps {
 
 export function UserForm({ userId, currentRole, onSuccess }: UserFormProps) {
   const t = useTranslations("users");
+  const tForm = useTranslations("form");
   const onInvalid = useInvalidToast();
   const [isPending, startTransition] = useTransition();
-  const pathname = usePathname();
+  const navGeneration = useNavigationGeneration();
 
   const form = useForm<UpdateUserRoleInput>({
-    mode: "onTouched",
+    mode: "onChange",
     resolver: useZodResolver(updateUserRoleSchema),
     defaultValues: { role: currentRole },
   });
@@ -53,10 +56,21 @@ export function UserForm({ userId, currentRole, onSuccess }: UserFormProps) {
   // Next.js can keep in memory via the Router Cache, so a Select change that
   // wasn't submitted would otherwise persist when the user leaves and returns.
   // RHF's `values` prop only reacts to value changes, not to navigation itself,
-  // so it can't cover this case when the server-supplied role is unchanged.
+  // so it can't cover this case when the server-supplied role is unchanged. The
+  // navigation-generation counter bumps on every path change, including a return
+  // to the same route (where `usePathname` is identical and so never fired).
   useEffect(() => {
     form.reset({ role: currentRole });
-  }, [pathname, currentRole, form]);
+    // Only on navigation - depending on `form`/`currentRole` re-ran this on
+    // every render and continuously wiped the dirty state (so Save never enabled
+    // and Discard never appeared).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navGeneration]);
+
+  useUnsavedChangesWarning(form.formState.isDirty);
+
+  const roleLabel = (role: unknown) =>
+    role === "USER" ? t("user") : role === "SELLER" ? t("seller") : t("admin");
 
   const onSubmit = (data: UpdateUserRoleInput) => {
     startTransition(async () => {
@@ -73,7 +87,7 @@ export function UserForm({ userId, currentRole, onSuccess }: UserFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6">
+      <form noValidate onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6">
         <FormField
           control={form.control}
           name="role"
@@ -110,15 +124,37 @@ export function UserForm({ userId, currentRole, onSuccess }: UserFormProps) {
                   ))}
                 </SelectContent>
               </Select>
+              <FieldChangedHint format={roleLabel} />
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <Button type="submit" disabled={isPending}>
-          {isPending && <Loader2 className="animate-spin" />}
-          {isPending ? t("saving") : t("updateRole")}
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Per-row discard: only while this user's role is actually changed,
+              so the list stays quiet. Reverts to the saved role. */}
+          {form.formState.isDirty && (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isPending}
+              onClick={() => form.reset({ role: currentRole })}
+            >
+              {tForm("discard")}
+            </Button>
+          )}
+          <Button
+            type="submit"
+            disabled={
+              isPending ||
+              !form.formState.isDirty ||
+              Object.keys(form.formState.errors).length > 0
+            }
+          >
+            {isPending && <Loader2 className="animate-spin" />}
+            {isPending ? t("saving") : t("updateRole")}
+          </Button>
+        </div>
       </form>
     </Form>
   );

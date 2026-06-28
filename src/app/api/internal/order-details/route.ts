@@ -171,20 +171,26 @@ export async function GET(request: NextRequest) {
   // config. For COD the seller collects the full cash and owes `commission` as a
   // FEE; `netPayout` is what they keep. Surfaced so the COD email can show it -
   // COD has no payout email where net would otherwise appear (card does).
+  // Per-seller delivery snapshot (orgId -> amount). Shipping goes to the seller
+  // in full (no platform fee), so it adds on top of their net items share.
+  const shippingByOrg = (order.shippingByOrg as Record<string, number> | null) ?? {};
   const sellers = [...sellerMap.values()].map((seller) => {
     const subtotal = seller.items.reduce((sum, it) => sum + it.price * it.quantity, 0);
+    const shipping = shippingByOrg[seller.orgId] ?? 0;
     return {
       ...seller,
       commission: platformFeeAmount(subtotal),
-      netPayout: sellerNetAmount(subtotal),
+      shipping,
+      netPayout: sellerNetAmount(subtotal) + shipping,
     };
   });
 
   return NextResponse.json({
     id: order.id,
-    // `total` is already net of any coupon discount.
+    // `total` is already net of any coupon discount; it includes shipping.
     total: Number(order.total),
     discountAmount: order.discountAmount,
+    shippingTotal: order.shippingTotal,
     couponCode: order.couponCode,
     locale: order.locale,
     currency: order.currency ?? "usd",

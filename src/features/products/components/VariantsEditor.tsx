@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { useWatch, type UseFormReturn } from "react-hook-form";
+import { useWatch, useFormState, type UseFormReturn } from "react-hook-form";
 import { Plus, X, RefreshCw, ImageOff } from "lucide-react";
 import Image from "next/image";
 import { toast } from "@/components/ui/sonner";
@@ -11,6 +11,9 @@ import { Input } from "@/components/ui/input";
 import { NumberStepper } from "@/components/ui/number-stepper";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ChangedHint } from "@/components/forms/ChangedHint";
+import { PriceInput } from "./PriceInput";
+import { useCurrencyStore } from "@/store/currency";
 import { cn } from "@/lib/utils";
 import { getLabel } from "@/features/attributes/utils/translations";
 import type { AttributeSelectorItem } from "@/features/attributes/db/attributes";
@@ -52,6 +55,7 @@ export function VariantsEditor({
 }) {
   const t = useTranslations("productForm");
   const locale = useLocale();
+  const { rates, currency } = useCurrencyStore();
 
   const categoryIdsRaw = useWatch({ control: form.control, name: "categoryIds" });
   const categoryIds = useMemo(
@@ -60,6 +64,19 @@ export function VariantsEditor({
   );
   const variants =
     (useWatch({ control: form.control, name: "variants" }) as VariantRow[] | undefined) ?? [];
+
+  // Per-variant field errors, so each row can surface its own validation message
+  // inline (the inputs aren't `<FormField>`-wrapped, so there's no FormMessage).
+  // Subscribed via useFormState so the editor re-renders when errors change.
+  const { errors } = useFormState({ control: form.control });
+  type VariantFieldErrors = Partial<
+    Record<keyof VariantRow, { message?: string } | undefined>
+  >;
+  const variantErrors = errors.variants as
+    | (VariantFieldErrors | undefined)[]
+    | undefined;
+  const errMsg = (i: number, field: keyof VariantRow) =>
+    variantErrors?.[i]?.[field]?.message;
 
   const parentOf = useMemo(() => indexTree(categoryTree), [categoryTree]);
 
@@ -79,7 +96,9 @@ export function VariantsEditor({
   }, [categoryIds, categoryAttributeMap, parentOf, attributeLibrary]);
 
   const writeVariants = (next: VariantRow[]) =>
-    form.setValue("variants", next, { shouldDirty: true });
+    // shouldValidate so an invalid variant field (e.g. negative stock) surfaces
+    // its error as soon as it's edited, instead of only on submit.
+    form.setValue("variants", next, { shouldDirty: true, shouldValidate: true });
 
   const setField = (i: number, patch: Partial<VariantRow>) => {
     const cur = [...(form.getValues("variants") ?? [])];
@@ -228,6 +247,17 @@ export function VariantsEditor({
     toast.success(t("generated", { count: next.length }));
   };
 
+  // Saved baseline per variant, keyed by its option signature, so each row can
+  // show its persisted SKU / price / stock when edited. The unified model keeps
+  // option combos unique, making the signature a stable key across reorders.
+  // Empty in create mode (no saved variants); added/new-combo rows have no match
+  // and therefore show no hint.
+  const savedBySig = new Map<string, Partial<VariantRow>>();
+  for (const sv of (form.formState.defaultValues?.variants ?? []) as Partial<VariantRow>[]) {
+    savedBySig.set(sigOf((sv.options ?? []) as VariantRow["options"]), sv);
+  }
+  const fmtUsd = (n: unknown) => `$${Number(n).toFixed(2)}`;
+
   return (
     <div className="space-y-4">
       <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b bg-background pt-4 pb-3">
@@ -311,7 +341,9 @@ export function VariantsEditor({
           {t("noVariants")}
         </p>
       ) : (
-        variants.map((v, i) => (
+        variants.map((v, i) => {
+          const saved = savedBySig.get(sigOf(v.options ?? []));
+          return (
           <div key={i} className="border rounded-md p-4 space-y-3 bg-background dark:bg-input/30">
             <div className="flex items-center justify-between">
               <div className="flex flex-wrap gap-1">
@@ -343,15 +375,30 @@ export function VariantsEditor({
                   value={v.sku}
                   onChange={(e) => setField(i, { sku: e.target.value })}
                 />
+                {errMsg(i, "sku") && (
+                  <p className="text-xs text-destructive">{errMsg(i, "sku")}</p>
+                )}
+                {saved?.sku != null && (
+                  <ChangedHint changed={saved.sku !== v.sku} savedText={saved.sku} />
+                )}
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium">{t("price")} (USD)</label>
-                <Input
-                  type="number"
-                  step="0.01"
+                <label className="text-xs font-medium">{t("price")}</label>
+                <PriceInput
                   value={v.price}
-                  onChange={(e) => setField(i, { price: parseFloat(e.target.value) || 0 })}
+                  onChange={(usd) => setField(i, { price: usd })}
+                  rates={rates}
+                  defaultCurrency={currency}
                 />
+                {errMsg(i, "price") && (
+                  <p className="text-xs text-destructive">{errMsg(i, "price")}</p>
+                )}
+                {saved?.price != null && (
+                  <ChangedHint
+                    changed={Number(saved.price) !== Number(v.price)}
+                    savedText={fmtUsd(saved.price)}
+                  />
+                )}
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium">{t("stock")}</label>
@@ -360,6 +407,15 @@ export function VariantsEditor({
                   value={v.stock}
                   onChange={(val) => setField(i, { stock: val ?? 0 })}
                 />
+                {errMsg(i, "stock") && (
+                  <p className="text-xs text-destructive">{errMsg(i, "stock")}</p>
+                )}
+                {saved?.stock != null && (
+                  <ChangedHint
+                    changed={Number(saved.stock) !== Number(v.stock)}
+                    savedText={String(saved.stock)}
+                  />
+                )}
               </div>
             </div>
 
@@ -408,7 +464,8 @@ export function VariantsEditor({
               )}
             </div>
           </div>
-        ))
+          );
+        })
       )}
     </div>
   );

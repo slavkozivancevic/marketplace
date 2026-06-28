@@ -107,7 +107,11 @@ export default async function OrgOrderDetailPage({ params }: Props) {
   const orgRefundGross = order.paymentTransactions
     .filter((tx) => tx.type === PaymentTransactionType.REFUND && tx.organizationId === ctx.organizationId)
     .reduce((sum, tx) => sum + tx.amount, 0);
-  const orgPayout = sellerNetAmount(order.orgSubtotal);
+  // Delivery this seller charged goes to them in full (no platform fee), on top
+  // of their net items share.
+  const orgShipping =
+    (order.shippingByOrg as Record<string, number> | null)?.[ctx.organizationId] ?? 0;
+  const orgPayout = sellerNetAmount(order.orgSubtotal) + orgShipping;
   const payoutReversed = sellerNetAmount(orgRefundGross);
   const netPayoutAfterRefunds = orgPayout - payoutReversed;
 
@@ -403,6 +407,14 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                     -{formatPrice(platformFeeAmount(order.orgSubtotal), order.currency as Currency)}
                   </span>
                 </div>
+                {orgShipping > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>{t("shippingCollected")}</span>
+                    <span className="tabular-nums">
+                      +{formatPrice(orgShipping, order.currency as Currency)}
+                    </span>
+                  </div>
+                )}
                 <div className={`flex justify-between ${orgRefundGross > 0 ? "text-muted-foreground" : "font-semibold"}`}>
                   <span>{t("yourPayout")}</span>
                   <span className="tabular-nums">

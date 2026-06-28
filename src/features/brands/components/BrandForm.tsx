@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { usePathname } from "next/navigation";
+import { useNavigationGeneration } from "@/lib/navigation/navGeneration";
 import { useLocale, useTranslations } from "next-intl";
 import { Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
+import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
+import { FormSaveBar } from "@/components/forms/FormSaveBar";
+import { FieldChangedHint, ChangedHintScope } from "@/components/forms/FieldChangedHint";
 import {
   Form,
   FormControl,
@@ -79,7 +82,7 @@ function PerLocaleSection({
     if (slugManuallyEdited) return;
     if (nameValue === prevNameRef.current) return;
     prevNameRef.current = nameValue;
-    form.setValue(slugPath, slugify(nameValue ?? ""), { shouldDirty: false });
+    form.setValue(slugPath, slugify(nameValue ?? ""), { shouldDirty: true });
   }, [nameValue, slugManuallyEdited, form, slugPath]);
 
   return (
@@ -101,6 +104,7 @@ function PerLocaleSection({
                 value={field.value ?? ""}
               />
             </FormControl>
+            <FieldChangedHint />
             <FormMessage />
           </FormItem>
         )}
@@ -147,6 +151,7 @@ function PerLocaleSection({
                 excludeId={excludeId}
               />
             </div>
+            <FieldChangedHint />
             <FormMessage />
           </FormItem>
         )}
@@ -166,6 +171,7 @@ function PerLocaleSection({
                 value={field.value ?? ""}
               />
             </FormControl>
+            <FieldChangedHint />
             <FormMessage />
           </FormItem>
         )}
@@ -258,7 +264,25 @@ type EditMode = {
 
 type BrandFormProps = CreateMode | EditMode;
 
+/**
+ * Discard wrapper. With RHF's `values` prop in play, `form.reset()` can leave
+ * `isDirty` spuriously true after the reset (the value re-sync re-flags the form
+ * dirty with an empty `dirtyFields`), so the save bar never clears. Instead of
+ * fighting that, "Discard" remounts the form via a bumped key: a fresh mount
+ * re-reads the saved baseline and is reliably clean.
+ */
 export function BrandForm(props: BrandFormProps) {
+  const [discardKey, setDiscardKey] = useState(0);
+  return (
+    <BrandFormInner
+      key={discardKey}
+      {...props}
+      onDiscard={() => setDiscardKey((k) => k + 1)}
+    />
+  );
+}
+
+function BrandFormInner(props: BrandFormProps & { onDiscard: () => void }) {
   const t = useTranslations("brands");
   const onInvalid = useInvalidToast();
   const locale = useLocale();
@@ -280,12 +304,12 @@ export function BrandForm(props: BrandFormProps) {
     [props.defaultValues],
   );
 
-  const pathname = usePathname();
+  const navGeneration = useNavigationGeneration();
 
   const form = useForm<CreateBrandInput>({
-    // Validate on blur, then keep validating on change, so the error message
-    // tracks the current value instead of lagging a keystroke behind.
-    mode: "onTouched",
+    // Validate on every change so errors surface immediately and `hasErrors`
+    // can gate the save button (consistent across all admin forms).
+    mode: "onChange",
     resolver: useZodResolver(props.mode === "create" ? createBrandSchema : updateBrandSchema),
     defaultValues: derivedValues,
     // In edit mode, re-sync the form when the underlying brand changes
@@ -296,11 +320,14 @@ export function BrandForm(props: BrandFormProps) {
 
   // Create mode has no server-supplied `values` to re-sync against, so a
   // half-filled form would otherwise survive when the user leaves and returns
-  // (Next.js keeps the route's React tree warm). Reset to empty on entry.
+  // (Next.js keeps the route's React tree warm). Reset to empty on entry. Keyed
+  // on the navigation-generation counter, which bumps on every path change -
+  // including returning to the same route (`usePathname` stays identical there
+  // and so never fired the reset).
   useEffect(() => {
     if (props.mode === "create") form.reset(derivedValues);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [navGeneration]);
 
   const nameValue = useWatch({ control: form.control, name: "name" });
   const descriptionValue = useWatch({ control: form.control, name: "description" });
@@ -342,8 +369,14 @@ export function BrandForm(props: BrandFormProps) {
     if (slugManuallyEdited) return;
     if (nameValue === prevNameRef.current) return;
     prevNameRef.current = nameValue;
-    form.setValue("slug", slugify(nameValue ?? ""), { shouldDirty: false });
+    form.setValue("slug", slugify(nameValue ?? ""), { shouldDirty: true });
   }, [nameValue, slugManuallyEdited, form]);
+
+  useUnsavedChangesWarning(props.mode === "edit" && form.formState.isDirty);
+
+  // Block saving while any field is invalid (error-based, so a freshly-loaded
+  // valid brand isn't disabled before the first validation runs).
+  const hasErrors = Object.keys(form.formState.errors).length > 0;
 
   const onSubmit = (data: CreateBrandInput | UpdateBrandInput) => {
     startTransition(async () => {
@@ -358,9 +391,19 @@ export function BrandForm(props: BrandFormProps) {
     });
   };
 
+  const backdropFmt = (v: unknown) =>
+    v === "LIGHT"
+      ? t("logoBackdropLight")
+      : v === "DARK"
+        ? t("logoBackdropDark")
+        : v === "NEUTRAL"
+          ? t("logoBackdropNeutral")
+          : t("logoBackdropAuto");
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6 max-w-2xl">
+      <ChangedHintScope enabled={props.mode === "edit"}>
+      <form noValidate onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6 max-w-2xl">
         {/* ── Default locale (canonical) ── */}
         <div className="rounded-lg border border-border/60 p-4 space-y-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -376,6 +419,7 @@ export function BrandForm(props: BrandFormProps) {
                 <FormControl>
                   <Input placeholder={withEgPrefix(locale, BRAND_EXAMPLES.name[DEFAULT_LOCALE])} {...field} />
                 </FormControl>
+                <FieldChangedHint />
                 <FormMessage />
               </FormItem>
             )}
@@ -395,6 +439,7 @@ export function BrandForm(props: BrandFormProps) {
                     value={field.value ?? ""}
                   />
                 </FormControl>
+                <FieldChangedHint />
                 <FormMessage />
               </FormItem>
             )}
@@ -454,6 +499,7 @@ export function BrandForm(props: BrandFormProps) {
                   excludeId={props.mode === "edit" ? props.brandId : undefined}
                 />
               </div>
+              <FieldChangedHint />
               <FormMessage />
             </FormItem>
           )}
@@ -497,6 +543,7 @@ export function BrandForm(props: BrandFormProps) {
                   <Input placeholder={t("logoPlaceholder")} {...field} value={field.value ?? ""} />
                 </FormControl>
                 <FormDescription>{t("logoDesc")}</FormDescription>
+                <FieldChangedHint />
                 <FormMessage />
               </FormItem>
             )}
@@ -526,6 +573,7 @@ export function BrandForm(props: BrandFormProps) {
                   </SelectContent>
                 </Select>
                 <FormDescription>{t("logoBackdropDesc")}</FormDescription>
+                <FieldChangedHint format={backdropFmt} />
                 <FormMessage />
               </FormItem>
             )}
@@ -541,6 +589,7 @@ export function BrandForm(props: BrandFormProps) {
                   <Input placeholder={t("logoPlaceholder")} {...field} value={field.value ?? ""} />
                 </FormControl>
                 <FormDescription>{t("logoUrlDarkDesc")}</FormDescription>
+                <FieldChangedHint />
                 <FormMessage />
               </FormItem>
             )}
@@ -570,25 +619,35 @@ export function BrandForm(props: BrandFormProps) {
                   </SelectContent>
                 </Select>
                 <FormDescription>{t("logoBackdropForDarkDesc")}</FormDescription>
+                <FieldChangedHint format={backdropFmt} />
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
 
-        <Button type="submit" disabled={isPending} className="min-w-32">
-          {isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {props.mode === "edit" ? t("saving") : t("creating")}
-            </>
-          ) : props.mode === "edit" ? (
-            t("saveChanges")
-          ) : (
-            t("create")
-          )}
-        </Button>
+        {props.mode === "edit" ? (
+          <FormSaveBar
+            isDirty={form.formState.isDirty}
+            isPending={isPending}
+            onDiscard={props.onDiscard}
+            saveLabel={t("saveChanges")}
+            saveDisabled={hasErrors}
+          />
+        ) : (
+          <Button type="submit" disabled={isPending || hasErrors} className="min-w-32">
+            {isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {t("creating")}
+              </>
+            ) : (
+              t("create")
+            )}
+          </Button>
+        )}
       </form>
+      </ChangedHintScope>
     </Form>
   );
 }

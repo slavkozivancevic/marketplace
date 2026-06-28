@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getLocale } from "next-intl/server";
 import { AdminHeader } from "@/components/layout/admin-header";
 import { AdminSidebar } from "@/components/layout/admin-sidebar";
+import { UnsavedChangesGuard } from "@/components/forms/UnsavedChangesGuard";
 import { requireRole } from "@/lib/auth/requireRole";
 
 export default async function AdminLayout({
@@ -25,6 +26,7 @@ export default async function AdminLayout({
           {children}
         </main>
       </div>
+      <UnsavedChangesGuard />
     </div>
   );
 }

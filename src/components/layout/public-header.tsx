@@ -16,6 +16,13 @@ import { cn } from "@/lib/utils";
 
 interface PublicHeaderProps {
   showAdminLink?: boolean;
+  /**
+   * Server-resolved auth state (from `auth()` in the layout). Used as the
+   * authoritative value for auth-gated links until clerk-js finishes its
+   * client-side session handshake - so the links are in the SSR HTML (under
+   * the boot loader) instead of popping in a second after the loader lifts.
+   */
+  signedIn?: boolean;
 }
 
 interface NavLink {
@@ -24,21 +31,30 @@ interface NavLink {
   authGated?: boolean;
 }
 
-export function PublicHeader({ showAdminLink = false }: PublicHeaderProps) {
+export function PublicHeader({
+  showAdminLink = false,
+  signedIn = false,
+}: PublicHeaderProps) {
   const t = useTranslations();
-  const { isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   // mounted + useAuth pattern: avoids a hydration mismatch (SSR may know the
   // session while the first client render, before clerk-js loads, does not).
-  // Reading `isSignedIn` from the same `useAuth()` hook the boot loader
-  // (<ClerkGate>) gates on means these auth-only links resolve in the exact
-  // same render commit the loader reveals on - no post-loader pop-in.
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
+
+  // Clerk resolves auth in two steps on a cold load: `isLoaded` flips true
+  // (clerk-js mounted) before `isSignedIn` settles true (session handshake).
+  // The boot loader (<ClerkGate>) only waits for `isLoaded`, so gating these
+  // links on the live `isSignedIn` made them pop in ~1s after the loader
+  // lifted. Until Clerk is fully loaded we trust the server-rendered
+  // `signedIn` prop (identical on SSR and first client render, so no
+  // hydration mismatch), then switch to the live value once it's settled.
+  const effectiveSignedIn = mounted && isLoaded ? isSignedIn : signedIn;
 
   const baseNavLinks: NavLink[] = [
     { href: "/products", label: t("nav.products") },
@@ -104,7 +120,7 @@ export function PublicHeader({ showAdminLink = false }: PublicHeaderProps) {
                   </Link>
                 );
                 if (!link.authGated) return linkEl;
-                if (!mounted || !isSignedIn) return null;
+                if (!effectiveSignedIn) return null;
                 return linkEl;
               })}
             </nav>
@@ -112,13 +128,13 @@ export function PublicHeader({ showAdminLink = false }: PublicHeaderProps) {
             {/* Right side actions - flex-1 right rail mirrors the left */}
             <div className="flex flex-1 items-center justify-end gap-1 sm:gap-2">
               <PreferencesPopover />
-              <ChatDrawerTrigger />
+              <ChatDrawerTrigger signedIn={signedIn} />
               {/* Always visible - count is 0 (query disabled) when signed out,
                   and clicking through to /wishlist redirects guests to sign-in. */}
               <WishlistHeaderButton />
               <CartButton />
               <div className="hidden sm:flex items-center gap-2 ml-1">
-                <HeaderAuth mode="modal" showDashboardLink={false} />
+                <HeaderAuth mode="modal" showDashboardLink={false} signedIn={signedIn} />
               </div>
               {/* Mobile menu button */}
               <Button
@@ -161,7 +177,7 @@ export function PublicHeader({ showAdminLink = false }: PublicHeaderProps) {
               return linkEl;
             })}
             <div className="pt-2 px-3 sm:hidden">
-              <HeaderAuth mode="modal" showDashboardLink={false} />
+              <HeaderAuth mode="modal" showDashboardLink={false} signedIn={signedIn} />
             </div>
           </div>
         </div>

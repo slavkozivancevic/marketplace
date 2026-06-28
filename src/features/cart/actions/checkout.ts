@@ -14,6 +14,7 @@ import { VALID_CURRENCIES, type Currency } from "@/lib/currency-config";
 import { asLocale } from "@/i18n/config";
 import { getPathname } from "@/i18n/navigation";
 import { validateCoupon } from "@/features/coupons/db/coupons";
+import { cartShippingLines } from "@/features/shipping/db/shipping";
 import { CouponType } from "@/generated/prisma/client";
 import type Stripe from "stripe";
 
@@ -191,11 +192,42 @@ export async function createCheckoutSession(
       }
     }
 
+    // Per-seller delivery: a single Stripe shipping rate (sum of each org's fee),
+    // added on top of the line items - Stripe coupons only discount line items,
+    // so shipping is never reduced. Snapshot the per-org split for payouts via
+    // metadata; the webhook stores it on the order.
+    const shipLines = await cartShippingLines(items);
+    const shippingByOrg: Record<string, number> = {};
+    let shippingTotal = 0;
+    for (const l of shipLines) {
+      if (l.shippingUsd > 0) {
+        const c = convertCents(l.shippingUsd, currency, exchangeRate);
+        shippingByOrg[l.orgId] = c;
+        shippingTotal += c;
+      }
+    }
+    const tCheckout = await getTranslations("checkout");
+    const shippingMeta: Record<string, string> =
+      shippingTotal > 0
+        ? { shippingTotal: String(shippingTotal), shippingByOrg: JSON.stringify(shippingByOrg) }
+        : {};
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: lineItems,
       customer_email: user.email,
       ...(discounts && { discounts }),
+      ...(shippingTotal > 0 && {
+        shipping_options: [
+          {
+            shipping_rate_data: {
+              type: "fixed_amount",
+              fixed_amount: { amount: shippingTotal, currency },
+              display_name: tCheckout("shipping"),
+            },
+          },
+        ],
+      }),
       ...(needsShipping && {
         shipping_address_collection: {
           allowed_countries: ["US", "CA", "GB", "DE", "FR", "AU", "NL", "SE", "NO", "DK", "FI", "IT", "ES", "PT", "BE", "AT", "CH", "PL", "RS", "HR", "BA", "ME", "SI", "MK", "AL"],
@@ -207,6 +239,7 @@ export async function createCheckoutSession(
         currency,
         exchangeRate: String(exchangeRate),
         ...couponMeta,
+        ...shippingMeta,
         items: JSON.stringify(
           items.map((i) => ({
             productId: i.productId,

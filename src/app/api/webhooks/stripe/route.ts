@@ -51,6 +51,13 @@ export async function POST(req: Request) {
         const exchangeRate = parseFloat(session.metadata?.exchangeRate ?? "1");
         const couponId = session.metadata?.couponId;
         const couponCode = session.metadata?.couponCode;
+        // Delivery snapshot from checkout (order currency). amount_total already
+        // includes shipping (Stripe shipping rate); these let fulfillOrder split
+        // the per-seller share and back out the items discount.
+        const shippingTotal = parseInt(session.metadata?.shippingTotal ?? "0", 10) || 0;
+        const shippingByOrg = session.metadata?.shippingByOrg
+          ? (JSON.parse(session.metadata.shippingByOrg) as Record<string, number>)
+          : undefined;
 
         if (!userId || !itemsJson) {
           console.error("Missing metadata in checkout session", session.id);
@@ -95,6 +102,8 @@ export async function POST(req: Request) {
             locale,
             couponId,
             couponCode,
+            shippingTotal,
+            shippingByOrg,
           });
           console.log("Order fulfilled for session:", session.id);
         } catch (fulfillError) {

@@ -119,6 +119,20 @@ export async function updateMemberRole(
   };
 }
 
+/** Per-seller delivery rule. Both values in USD base cents; threshold null =
+ *  never free. */
+export async function updateOrganizationShipping(
+  id: string,
+  data: { shippingFlatRate: number; shippingFreeThreshold: number | null },
+) {
+  const updated = await prisma.organization.update({
+    where: { id },
+    data,
+  });
+  revalidateOrganizationCache(id);
+  return updated;
+}
+
 export async function updateOrganizationName(id: string, name: string) {
   const organization = await prisma.organization.findUnique({
     where: { id },

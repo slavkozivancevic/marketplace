@@ -284,7 +284,7 @@ export async function releaseSellerPayout({
 }): Promise<void> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { paymentMethod: true, currency: true, locale: true },
+    select: { paymentMethod: true, currency: true, locale: true, shippingByOrg: true },
   });
   if (!order || order.paymentMethod !== PaymentMethod.STRIPE) return;
   const currency = order.currency;
@@ -303,7 +303,11 @@ export async function releaseSellerPayout({
     select: { price: true, quantity: true },
   });
   const subtotal = items.reduce((s, it) => s + it.price * it.quantity, 0);
-  const net = sellerNetAmount(subtotal);
+  // Delivery this seller charged the buyer goes to the seller in full (no
+  // platform fee), on top of their net items share.
+  const shippingByOrg = (order.shippingByOrg as Record<string, number> | null) ?? {};
+  const orgShipping = shippingByOrg[organizationId] ?? 0;
+  const net = sellerNetAmount(subtotal) + orgShipping;
   if (net <= 0) return;
 
   const account = await prisma.connectedAccount.findUnique({

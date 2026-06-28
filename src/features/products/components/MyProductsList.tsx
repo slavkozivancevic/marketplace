@@ -13,7 +13,7 @@ import { SerializedProductListItem } from "@/types/types";
 import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
 import type { MyProductFilters } from "@/lib/query/searchParams";
-import { useCurrencyStore } from "@/store/currency";
+import { useCurrencyStore, getCurrentRate } from "@/store/currency";
 
 function buildFetcher(filters: MyProductFilters) {
   return async ({
@@ -21,7 +21,7 @@ function buildFetcher(filters: MyProductFilters) {
   }: {
     pageParam: string | undefined;
   }): Promise<InfinitePage<SerializedProductListItem>> => {
-    const rate = useCurrencyStore.getState().currentRate();
+    const rate = getCurrentRate();
     const params = new URLSearchParams();
     params.set("take", String(LIST_PAGE_SIZE));
     if (pageParam) params.set("cursor", pageParam);

@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { getBrandName } from "@/features/brands/utils/translations";
 import { useQueryStates } from "nuqs";
-import { useCurrencyStore } from "@/store/currency";
+import { useCurrencyStore, getCurrentRate } from "@/store/currency";
 import { getCurrencyConfig } from "@/lib/currency";
 import {
   myProductSearchParams,
@@ -72,7 +72,7 @@ export function MyProductsPage({
       currency,
     ],
     queryFn: async () => {
-      const rate = useCurrencyStore.getState().currentRate();
+      const rate = getCurrentRate();
       const sp = new URLSearchParams();
       if (search) sp.set("search", search);
       for (const s of params.status) sp.append("status", s);

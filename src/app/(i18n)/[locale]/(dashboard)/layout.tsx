@@ -5,6 +5,7 @@ import { cacheTag } from "next/cache";
 
 import { Header } from "@/components/layout/header";
 import { DashboardSidebar } from "@/components/layout/dashboard-sidebar";
+import { UnsavedChangesGuard } from "@/components/forms/UnsavedChangesGuard";
 import { CacheTags } from "@/lib/cache/tags";
 import { prisma } from "@/core/db/prisma";
 
@@ -39,6 +40,7 @@ export default async function DashboardLayout({
           {children}
         </main>
       </div>
+      <UnsavedChangesGuard />
     </div>
   );
 }

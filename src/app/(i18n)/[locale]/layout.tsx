@@ -4,6 +4,7 @@ import "../../globals.css";
 import { Geist } from "next/font/google";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
 import { setRequestLocale } from "next-intl/server";
 import { cacheTag } from "next/cache";
@@ -140,14 +141,18 @@ async function LocaleDataProviders({
   locale: string;
   children: React.ReactNode;
 }) {
-  const [messages, rates] = await Promise.all([
+  const [messages, rates, cookieStore] = await Promise.all([
     loadMessages(locale),
     fetchCurrencyRates(),
+    cookies(),
   ]);
+  const initialCurrency = cookieStore.get("NEXT_CURRENCY")?.value;
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
-      <CurrencyRatesProvider rates={rates}>{children}</CurrencyRatesProvider>
+      <CurrencyRatesProvider rates={rates} initialCurrency={initialCurrency}>
+        {children}
+      </CurrencyRatesProvider>
     </NextIntlClientProvider>
   );
 }

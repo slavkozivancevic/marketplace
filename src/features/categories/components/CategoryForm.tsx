@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { usePathname } from "next/navigation";
+import { useNavigationGeneration } from "@/lib/navigation/navGeneration";
 import { useTranslations } from "next-intl";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
+import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
+import { useBoolFormat } from "@/lib/forms/changedFormatters";
+import { FormSaveBar } from "@/components/forms/FormSaveBar";
+import { FieldChangedHint, ChangedHintScope } from "@/components/forms/FieldChangedHint";
 import {
   Form,
   FormControl,
@@ -82,7 +86,7 @@ function PerLocaleSection({
     if (slugManuallyEdited) return;
     if (nameValue === prevNameRef.current) return;
     prevNameRef.current = nameValue;
-    form.setValue(slugPath, slugify(nameValue ?? ""), { shouldDirty: false });
+    form.setValue(slugPath, slugify(nameValue ?? ""), { shouldDirty: true });
   }, [nameValue, slugManuallyEdited, form, slugPath]);
 
   return (
@@ -104,6 +108,7 @@ function PerLocaleSection({
                 value={field.value ?? ""}
               />
             </FormControl>
+            <FieldChangedHint />
             <FormMessage />
           </FormItem>
         )}
@@ -150,6 +155,7 @@ function PerLocaleSection({
                 excludeId={excludeId}
               />
             </div>
+            <FieldChangedHint />
             <FormMessage />
           </FormItem>
         )}
@@ -169,6 +175,7 @@ function PerLocaleSection({
                 value={field.value ?? ""}
               />
             </FormControl>
+            <FieldChangedHint />
             <FormMessage />
           </FormItem>
         )}
@@ -208,10 +215,29 @@ type CategoryFormProps = (CreateMode | EditMode) & {
   categoryAttributeMap: Record<string, string[]>;
 };
 
+/**
+ * Discard wrapper. react-hook-form's `reset()` leaves `isDirty` spuriously true
+ * when a `useFieldArray` (the attributes editor) is mounted - the array
+ * re-registers after the reset and re-flags the form dirty, so the save bar
+ * never clears. Instead of fighting that, "Discard" remounts the form via a
+ * bumped key: a fresh mount re-reads the saved baseline and is reliably clean.
+ */
 export function CategoryForm(props: CategoryFormProps) {
+  const [discardKey, setDiscardKey] = useState(0);
+  return (
+    <CategoryFormInner
+      key={discardKey}
+      {...props}
+      onDiscard={() => setDiscardKey((k) => k + 1)}
+    />
+  );
+}
+
+function CategoryFormInner(props: CategoryFormProps & { onDiscard: () => void }) {
   const t = useTranslations("adminCategories");
   const onInvalid = useInvalidToast();
   const locale = useLocale();
+  const boolFmt = useBoolFormat();
   const [isPending, startTransition] = useTransition();
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 
@@ -232,11 +258,12 @@ export function CategoryForm(props: CategoryFormProps) {
     [props.defaultValues],
   );
 
-  const pathname = usePathname();
+  const navGeneration = useNavigationGeneration();
 
   const form = useForm<CategoryInput>({
-    // Validate on blur, then on change, so the message tracks the current value.
-    mode: "onTouched",
+    // Validate on every change so errors surface immediately and `hasErrors`
+    // can gate the save button (consistent across all admin forms).
+    mode: "onChange",
     resolver: useZodResolver(categorySchema),
     defaultValues: derivedValues,
     // In edit mode, re-sync the form when the underlying category changes
@@ -246,11 +273,14 @@ export function CategoryForm(props: CategoryFormProps) {
   });
 
   // Create mode has no server `values` to re-sync against; reset to empty on
-  // entry so a half-filled form doesn't survive leave-and-return.
+  // entry so a half-filled form doesn't survive leave-and-return. Keyed on the
+  // navigation-generation counter, which bumps on every path change - including
+  // returning to the same route (`usePathname` stays identical there and so
+  // never fired the reset).
   useEffect(() => {
     if (props.mode === "create") form.reset(derivedValues);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [navGeneration]);
 
   const nameValue = useWatch({ control: form.control, name: "name" });
   const descriptionValue = useWatch({ control: form.control, name: "description" });
@@ -262,8 +292,14 @@ export function CategoryForm(props: CategoryFormProps) {
     if (slugManuallyEdited) return;
     if (nameValue === prevNameRef.current) return;
     prevNameRef.current = nameValue;
-    form.setValue("slug", slugify(nameValue ?? ""), { shouldDirty: false });
+    form.setValue("slug", slugify(nameValue ?? ""), { shouldDirty: true });
   }, [nameValue, slugManuallyEdited, form]);
+
+  useUnsavedChangesWarning(props.mode === "edit" && form.formState.isDirty);
+
+  // Block saving while any field is invalid (error-based, so a freshly-loaded
+  // valid category isn't disabled before the first validation runs).
+  const hasErrors = Object.keys(form.formState.errors).length > 0;
 
   const onSubmit = (data: CategoryInput) => {
     startTransition(async () => {
@@ -287,7 +323,8 @@ export function CategoryForm(props: CategoryFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6 max-w-2xl">
+      <ChangedHintScope enabled={props.mode === "edit"}>
+      <form noValidate onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6 max-w-2xl">
 
         {/* ── Default locale (canonical) ── */}
         <div className="rounded-lg border border-border/60 p-4 space-y-4">
@@ -304,6 +341,7 @@ export function CategoryForm(props: CategoryFormProps) {
                 <FormControl>
                   <Input placeholder={withEgPrefix(locale, CATEGORY_EXAMPLES.name[DEFAULT_LOCALE])} {...field} />
                 </FormControl>
+                <FieldChangedHint />
                 <FormMessage />
               </FormItem>
             )}
@@ -323,6 +361,7 @@ export function CategoryForm(props: CategoryFormProps) {
                     value={field.value ?? ""}
                   />
                 </FormControl>
+                <FieldChangedHint />
                 <FormMessage />
               </FormItem>
             )}
@@ -383,6 +422,7 @@ export function CategoryForm(props: CategoryFormProps) {
                   excludeId={props.mode === "edit" ? props.categoryId : undefined}
                 />
               </div>
+              <FieldChangedHint />
               <FormMessage />
             </FormItem>
           )}
@@ -445,6 +485,12 @@ export function CategoryForm(props: CategoryFormProps) {
                 </SelectContent>
               </Select>
               <FormDescription>{t("parentDesc")}</FormDescription>
+              <FieldChangedHint
+                format={(v) => {
+                  const opt = props.parentOptions.find((o) => o.id === v);
+                  return opt ? getCategoryName(opt, locale) : t("noParent");
+                }}
+              />
               <FormMessage />
             </FormItem>
           )}
@@ -465,6 +511,7 @@ export function CategoryForm(props: CategoryFormProps) {
                 />
               </FormControl>
               <FormDescription>{t("imageUrlDesc")}</FormDescription>
+              <FieldChangedHint />
               <FormMessage />
             </FormItem>
           )}
@@ -487,6 +534,7 @@ export function CategoryForm(props: CategoryFormProps) {
                 />
               </FormControl>
               <FormDescription>{t("orderDesc")}</FormDescription>
+              <FieldChangedHint />
               <FormMessage />
             </FormItem>
           )}
@@ -497,17 +545,20 @@ export function CategoryForm(props: CategoryFormProps) {
           control={form.control}
           name="isActive"
           render={({ field }) => (
-            <FormItem className="flex items-center justify-between rounded-lg border p-4">
-              <div>
-                <FormLabel className="text-base">{t("isActive")}</FormLabel>
-                <FormDescription>{t("isActiveDesc")}</FormDescription>
+            <FormItem className="rounded-lg border p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <FormLabel className="text-base">{t("isActive")}</FormLabel>
+                  <FormDescription>{t("isActiveDesc")}</FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
               </div>
-              <FormControl>
-                <Switch
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
+              <FieldChangedHint format={boolFmt} />
             </FormItem>
           )}
         />
@@ -518,17 +569,20 @@ export function CategoryForm(props: CategoryFormProps) {
             control={form.control}
             name="isFeatured"
             render={({ field }) => (
-              <FormItem className="flex items-center justify-between rounded-lg border p-4 border-amber-500/30 bg-amber-500/5">
-                <div>
-                  <FormLabel className="text-base">{t("isFeatured")}</FormLabel>
-                  <FormDescription>{t("isFeaturedDesc")}</FormDescription>
+              <FormItem className="rounded-lg border p-4 border-amber-500/30 bg-amber-500/5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <FormLabel className="text-base">{t("isFeatured")}</FormLabel>
+                    <FormDescription>{t("isFeaturedDesc")}</FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
                 </div>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
+                <FieldChangedHint format={boolFmt} />
               </FormItem>
             )}
           />
@@ -542,19 +596,28 @@ export function CategoryForm(props: CategoryFormProps) {
           parentOptions={props.parentOptions}
         />
 
-        <Button type="submit" disabled={isPending} className="min-w-32">
-          {isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {props.mode === "edit" ? t("saving") : t("creating")}
-            </>
-          ) : props.mode === "edit" ? (
-            t("saveChanges")
-          ) : (
-            t("create")
-          )}
-        </Button>
+        {props.mode === "edit" ? (
+          <FormSaveBar
+            isDirty={form.formState.isDirty}
+            isPending={isPending}
+            onDiscard={props.onDiscard}
+            saveLabel={t("saveChanges")}
+            saveDisabled={hasErrors}
+          />
+        ) : (
+          <Button type="submit" disabled={isPending || hasErrors} className="min-w-32">
+            {isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {t("creating")}
+              </>
+            ) : (
+              t("create")
+            )}
+          </Button>
+        )}
       </form>
+      </ChangedHintScope>
     </Form>
   );
 }

@@ -1,5 +1,8 @@
 import { prisma } from "@/core/db/prisma";
 import { Prisma, CouponType } from "@/generated/prisma/client";
+import { resolveCart, type CartItemRef } from "@/features/cart/db/resolveCart";
+
+export type { CartItemRef };
 
 export type Coupon = {
   id: string;
@@ -20,30 +23,14 @@ export type CouponValidation =
   | { ok: true; couponId: string; code: string; type: CouponType; value: number; discountUsd: number }
   | { ok: false; reason: CouponInvalidReason; minOrder?: number };
 
-export type CartItemRef = { productId: string; variantId: string | null; quantity: number };
-
 /** Sum of a cart's item prices in USD base cents - the basis for coupon math.
- *  Prices are read from the DB (never trusted from the client). */
+ *  Delegates to {@link resolveCart} so coupon eligibility is computed against the
+ *  exact same purchasable subtotal as shipping, the order summary and checkout.
+ *  Stale lines are excluded (and surfaced to the client by the resolver) rather
+ *  than silently counted as zero. */
 export async function cartSubtotalUsd(items: CartItemRef[]): Promise<number> {
-  const variantIds = items.filter((i) => i.variantId).map((i) => i.variantId!);
-  const productIds = items.filter((i) => !i.variantId).map((i) => i.productId);
-  const [variants, products] = await Promise.all([
-    variantIds.length
-      ? prisma.productVariant.findMany({ where: { id: { in: variantIds } }, select: { id: true, price: true } })
-      : [],
-    productIds.length
-      ? prisma.product.findMany({ where: { id: { in: productIds } }, select: { id: true, price: true } })
-      : [],
-  ]);
-  const variantPrice = new Map(variants.map((v) => [v.id, Number(v.price)]));
-  const productPrice = new Map(products.map((p) => [p.id, Number(p.price)]));
-
-  let subtotal = 0;
-  for (const it of items) {
-    const unit = it.variantId ? variantPrice.get(it.variantId) : productPrice.get(it.productId);
-    if (unit != null) subtotal += unit * it.quantity;
-  }
-  return subtotal;
+  const { subtotalUsd } = await resolveCart(items);
+  return subtotalUsd;
 }
 
 /** Discount (USD base cents) a coupon yields on a given subtotal. Never exceeds

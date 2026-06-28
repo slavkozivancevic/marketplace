@@ -47,7 +47,7 @@ import { deleteCouponAction, duplicateCouponAction } from "../actions/coupons";
 
 const ALL = "__all__";
 const GRID =
-  "grid grid-cols-[minmax(120px,1.2fr)_minmax(90px,0.9fr)_minmax(100px,1fr)_minmax(80px,0.8fr)_minmax(110px,1fr)_minmax(90px,0.8fr)_120px] items-center gap-4";
+  "grid grid-cols-[minmax(120px,1.2fr)_minmax(90px,0.9fr)_minmax(100px,1fr)_minmax(130px,1.1fr)_minmax(110px,1fr)_minmax(90px,0.8fr)_120px] items-center gap-4";
 
 function buildFetcher(f: CouponFilters) {
   return async ({ pageParam }: { pageParam: string | undefined }): Promise<InfinitePage<CouponListItem>> => {
@@ -193,15 +193,16 @@ function Row({
     <div role="row" className={cn(GRID, "border-b px-3 py-2.5 text-sm min-w-fit")}>
       <div className="font-mono font-medium truncate">{c.code}</div>
       <div>{c.type === "PERCENT" ? `${c.value}%` : conv(c.value)}</div>
-      <div className="tabular-nums">{c.minOrder != null ? conv(c.minOrder) : "—"}</div>
       <div className="tabular-nums">
-        {c.usageCount}
-        {c.usageLimit != null ? ` / ${c.usageLimit}` : ""}
+        {c.minOrder != null ? conv(c.minOrder) : t("form.none")}
+      </div>
+      <div className="tabular-nums whitespace-nowrap">
+        {c.usageCount} / {c.usageLimit != null ? c.usageLimit : t("form.unlimited")}
       </div>
       <div className="text-muted-foreground">
         {c.expiresAt
           ? new Date(c.expiresAt).toLocaleDateString(dl, { year: "numeric", month: "short", day: "numeric" })
-          : "—"}
+          : t("form.noExpiry")}
       </div>
       <div>
         <Badge variant={c.active ? "default" : "secondary"}>

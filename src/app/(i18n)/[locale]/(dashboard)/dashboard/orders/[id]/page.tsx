@@ -377,16 +377,25 @@ export default async function OrderDetailPage({
 
             <Separator className="my-4" />
             <div className="space-y-1.5">
-              {order.discountAmount > 0 && (
+              {(order.discountAmount > 0 || order.shippingTotal > 0) && (
                 <>
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>{t("orders.subtotal")}</span>
-                    <span>{formatPrice(order.total + order.discountAmount, order.currency as Currency)}</span>
+                    {/* total = (items - discount) + shipping, so items = total + discount - shipping */}
+                    <span>{formatPrice(order.total + order.discountAmount - order.shippingTotal, order.currency as Currency)}</span>
                   </div>
-                  <div className="flex justify-between text-sm text-emerald-600">
-                    <span>{t("orders.discount")}{order.couponCode ? ` (${order.couponCode})` : ""}</span>
-                    <span>-{formatPrice(order.discountAmount, order.currency as Currency)}</span>
-                  </div>
+                  {order.discountAmount > 0 && (
+                    <div className="flex justify-between text-sm text-emerald-600">
+                      <span>{t("orders.discount")}{order.couponCode ? ` (${order.couponCode})` : ""}</span>
+                      <span>-{formatPrice(order.discountAmount, order.currency as Currency)}</span>
+                    </div>
+                  )}
+                  {order.shippingTotal > 0 && (
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>{t("orders.shipping")}</span>
+                      <span>{formatPrice(order.shippingTotal, order.currency as Currency)}</span>
+                    </div>
+                  )}
                 </>
               )}
               {/* When items were refunded, "Your total" becomes the order's

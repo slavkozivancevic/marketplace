@@ -62,9 +62,19 @@ export function createZodErrorMap(t: ValidationT): $ZodErrorMap {
         if (params?.i18n) return t(params.i18n, params);
         return t("custom");
       }
+      case "invalid_union":
+        // A value matched none of a union's branches. Zod v4 already flattens
+        // the common "X or empty" shape into the branch's own issue (e.g. an
+        // email format error), so this only fires for genuinely ambiguous
+        // unions where no single branch message is meaningful. Keep it
+        // localized rather than leaking Zod's English default; a form needing a
+        // specific message should opt in via `superRefine` + `params.i18n`.
+        return t("invalid");
       default:
-        // Let Zod fall back to its default for issues we don't translate.
-        return undefined;
+        // Anything we don't model explicitly (unrecognized_keys, invalid_key,
+        // invalid_element, ...) still gets a localized fallback - a validation
+        // message must never surface in English regardless of the locale.
+        return t("invalid");
     }
   };
 }

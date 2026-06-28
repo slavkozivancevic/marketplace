@@ -132,8 +132,14 @@ async function buildInvoiceData(order: OrderWithInvoice, number: number): Promis
         }
       : null,
     lines,
-    subtotal: order.discountAmount > 0 ? formatPrice(order.total + order.discountAmount, cur) : null,
+    // Subtotal = items only (total + discount - shipping); shown when there's a
+    // discount and/or a shipping charge.
+    subtotal:
+      order.discountAmount > 0 || order.shippingTotal > 0
+        ? formatPrice(order.total + order.discountAmount - order.shippingTotal, cur)
+        : null,
     discount: order.discountAmount > 0 ? formatPrice(order.discountAmount, cur) : null,
+    shippingCost: order.shippingTotal > 0 ? formatPrice(order.shippingTotal, cur) : null,
     couponCode: order.couponCode,
     total: formatPrice(order.total, cur),
     labels: {
@@ -151,6 +157,7 @@ async function buildInvoiceData(order: OrderWithInvoice, number: number): Promis
       lineTotal: t("lineTotal"),
       subtotal: t("subtotal"),
       discount: t("discount"),
+      shipping: t("shipping"),
       total: t("total"),
       footer: t("footer"),
     },

@@ -1,10 +1,12 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "@/components/ui/sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ActionButton } from "@/components/ActionButton";
 import { Loader2 } from "lucide-react";
 import {
   Select,
@@ -43,6 +45,18 @@ interface MemberListProps {
 export function MemberList({ members, currentUserId, canManage, currentUserRole }: MemberListProps) {
   const t = useTranslations("organization");
   const tUsers = useTranslations("users");
+  const router = useRouter();
+
+  // When another user accepts an invite the membership list changes on the
+  // server, but that mutation can't reach this already-rendered page on the
+  // owner's client (and the cacheComponents Router Cache may hold the prior
+  // payload). Refresh on tab focus so accepted members and cleared pending
+  // invites appear without manually navigating away and back.
+  useEffect(() => {
+    const onFocus = () => router.refresh();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [router]);
 
   return (
     <div className="space-y-2">
@@ -76,8 +90,16 @@ function MemberRow({
   t: ReturnType<typeof useTranslations<"organization">>;
   tUsers: ReturnType<typeof useTranslations<"users">>;
 }) {
+  const tForm = useTranslations("form");
+  const tCommon = useTranslations("common");
   const [isPendingRemove, startRemoveTransition] = useTransition();
   const [isPendingRole, startRoleTransition] = useTransition();
+
+  // Stage the role locally so picking from the dropdown doesn't fire the action
+  // (and its notification) immediately - the change is applied only on Save,
+  // consistent with every other form in the app.
+  const [pendingRole, setPendingRole] = useState<MembershipRole>(member.role);
+  const roleDirty = pendingRole !== member.role;
 
   const isSelf = member.user.id === currentUserId;
   const isOwner = member.role === MembershipRole.OWNER;
@@ -97,9 +119,9 @@ function MemberRow({
     });
   };
 
-  const handleRoleChange = (role: string) => {
+  const handleRoleSave = () => {
     startRoleTransition(async () => {
-      const result = await updateMemberRoleAction(member.user.id, role as MembershipRole);
+      const result = await updateMemberRoleAction(member.user.id, pendingRole);
       if (result && "error" in result) {
         toast.error(result.message);
       } else {
@@ -107,6 +129,9 @@ function MemberRow({
       }
     });
   };
+
+  const roleLabel = (role: MembershipRole) =>
+    role === MembershipRole.ADMIN ? t("roleAdmin") : t("roleMember");
 
   const memberRoleLabel = isOwner
     ? t("roleOwner")
@@ -122,58 +147,87 @@ function MemberRow({
       : tUsers("admin");
 
   return (
-    <div className="flex items-center justify-between py-2">
-      <div>
-        <p className="text-sm font-medium">{member.user.name || member.user.email}</p>
-        <p className="text-xs text-muted-foreground">{member.user.email}</p>
-      </div>
-      <div className="flex items-center gap-2">
-        <Badge variant="outline">{userRoleLabel}</Badge>
+    <div className="flex flex-col gap-2 py-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium">{member.user.name || member.user.email}</p>
+          <p className="truncate text-xs text-muted-foreground">{member.user.email}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Badge variant="outline">{userRoleLabel}</Badge>
 
-        {canActOnMember ? (
-          <Select
-            value={member.role}
-            onValueChange={handleRoleChange}
+          {canActOnMember ? (
+            <Select
+              value={pendingRole}
+              onValueChange={(v) => setPendingRole(v as MembershipRole)}
+              disabled={isPendingRole || isPendingRemove}
+            >
+              <SelectTrigger className="h-8 w-32 text-xs">
+                {/* Explicit label so it shows pre-hydration (Radix's
+                   SelectContent is portaled and not available for lookup). */}
+                <SelectValue>{roleLabel(pendingRole)}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={MembershipRole.ADMIN}>{t("roleAdmin")}</SelectItem>
+                <SelectItem value={MembershipRole.MEMBER}>{t("roleMember")}</SelectItem>
+              </SelectContent>
+            </Select>
+          ) : (
+            <Badge variant="secondary">{memberRoleLabel}</Badge>
+          )}
+
+          {canActOnMember && (
+            <ActionButton
+              title={t("removeMemberTitle")}
+              description={t("removeMemberConfirm", {
+                name: member.user.name || member.user.email,
+              })}
+              confirmText={t("removeMember")}
+              cancelText={tCommon("cancel")}
+              loadingText={t("removing")}
+              isLoading={isPendingRemove}
+              onConfirm={handleRemove}
+            >
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={isPendingRemove || isPendingRole}
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
+                {t("removeMember")}
+              </Button>
+            </ActionButton>
+          )}
+        </div>
+      </div>
+
+      {/* Role change is staged; applying it (and emailing the member) takes an
+          explicit Save, with a Discard escape and the saved value for reference.
+          Sits on its own line below the row so it never crowds the controls. */}
+      {canActOnMember && roleDirty && (
+        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 rounded-md bg-muted/40 px-3 py-2">
+          <p className="mr-auto flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500">
+            <span className="size-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden />
+            {tForm("savedValue", { value: roleLabel(member.role) })}
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setPendingRole(member.role)}
             disabled={isPendingRole || isPendingRemove}
           >
-            <SelectTrigger className="h-7 w-32 text-xs">
-              {isPendingRole ? (
-                <span className="flex items-center gap-1.5">
-                  <Loader2 className="size-3 animate-spin" />
-                  {t("changingRole")}
-                </span>
-              ) : (
-                /* Explicit label so it shows pre-hydration (Radix's
-                   SelectContent is portaled and not available for lookup). */
-                <SelectValue>
-                  {member.role === MembershipRole.ADMIN
-                    ? t("roleAdmin")
-                    : t("roleMember")}
-                </SelectValue>
-              )}
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={MembershipRole.ADMIN}>{t("roleAdmin")}</SelectItem>
-              <SelectItem value={MembershipRole.MEMBER}>{t("roleMember")}</SelectItem>
-            </SelectContent>
-          </Select>
-        ) : (
-          <Badge variant="secondary">{memberRoleLabel}</Badge>
-        )}
-
-        {canActOnMember && (
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={isPendingRemove || isPendingRole}
-            onClick={handleRemove}
-            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-          >
-            {isPendingRemove && <Loader2 className="animate-spin" />}
-            {isPendingRemove ? t("removing") : t("removeMember")}
+            {tForm("discard")}
           </Button>
-        )}
-      </div>
+          <Button
+            size="sm"
+            onClick={handleRoleSave}
+            disabled={isPendingRole || isPendingRemove}
+          >
+            {isPendingRole && <Loader2 className="animate-spin" />}
+            {isPendingRole ? tForm("saving") : tForm("save")}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

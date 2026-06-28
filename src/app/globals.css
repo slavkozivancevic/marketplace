@@ -254,13 +254,15 @@
      Scoped to a modal overlay's presence (not `data-scroll-locked`): Radix
      Select / Popover / DropdownMenu also lock body scroll, and keying off the
      lock blurred the whole page whenever any of those opened. Only modal
-     dialogs and sheets render an overlay element, so this targets those alone
-     (Dialog -> `dialog-overlay`, Sheet/drawer -> `sheet-overlay`). */
+     dialogs, alert dialogs and sheets render an overlay element, so this
+     targets those alone (Dialog -> `dialog-overlay`, AlertDialog (delete /
+     unsaved-changes confirmations) -> `alert-dialog-overlay`, Sheet/drawer ->
+     `sheet-overlay`). */
   .app-shell {
     height: 100vh;
   }
-  body:has([data-slot="dialog-overlay"], [data-slot="sheet-overlay"]) > .page-background,
-  body:has([data-slot="dialog-overlay"], [data-slot="sheet-overlay"]) > .app-shell {
+  body:has([data-slot="dialog-overlay"], [data-slot="alert-dialog-overlay"], [data-slot="sheet-overlay"]) > .page-background,
+  body:has([data-slot="dialog-overlay"], [data-slot="alert-dialog-overlay"], [data-slot="sheet-overlay"]) > .app-shell {
     filter: blur(4px);
   }
 }

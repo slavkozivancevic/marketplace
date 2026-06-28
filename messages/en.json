@@ -301,7 +301,8 @@
     "noneYetDesc": "You haven't placed any orders yet.",
     "browse": "Browse products",
     "searchPlaceholder": "Search by product name or order ID...",
-    "paidAfterRefunds": "Paid after refunds"
+    "paidAfterRefunds": "Paid after refunds",
+    "shipping": "Shipping"
   },
   "myProducts": {
     "title": "My Products",
@@ -352,10 +353,21 @@
     "roleAdmin": "Admin",
     "roleMember": "Member",
     "removeMember": "Remove",
+    "removeMemberTitle": "Remove member",
+    "removeMemberConfirm": "Remove {name} from the organization? They will lose access immediately.",
     "removing": "Removing...",
     "memberRemoved": "Member removed",
     "roleChanged": "Role updated",
-    "changingRole": "Saving..."
+    "changingRole": "Saving...",
+    "shippingTitle": "Delivery",
+    "shippingDesc": "Set the delivery fee buyers pay for your items.",
+    "shippingFlatRate": "Flat delivery fee",
+    "shippingFlatRateHint": "Charged once per order for your items. Set to 0 for free shipping.",
+    "shippingFreeEnabled": "Free shipping over a threshold",
+    "shippingFreeEnabledHint": "Waive the fee when the buyer reaches the amount below with you.",
+    "shippingFreeThreshold": "Free shipping threshold",
+    "shippingFreeThresholdHint": "Orders at or above this subtotal ship free.",
+    "shippingUpdated": "Shipping settings saved"
   },
   "wishlist": {
     "title": "Wishlist",
@@ -396,6 +408,7 @@
     "applyCoupon": "Apply",
     "couponApplied": "Coupon {code} applied",
     "removeCoupon": "Remove",
+    "itemRemoved": "{item} was removed from your cart because it is no longer available.",
     "codOrderPlaced": "Order Placed",
     "codThankYou": "Thank you! Your order has been placed. You will pay upon delivery.",
     "codOrderNote": "Our team will contact you to confirm the delivery details.",
@@ -415,7 +428,9 @@
     "orderSummary": "Order Summary",
     "shippingAddress": "Shipping Address",
     "viewMyOrders": "View My Orders",
-    "total": "Total"
+    "total": "Total",
+    "shipping": "Shipping",
+    "freeShippingNudge": "Add {amount} more from {seller} for free shipping"
   },
   "admin": {
     "audit": {
@@ -690,6 +705,9 @@
     "filterable": "Filter",
     "attributeOrder": "Order",
     "removeAttribute": "Remove attribute",
+    "added": "Added",
+    "removed": "Removed",
+    "undo": "Undo",
     "addAttributeFilter": "Add a filter attribute...",
     "noAttributesAvailable": "No attributes defined yet. Create them in the Attributes library first."
   },
@@ -884,6 +902,7 @@
     "selectRole": "Select a role",
     "sending": "Sending...",
     "send": "Send Invite",
+    "clear": "Clear",
     "success": "Invite sent successfully",
     "noPending": "No pending invites.",
     "expires": "Expires {date}",
@@ -1216,6 +1235,22 @@
     "hintStatus": "DRAFT (default), PUBLISHED, or ARCHIVED.",
     "hintSlug": "URL slug. Leave empty to auto-generate from the title."
   },
+  "form": {
+    "unsavedChanges": "You have unsaved changes",
+    "allSaved": "All changes saved",
+    "discard": "Discard",
+    "save": "Save changes",
+    "saving": "Saving...",
+    "changed": "Edited",
+    "savedValue": "Saved: {value}",
+    "on": "On",
+    "off": "Off",
+    "empty": "Empty",
+    "leaveTitle": "Leave without saving?",
+    "leaveDescription": "You have unsaved changes. If you leave this page they will be lost.",
+    "stay": "Stay",
+    "leave": "Leave"
+  },
   "common": {
     "validationFailed": "Please fix the highlighted fields before submitting.",
     "loading": "Loading...",
@@ -1303,7 +1338,8 @@
     "platformFee": "Platform fee ({percent}%)",
     "yourPayout": "Your payout",
     "payoutReversed": "Refund reversal",
-    "payoutAfterRefunds": "Net payout after refunds"
+    "payoutAfterRefunds": "Net payout after refunds",
+    "shippingCollected": "Shipping (collected)"
   },
   "relatedProducts": {
     "discoverMore": "Discover More",
@@ -1321,6 +1357,7 @@
   },
   "validation": {
     "required": "This field is required",
+    "invalid": "Invalid value",
     "invalidType": "Invalid value",
     "notInteger": "Must be a whole number",
     "tooSmallString": "Must be at least {min} characters",
@@ -1339,13 +1376,15 @@
     "selectNeedsOption": "Add at least one option for select attributes",
     "duplicateAxis": "This variant repeats the same axis",
     "duplicateVariantCombo": "Same option combination as variant #{other}",
-    "duplicateSku": "Duplicate SKU \"{sku}\" (also variant #{other})"
+    "duplicateSku": "Duplicate SKU \"{sku}\" (also variant #{other})",
+    "couponPercentRange": "Percentage must be between 1 and 100"
   },
   "coupons": {
     "title": "Coupons",
     "description": "Create and manage discount codes.",
     "newCoupon": "New Coupon",
     "editCoupon": "Edit Coupon",
+    "back": "Back to Coupons",
     "formDescription": "Set the discount, limits and validity.",
     "empty": "No coupons yet.",
     "noResults": "No coupons match your filters.",
@@ -1366,12 +1405,16 @@
       "percent": "Percentage",
       "fixed": "Fixed amount",
       "valuePercent": "Percent off",
-      "valueFixed": "Amount off (USD)",
-      "minOrder": "Minimum order (USD)",
+      "valueFixed": "Amount off",
+      "minOrder": "Minimum order",
       "usageLimit": "Usage limit",
       "expiresAt": "Expires on",
       "optional": "Optional",
       "active": "Active",
+      "inactive": "Inactive",
+      "unlimited": "Unlimited",
+      "noExpiry": "No expiry",
+      "none": "None",
       "save": "Save changes",
       "create": "Create coupon",
       "activeDesc": "Inactive coupons can't be redeemed at checkout."
@@ -1411,7 +1454,8 @@
     "discount": "Discount",
     "total": "Total",
     "footer": "Thank you for your purchase. This invoice was generated by Marketplace.",
-    "download": "Download invoice"
+    "download": "Download invoice",
+    "shipping": "Shipping"
   },
   "shipments": {
     "title": "Shipping",

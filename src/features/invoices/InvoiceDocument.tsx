@@ -39,6 +39,7 @@ export type InvoiceLabels = {
   lineTotal: string;
   subtotal: string;
   discount: string;
+  shipping: string;
   total: string;
   footer: string;
 };
@@ -70,9 +71,11 @@ export type InvoiceData = {
     country: string | null;
   } | null;
   lines: InvoiceLine[];
-  // Subtotal + discount are present only when a coupon was applied.
+  // Subtotal is shown when there's a discount and/or shipping; each of those
+  // lines is present only when it applies.
   subtotal: string | null;
   discount: string | null;
+  shippingCost: string | null;
   couponCode: string | null;
   total: string;
   labels: InvoiceLabels;
@@ -261,18 +264,26 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
         {/* Total */}
         <View style={styles.totals}>
           <View style={styles.totalBox}>
-            {data.discount ? (
+            {data.discount || data.shippingCost ? (
               <>
                 <View style={styles.subtotalRow}>
                   <Text style={styles.subtotalLabel}>{l.subtotal}</Text>
                   <Text style={styles.subtotalValue}>{data.subtotal}</Text>
                 </View>
-                <View style={styles.subtotalRow}>
-                  <Text style={styles.subtotalLabel}>
-                    {l.discount}{data.couponCode ? ` (${data.couponCode})` : ""}
-                  </Text>
-                  <Text style={styles.subtotalValue}>-{data.discount}</Text>
-                </View>
+                {data.discount ? (
+                  <View style={styles.subtotalRow}>
+                    <Text style={styles.subtotalLabel}>
+                      {l.discount}{data.couponCode ? ` (${data.couponCode})` : ""}
+                    </Text>
+                    <Text style={styles.subtotalValue}>-{data.discount}</Text>
+                  </View>
+                ) : null}
+                {data.shippingCost ? (
+                  <View style={styles.subtotalRow}>
+                    <Text style={styles.subtotalLabel}>{l.shipping}</Text>
+                    <Text style={styles.subtotalValue}>{data.shippingCost}</Text>
+                  </View>
+                ) : null}
               </>
             ) : null}
             <View style={styles.totalRow}>

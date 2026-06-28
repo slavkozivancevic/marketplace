@@ -1,26 +1,42 @@
 "use client";
 
 import { useEffect } from "react";
-import { useCurrencyStore } from "@/store/currency";
+import { CurrencyStoreProvider, isValidCurrency } from "@/store/currency";
 import type { CurrencyRates } from "@/store/currency";
+import type { Currency } from "@/lib/currency-config";
 
 /**
- * Server-side: fetch rates via getCurrencyRates(), pass as `rates` prop.
- * This client component seeds the Zustand store so all child components
- * can access up-to-date exchange rates without extra fetches.
+ * Seeds the per-request currency store with the rates and the cookie currency
+ * the server read (passed as `initialCurrency`). Because the store is created
+ * with that value, SSR renders the correct currency directly - no flash, no
+ * hydration mismatch, no localStorage.
  */
 export function CurrencyRatesProvider({
   rates,
+  initialCurrency,
   children,
 }: {
   rates: CurrencyRates;
+  initialCurrency?: string;
   children: React.ReactNode;
 }) {
-  const setRates = useCurrencyStore((s) => s.setRates);
+  const currency: Currency = isValidCurrency(initialCurrency)
+    ? initialCurrency
+    : "usd";
 
+  // One-time cleanup of the obsolete localStorage key (currency used to be
+  // persisted there). The cookie is the source of truth now.
   useEffect(() => {
-    setRates(rates);
-  }, [rates, setRates]);
+    try {
+      localStorage.removeItem("marketplace-currency");
+    } catch {
+      // ignore
+    }
+  }, []);
 
-  return <>{children}</>;
+  return (
+    <CurrencyStoreProvider initialCurrency={currency} rates={rates}>
+      {children}
+    </CurrencyStoreProvider>
+  );
 }

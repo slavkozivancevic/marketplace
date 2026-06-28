@@ -15,6 +15,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getLabel } from "@/features/attributes/utils/translations";
+import { ChangedHint } from "@/components/forms/ChangedHint";
+import { useChangedHintEnabled } from "@/components/forms/FieldChangedHint";
+import { useBoolFormat } from "@/lib/forms/changedFormatters";
 import type { AttributeSelectorItem } from "@/features/attributes/db/attributes";
 import type { CategoryTreeItem } from "@/features/categories/db/categories";
 
@@ -54,6 +57,8 @@ export function ProductAttributesField({
   categoryTree: CategoryTreeItem[];
 }) {
   const t = useTranslations("productForm");
+  const boolFmt = useBoolFormat();
+  const hintsEnabled = useChangedHintEnabled();
   const locale = useLocale();
 
   const categoryIdsRaw = useWatch({ control: form.control, name: "categoryIds" });
@@ -90,6 +95,14 @@ export function ProductAttributesField({
 
   const entryFor = (attributeId: string): AttributeValueEntry | undefined =>
     entries.find((e) => e.attributeId === attributeId);
+
+  // Saved baseline per attribute, so each input can show its persisted value
+  // when edited. Empty in create mode (nothing saved); only attributes that had
+  // a saved value get a hint.
+  const savedByAttr = new Map<string, Partial<AttributeValueEntry>>();
+  for (const s of (form.formState.defaultValues?.attributes ?? []) as Partial<AttributeValueEntry>[]) {
+    if (s?.attributeId) savedByAttr.set(s.attributeId, s);
+  }
 
   const patchEntry = (
     attributeId: string,
@@ -131,6 +144,42 @@ export function ProductAttributesField({
         {applicable.map((attr) => {
           const label = getLabel(attr.translations, locale);
           const entry = entryFor(attr.id);
+
+          // Saved-value hint (edit mode only). Baseline is the persisted entry,
+          // or an empty value when this attribute had nothing saved - so setting
+          // a previously-unset attribute still reads as a change.
+          const saved = savedByAttr.get(attr.id);
+          const optLabel = (id?: string) => {
+            const o = attr.options.find((x) => x.id === id);
+            return o ? getLabel(o.translations, locale) : null;
+          };
+          let hintChanged = false;
+          let hintSaved: string | null = null;
+          if (hintsEnabled) {
+            if (attr.type === "SELECT") {
+              const cur = entry?.optionIds[0] ?? null;
+              const sv = saved?.optionIds?.[0] ?? null;
+              hintChanged = cur !== sv;
+              hintSaved = sv ? optLabel(sv) : t("attributeNone");
+            } else if (attr.type === "MULTI_SELECT") {
+              const cur = [...(entry?.optionIds ?? [])].sort().join(",");
+              const sv = [...(saved?.optionIds ?? [])].sort().join(",");
+              hintChanged = cur !== sv;
+              hintSaved =
+                (saved?.optionIds ?? []).map((id) => optLabel(id)).filter(Boolean).join(", ") ||
+                t("attributeNone");
+            } else if (attr.type === "RANGE") {
+              const cur = entry?.valueNumeric ?? null;
+              const sv = saved?.valueNumeric ?? null;
+              hintChanged = cur !== sv;
+              hintSaved = sv != null ? `${sv}${attr.unit ? ` ${attr.unit}` : ""}` : t("attributeNone");
+            } else if (attr.type === "BOOLEAN") {
+              const cur = entry?.valueBool === true;
+              const sv = saved?.valueBool === true;
+              hintChanged = cur !== sv;
+              hintSaved = boolFmt(sv);
+            }
+          }
 
           return (
             <div key={attr.id} className="space-y-2">
@@ -225,6 +274,8 @@ export function ProductAttributesField({
                   </span>
                 </div>
               )}
+
+              {hintsEnabled && <ChangedHint changed={hintChanged} savedText={hintSaved} />}
             </div>
           );
         })}

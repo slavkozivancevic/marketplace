@@ -301,7 +301,8 @@
     "noneYetDesc": "Aún no has realizado ningún pedido.",
     "browse": "Explorar productos",
     "searchPlaceholder": "Buscar por nombre de producto o ID de pedido...",
-    "paidAfterRefunds": "Pagado tras reembolsos"
+    "paidAfterRefunds": "Pagado tras reembolsos",
+    "shipping": "Envío"
   },
   "myProducts": {
     "title": "Mis productos",
@@ -352,10 +353,21 @@
     "roleAdmin": "Administrador",
     "roleMember": "Miembro",
     "removeMember": "Eliminar",
+    "removeMemberTitle": "Eliminar miembro",
+    "removeMemberConfirm": "¿Eliminar a {name} de la organización? Perderá el acceso de inmediato.",
     "removing": "Eliminando...",
     "memberRemoved": "Miembro eliminado",
     "roleChanged": "Rol actualizado",
-    "changingRole": "Guardando..."
+    "changingRole": "Guardando...",
+    "shippingTitle": "Envío",
+    "shippingDesc": "Configura la tarifa de envío que pagan los compradores por tus artículos.",
+    "shippingFlatRate": "Tarifa de envío fija",
+    "shippingFlatRateHint": "Se cobra una vez por pedido por tus artículos. 0 para envío gratis.",
+    "shippingFreeEnabled": "Envío gratis sobre un umbral",
+    "shippingFreeEnabledHint": "Exime la tarifa cuando el subtotal del comprador contigo alcanza el importe inferior.",
+    "shippingFreeThreshold": "Umbral de envío gratis",
+    "shippingFreeThresholdHint": "Los pedidos con este subtotal o más tienen envío gratis.",
+    "shippingUpdated": "Ajustes de envío guardados"
   },
   "wishlist": {
     "title": "Lista de deseos",
@@ -396,6 +408,7 @@
     "applyCoupon": "Aplicar",
     "couponApplied": "Cupón {code} aplicado",
     "removeCoupon": "Quitar",
+    "itemRemoved": "{item} se eliminó de tu carrito porque ya no está disponible.",
     "codOrderPlaced": "Pedido realizado",
     "codThankYou": "¡Gracias! Tu pedido ha sido realizado. Pagarás al recibir el envío.",
     "codOrderNote": "Nuestro equipo se pondrá en contacto contigo para confirmar los detalles de la entrega.",
@@ -415,7 +428,9 @@
     "orderSummary": "Resumen del pedido",
     "shippingAddress": "Dirección de envío",
     "viewMyOrders": "Ver mis pedidos",
-    "total": "Total"
+    "total": "Total",
+    "shipping": "Envío",
+    "freeShippingNudge": "Añade {amount} más de {seller} para envío gratis"
   },
   "admin": {
     "audit": {
@@ -690,6 +705,9 @@
     "filterable": "Filtro",
     "attributeOrder": "Orden",
     "removeAttribute": "Quitar atributo",
+    "added": "Añadido",
+    "removed": "Eliminado",
+    "undo": "Deshacer",
     "addAttributeFilter": "Añadir atributo de filtro...",
     "noAttributesAvailable": "Aún no hay atributos definidos. Créalos primero en la biblioteca de atributos."
   },
@@ -884,6 +902,7 @@
     "selectRole": "Seleccionar un rol",
     "sending": "Enviando...",
     "send": "Enviar invitación",
+    "clear": "Limpiar",
     "success": "Invitación enviada con éxito",
     "noPending": "No hay invitaciones pendientes.",
     "expires": "Caduca el {date}",
@@ -1216,6 +1235,22 @@
     "hintStatus": "DRAFT (predeterminado), PUBLISHED o ARCHIVED.",
     "hintSlug": "Slug de URL. Deja vacío para generar a partir del título."
   },
+  "form": {
+    "unsavedChanges": "Tienes cambios sin guardar",
+    "allSaved": "Todos los cambios guardados",
+    "discard": "Descartar",
+    "save": "Guardar cambios",
+    "saving": "Guardando...",
+    "changed": "Editado",
+    "savedValue": "Guardado: {value}",
+    "on": "Activado",
+    "off": "Desactivado",
+    "empty": "Vacío",
+    "leaveTitle": "¿Salir sin guardar?",
+    "leaveDescription": "Tienes cambios sin guardar. Si sales de esta página se perderán.",
+    "stay": "Quedarse",
+    "leave": "Salir"
+  },
   "common": {
     "validationFailed": "Corrige los campos marcados antes de enviar.",
     "loading": "Cargando...",
@@ -1303,7 +1338,8 @@
     "platformFee": "Comisión de la plataforma ({percent}%)",
     "yourPayout": "Tu pago",
     "payoutReversed": "Reverso del pago (reembolsos)",
-    "payoutAfterRefunds": "Pago neto tras reembolsos"
+    "payoutAfterRefunds": "Pago neto tras reembolsos",
+    "shippingCollected": "Envío (cobrado)"
   },
   "relatedProducts": {
     "discoverMore": "Descubre más",
@@ -1321,6 +1357,7 @@
   },
   "validation": {
     "required": "Este campo es obligatorio",
+    "invalid": "Valor no válido",
     "invalidType": "Valor no válido",
     "notInteger": "Debe ser un número entero",
     "tooSmallString": "Debe tener al menos {min} caracteres",
@@ -1339,13 +1376,15 @@
     "selectNeedsOption": "Añade al menos una opción para los atributos de selección",
     "duplicateAxis": "Esta variante repite el mismo eje",
     "duplicateVariantCombo": "Misma combinación de opciones que la variante n.º {other}",
-    "duplicateSku": "SKU duplicado \"{sku}\" (también variante n.º {other})"
+    "duplicateSku": "SKU duplicado \"{sku}\" (también variante n.º {other})",
+    "couponPercentRange": "El porcentaje debe estar entre 1 y 100"
   },
   "coupons": {
     "title": "Cupones",
     "description": "Crea y gestiona códigos de descuento.",
     "newCoupon": "Nuevo cupón",
     "editCoupon": "Editar cupón",
+    "back": "Volver a cupones",
     "formDescription": "Define el descuento, los límites y la validez.",
     "empty": "Aún no hay cupones.",
     "noResults": "Ningún cupón coincide con tus filtros.",
@@ -1366,12 +1405,16 @@
       "percent": "Porcentaje",
       "fixed": "Importe fijo",
       "valuePercent": "Porcentaje de descuento",
-      "valueFixed": "Importe de descuento (USD)",
-      "minOrder": "Pedido mínimo (USD)",
+      "valueFixed": "Importe de descuento",
+      "minOrder": "Pedido mínimo",
       "usageLimit": "Límite de uso",
       "expiresAt": "Caduca el",
       "optional": "Opcional",
       "active": "Activo",
+      "inactive": "Inactivo",
+      "unlimited": "Ilimitado",
+      "noExpiry": "Sin caducidad",
+      "none": "Ninguno",
       "save": "Guardar cambios",
       "create": "Crear cupón",
       "activeDesc": "Los cupones inactivos no se pueden canjear al pagar."
@@ -1411,7 +1454,8 @@
     "discount": "Descuento",
     "total": "Total",
     "footer": "Gracias por tu compra. Esta factura fue generada por Marketplace.",
-    "download": "Descargar factura"
+    "download": "Descargar factura",
+    "shipping": "Envío"
   },
   "shipments": {
     "title": "Envío",

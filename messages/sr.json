@@ -301,7 +301,8 @@
     "noneYetDesc": "Još niste napravili nijednu narudžbinu.",
     "browse": "Pregledaj proizvode",
     "searchPlaceholder": "Pretraži po nazivu proizvoda ili ID narudžbine...",
-    "paidAfterRefunds": "Plaćeno (nakon povraćaja)"
+    "paidAfterRefunds": "Plaćeno (nakon povraćaja)",
+    "shipping": "Dostava"
   },
   "myProducts": {
     "title": "Moji proizvodi",
@@ -352,10 +353,21 @@
     "roleAdmin": "Administrator",
     "roleMember": "Član",
     "removeMember": "Ukloni",
+    "removeMemberTitle": "Ukloni člana",
+    "removeMemberConfirm": "Ukloniti {name} iz organizacije? Odmah gubi pristup.",
     "removing": "Uklanjanje...",
     "memberRemoved": "Član uklonjen",
     "roleChanged": "Uloga ažurirana",
-    "changingRole": "Čuvanje..."
+    "changingRole": "Čuvanje...",
+    "shippingTitle": "Dostava",
+    "shippingDesc": "Podesite naknadu za dostavu koju kupci plaćaju za vaše artikle.",
+    "shippingFlatRate": "Fiksna naknada za dostavu",
+    "shippingFlatRateHint": "Naplaćuje se jednom po narudžbini za vaše artikle. Postavite na 0 za besplatnu dostavu.",
+    "shippingFreeEnabled": "Besplatna dostava iznad praga",
+    "shippingFreeEnabledHint": "Ukinite naknadu kada međuzbir kupca kod vas dostigne iznos ispod.",
+    "shippingFreeThreshold": "Prag za besplatnu dostavu",
+    "shippingFreeThresholdHint": "Narudžbine na ovom međuzbiru ili iznad imaju besplatnu dostavu.",
+    "shippingUpdated": "Podešavanja dostave sačuvana"
   },
   "wishlist": {
     "title": "Lista želja",
@@ -396,6 +408,7 @@
     "applyCoupon": "Primeni",
     "couponApplied": "Kupon {code} primenjen",
     "removeCoupon": "Ukloni",
+    "itemRemoved": "{item} je uklonjen iz korpe jer više nije dostupan.",
     "codOrderPlaced": "Narudžbina primljena",
     "codThankYou": "Hvala! Vaša narudžbina je primljena. Plaćanje će biti izvršeno pri isporuci.",
     "codOrderNote": "Naš tim će Vas kontaktirati radi potvrde detalja isporuke.",
@@ -415,7 +428,9 @@
     "orderSummary": "Pregled narudžbine",
     "shippingAddress": "Adresa dostave",
     "viewMyOrders": "Pogledaj moje narudžbine",
-    "total": "Ukupno"
+    "total": "Ukupno",
+    "shipping": "Dostava",
+    "freeShippingNudge": "Dodaj još {amount} kod {seller} za besplatnu dostavu"
   },
   "admin": {
     "audit": {
@@ -690,6 +705,9 @@
     "filterable": "Filter",
     "attributeOrder": "Redosled",
     "removeAttribute": "Ukloni atribut",
+    "added": "Dodato",
+    "removed": "Uklonjeno",
+    "undo": "Vrati",
     "addAttributeFilter": "Dodaj atribut filtera...",
     "noAttributesAvailable": "Još nema definisanih atributa. Prvo ih kreirajte u biblioteci atributa."
   },
@@ -884,6 +902,7 @@
     "selectRole": "Odaberite ulogu",
     "sending": "Slanje...",
     "send": "Pošalji pozivnicu",
+    "clear": "Poništi",
     "success": "Pozivnica uspešno poslata",
     "noPending": "Nema pozivnica na čekanju.",
     "expires": "Ističe {date}",
@@ -1216,6 +1235,22 @@
     "hintStatus": "DRAFT (podrazumevano), PUBLISHED ili ARCHIVED.",
     "hintSlug": "URL slug. Ostavite prazno da se generiše iz naziva."
   },
+  "form": {
+    "unsavedChanges": "Imate nesačuvane izmene",
+    "allSaved": "Sve izmene su sačuvane",
+    "discard": "Poništi",
+    "save": "Sačuvaj izmene",
+    "saving": "Čuvanje...",
+    "changed": "Izmenjeno",
+    "savedValue": "Sačuvano: {value}",
+    "on": "Uključeno",
+    "off": "Isključeno",
+    "empty": "Prazno",
+    "leaveTitle": "Napustiti bez čuvanja?",
+    "leaveDescription": "Imate nesačuvane izmene. Ako napustite ovu stranicu, biće izgubljene.",
+    "stay": "Ostani",
+    "leave": "Napusti"
+  },
   "common": {
     "validationFailed": "Ispravite označena polja pre slanja.",
     "loading": "Učitavanje...",
@@ -1303,7 +1338,8 @@
     "platformFee": "Provizija platforme ({percent}%)",
     "yourPayout": "Vaša isplata",
     "payoutReversed": "Storno isplate (povraćaji)",
-    "payoutAfterRefunds": "Konačna isplata"
+    "payoutAfterRefunds": "Konačna isplata",
+    "shippingCollected": "Dostava (naplaćena)"
   },
   "relatedProducts": {
     "discoverMore": "Otkrijte više",
@@ -1321,6 +1357,7 @@
   },
   "validation": {
     "required": "Ovo polje je obavezno",
+    "invalid": "Neispravna vrednost",
     "invalidType": "Neispravna vrednost",
     "notInteger": "Mora biti ceo broj",
     "tooSmallString": "Mora imati najmanje {min} znakova",
@@ -1339,13 +1376,15 @@
     "selectNeedsOption": "Dodajte bar jednu opciju za atribute tipa izbor",
     "duplicateAxis": "Ova varijanta ponavlja istu osu",
     "duplicateVariantCombo": "Ista kombinacija opcija kao varijanta #{other}",
-    "duplicateSku": "Duplikat SKU \"{sku}\" (takođe varijanta #{other})"
+    "duplicateSku": "Duplikat SKU \"{sku}\" (takođe varijanta #{other})",
+    "couponPercentRange": "Procenat mora biti između 1 i 100"
   },
   "coupons": {
     "title": "Kuponi",
     "description": "Kreiraj i upravljaj kodovima za popust.",
     "newCoupon": "Novi kupon",
     "editCoupon": "Izmena kupona",
+    "back": "Nazad na kupone",
     "formDescription": "Podesi popust, ograničenja i važenje.",
     "empty": "Još nema kupona.",
     "noResults": "Nema kupona koji odgovaraju filterima.",
@@ -1366,12 +1405,16 @@
       "percent": "Procenat",
       "fixed": "Fiksni iznos",
       "valuePercent": "Procenat popusta",
-      "valueFixed": "Iznos popusta (USD)",
-      "minOrder": "Minimalna porudžbina (USD)",
+      "valueFixed": "Iznos popusta",
+      "minOrder": "Minimalna porudžbina",
       "usageLimit": "Limit korišćenja",
       "expiresAt": "Ističe",
       "optional": "Opciono",
       "active": "Aktivan",
+      "inactive": "Neaktivan",
+      "unlimited": "Neograničeno",
+      "noExpiry": "Bez isteka",
+      "none": "Nema",
       "save": "Sačuvaj izmene",
       "create": "Kreiraj kupon",
       "activeDesc": "Neaktivni kuponi se ne mogu iskoristiti pri plaćanju."
@@ -1411,7 +1454,8 @@
     "discount": "Popust",
     "total": "Ukupno",
     "footer": "Hvala na kupovini. Ovu fakturu je generisao Marketplace.",
-    "download": "Preuzmi fakturu"
+    "download": "Preuzmi fakturu",
+    "shipping": "Dostava"
   },
   "shipments": {
     "title": "Dostava",

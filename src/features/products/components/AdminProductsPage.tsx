@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { useQueryStates } from "nuqs";
-import { useCurrencyStore } from "@/store/currency";
+import { useCurrencyStore, getCurrentRate } from "@/store/currency";
 import { getCurrencyConfig } from "@/lib/currency";
 import {
   adminProductSearchParams,
@@ -80,7 +80,7 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
       currency,
     ],
     queryFn: async () => {
-      const rate = useCurrencyStore.getState().currentRate();
+      const rate = getCurrentRate();
       const sp = new URLSearchParams();
       if (search) sp.set("search", search);
       for (const s of params.status) sp.append("status", s);

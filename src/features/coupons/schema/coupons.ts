@@ -17,7 +17,9 @@ export const couponSchema = z
   })
   .refine((v) => v.type !== "PERCENT" || (v.value >= 1 && v.value <= 100), {
     path: ["value"],
-    error: "Percent must be between 1 and 100",
+    // Localized via the Zod error map (see zodErrorMap.ts) - custom issues opt in
+    // by carrying `params.i18n` instead of an inline English string.
+    params: { i18n: "couponPercentRange" },
   });
 
 export type CouponInput = z.infer<typeof couponSchema>;

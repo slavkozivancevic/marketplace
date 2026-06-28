@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { usePathname } from "next/navigation";
+import { useNavigationGeneration } from "@/lib/navigation/navGeneration";
 import { useTranslations, useLocale } from "next-intl";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { Loader2, RefreshCw, Plus, Trash2, GripVertical } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
+import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
+import { FormSaveBar } from "@/components/forms/FormSaveBar";
+import { FieldChangedHint, ChangedHintScope } from "@/components/forms/FieldChangedHint";
 import {
   Form,
   FormControl,
@@ -91,6 +94,7 @@ function LocaleLabelInputs({
                   className="h-8"
                 />
               </FormControl>
+              <FieldChangedHint />
             </FormItem>
           )}
         />
@@ -133,6 +137,7 @@ function OptionRow({
                   className="h-9"
                 />
               </FormControl>
+              <FieldChangedHint />
               <FormMessage />
             </FormItem>
           )}
@@ -162,7 +167,25 @@ function OptionRow({
 
 // ---------- Main form ----------
 
+/**
+ * Discard wrapper. react-hook-form's `reset()` leaves `isDirty` spuriously true
+ * when a `useFieldArray` (the options list) is mounted - the array re-registers
+ * after the reset and re-flags the form dirty, so the save bar never clears.
+ * Instead of fighting that, "Discard" remounts the form via a bumped key: a
+ * fresh mount re-reads the saved baseline and is reliably clean.
+ */
 export function AttributeForm(props: AttributeFormProps) {
+  const [discardKey, setDiscardKey] = useState(0);
+  return (
+    <AttributeFormInner
+      key={discardKey}
+      {...props}
+      onDiscard={() => setDiscardKey((k) => k + 1)}
+    />
+  );
+}
+
+function AttributeFormInner(props: AttributeFormProps & { onDiscard: () => void }) {
   const t = useTranslations("adminAttributes");
   const onInvalid = useInvalidToast();
   const uiLocale = useLocale();
@@ -185,22 +208,27 @@ export function AttributeForm(props: AttributeFormProps) {
     [props.defaultValues],
   );
 
-  const pathname = usePathname();
+  const navGeneration = useNavigationGeneration();
 
   const form = useForm<AttributeInput>({
     // Validate on blur, then on change, so the message tracks the current value.
-    mode: "onTouched",
+    // Validate on every change so errors surface immediately and `hasErrors`
+    // can gate the save button (consistent across all admin forms).
+    mode: "onChange",
     resolver: useZodResolver(attributeSchema),
     defaultValues: derivedValues,
     values: props.mode === "edit" ? derivedValues : undefined,
   });
 
   // Create mode has no server `values` to re-sync against; reset to empty on
-  // entry so a half-filled form doesn't survive leave-and-return.
+  // entry so a half-filled form doesn't survive leave-and-return. Keyed on the
+  // navigation-generation counter, which bumps on every path change - including
+  // returning to the same route (`usePathname` stays identical there and so
+  // never fired the reset).
   useEffect(() => {
     if (props.mode === "create") form.reset(derivedValues);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [navGeneration]);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -216,8 +244,14 @@ export function AttributeForm(props: AttributeFormProps) {
     if (keyManuallyEdited) return;
     if (labelValue === prevLabelRef.current) return;
     prevLabelRef.current = labelValue;
-    form.setValue("key", slugify(labelValue ?? ""), { shouldDirty: false });
+    form.setValue("key", slugify(labelValue ?? ""), { shouldDirty: true });
   }, [labelValue, keyManuallyEdited, form]);
+
+  useUnsavedChangesWarning(props.mode === "edit" && form.formState.isDirty);
+
+  // Block saving while any field is invalid (error-based, so a freshly-loaded
+  // valid attribute isn't disabled before the first validation runs).
+  const hasErrors = Object.keys(form.formState.errors).length > 0;
 
   const onSubmit = (data: AttributeInput) => {
     startTransition(async () => {
@@ -234,6 +268,7 @@ export function AttributeForm(props: AttributeFormProps) {
 
   return (
     <Form {...form}>
+      <ChangedHintScope enabled={props.mode === "edit"}>
       <form
         onSubmit={form.handleSubmit(onSubmit, onInvalid)}
         className="space-y-6 max-w-2xl"
@@ -261,6 +296,7 @@ export function AttributeForm(props: AttributeFormProps) {
                   />
                 </FormControl>
                 <FormDescription>{t("labelDesc")}</FormDescription>
+                <FieldChangedHint />
                 <FormMessage />
               </FormItem>
             )}
@@ -303,6 +339,7 @@ export function AttributeForm(props: AttributeFormProps) {
                   )}
                 </div>
                 <FormDescription>{t("keyDesc")}</FormDescription>
+                <FieldChangedHint />
                 <FormMessage />
               </FormItem>
             )}
@@ -340,6 +377,7 @@ export function AttributeForm(props: AttributeFormProps) {
                   </SelectContent>
                 </Select>
                 <FormDescription>{t(`typeDesc_${field.value}`)}</FormDescription>
+                <FieldChangedHint format={(v) => t(`type_${v as AttributeTypeValue}`)} />
                 <FormMessage />
               </FormItem>
             )}
@@ -360,6 +398,7 @@ export function AttributeForm(props: AttributeFormProps) {
                     />
                   </FormControl>
                   <FormDescription>{t("unitDesc")}</FormDescription>
+                  <FieldChangedHint />
                   <FormMessage />
                 </FormItem>
               )}
@@ -431,24 +470,34 @@ export function AttributeForm(props: AttributeFormProps) {
                 />
               </FormControl>
               <FormDescription>{t("orderDesc")}</FormDescription>
+              <FieldChangedHint />
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <Button type="submit" disabled={isPending} className="min-w-32">
-          {isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {props.mode === "edit" ? t("saving") : t("creating")}
-            </>
-          ) : props.mode === "edit" ? (
-            t("saveChanges")
-          ) : (
-            t("create")
-          )}
-        </Button>
+        {props.mode === "edit" ? (
+          <FormSaveBar
+            isDirty={form.formState.isDirty}
+            isPending={isPending}
+            onDiscard={props.onDiscard}
+            saveLabel={t("saveChanges")}
+            saveDisabled={hasErrors}
+          />
+        ) : (
+          <Button type="submit" disabled={isPending || hasErrors} className="min-w-32">
+            {isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {t("creating")}
+              </>
+            ) : (
+              t("create")
+            )}
+          </Button>
+        )}
       </form>
+      </ChangedHintScope>
     </Form>
   );
 }

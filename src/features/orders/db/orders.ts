@@ -208,6 +208,7 @@ export async function getOrderByStripeSessionId(stripeSessionId: string) {
       total: true,
       discountAmount: true,
       couponCode: true,
+      shippingTotal: true,
       shippingName: true,
       shippingLine1: true,
       shippingLine2: true,
@@ -346,6 +347,8 @@ export async function fulfillOrder({
   locale = "en",
   couponId,
   couponCode,
+  shippingTotal = 0,
+  shippingByOrg,
 }: {
   userId: string;
   stripeSessionId: string;
@@ -360,6 +363,10 @@ export async function fulfillOrder({
   locale?: string;
   couponId?: string;
   couponCode?: string;
+  // Delivery charged at checkout (order currency): whole-order total + the
+  // per-seller split (orgId -> amount) snapshotted for payouts.
+  shippingTotal?: number;
+  shippingByOrg?: Record<string, number>;
 }) {
   const existing = await prisma.order.findUnique({
     where: { stripeSessionId },
@@ -407,10 +414,11 @@ export async function fulfillOrder({
     return { ...item, price: convertCents(Number(product.price), curr, rate) };
   });
 
-  // The charged `totalCents` is already net of any Stripe coupon discount;
-  // recover the discount as (full subtotal - charged) for display + the ledger.
+  // `totalCents` (Stripe amount_total) = (subtotal - coupon discount) + shipping.
+  // Recover the items discount net of shipping (shipping is added on top and is
+  // never discounted).
   const subtotalCents = itemsWithPrice.reduce((s, i) => s + i.price * i.quantity, 0);
-  const discountAmount = Math.max(0, subtotalCents - totalCents);
+  const discountAmount = Math.max(0, subtotalCents - (totalCents - shippingTotal));
 
   const order = await prisma.$transaction(async (tx) => {
     // Atomic stock decrement - raw SQL WHERE stock >= quantity prevents overselling.
@@ -457,6 +465,8 @@ export async function fulfillOrder({
         couponId: couponId ?? null,
         couponCode: couponCode ?? null,
         discountAmount,
+        shippingTotal,
+        shippingByOrg: shippingByOrg ?? undefined,
         locale,
         currency: currency ?? "usd",
         exchangeRate: exchangeRate ?? 1,
@@ -520,6 +530,8 @@ export async function createCodOrder({
   locale,
   couponId,
   couponCode,
+  shippingTotal = 0,
+  shippingByOrg,
 }: {
   userId: string;
   totalInCurrency: number;
@@ -530,6 +542,10 @@ export async function createCodOrder({
   locale?: string;
   couponId?: string;
   couponCode?: string;
+  // Delivery charged at checkout (order currency): whole-order total + the
+  // per-seller split (orgId -> amount) snapshotted for payouts.
+  shippingTotal?: number;
+  shippingByOrg?: Record<string, number>;
 }) {
   const variantIds = items.filter((i) => i.variantId).map((i) => i.variantId!);
   const productOnlyIds = items.filter((i) => !i.variantId).map((i) => i.productId);
@@ -563,10 +579,10 @@ export async function createCodOrder({
     return { ...item, price: convertCents(Number(product.price), currency as Currency, exchangeRate) };
   });
 
-  // `totalInCurrency` is already net of any coupon; recover the discount as
-  // (full subtotal - charged) for display + the ledger.
+  // `totalInCurrency` = (subtotal - coupon discount) + shipping. Recover the
+  // items discount net of shipping (shipping is added on top, never discounted).
   const subtotalCents = itemsWithPrice.reduce((s, i) => s + i.price * i.quantity, 0);
-  const discountAmount = Math.max(0, subtotalCents - totalInCurrency);
+  const discountAmount = Math.max(0, subtotalCents - (totalInCurrency - shippingTotal));
 
   const order = await prisma.$transaction(async (tx) => {
     for (const item of itemsWithPrice) {
@@ -610,6 +626,8 @@ export async function createCodOrder({
         couponId: couponId ?? null,
         couponCode: couponCode ?? null,
         discountAmount,
+        shippingTotal,
+        shippingByOrg: shippingByOrg ?? undefined,
         locale: locale ?? "en",
         currency,
         exchangeRate,

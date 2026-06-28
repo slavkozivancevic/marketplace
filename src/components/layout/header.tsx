@@ -56,9 +56,12 @@ export function Header() {
           {/* Right side actions */}
           <div className="flex items-center gap-1 sm:gap-2">
             <PreferencesPopover />
-            <ChatDrawerTrigger />
+            {/* Dashboard is an auth-gated route, so the user is always signed
+                in here - hand that down so the auth controls render under the
+                boot loader instead of popping in once clerk-js settles. */}
+            <ChatDrawerTrigger signedIn />
             <div className="hidden sm:flex items-center gap-2 ml-1">
-              <HeaderAuth mode="redirect" showDashboardLink={false} />
+              <HeaderAuth mode="redirect" showDashboardLink={false} signedIn />
             </div>
             {/* Mobile menu button */}
             <Button
@@ -86,7 +89,7 @@ export function Header() {
       >
         <div className="px-4 py-3 space-y-1">
           <div className="pt-2 px-3 sm:hidden">
-            <HeaderAuth mode="redirect" showDashboardLink={false} />
+            <HeaderAuth mode="redirect" showDashboardLink={false} signedIn />
           </div>
         </div>
       </div>

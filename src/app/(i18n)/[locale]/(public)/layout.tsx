@@ -21,7 +21,7 @@ export default async function PublicLayout({
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
-      <PublicHeader showAdminLink={isAdmin} />
+      <PublicHeader showAdminLink={isAdmin} signedIn={!!userId} />
       <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {children}
       </main>

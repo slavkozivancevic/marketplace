@@ -1,7 +1,8 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
-import { getPathname } from "@/i18n/navigation";
+import { Button } from "@/components/ui/button";
+import { Link, getPathname } from "@/i18n/navigation";
 import { CouponForm } from "@/features/coupons/components/CouponForm";
 
 export default async function NewCouponRoute() {
@@ -19,7 +20,11 @@ export default async function NewCouponRoute() {
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6 pt-2">
         <Breadcrumbs items={breadcrumbItems} seo={false} />
-        <PageHeader title={t("newCoupon")} description={t("formDescription")} />
+        <PageHeader title={t("newCoupon")} description={t("formDescription")}>
+          <Button asChild variant="outline">
+            <Link href="/admin/coupons">{t("back")}</Link>
+          </Button>
+        </PageHeader>
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
         <CouponForm />

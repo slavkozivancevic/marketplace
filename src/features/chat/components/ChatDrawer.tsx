@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { MessageCircle, ArrowLeft, Trash2, Loader2, X } from "lucide-react";
 import { SearchInput } from "@/components/search/SearchInput";
-import { SignedIn } from "@clerk/nextjs";
+import { SignedIn, useAuth } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import {
@@ -52,17 +52,44 @@ import { MessageThread } from "./MessageThread";
  *     and only after that initial render do we let `<SignedIn>` decide.
  *     By then Clerk is loaded on both sides and they agree.
  */
-export function ChatDrawerTrigger() {
+export function ChatDrawerTrigger({ signedIn = false }: { signedIn?: boolean }) {
+  const { isLoaded } = useAuth();
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
-  if (!mounted) return null;
+  // Until clerk-js settles its session, trust the server-resolved auth state
+  // (`signedIn` prop) so the button ships in the SSR HTML under the boot
+  // loader instead of popping in a beat after the loader lifts. Once Clerk is
+  // loaded, <SignedIn> is authoritative again.
+  if (mounted && isLoaded) {
+    return (
+      <SignedIn>
+        <ChatDrawerTriggerInner />
+      </SignedIn>
+    );
+  }
+  // Pre-clerk: render a static button shell (no store read). The unread badge
+  // is persisted client state (localStorage), so SSR-ing the real Inner - which
+  // reads `unreadCount` - would mismatch (server 0 vs rehydrated client value).
+  // The shell is identical on both sides; the real trigger + badge swap in
+  // under the boot loader once Clerk is ready.
+  return signedIn ? <ChatDrawerTriggerShell /> : null;
+}
+
+/**
+ * Badge-less, store-free copy of the trigger button's markup. Used only during
+ * the pre-clerk render window so the button occupies its slot under the boot
+ * loader without risking a hydration mismatch on the persisted unread badge.
+ */
+function ChatDrawerTriggerShell() {
+  const openInbox = useChatStore((s) => s.openInbox);
   return (
-    <SignedIn>
-      <ChatDrawerTriggerInner />
-    </SignedIn>
+    <Button variant="outline" size="icon" data-chat-trigger onClick={openInbox} className="relative">
+      <MessageCircle className="size-4" />
+      <span className="sr-only">Open messages</span>
+    </Button>
   );
 }
 

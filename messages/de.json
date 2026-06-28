@@ -301,7 +301,8 @@
     "noneYetDesc": "Sie haben noch keine Bestellungen aufgegeben.",
     "browse": "Produkte durchsuchen",
     "searchPlaceholder": "Nach Produktname oder Bestell-ID suchen...",
-    "paidAfterRefunds": "Bezahlt nach Rückerstattungen"
+    "paidAfterRefunds": "Bezahlt nach Rückerstattungen",
+    "shipping": "Versand"
   },
   "myProducts": {
     "title": "Meine Produkte",
@@ -352,10 +353,21 @@
     "roleAdmin": "Admin",
     "roleMember": "Mitglied",
     "removeMember": "Entfernen",
+    "removeMemberTitle": "Mitglied entfernen",
+    "removeMemberConfirm": "{name} aus der Organisation entfernen? Der Zugriff geht sofort verloren.",
     "removing": "Entferne...",
     "memberRemoved": "Mitglied entfernt",
     "roleChanged": "Rolle aktualisiert",
-    "changingRole": "Speichere..."
+    "changingRole": "Speichere...",
+    "shippingTitle": "Versand",
+    "shippingDesc": "Legen Sie die Versandkosten fest, die Käufer für Ihre Artikel zahlen.",
+    "shippingFlatRate": "Pauschale Versandkosten",
+    "shippingFlatRateHint": "Wird einmal pro Bestellung für Ihre Artikel berechnet. 0 = kostenloser Versand.",
+    "shippingFreeEnabled": "Kostenloser Versand ab Schwelle",
+    "shippingFreeEnabledHint": "Erlassen Sie die Gebühr, wenn die Zwischensumme den Betrag unten erreicht.",
+    "shippingFreeThreshold": "Schwelle für kostenlosen Versand",
+    "shippingFreeThresholdHint": "Bestellungen ab dieser Zwischensumme sind versandkostenfrei.",
+    "shippingUpdated": "Versandeinstellungen gespeichert"
   },
   "wishlist": {
     "title": "Wunschliste",
@@ -396,6 +408,7 @@
     "applyCoupon": "Anwenden",
     "couponApplied": "Gutschein {code} angewendet",
     "removeCoupon": "Entfernen",
+    "itemRemoved": "{item} wurde aus deinem Warenkorb entfernt, da es nicht mehr verfügbar ist.",
     "codOrderPlaced": "Bestellung aufgegeben",
     "codThankYou": "Vielen Dank! Ihre Bestellung wurde aufgegeben. Sie zahlen bei Lieferung.",
     "codOrderNote": "Unser Team wird Sie zur Bestätigung der Lieferdetails kontaktieren.",
@@ -415,7 +428,9 @@
     "orderSummary": "Bestellübersicht",
     "shippingAddress": "Lieferadresse",
     "viewMyOrders": "Meine Bestellungen anzeigen",
-    "total": "Gesamt"
+    "total": "Gesamt",
+    "shipping": "Versand",
+    "freeShippingNudge": "Noch {amount} bei {seller} für kostenlosen Versand"
   },
   "admin": {
     "audit": {
@@ -690,6 +705,9 @@
     "filterable": "Filter",
     "attributeOrder": "Reihenfolge",
     "removeAttribute": "Attribut entfernen",
+    "added": "Hinzugefügt",
+    "removed": "Entfernt",
+    "undo": "Rückgängig",
     "addAttributeFilter": "Filterattribut hinzufügen...",
     "noAttributesAvailable": "Noch keine Attribute definiert. Erstellen Sie sie zuerst in der Attributbibliothek."
   },
@@ -884,6 +902,7 @@
     "selectRole": "Rolle auswählen",
     "sending": "Sende...",
     "send": "Einladung senden",
+    "clear": "Zurücksetzen",
     "success": "Einladung erfolgreich gesendet",
     "noPending": "Keine ausstehenden Einladungen.",
     "expires": "Läuft ab am {date}",
@@ -1216,6 +1235,22 @@
     "hintStatus": "DRAFT (Standard), PUBLISHED oder ARCHIVED.",
     "hintSlug": "URL-Slug. Leer lassen zur automatischen Generierung aus dem Titel."
   },
+  "form": {
+    "unsavedChanges": "Sie haben ungespeicherte Änderungen",
+    "allSaved": "Alle Änderungen gespeichert",
+    "discard": "Verwerfen",
+    "save": "Änderungen speichern",
+    "saving": "Wird gespeichert...",
+    "changed": "Bearbeitet",
+    "savedValue": "Gespeichert: {value}",
+    "on": "Ein",
+    "off": "Aus",
+    "empty": "Leer",
+    "leaveTitle": "Ohne Speichern verlassen?",
+    "leaveDescription": "Sie haben ungespeicherte Änderungen. Wenn Sie diese Seite verlassen, gehen sie verloren.",
+    "stay": "Bleiben",
+    "leave": "Verlassen"
+  },
   "common": {
     "validationFailed": "Bitte korrigieren Sie die markierten Felder vor dem Absenden.",
     "loading": "Lade...",
@@ -1303,7 +1338,8 @@
     "platformFee": "Plattformgebühr ({percent}%)",
     "yourPayout": "Ihre Auszahlung",
     "payoutReversed": "Auszahlungsstorno (Rückerstattungen)",
-    "payoutAfterRefunds": "Auszahlung nach Rückerstattungen"
+    "payoutAfterRefunds": "Auszahlung nach Rückerstattungen",
+    "shippingCollected": "Versand (eingezogen)"
   },
   "relatedProducts": {
     "discoverMore": "Mehr entdecken",
@@ -1321,6 +1357,7 @@
   },
   "validation": {
     "required": "Dieses Feld ist erforderlich",
+    "invalid": "Ungültiger Wert",
     "invalidType": "Ungültiger Wert",
     "notInteger": "Muss eine ganze Zahl sein",
     "tooSmallString": "Muss mindestens {min} Zeichen lang sein",
@@ -1339,13 +1376,15 @@
     "selectNeedsOption": "Fügen Sie mindestens eine Option für Auswahlattribute hinzu",
     "duplicateAxis": "Diese Variante wiederholt dieselbe Achse",
     "duplicateVariantCombo": "Gleiche Optionskombination wie Variante #{other}",
-    "duplicateSku": "Doppelte SKU \"{sku}\" (auch Variante #{other})"
+    "duplicateSku": "Doppelte SKU \"{sku}\" (auch Variante #{other})",
+    "couponPercentRange": "Der Prozentsatz muss zwischen 1 und 100 liegen"
   },
   "coupons": {
     "title": "Gutscheine",
     "description": "Rabattcodes erstellen und verwalten.",
     "newCoupon": "Neuer Gutschein",
     "editCoupon": "Gutschein bearbeiten",
+    "back": "Zurück zu den Gutscheinen",
     "formDescription": "Rabatt, Limits und Gültigkeit festlegen.",
     "empty": "Noch keine Gutscheine.",
     "noResults": "Keine Gutscheine entsprechen Ihren Filtern.",
@@ -1366,12 +1405,16 @@
       "percent": "Prozentual",
       "fixed": "Fester Betrag",
       "valuePercent": "Prozent Rabatt",
-      "valueFixed": "Betrag Rabatt (USD)",
-      "minOrder": "Mindestbestellwert (USD)",
+      "valueFixed": "Betrag Rabatt",
+      "minOrder": "Mindestbestellwert",
       "usageLimit": "Nutzungslimit",
       "expiresAt": "Läuft ab am",
       "optional": "Optional",
       "active": "Aktiv",
+      "inactive": "Inaktiv",
+      "unlimited": "Unbegrenzt",
+      "noExpiry": "Kein Ablauf",
+      "none": "Keine",
       "save": "Änderungen speichern",
       "create": "Gutschein erstellen",
       "activeDesc": "Inaktive Gutscheine können beim Checkout nicht eingelöst werden."
@@ -1411,7 +1454,8 @@
     "discount": "Rabatt",
     "total": "Gesamt",
     "footer": "Vielen Dank für Ihren Einkauf. Diese Rechnung wurde von Marketplace erstellt.",
-    "download": "Rechnung herunterladen"
+    "download": "Rechnung herunterladen",
+    "shipping": "Versand"
   },
   "shipments": {
     "title": "Versand",

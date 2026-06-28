@@ -61,6 +61,15 @@ model Organization {
 
   verified Boolean @default(false)
 
+  // Per-seller delivery rule. `shippingFlatRate` is charged once per order for
+  // this org's items; waived when the org's subtotal reaches
+  // `shippingFreeThreshold` (null = never free). Both in USD base cents
+  // (converted to the order currency at checkout, like product prices). Flat
+  // rate 0 = always free. Shipping goes fully to the seller - no platform fee,
+  // and coupons never reduce it.
+  shippingFlatRate      Int  @default(0)
+  shippingFreeThreshold Int?
+
   members          Membership[]
   products         Product[]
   invites          Invite[]
@@ -581,6 +590,13 @@ model Order {
   couponId        String?
   couponCode      String?
   discountAmount  Int             @default(0)
+  // Delivery charged at checkout, in the order currency. `shippingTotal` is the
+  // whole-order amount (for the buyer total + display); `shippingByOrg` snapshots
+  // the per-seller split (orgId -> amount) so payouts stay correct even if an
+  // org later edits its rule. `total` already includes shippingTotal. Shipping is
+  // the seller's (no platform fee) and is never reduced by a coupon.
+  shippingTotal   Int             @default(0)
+  shippingByOrg   Json?
   items           OrderItem[]
   reviews         ProductReview[]
 

@@ -36,7 +36,7 @@ import { DepartmentSearchBar } from "@/features/categories/components/Department
 import type { CategoryTreeItem } from "@/features/categories/db/categories";
 import { getCategorySlug } from "@/features/categories/utils/translations";
 import { useRouter } from "@/i18n/navigation";
-import { useCurrencyStore } from "@/store/currency";
+import { useCurrencyStore, getCurrentRate } from "@/store/currency";
 import { getCurrencyConfig } from "@/lib/currency";
 
 /** Sheet close animation duration (see `data-closed:animate-out` +
@@ -180,7 +180,7 @@ export function PublicProductsPage({
       locale,
     ],
     queryFn: async () => {
-      const rate = useCurrencyStore.getState().currentRate();
+      const rate = getCurrentRate();
       const sp = new URLSearchParams();
       sp.set("dept", dept);
       sp.set("searchLocale", locale);

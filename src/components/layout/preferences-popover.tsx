@@ -8,6 +8,7 @@ import { useEffect, useState, useTransition } from "react";
 import { setCurrency } from "@/actions/setCurrency";
 import { useLocalePaths } from "@/i18n/LocalePathsContext";
 import { markLanguageSwitch, shouldHardSwitchLocale } from "@/lib/i18n/localeSwitch";
+import { useUnsavedGuardStore } from "@/lib/forms/unsavedGuard";
 import { useHardNav } from "@/components/layout/hard-nav-boundary";
 import type { Locale } from "@/i18n/config";
 import { VALID_CURRENCIES } from "@/lib/currency-config";
@@ -77,6 +78,16 @@ export function PreferencesPopover() {
   }, []);
 
   function handleLocale(newLocale: string) {
+    // A language switch remounts the page and would drop any unsaved form edits.
+    // Route it through the unsaved-changes guard so the user gets the same
+    // confirmation dialog as any other navigation instead of silently losing work.
+    if (!useUnsavedGuardStore.getState().guard(() => doLocaleSwitch(newLocale))) {
+      return;
+    }
+    doLocaleSwitch(newLocale);
+  }
+
+  function doLocaleSwitch(newLocale: string) {
     // Let any page with in-progress state (e.g. a product form) snapshot + restore
     // itself across the remount this locale change triggers. Set before every
     // navigation branch below so it fires regardless of which path we take.

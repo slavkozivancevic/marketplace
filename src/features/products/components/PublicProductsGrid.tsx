@@ -38,7 +38,7 @@ import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
 import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
 import type { ProductFilters } from "@/lib/query/searchParams";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
-import { useCurrencyStore } from "@/store/currency";
+import { useCurrencyStore, getCurrentRate } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
 import { QuickViewModal } from "./QuickViewModal";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,7 @@ function buildFetcher(filters: ProductFilters) {
     // Read rate at fetch time so we always use the current value without
     // making it part of the query key (which would cause spurious refetches
     // while rates are loading).
-    const rate = useCurrencyStore.getState().currentRate();
+    const rate = getCurrentRate();
     const params = new URLSearchParams();
     params.set("take", String(GRID_PAGE_SIZE));
     if (pageParam) params.set("cursor", pageParam);

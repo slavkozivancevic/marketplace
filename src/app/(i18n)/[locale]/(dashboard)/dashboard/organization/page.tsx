@@ -7,6 +7,7 @@ import { getOrganizationById } from "@/features/organizations/db/organizations";
 import { getPendingInvitesByOrg } from "@/features/organizations/db/invites";
 import { CacheTags } from "@/lib/cache/tags";
 import { OrganizationSettingsForm } from "@/features/organizations/components/OrganizationSettingsForm";
+import { OrgShippingForm } from "@/features/organizations/components/OrgShippingForm";
 import { InviteForm } from "@/features/organizations/components/InviteForm";
 import { InviteList } from "@/features/organizations/components/InviteList";
 import { MemberList } from "@/features/organizations/components/MemberList";
@@ -62,11 +63,28 @@ export default async function OrganizationPage() {
                 {t("organization.pendingVerification")}
               </p>
             )}
-            {/* Fresh key forces remount on each page render so unsaved edits
-                don't persist across navigations. */}
+            {/* No remount key: the form re-syncs to the server name via its
+                memoized `values` prop. A fresh `crypto.randomUUID()` key here
+                remounted the form on every (PPR/dynamic) server render, which
+                wiped RHF's dirty state and re-baselined the input, so edits
+                never registered as unsaved. */}
             <OrganizationSettingsForm
-              key={crypto.randomUUID()}
               currentName={organization.name}
+              canEdit={canEdit}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("organization.shippingTitle")}</CardTitle>
+            <p className="text-sm text-muted-foreground">{t("organization.shippingDesc")}</p>
+          </CardHeader>
+          <CardContent>
+            <OrgShippingForm
+              key={crypto.randomUUID()}
+              flatRate={organization.shippingFlatRate}
+              freeThreshold={organization.shippingFreeThreshold}
               canEdit={canEdit}
             />
           </CardContent>

@@ -58,6 +58,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { getCategoryName } from "@/features/categories/utils/translations";
 import type { CategoryTreeItem } from "@/features/categories/db/categories";
 import { consumeLanguageSwitch, setPreserveAcrossLocaleSwitch } from "@/lib/i18n/localeSwitch";
+import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
+import { useBoolFormat } from "@/lib/forms/changedFormatters";
+import { FormSaveBar } from "@/components/forms/FormSaveBar";
+import { FieldChangedHint, ChangedHintScope } from "@/components/forms/FieldChangedHint";
 import { ProductAttributesField } from "./ProductAttributesField";
 import { VariantsEditor } from "./VariantsEditor";
 import type { AttributeSelectorItem } from "@/features/attributes/db/attributes";
@@ -396,7 +400,7 @@ function PerLocaleProductSection({
     if (slugManuallyEdited) return;
     if (titleValue === prevTitleRef.current) return;
     prevTitleRef.current = titleValue;
-    form.setValue(slugPath, slugify(titleValue ?? ""), { shouldDirty: false });
+    form.setValue(slugPath, slugify(titleValue ?? ""), { shouldDirty: true });
   }, [titleValue, slugManuallyEdited, form, slugPath]);
 
   return (
@@ -421,6 +425,7 @@ function PerLocaleProductSection({
                 value={field.value ?? ""}
               />
             </FormControl>
+            <FieldChangedHint />
             <FormMessage />
           </FormItem>
         )}
@@ -467,6 +472,7 @@ function PerLocaleProductSection({
                 excludeId={excludeId}
               />
             </div>
+            <FieldChangedHint />
             <FormMessage />
           </FormItem>
         )}
@@ -485,6 +491,7 @@ function PerLocaleProductSection({
                 value={field.value ?? ""}
               />
             </FormControl>
+            <FieldChangedHint />
             <FormMessage />
           </FormItem>
         )}
@@ -504,11 +511,61 @@ function PerLocaleProductSection({
                 value={field.value ?? ""}
               />
             </FormControl>
+            <FieldChangedHint />
             <FormMessage />
           </FormItem>
         )}
       />
     </div>
+  );
+}
+
+/**
+ * Normalizes any media-like row into the EXACT shape RHF stores in the `media`
+ * form field. Both the saved baseline (`derivedValues.media`) and the
+ * uploadedMedia -> form sync MUST go through this. Otherwise null-vs-undefined
+ * drift on the optional fields (the DB stores `null` for, e.g., an image's
+ * `durationMs`/`thumbKey`, while `productToUploadedMedia` coalesces those to
+ * `undefined`) makes RHF's deep dirty-check see value !== default and flag the
+ * form as edited the instant it opens - the false "unsaved changes" + tab dot.
+ */
+function toFormMedia(m: {
+  key: string;
+  mediaType: "IMAGE" | "VIDEO";
+  thumbKey?: string | null;
+  mimeType?: string | null;
+  durationMs?: number | null;
+  width?: number | null;
+  height?: number | null;
+}): ProductFormData["media"][number] {
+  return {
+    key: m.key,
+    mediaType: m.mediaType,
+    thumbKey: m.thumbKey ?? null,
+    mimeType: m.mimeType ?? null,
+    durationMs: m.durationMs ?? null,
+    width: m.width ?? null,
+    height: m.height ?? null,
+  };
+}
+
+/** Maps a product's server media into the upload component's shape. Shared by
+ *  the initial state, the per-product re-sync, and discard. */
+function productToUploadedMedia(
+  product: SerializedProductWithRelations | undefined,
+): PresignedUploadedMedia[] {
+  return (
+    product?.media.map((m) => ({
+      key: m.key,
+      url: m.url,
+      mediaType: m.mediaType,
+      mimeType: m.mimeType ?? undefined,
+      thumbKey: m.thumbKey ?? undefined,
+      posterUrl: m.thumbUrl ?? undefined,
+      durationMs: m.durationMs ?? undefined,
+      width: m.width ?? undefined,
+      height: m.height ?? undefined,
+    })) ?? []
   );
 }
 
@@ -523,9 +580,10 @@ export function ProductForm({
   redirectTo,
 }: ProductFormProps) {
   const t = useTranslations("productForm");
+  const boolFmt = useBoolFormat();
   const locale = useLocale() as Locale;
   const router = useRouter();
-  const { rates } = useCurrencyStore();
+  const { rates, currency } = useCurrencyStore();
   const [isPending, startTransition] = useTransition();
 
   // The client Router Cache can serve a stale RSC payload when the user
@@ -553,20 +611,22 @@ export function ProductForm({
   }, [locale]);
 
   const [uploadedMedia, setUploadedMedia] = useState<PresignedUploadedMedia[]>(
-    product?.media.map((m) => ({
-      key: m.key,
-      url: m.url,
-      mediaType: m.mediaType,
-      mimeType: m.mimeType ?? undefined,
-      thumbKey: m.thumbKey ?? undefined,
-      posterUrl: m.thumbUrl ?? undefined,
-      durationMs: m.durationMs ?? undefined,
-      width: m.width ?? undefined,
-      height: m.height ?? undefined,
-    })) ?? [],
+    () => productToUploadedMedia(product),
   );
 
   const schema = mode === "create" ? createProductSchema : updateProductSchema;
+
+  // Live stock fetched from a non-cached endpoint (see the effect below). The
+  // edit page is server-cached, so `product.stock` can be stale (orders mutate
+  // stock after the page was cached). We fold the live value INTO the form
+  // baseline via `derivedValues` rather than writing it as a `setValue` side
+  // effect - the latter moved the field value without moving its default, so
+  // RHF's value-vs-default `isDirty` check flagged the form as edited the moment
+  // it opened. `null` here means "not fetched yet" (fall back to page stock).
+  const [liveStock, setLiveStock] = useState<{
+    stock: number | null;
+    variants: Record<string, number>;
+  } | null>(null);
 
   const derivedValues = useMemo<ProductFormData>(() => {
     if (!product) {
@@ -615,7 +675,9 @@ export function ProductForm({
       price: product.price / 100,
       compareAtPrice: product.compareAtPrice != null ? product.compareAtPrice / 100 : null,
       costPrice: product.costPrice != null ? product.costPrice / 100 : null,
-      stock: product.stock ?? null,
+      // Prefer the live stock once fetched, so the baseline matches reality and
+      // the form doesn't open pre-dirtied when the cached page stock is stale.
+      stock: liveStock ? liveStock.stock : (product.stock ?? null),
       barcode: product.barcode ?? "",
       taxable: product.taxable ?? true,
       taxCode: product.taxCode ?? "",
@@ -632,15 +694,7 @@ export function ProductForm({
       translations: normalizeProductTranslations(product.translations),
       brandId: product.brandId ?? undefined,
       categoryIds: product.categories.map((c) => c.categoryId),
-      media: product.media.map((m) => ({
-        key: m.key,
-        mediaType: m.mediaType,
-        thumbKey: m.thumbKey,
-        mimeType: m.mimeType,
-        durationMs: m.durationMs,
-        width: m.width,
-        height: m.height,
-      })),
+      media: product.media.map(toFormMedia),
       options: [],
       variants: product.variants.map((v) => {
         const mediaKeys = v.media
@@ -651,7 +705,7 @@ export function ProductForm({
           price: v.price / 100,
           compareAtPrice: v.compareAtPrice != null ? v.compareAtPrice / 100 : null,
           costPrice: v.costPrice != null ? v.costPrice / 100 : null,
-          stock: v.stock,
+          stock: liveStock?.variants[v.id] ?? v.stock,
           barcode: v.barcode ?? "",
           weight: v.weight ?? null,
           weightUnit: (v.weightUnit ?? null) as ProductFormData["weightUnit"],
@@ -665,7 +719,7 @@ export function ProductForm({
       attributes: buildAttributeEntries(product.attributeValues ?? []),
       version: product.version,
     };
-  }, [product]);
+  }, [product, liveStock]);
 
   // When a draft is restored after a language switch (see the draft block below)
   // this holds the restored values and becomes the controlled `values` source, so
@@ -674,6 +728,10 @@ export function ProductForm({
   const [restoredValues, setRestoredValues] = useState<ProductFormData | null>(null);
 
   const form = useForm<ProductFormData, unknown, ProductFormData>({
+    // Validate on every change so errors surface immediately and `hasErrors`
+    // can gate the save button (consistent with every other admin form - no
+    // "submit then toast"). RHF would otherwise default to "onSubmit".
+    mode: "onChange",
     resolver: useZodResolver(schema) as unknown as Resolver<ProductFormData, unknown, ProductFormData>,
     defaultValues: derivedValues,
     // In update mode, re-sync the form when the underlying product changes.
@@ -695,7 +753,7 @@ export function ProductForm({
     if (slugManuallyEdited) return;
     if (watchedTitle === prevTitleRef.current) return;
     prevTitleRef.current = watchedTitle;
-    form.setValue("slug", slugify(watchedTitle), { shouldDirty: false });
+    form.setValue("slug", slugify(watchedTitle), { shouldDirty: true });
   }, [watchedTitle, slugManuallyEdited, form]);
 
   // --- Draft persistence across a language switch -----------------------------
@@ -793,11 +851,14 @@ export function ProductForm({
   }, [activeTab, uploadedMedia, slugManuallyEdited, persistDraft]);
   // ----------------------------------------------------------------------------
 
+  // Pull live stock (page is cached, so `product.stock` can be stale) and feed
+  // it into `derivedValues` as the form baseline. Routing it through state -
+  // not a `setValue` - keeps the field value and its default in lock-step, so a
+  // stock change since the page was cached no longer opens the form pre-dirtied.
   useEffect(() => {
     if (mode !== "update" || !product) return;
 
     const productId = product.id;
-    const variantIds = product.variants.map((v) => v.id);
     let cancelled = false;
 
     axios.get<{ stock: number | null; variants: { id: string; stock: number }[] }>(
@@ -805,21 +866,21 @@ export function ProductForm({
       )
       .then(({ data }) => {
         if (cancelled) return;
-          form.setValue("stock", data.stock, { shouldDirty: false });
-          const freshMap = new Map(data.variants.map((v) => [v.id, v.stock]));
-          variantIds.forEach((variantId, index) => {
-            const fresh = freshMap.get(variantId);
-            if (fresh !== undefined) {
-              form.setValue(`variants.${index}.stock`, fresh, { shouldDirty: false });
-            }
-          });
-        },
-      )
+        setLiveStock({
+          stock: data.stock,
+          variants: Object.fromEntries(data.variants.map((v) => [v.id, v.stock])),
+        });
+      })
       .catch(() => {});
 
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id]);
+
+  // Tracks whether the uploadedMedia -> form sync has run once. The first run is
+  // the initial mount (and post-product-change re-seed), which must NOT mark the
+  // form dirty; later runs are genuine user media edits and do.
+  const mediaSyncedRef = useRef(false);
 
   // Re-sync local UI state (not in RHF) when the product reference changes -
   // happens on navigation back to the edit page. Skips the initial mount to
@@ -832,49 +893,34 @@ export function ProductForm({
     setSlugManuallyEdited(false);
     prevTitleRef.current =
       product.translations.find((tr) => tr.locale === DEFAULT_LOCALE)?.title ?? "";
-    setUploadedMedia(
-      product.media.map((m) => ({
-        key: m.key,
-        url: m.url,
-        mediaType: m.mediaType,
-        mimeType: m.mimeType ?? undefined,
-        thumbKey: m.thumbKey ?? undefined,
-        posterUrl: m.thumbUrl ?? undefined,
-        durationMs: m.durationMs ?? undefined,
-        width: m.width ?? undefined,
-        height: m.height ?? undefined,
-      })),
-    );
+    // The product changed (e.g. a post-save refresh) - the media re-seed that
+    // follows is a new baseline, not a user edit, so don't let it mark dirty.
+    mediaSyncedRef.current = false;
+    setUploadedMedia(productToUploadedMedia(product));
   }, [product]);
 
   // Mirror uploadedMedia into the form value + prune any variant→media
   // references that point at removed keys. Driven by an effect so the upload
   // component can stay controlled (parent owns the state, which is what keeps
   // the media alive across tab unmounts).
+  //
+  // The first run is the initial mount sync (media seeded from server data), so
+  // it must NOT mark the form dirty - otherwise the edit page opens already
+  // showing "unsaved changes". Subsequent runs are real user media edits and DO
+  // mark dirty so the save bar appears.
   useEffect(() => {
-    form.setValue(
-      "media",
-      uploadedMedia.map((m) => ({
-        key: m.key,
-        mediaType: m.mediaType,
-        thumbKey: m.thumbKey,
-        mimeType: m.mimeType,
-        durationMs: m.durationMs,
-        width: m.width,
-        height: m.height,
-      })),
-    );
+    const shouldDirty = mediaSyncedRef.current;
+    form.setValue("media", uploadedMedia.map(toFormMedia), { shouldDirty });
     const validKeys = new Set(uploadedMedia.map((m) => m.key));
     const currentVariants = form.getValues("variants") ?? [];
     currentVariants.forEach((variant, index) => {
       const current = variant.mediaKeys ?? [];
       const filtered = current.filter((k) => validKeys.has(k));
       if (filtered.length !== current.length) {
-        form.setValue(`variants.${index}.mediaKeys`, filtered, {
-          shouldDirty: true,
-        });
+        form.setValue(`variants.${index}.mediaKeys`, filtered, { shouldDirty });
       }
     });
+    mediaSyncedRef.current = true;
   }, [uploadedMedia, form]);
 
   // Tab error indicators
@@ -884,6 +930,93 @@ export function ProductForm({
   const shippingHasError = !!(errors.weight || errors.length || errors.width || errors.height);
   const seoHasError = !!(errors.metaTitle || errors.metaDescription);
   const variantsHasError = !!errors.variants;
+
+  // Per-tab "edited" indicators (update mode only - in create everything reads
+  // dirty against empty defaults, so the dots would be meaningless).
+  const isDirty = form.formState.isDirty;
+  const dirty = form.formState.dirtyFields;
+  // Block saving while any field is invalid. Error-based (not `!isValid`) so a
+  // freshly-loaded valid product isn't disabled before the first validation runs.
+  const hasErrors = Object.keys(form.formState.errors).length > 0;
+  const showChanges = mode === "update";
+  // Translations are a single nested object spanning multiple tabs (Details owns
+  // title/slug/short/description, SEO owns metaTitle/metaDescription). Check the
+  // relevant per-locale subfields so an SEO edit doesn't light up the Details tab.
+  const translationsDirty = (keys: string[]) => {
+    const td = dirty.translations as
+      | Record<string, Record<string, unknown> | undefined>
+      | undefined;
+    if (!td) return false;
+    return Object.values(td).some((loc) => loc && keys.some((k) => Boolean(loc[k])));
+  };
+  const detailsHasChanges =
+    showChanges &&
+    !!(
+      dirty.title ||
+      dirty.slug ||
+      dirty.description ||
+      dirty.shortDescription ||
+      dirty.categoryIds ||
+      dirty.brandId ||
+      dirty.attributes ||
+      translationsDirty(["title", "slug", "shortDescription", "description"])
+    );
+  const pricingHasChanges = showChanges && !!(dirty.price || dirty.compareAtPrice || dirty.costPrice || dirty.stock || dirty.barcode || dirty.taxable || dirty.taxCode || dirty.media);
+  const shippingHasChanges = showChanges && !!(dirty.isDigital || dirty.requiresShipping || dirty.weight || dirty.weightUnit || dirty.length || dirty.width || dirty.height || dirty.dimensionUnit);
+  const seoHasChanges =
+    showChanges &&
+    !!(dirty.metaTitle || dirty.metaDescription || translationsDirty(["metaTitle", "metaDescription"]));
+  const variantsHasChanges = showChanges && !!dirty.variants;
+
+  useUnsavedChangesWarning(showChanges && isDirty);
+
+  // Discard: restore the form, media and tab state back to the saved server
+  // baseline. Media lives in separate React state, so resetting the form alone
+  // wouldn't revert it; we also re-seed uploadedMedia and flag the next media
+  // sync as a baseline restore (not a user edit) so it doesn't re-dirty.
+  const handleDiscard = () => {
+    mediaSyncedRef.current = false;
+    setRestoredValues(null);
+    setUploadedMedia(productToUploadedMedia(product));
+    setSlugManuallyEdited(false);
+    // Explicit `keepDirtyValues: false`: a bare `form.reset()` MERGES the
+    // useForm-level `resetOptions` ({ keepDirtyValues: true }, there so the
+    // on-mount router.refresh doesn't wipe edits), which would make discard keep
+    // every edited value - i.e. do nothing. Override it to force a clean revert.
+    form.reset(derivedValues, { keepDirtyValues: false });
+  };
+
+  // Saved-value formatters for the changed-field hints on the relation pickers.
+  const categoryNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    const walk = (items: CategoryTreeItem[]) => {
+      for (const c of items) {
+        map.set(c.id, getCategoryName(c, locale));
+        walk(c.children);
+      }
+    };
+    walk(categoryTree);
+    return map;
+  }, [categoryTree, locale]);
+
+  const fmtCategoryIds = (v: unknown) => {
+    if (!Array.isArray(v) || v.length === 0) return "-";
+    return v.map((id) => categoryNameById.get(id as string) ?? String(id)).join(", ");
+  };
+
+  const fmtBrandId = (v: unknown) => {
+    const b = brands.find((x) => x.id === v);
+    if (!b) return "-";
+    return (
+      b.translations.find((tr) => tr.locale === locale)?.name ??
+      b.translations[0]?.name ??
+      "-"
+    );
+  };
+
+  // Product prices live in USD-base dollars in the form.
+  const fmtUsd = (v: unknown) => `$${Number(v).toFixed(2)}`;
+  const fmtStock = (v: unknown) => (v == null ? t("unlimited") : String(v));
 
   const onSubmit = (data: ProductFormData) => {
     startTransition(async () => {
@@ -964,34 +1097,47 @@ export function ProductForm({
     }
   };
 
-  function TabLabel({ label, hasError }: { label: string; hasError: boolean }) {
+  function TabLabel({
+    label,
+    hasError,
+    hasChanges,
+  }: {
+    label: string;
+    hasError: boolean;
+    hasChanges?: boolean;
+  }) {
     return (
       <span className="flex items-center gap-1.5">
         {label}
-        {hasError && <AlertCircle className="w-3 h-3 text-destructive" />}
+        {hasError ? (
+          <AlertCircle className="w-3 h-3 text-destructive" />
+        ) : hasChanges ? (
+          <span className="size-1.5 rounded-full bg-amber-500" aria-hidden />
+        ) : null}
       </span>
     );
   }
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit, onSubmitInvalid)} className="flex-1 flex flex-col min-h-0">
+      <ChangedHintScope enabled={mode === "update"}>
+      <form noValidate onSubmit={form.handleSubmit(onSubmit, onSubmitInvalid)} className="flex-1 flex flex-col min-h-0">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0">
           <TabsList className="w-full justify-start flex-wrap h-auto gap-1 shrink-0">
             <TabsTrigger value="details">
-              <TabLabel label={t("tabDetails")} hasError={detailsHasError} />
+              <TabLabel label={t("tabDetails")} hasError={detailsHasError} hasChanges={detailsHasChanges} />
             </TabsTrigger>
             <TabsTrigger value="pricing">
-              <TabLabel label={t("tabPricing")} hasError={pricingHasError} />
+              <TabLabel label={t("tabPricing")} hasError={pricingHasError} hasChanges={pricingHasChanges} />
             </TabsTrigger>
             <TabsTrigger value="shipping">
-              <TabLabel label={t("tabShipping")} hasError={shippingHasError} />
+              <TabLabel label={t("tabShipping")} hasError={shippingHasError} hasChanges={shippingHasChanges} />
             </TabsTrigger>
             <TabsTrigger value="seo">
-              <TabLabel label={t("tabSeo")} hasError={seoHasError} />
+              <TabLabel label={t("tabSeo")} hasError={seoHasError} hasChanges={seoHasChanges} />
             </TabsTrigger>
             <TabsTrigger value="variants">
-              <TabLabel label={t("tabOptions")} hasError={variantsHasError} />
+              <TabLabel label={t("tabOptions")} hasError={variantsHasError} hasChanges={variantsHasChanges} />
             </TabsTrigger>
           </TabsList>
 
@@ -1012,6 +1158,7 @@ export function ProductForm({
                     <FormControl>
                       <Input placeholder={t("titlePlaceholder")} {...field} />
                     </FormControl>
+                    <FieldChangedHint />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1057,6 +1204,7 @@ export function ProductForm({
                         excludeId={product?.id}
                       />
                     </div>
+                    <FieldChangedHint />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1074,6 +1222,7 @@ export function ProductForm({
                     <FormControl>
                       <Input placeholder={t("shortDescPlaceholder")} {...field} />
                     </FormControl>
+                    <FieldChangedHint />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1092,6 +1241,7 @@ export function ProductForm({
                         {...field}
                       />
                     </FormControl>
+                    <FieldChangedHint />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1129,6 +1279,7 @@ export function ProductForm({
                         onChange={field.onChange}
                       />
                     </FormControl>
+                    <FieldChangedHint format={fmtCategoryIds} />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1159,6 +1310,7 @@ export function ProductForm({
                         onChange={field.onChange}
                       />
                     </FormControl>
+                    <FieldChangedHint format={fmtBrandId} />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1187,8 +1339,9 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>{t("price")}</FormLabel>
                     <FormControl>
-                      <PriceInput value={field.value} onChange={field.onChange} rates={rates} />
+                      <PriceInput value={field.value} onChange={field.onChange} onBlur={field.onBlur} rates={rates} defaultCurrency={currency} />
                     </FormControl>
+                    <FieldChangedHint format={fmtUsd} />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1204,9 +1357,10 @@ export function ProductForm({
                       <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
                     </FormLabel>
                     <FormControl>
-                      <PriceInput value={field.value ?? 0} onChange={(v) => field.onChange(v || null)} rates={rates} />
+                      <PriceInput value={field.value ?? 0} onChange={(v) => field.onChange(v || null)} onBlur={field.onBlur} rates={rates} defaultCurrency={currency} />
                     </FormControl>
                     <FormDescription>{t("compareAtDesc")}</FormDescription>
+                    <FieldChangedHint format={fmtUsd} />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1222,9 +1376,10 @@ export function ProductForm({
                       <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
                     </FormLabel>
                     <FormControl>
-                      <PriceInput value={field.value ?? 0} onChange={(v) => field.onChange(v || null)} rates={rates} />
+                      <PriceInput value={field.value ?? 0} onChange={(v) => field.onChange(v || null)} onBlur={field.onBlur} rates={rates} defaultCurrency={currency} />
                     </FormControl>
                     <FormDescription>{t("costDesc")}</FormDescription>
+                    <FieldChangedHint format={fmtUsd} />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1252,6 +1407,7 @@ export function ProductForm({
                         onChange={(v) => field.onChange(v)}
                       />
                     </FormControl>
+                    <FieldChangedHint format={fmtStock} />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1292,6 +1448,7 @@ export function ProductForm({
                   <FormControl>
                     <Input placeholder={t("barcodePlaceholder")} {...field} />
                   </FormControl>
+                  <FieldChangedHint />
                   <FormMessage />
                 </FormItem>
               )}
@@ -1306,16 +1463,19 @@ export function ProductForm({
                 control={form.control}
                 name="taxable"
                 render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-4 bg-background dark:bg-input/30">
-                    <div>
-                      <FormLabel className="text-base">{t("chargeTaxes")}</FormLabel>
-                      <FormDescription>
-                        {t("chargeTaxesDesc")}
-                      </FormDescription>
+                  <FormItem className="rounded-lg border p-4 bg-background dark:bg-input/30">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <FormLabel className="text-base">{t("chargeTaxes")}</FormLabel>
+                        <FormDescription>
+                          {t("chargeTaxesDesc")}
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
                     </div>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
+                    <FieldChangedHint format={boolFmt} />
                   </FormItem>
                 )}
               />
@@ -1335,6 +1495,7 @@ export function ProductForm({
                     <FormDescription>
                       {t("taxCodeDesc")}
                     </FormDescription>
+                    <FieldChangedHint />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1349,22 +1510,25 @@ export function ProductForm({
                 control={form.control}
                 name="isDigital"
                 render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-4 bg-background dark:bg-input/30">
-                    <div>
-                      <FormLabel className="text-base">{t("digitalProduct")}</FormLabel>
-                      <FormDescription>
-                        {t("digitalDesc")}
-                      </FormDescription>
+                  <FormItem className="rounded-lg border p-4 bg-background dark:bg-input/30">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <FormLabel className="text-base">{t("digitalProduct")}</FormLabel>
+                        <FormDescription>
+                          {t("digitalDesc")}
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={(val) => {
+                            field.onChange(val);
+                            if (val) form.setValue("requiresShipping", false);
+                          }}
+                        />
+                      </FormControl>
                     </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={(val) => {
-                          field.onChange(val);
-                          if (val) form.setValue("requiresShipping", false);
-                        }}
-                      />
-                    </FormControl>
+                    <FieldChangedHint format={boolFmt} />
                   </FormItem>
                 )}
               />
@@ -1374,16 +1538,19 @@ export function ProductForm({
                   control={form.control}
                   name="requiresShipping"
                   render={({ field }) => (
-                    <FormItem className="flex items-center justify-between rounded-lg border p-4 bg-background dark:bg-input/30">
-                      <div>
-                        <FormLabel className="text-base">{t("requiresShipping")}</FormLabel>
-                        <FormDescription>
-                          {t("requiresShippingDesc")}
-                        </FormDescription>
+                    <FormItem className="rounded-lg border p-4 bg-background dark:bg-input/30">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <FormLabel className="text-base">{t("requiresShipping")}</FormLabel>
+                          <FormDescription>
+                            {t("requiresShippingDesc")}
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
                       </div>
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
+                      <FieldChangedHint format={boolFmt} />
                     </FormItem>
                   )}
                 />
@@ -1414,6 +1581,7 @@ export function ProductForm({
                               }
                             />
                           </FormControl>
+                          <FieldChangedHint />
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1444,6 +1612,9 @@ export function ProductForm({
                               ))}
                             </SelectContent>
                           </Select>
+                          <FieldChangedHint
+                            format={(v) => WEIGHT_UNITS.find((u) => u.value === v)?.label ?? String(v)}
+                          />
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1473,6 +1644,7 @@ export function ProductForm({
                                 }
                               />
                             </FormControl>
+                            <FieldChangedHint />
                             <FormMessage />
                           </FormItem>
                         )}
@@ -1504,6 +1676,9 @@ export function ProductForm({
                               ))}
                             </SelectContent>
                           </Select>
+                          <FieldChangedHint
+                            format={(v) => DIMENSION_UNITS.find((u) => u.value === v)?.label ?? String(v)}
+                          />
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1545,6 +1720,7 @@ export function ProductForm({
                     <FormDescription>
                       {t("charsRecommended", { count: field.value?.length ?? 0, max: 70 })}
                     </FormDescription>
+                    <FieldChangedHint />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1569,6 +1745,7 @@ export function ProductForm({
                     <FormDescription>
                       {t("charsRecommended", { count: field.value?.length ?? 0, max: 160 })}
                     </FormDescription>
+                    <FieldChangedHint />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1600,6 +1777,7 @@ export function ProductForm({
                       <FormDescription>
                         {t("charsRecommended", { count: field.value?.length ?? 0, max: 70 })}
                       </FormDescription>
+                      <FieldChangedHint />
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1622,6 +1800,7 @@ export function ProductForm({
                       <FormDescription>
                         {t("charsRecommended", { count: field.value?.length ?? 0, max: 160 })}
                       </FormDescription>
+                      <FieldChangedHint />
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1698,20 +1877,30 @@ export function ProductForm({
         </Tabs>
 
         <div className="shrink-0 pt-4 pb-6 border-t">
-          <Button type="submit" disabled={isPending} className="min-w-36">
-            {isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {t("saving")}
-              </>
-            ) : mode === "create" ? (
-              t("create")
-            ) : (
-              t("update")
-            )}
-          </Button>
+          {mode === "update" ? (
+            <FormSaveBar
+              isDirty={isDirty}
+              isPending={isPending}
+              onDiscard={handleDiscard}
+              saveLabel={t("update")}
+              saveDisabled={hasErrors}
+              sticky={false}
+            />
+          ) : (
+            <Button type="submit" disabled={isPending || hasErrors} className="min-w-36">
+              {isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t("saving")}
+                </>
+              ) : (
+                t("create")
+              )}
+            </Button>
+          )}
         </div>
       </form>
+      </ChangedHintScope>
     </Form>
   );
 }

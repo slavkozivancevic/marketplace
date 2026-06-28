@@ -1,12 +1,15 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useTransition } from "react";
+import { useNavigationGeneration } from "@/lib/navigation/navGeneration";
 import { useTranslations } from "next-intl";
-import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
+import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
+import { FormSaveBar } from "@/components/forms/FormSaveBar";
+import { FieldChangedHint } from "@/components/forms/FieldChangedHint";
 import {
   Form,
   FormControl,
@@ -16,7 +19,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import {
   updateOrganizationNameSchema,
   UpdateOrganizationNameInput,
@@ -36,15 +38,33 @@ export function OrganizationSettingsForm({
   const onInvalid = useInvalidToast();
   const [isPending, startTransition] = useTransition();
 
+  const navGeneration = useNavigationGeneration();
+
+  // Single dirty baseline: `defaultValues` only. We deliberately do NOT pass
+  // RHF's `values` prop here - mixing `values` + `defaultValues` made
+  // `isDirty` unreliable (the unsaved-changes bar never appeared while typing).
   const form = useForm<UpdateOrganizationNameInput>({
-    mode: "onTouched",
+    mode: "onChange",
     resolver: useZodResolver(updateOrganizationNameSchema),
     defaultValues: { name: currentName },
-    // Re-sync when the server-supplied name changes - Next.js can preserve the
-    // React tree across navigations, so without this the unsaved edits would
-    // persist when the user leaves the page and returns.
-    values: { name: currentName },
   });
+
+  // Re-baseline the form to the server-supplied name when it actually changes
+  // (after a successful save) or when navigating back to this page. Next.js can
+  // keep the route's React tree warm, so without this an unsaved edit could
+  // survive a leave-and-return. Keyed on `currentName` + the navigation-
+  // generation counter (bumps on every real path change, including returning to
+  // the same route), and stable while you stay on the page so it never
+  // interrupts editing.
+  useEffect(() => {
+    form.reset({ name: currentName });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentName, navGeneration]);
+
+  useUnsavedChangesWarning(form.formState.isDirty);
+
+  // Block saving while the name is invalid (consistent with all admin forms).
+  const hasErrors = Object.keys(form.formState.errors).length > 0;
 
   const onSubmit = (data: UpdateOrganizationNameInput) => {
     startTransition(async () => {
@@ -60,7 +80,7 @@ export function OrganizationSettingsForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-4">
+      <form noValidate onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-4">
         <FormField
           control={form.control}
           name="name"
@@ -74,16 +94,20 @@ export function OrganizationSettingsForm({
                   {...field}
                 />
               </FormControl>
+              <FieldChangedHint />
               <FormMessage />
             </FormItem>
           )}
         />
 
         {canEdit && (
-          <Button type="submit" disabled={isPending}>
-            {isPending && <Loader2 className="animate-spin" />}
-            {isPending ? t("saving") : t("saveChanges")}
-          </Button>
+          <FormSaveBar
+            isDirty={form.formState.isDirty}
+            isPending={isPending}
+            onDiscard={() => form.reset()}
+            saveLabel={t("saveChanges")}
+            saveDisabled={hasErrors}
+          />
         )}
       </form>
     </Form>

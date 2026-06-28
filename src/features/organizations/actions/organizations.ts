@@ -11,6 +11,7 @@ import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import {
   setOrganizationVerified,
   updateOrganizationName,
+  updateOrganizationShipping,
   removeMember,
   updateMemberRole,
 } from "../db/organizations";
@@ -19,9 +20,12 @@ import {
   VerifyOrganizationInput,
   updateOrganizationNameSchema,
   UpdateOrganizationNameInput,
+  updateOrganizationShippingSchema,
+  UpdateOrganizationShippingInput,
   updateMemberRoleSchema,
 } from "../schema/organizations";
 import { MembershipRole } from "@/generated/prisma/client";
+import { decimalToCents } from "@/lib/currency";
 import { ActionErrorResult } from "@/types/types";
 import { publishMemberRoleChanged } from "@/services/notifications";
 import { recordAudit } from "@/features/audit/db/audit";
@@ -80,6 +84,36 @@ export async function updateOrganizationNameAction(
 
     revalidatePath("/[locale]/dashboard/organization", "page");
     revalidatePath("/[locale]/admin/organizations", "page");
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+export async function updateOrganizationShippingAction(
+  input: UpdateOrganizationShippingInput,
+): Promise<void | ActionErrorResult> {
+  try {
+    const parsed = updateOrganizationShippingSchema.safeParse(input, {
+      error: await getServerZodErrorMap(),
+    });
+    if (!parsed.success) {
+      return { error: true, message: parsed.error.issues.map((i) => i.message).join(", ") };
+    }
+
+    const ctx = await resolveRequestContext();
+    if (ctx.membershipRole !== "OWNER" && ctx.membershipRole !== "ADMIN") {
+      throw new ForbiddenError({ key: "onlyOwnersAndAdminsChangeRoles" });
+    }
+
+    await updateOrganizationShipping(ctx.organizationId, {
+      shippingFlatRate: decimalToCents(parsed.data.shippingFlatRate),
+      shippingFreeThreshold:
+        parsed.data.shippingFreeThreshold != null
+          ? decimalToCents(parsed.data.shippingFreeThreshold)
+          : null,
+    });
+
+    revalidatePath("/[locale]/dashboard/organization", "page");
   } catch (error) {
     return handleActionError(error);
   }
@@ -152,6 +186,11 @@ export async function updateMemberRoleAction(
     }).catch((err) =>
       console.error("[notifications] publishMemberRoleChanged failed", err),
     );
+
+    // Refresh the member list so the saved role is reflected back to the UI
+    // (without this the row would stay stuck in its "unsaved" state).
+    revalidatePath("/[locale]/dashboard/organization", "page");
+    revalidatePath("/[locale]/admin/organizations", "page");
   } catch (error) {
     return handleActionError(error);
   }

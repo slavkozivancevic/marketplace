@@ -10,6 +10,7 @@ import { handleActionError } from "@/features/common/errors/domainErrors";
 import { getCurrencyRate } from "@/features/currency/db/currencyRates";
 import { convertCents } from "@/lib/currency";
 import { validateCoupon } from "@/features/coupons/db/coupons";
+import { cartShippingLines } from "@/features/shipping/db/shipping";
 import type { ActionErrorResult } from "@/types/types";
 import type { CheckoutCartItem } from "./checkout";
 import { VALID_CURRENCIES, type Currency } from "@/lib/currency-config";
@@ -111,6 +112,20 @@ export async function createCodCheckout(
       }
     }
 
+    // Per-seller delivery (added on top of the discounted items total). Snapshot
+    // the per-org split for payouts.
+    const shipLines = await cartShippingLines(items);
+    const shippingByOrg: Record<string, number> = {};
+    let shippingTotal = 0;
+    for (const l of shipLines) {
+      if (l.shippingUsd > 0) {
+        const c = convertCents(l.shippingUsd, currency, exchangeRate);
+        shippingByOrg[l.orgId] = c;
+        shippingTotal += c;
+      }
+    }
+    totalInCurrency += shippingTotal;
+
     const order = await createCodOrder({
       userId: user.id,
       totalInCurrency,
@@ -119,6 +134,8 @@ export async function createCodCheckout(
       items,
       couponId: appliedCouponId,
       couponCode: appliedCouponCode,
+      shippingTotal,
+      shippingByOrg,
       shipping: {
         name: shipping.name,
         line1: shipping.line1,

@@ -37,7 +37,10 @@ export function formatPrice(amountInSmallestUnit: number, currency: Currency): s
   const amount = amountInSmallestUnit / divisor;
   return new Intl.NumberFormat(config.locale, {
     style: "currency",
-    currency: currency.toUpperCase(),
+    // Use the resolved config's code (getCurrencyConfig falls back to a valid
+    // currency) - never the raw param, which could be an empty/unknown string
+    // (e.g. a stale persisted value) and would throw "Invalid currency code".
+    currency: config.code.toUpperCase(),
     minimumFractionDigits: config.decimalPlaces,
     maximumFractionDigits: config.decimalPlaces,
   }).format(amount);
