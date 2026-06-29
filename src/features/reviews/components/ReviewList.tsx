@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
 import { dateLocale } from "@/lib/i18n/dateLocale";
@@ -12,6 +12,17 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Pencil, Trash2, Loader2 } from "lucide-react";
 import { StarRating } from "./StarRating";
 import { deleteReview, updateReview } from "../actions/reviews";
@@ -86,11 +97,21 @@ function ReviewItem({
   const [editRating, setEditRating] = useState(review.rating);
   const [editComment, setEditComment] = useState(review.comment ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  const isEdited =
-    new Date(review.updatedAt).getTime() !==
-    new Date(review.createdAt).getTime();
+  // In view mode the only in-flight action is delete, so isPending tracks it.
+  // Close the confirm dialog once that delete settles.
+  const wasDeleting = useRef(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (wasDeleting.current && !isPending) setDeleteOpen(false);
+    wasDeleting.current = isPending && deleteOpen;
+  }, [isPending, deleteOpen]);
+
+  // "(edited)" reflects an author content edit only - moderation status writes
+  // (approve/reject) bump updatedAt but must not flag the review as edited.
+  const isEdited = review.editedAt != null;
 
   const handleDelete = () => {
     startTransition(async () => {
@@ -193,17 +214,17 @@ function ReviewItem({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="text-xs text-muted-foreground cursor-default">
-                    {isEdited
-                      ? formatRelativeTime(new Date(review.updatedAt))
+                    {isEdited && review.editedAt
+                      ? formatRelativeTime(new Date(review.editedAt))
                       : formatRelativeTime(new Date(review.createdAt))}
                     {isEdited && ` ${t("edited")}`}
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>{new Date(review.createdAt).toLocaleString(dl)}</p>
-                  {isEdited && (
+                  {isEdited && review.editedAt && (
                     <p className="text-muted-foreground">
-                      Edited: {new Date(review.updatedAt).toLocaleString(dl)}
+                      Edited: {new Date(review.editedAt).toLocaleString(dl)}
                     </p>
                   )}
                 </TooltipContent>
@@ -211,6 +232,19 @@ function ReviewItem({
             </div>
             {review.comment && (
               <p className="text-sm text-muted-foreground">{review.comment}</p>
+            )}
+            {review.status === "PENDING" && (
+              <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500">
+                <span className="size-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden />
+                {t("pendingHint")}
+              </p>
+            )}
+            {review.status === "REJECTED" && (
+              <p className="text-xs text-destructive">
+                {review.moderationReason
+                  ? t("rejectedReason", { reason: review.moderationReason })
+                  : t("rejectedHint")}
+              </p>
             )}
           </div>
           {isOwner && (
@@ -224,15 +258,57 @@ function ReviewItem({
               >
                 <Pencil className="h-4 w-4" />
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={handleDelete}
-                disabled={isPending}
+              <AlertDialog
+                open={deleteOpen}
+                onOpenChange={(next) => {
+                  if (isPending) return;
+                  setDeleteOpen(next);
+                }}
               >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    disabled={isPending}
+                  >
+                    {isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                    <span className="sr-only">{tCommon("delete")}</span>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t("deleteConfirm")}</AlertDialogTitle>
+                    <AlertDialogDescription>{t("deleteDesc")}</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isPending}>
+                      {tCommon("cancel")}
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleDelete();
+                      }}
+                      disabled={isPending}
+                      variant="destructiveSolid"
+                    >
+                      {isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          {t("deleting")}
+                        </>
+                      ) : (
+                        tCommon("delete")
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           )}
         </div>

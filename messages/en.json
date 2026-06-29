@@ -49,6 +49,7 @@
     "adminOrganizations": "Organizations",
     "adminUsers": "Users",
     "audit": "Audit Log",
+    "reviews": "Reviews",
     "newBrand": "New Brand",
     "editBrand": "Edit Brand",
     "newCategory": "New Category",
@@ -86,6 +87,7 @@
     "organizations": "Organizations",
     "users": "Users",
     "coupons": "Coupons",
+    "reviews": "Reviews",
     "audit": "Audit Log",
     "dashboard": "Dashboard",
     "quickLinks": "Quick Links"
@@ -464,7 +466,8 @@
         "user": "User",
         "membership": "Membership",
         "organization": "Organization",
-        "coupon": "Coupon"
+        "coupon": "Coupon",
+        "review": "Review"
       },
       "fields": {
         "count": "Count",
@@ -568,6 +571,10 @@
           "created": "Coupon created",
           "updated": "Coupon updated",
           "deleted": "Coupon deleted"
+        },
+        "review": {
+          "approved": "Review approved",
+          "rejected": "Review rejected"
         }
       },
       "columns": {
@@ -582,6 +589,37 @@
         "stock": "Stock",
         "categories": "Categories"
       }
+    },
+    "reviews": {
+      "title": "Review Moderation",
+      "description": "Approve or reject customer reviews. New reviews are auto-moderated by AI; uncertain ones land here for you.",
+      "searchPlaceholder": "Comment or author…",
+      "allStatuses": "All statuses",
+      "colProduct": "Product",
+      "colAuthor": "Author",
+      "colRating": "Rating",
+      "colComment": "Comment",
+      "colStatus": "Status",
+      "colDate": "Date",
+      "colActions": "Actions",
+      "status": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "approve": "Approve",
+      "reject": "Reject",
+      "rejecting": "Rejecting…",
+      "approved": "Review approved",
+      "rejected": "Review rejected",
+      "rejectConfirm": "Reject this review?",
+      "rejectDesc": "It won't be shown publicly. Optionally add a reason the author will see.",
+      "reasonPlaceholder": "Reason (optional)",
+      "anonymous": "Anonymous",
+      "noComment": "No comment",
+      "deletedProduct": "Deleted product",
+      "noResults": "No reviews match your filters.",
+      "empty": "No reviews yet."
     },
     "title": "Admin Panel",
     "welcome": "Welcome back, {name}. Manage your marketplace from here.",
@@ -797,7 +835,15 @@
     "editPlaceholder": "Update your review (optional)",
     "saving": "Saving...",
     "save": "Save",
-    "edited": "(edited)"
+    "edited": "(edited)",
+    "heading": "Reviews",
+    "countLabel": "{count, plural, one {# review} other {# reviews}}",
+    "pendingHint": "Awaiting moderation - not public yet.",
+    "rejectedHint": "This review wasn't published.",
+    "rejectedReason": "Not published: {reason}",
+    "deleteConfirm": "Delete your review?",
+    "deleteDesc": "This permanently removes your rating and comment. This can't be undone.",
+    "deleting": "Deleting..."
   },
   "search": {
     "result": "result",

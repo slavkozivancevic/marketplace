@@ -49,6 +49,7 @@
     "adminOrganizations": "Organisationen",
     "adminUsers": "Benutzer",
     "audit": "Audit-Protokoll",
+    "reviews": "Bewertungen",
     "newBrand": "Neue Marke",
     "editBrand": "Marke bearbeiten",
     "newCategory": "Neue Kategorie",
@@ -86,6 +87,7 @@
     "organizations": "Organisationen",
     "users": "Benutzer",
     "coupons": "Gutscheine",
+    "reviews": "Bewertungen",
     "audit": "Audit-Protokoll",
     "dashboard": "Dashboard",
     "quickLinks": "Schnellzugriff"
@@ -464,7 +466,8 @@
         "user": "Benutzer",
         "membership": "Mitgliedschaft",
         "organization": "Organisation",
-        "coupon": "Gutschein"
+        "coupon": "Gutschein",
+        "review": "Bewertung"
       },
       "fields": {
         "count": "Anzahl",
@@ -568,6 +571,10 @@
           "created": "Gutschein erstellt",
           "updated": "Gutschein aktualisiert",
           "deleted": "Gutschein gelöscht"
+        },
+        "review": {
+          "approved": "Bewertung genehmigt",
+          "rejected": "Bewertung abgelehnt"
         }
       },
       "columns": {
@@ -582,6 +589,37 @@
         "stock": "Lagerbestand",
         "categories": "Kategorien"
       }
+    },
+    "reviews": {
+      "title": "Bewertungsmoderation",
+      "description": "Kundenbewertungen genehmigen oder ablehnen. Neue Bewertungen werden per KI moderiert; unsichere landen hier.",
+      "searchPlaceholder": "Kommentar oder Autor…",
+      "allStatuses": "Alle Status",
+      "colProduct": "Produkt",
+      "colAuthor": "Autor",
+      "colRating": "Bewertung",
+      "colComment": "Kommentar",
+      "colStatus": "Status",
+      "colDate": "Datum",
+      "colActions": "Aktionen",
+      "status": {
+        "pending": "Ausstehend",
+        "approved": "Genehmigt",
+        "rejected": "Abgelehnt"
+      },
+      "approve": "Genehmigen",
+      "reject": "Ablehnen",
+      "rejecting": "Wird abgelehnt…",
+      "approved": "Bewertung genehmigt",
+      "rejected": "Bewertung abgelehnt",
+      "rejectConfirm": "Diese Bewertung ablehnen?",
+      "rejectDesc": "Sie wird nicht öffentlich angezeigt. Optional einen Grund angeben, den der Autor sieht.",
+      "reasonPlaceholder": "Grund (optional)",
+      "anonymous": "Anonym",
+      "noComment": "Kein Kommentar",
+      "deletedProduct": "Gelöschtes Produkt",
+      "noResults": "Keine Bewertungen entsprechen den Filtern.",
+      "empty": "Noch keine Bewertungen."
     },
     "title": "Admin-Bereich",
     "welcome": "Willkommen zurück, {name}. Verwalten Sie Ihren Marketplace von hier aus.",
@@ -797,7 +835,15 @@
     "editPlaceholder": "Aktualisieren Sie Ihre Bewertung (optional)",
     "saving": "Speichere...",
     "save": "Speichern",
-    "edited": "(bearbeitet)"
+    "edited": "(bearbeitet)",
+    "heading": "Bewertungen",
+    "countLabel": "{count, plural, one {# Bewertung} other {# Bewertungen}}",
+    "pendingHint": "Wartet auf Moderation - noch nicht öffentlich.",
+    "rejectedHint": "Diese Bewertung wurde nicht veröffentlicht.",
+    "rejectedReason": "Nicht veröffentlicht: {reason}",
+    "deleteConfirm": "Ihre Bewertung löschen?",
+    "deleteDesc": "Dies entfernt Ihre Bewertung und Ihren Kommentar dauerhaft. Kann nicht rückgängig gemacht werden.",
+    "deleting": "Wird gelöscht..."
   },
   "search": {
     "result": "Ergebnis",

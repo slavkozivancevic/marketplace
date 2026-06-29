@@ -49,6 +49,7 @@
     "adminOrganizations": "Organizacije",
     "adminUsers": "Korisnici",
     "audit": "Dnevnik izmena",
+    "reviews": "Recenzije",
     "newBrand": "Novi brend",
     "editBrand": "Izmena brenda",
     "newCategory": "Nova kategorija",
@@ -85,6 +86,7 @@
     "organizations": "Organizacije",
     "users": "Korisnici",
     "coupons": "Kuponi",
+    "reviews": "Recenzije",
     "audit": "Dnevnik izmena",
     "dashboard": "Kontrolna tabla",
     "quickLinks": "Brzi linkovi",
@@ -464,7 +466,8 @@
         "user": "Korisnik",
         "membership": "Članstvo",
         "organization": "Organizacija",
-        "coupon": "Kupon"
+        "coupon": "Kupon",
+        "review": "Recenzija"
       },
       "fields": {
         "count": "Broj",
@@ -568,6 +571,10 @@
           "created": "Kupon kreiran",
           "updated": "Kupon izmenjen",
           "deleted": "Kupon obrisan"
+        },
+        "review": {
+          "approved": "Recenzija odobrena",
+          "rejected": "Recenzija odbijena"
         }
       },
       "columns": {
@@ -582,6 +589,37 @@
         "stock": "Zalihe",
         "categories": "Kategorije"
       }
+    },
+    "reviews": {
+      "title": "Moderacija recenzija",
+      "description": "Odobrite ili odbijte recenzije kupaca. Nove recenzije automatski moderira AI; nesigurne stižu ovde.",
+      "searchPlaceholder": "Komentar ili autor…",
+      "allStatuses": "Svi statusi",
+      "colProduct": "Proizvod",
+      "colAuthor": "Autor",
+      "colRating": "Ocena",
+      "colComment": "Komentar",
+      "colStatus": "Status",
+      "colDate": "Datum",
+      "colActions": "Akcije",
+      "status": {
+        "pending": "Na čekanju",
+        "approved": "Odobreno",
+        "rejected": "Odbijeno"
+      },
+      "approve": "Odobri",
+      "reject": "Odbij",
+      "rejecting": "Odbijanje…",
+      "approved": "Recenzija odobrena",
+      "rejected": "Recenzija odbijena",
+      "rejectConfirm": "Odbiti ovu recenziju?",
+      "rejectDesc": "Neće biti prikazana javno. Opciono dodajte razlog koji će autor videti.",
+      "reasonPlaceholder": "Razlog (opciono)",
+      "anonymous": "Anonimno",
+      "noComment": "Bez komentara",
+      "deletedProduct": "Obrisan proizvod",
+      "noResults": "Nijedna recenzija ne odgovara filterima.",
+      "empty": "Još nema recenzija."
     },
     "title": "Admin panel",
     "welcome": "Dobrodošao nazad, {name}. Upravljaj tržištem odavde.",
@@ -797,7 +835,15 @@
     "editPlaceholder": "Ažurirajte recenziju (opciono)",
     "saving": "Čuvanje...",
     "save": "Sačuvaj",
-    "edited": "(izmenjeno)"
+    "edited": "(izmenjeno)",
+    "heading": "Recenzije",
+    "countLabel": "{count, plural, one {# recenzija} few {# recenzije} other {# recenzija}}",
+    "pendingHint": "Čeka moderaciju - još nije javno.",
+    "rejectedHint": "Ova recenzija nije objavljena.",
+    "rejectedReason": "Nije objavljeno: {reason}",
+    "deleteConfirm": "Obrisati vašu recenziju?",
+    "deleteDesc": "Ovo trajno uklanja vašu ocenu i komentar. Ne može se poništiti.",
+    "deleting": "Brisanje..."
   },
   "search": {
     "result": "rezultat",

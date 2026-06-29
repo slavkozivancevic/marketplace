@@ -126,6 +126,7 @@ export const routing = defineRouting({
     "/admin/organizations": "/admin/organizations",
     "/admin/users": "/admin/users",
     "/admin/audit": "/admin/audit",
+    "/admin/reviews": "/admin/reviews",
     "/admin/coupons": "/admin/coupons",
     "/admin/coupons/new": "/admin/coupons/new",
     "/admin/coupons/[id]/edit": "/admin/coupons/[id]/edit",

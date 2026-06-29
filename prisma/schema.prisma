@@ -812,6 +812,16 @@ model Wishlist {
   @@index([productId])
 }
 
+// Moderation lifecycle for a review. New reviews start PENDING; AI moderation
+// (or an admin) moves them to APPROVED or REJECTED. Only APPROVED reviews are
+// shown publicly and counted toward a product's rating aggregate. When the
+// ANTHROPIC_API_KEY is unset, reviews stay PENDING for manual admin moderation.
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model ProductReview {
   id        String  @id @default(uuid())
   productId String
@@ -820,8 +830,20 @@ model ProductReview {
   rating    Int
   comment   String? @db.Text
 
+  // Moderation: status gates public visibility + rating aggregation.
+  // moderationReason carries the AI/admin explanation (shown to the author on
+  // rejection, and in the admin moderation queue). moderatedAt is set once a
+  // decision (auto or manual) is applied.
+  status           ReviewStatus @default(PENDING)
+  moderationReason String?      @db.Text
+  moderatedAt      DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  // Set only when the AUTHOR edits the review content. Distinct from updatedAt
+  // (which any write bumps, incl. moderation) so the public "(edited)" badge
+  // reflects a real content change, not an approve/reject status write.
+  editedAt  DateTime?
 
   product Product @relation(fields: [productId], references: [id])
   user    User    @relation(fields: [userId], references: [id])
@@ -830,6 +852,8 @@ model ProductReview {
   @@unique([productId, userId])
   @@index([productId])
   @@index([userId])
+  // Admin moderation queue filters/sorts by status, newest first.
+  @@index([status, createdAt])
 }
 
 // Stores how many units of each currency equal 1 USD.

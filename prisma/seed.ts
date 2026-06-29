@@ -895,13 +895,16 @@ async function seedTransactions(buyerIds: string[], products: SeededProduct[]) {
         // reviews left by a previous run (unique on productId + userId).
         await prisma.productReview.upsert({
           where: { productId_userId: { productId: it.productId, userId } },
-          update: { rating, comment: chance(0.7) ? pick(comments) : null },
+          // Seeded reviews are pre-approved so they show publicly and match the
+          // aggregate below (moderation only gates real, user-submitted reviews).
+          update: { rating, comment: chance(0.7) ? pick(comments) : null, status: "APPROVED" },
           create: {
             productId: it.productId,
             userId,
             orderId: order.id,
             rating,
             comment: chance(0.7) ? pick(comments) : null,
+            status: "APPROVED",
           },
         });
         const agg = ratingAgg.get(it.productId) ?? { sum: 0, count: 0 };

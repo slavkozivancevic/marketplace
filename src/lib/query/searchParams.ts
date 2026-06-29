@@ -185,6 +185,21 @@ export type CouponFilters = {
   sortOrder: "asc" | "desc";
 };
 
+// ---------- Admin reviews (moderation queue) ----------
+
+// Defaults to the PENDING queue - the actionable view an admin lands on.
+export const reviewSearchParams = {
+  search: parseAsString.withDefault(""),
+  status: parseAsStringEnum(["", "PENDING", "APPROVED", "REJECTED"] as const).withDefault("PENDING"),
+  sortOrder: parseAsStringEnum(["asc", "desc"] as const).withDefault("desc"),
+};
+
+export type ReviewFilters = {
+  search: string;
+  status: "" | "PENDING" | "APPROVED" | "REJECTED";
+  sortOrder: "asc" | "desc";
+};
+
 // ---------- Admin organizations ----------
 
 export const adminOrgSearchParams = {

@@ -25,6 +25,7 @@ type Options<TItem> = {
   enabled?: boolean;
   staleTime?: number;
   refetchOnMount?: boolean | "always";
+  refetchOnWindowFocus?: boolean | "always";
 };
 
 /**
@@ -44,6 +45,7 @@ export function useInfiniteVirtualList<TItem>({
   enabled = true,
   staleTime,
   refetchOnMount,
+  refetchOnWindowFocus,
 }: Options<TItem>) {
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -65,6 +67,7 @@ export function useInfiniteVirtualList<TItem>({
     enabled,
     ...(staleTime !== undefined && { staleTime }),
     ...(refetchOnMount !== undefined && { refetchOnMount }),
+    ...(refetchOnWindowFocus !== undefined && { refetchOnWindowFocus }),
   });
 
   const items: TItem[] =

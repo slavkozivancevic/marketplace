@@ -25,7 +25,7 @@ export async function GET(
   // Get rating breakdown
   const breakdown = await prisma.productReview.groupBy({
     by: ["rating"],
-    where: { productId: id },
+    where: { productId: id, status: "APPROVED" },
     _count: { rating: true },
   });
 

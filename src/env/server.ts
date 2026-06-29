@@ -24,6 +24,10 @@ export const env = createEnv({
     CONVERSATION_SEARCH_API_KEY: z.string().min(1),
     NOTIFICATIONS_TOPIC_ARN_PARAM: z.string().min(1),
     NOTIFICATIONS_API_KEY: z.string().min(1),
+    // Optional: enables AI review moderation (Anthropic Claude Haiku). When
+    // unset, submitted reviews stay PENDING and are moderated manually by an
+    // admin - the feature degrades gracefully with no standing cost.
+    ANTHROPIC_API_KEY: z.string().optional(),
   },
   experimental__runtimeEnv: process.env,
 });

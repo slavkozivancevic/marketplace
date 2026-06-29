@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/core/db/prisma";
 import {
   getProductReviews,
@@ -20,6 +21,7 @@ export async function ProductReviewsSection({
   avgRating,
   ratingCount,
 }: ProductReviewsSectionProps) {
+  const t = await getTranslations("reviews");
   const reviews = await getProductReviews(productId);
 
   const { userId: clerkUserId } = await auth();
@@ -27,6 +29,9 @@ export async function ProductReviewsSection({
   let dbUserId: string | undefined;
   let canReview = false;
   let eligibleOrderId: string | null = null;
+  // The author's own review when it isn't APPROVED yet - merged into the list so
+  // they can see its moderation status (others never receive it).
+  let ownPendingReview: Awaited<ReturnType<typeof getUserReviewForProduct>> = null;
 
   if (clerkUserId) {
     const user = await prisma.user.findUnique({
@@ -41,20 +46,28 @@ export async function ProductReviewsSection({
       if (!existingReview) {
         eligibleOrderId = await getEligibleOrderForReview(user.id, productId);
         canReview = !!eligibleOrderId;
+      } else if (existingReview.status !== "APPROVED") {
+        ownPendingReview = existingReview;
       }
     }
   }
 
+  // Prepend the author's own non-approved review, and guard against it also
+  // appearing in the public list during a brief cache-revalidation window (would
+  // otherwise duplicate a React key).
+  const displayReviews = ownPendingReview
+    ? [ownPendingReview, ...reviews.filter((r) => r.id !== ownPendingReview!.id)]
+    : reviews;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <h2 className="text-xl font-semibold">Reviews</h2>
+        <h2 className="text-xl font-semibold">{t("heading")}</h2>
         {ratingCount > 0 && (
           <div className="flex items-center gap-2">
             <StarRating rating={avgRating} size={18} />
             <span className="text-sm text-muted-foreground">
-              {avgRating.toFixed(1)} ({ratingCount}{" "}
-              {ratingCount === 1 ? "review" : "reviews"})
+              {avgRating.toFixed(1)} ({t("countLabel", { count: ratingCount })})
             </span>
           </div>
         )}
@@ -64,7 +77,11 @@ export async function ProductReviewsSection({
         <ReviewForm productId={productId} orderId={eligibleOrderId} />
       )}
 
-      <ReviewList reviews={reviews} currentUserId={dbUserId} productId={productId} />
+      <ReviewList
+        reviews={displayReviews}
+        currentUserId={dbUserId}
+        productId={productId}
+      />
     </div>
   );
 }

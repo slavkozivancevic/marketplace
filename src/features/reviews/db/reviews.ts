@@ -2,7 +2,32 @@ import { prisma } from "@/core/db/prisma";
 import { cacheTag } from "next/cache";
 import { CacheTags } from "@/lib/cache/tags";
 import { SerializedProductReview } from "@/types/types";
+import { Prisma, ReviewStatus } from "@/generated/prisma/client";
 import { revalidateReviewCache } from "./cache";
+
+/**
+ * Recomputes a product's denormalized rating from its APPROVED reviews only.
+ * PENDING / REJECTED reviews never influence the public rating. Runs inside the
+ * caller's transaction so the review change and the aggregate stay consistent.
+ */
+async function recomputeRating(
+  tx: Prisma.TransactionClient,
+  productId: string,
+): Promise<void> {
+  const aggregate = await tx.productReview.aggregate({
+    where: { productId, status: "APPROVED" },
+    _avg: { rating: true },
+    _count: { rating: true },
+  });
+
+  await tx.product.update({
+    where: { id: productId },
+    data: {
+      avgRating: aggregate._avg.rating ?? 0,
+      ratingCount: aggregate._count.rating,
+    },
+  });
+}
 
 export async function getProductReviews(
   productId: string,
@@ -10,8 +35,10 @@ export async function getProductReviews(
   "use cache";
   cacheTag(CacheTags.reviews.byProduct(productId));
 
+  // Public list: only APPROVED reviews are shown. The author's own pending /
+  // rejected review is fetched separately and merged in by the section.
   const reviews = await prisma.productReview.findMany({
-    where: { productId },
+    where: { productId, status: "APPROVED" },
     orderBy: { createdAt: "desc" },
     include: {
       user: {
@@ -30,6 +57,9 @@ export async function getUserReviewForProduct(
   "use cache";
   cacheTag(CacheTags.reviews.userReview(productId, userId));
 
+  // Returns the author's review regardless of moderation status, so they can
+  // see their own PENDING / REJECTED review (with its reason) and we can block
+  // a duplicate submission.
   const review = await prisma.productReview.findUnique({
     where: { productId_userId: { productId, userId } },
     include: {
@@ -86,24 +116,15 @@ export async function createReview({
   rating: number;
   comment?: string;
 }) {
+  // New reviews start PENDING (schema default); the caller runs moderation and
+  // applies the decision via setReviewModeration. The rating aggregate is
+  // recomputed APPROVED-only, so a fresh PENDING review does not move it.
   const review = await prisma.$transaction(async (tx) => {
     const created = await tx.productReview.create({
       data: { productId, userId, orderId, rating, comment },
     });
 
-    const aggregate = await tx.productReview.aggregate({
-      where: { productId },
-      _avg: { rating: true },
-      _count: { rating: true },
-    });
-
-    await tx.product.update({
-      where: { id: productId },
-      data: {
-        avgRating: aggregate._avg.rating ?? 0,
-        ratingCount: aggregate._count.rating,
-      },
-    });
+    await recomputeRating(tx, productId);
 
     return created;
   });
@@ -126,39 +147,76 @@ export async function updateReview({
 }) {
   const existing = await prisma.productReview.findUnique({
     where: { id: reviewId },
-    select: { userId: true, productId: true },
+    select: { userId: true, productId: true, comment: true },
   });
 
   if (!existing || existing.userId !== userId) {
     return null;
   }
 
-  const review = await prisma.$transaction(async (tx) => {
-    const updated = await tx.productReview.update({
+  // Only a change to the comment TEXT requires re-moderation - that's the only
+  // thing moderation judges. A rating-only edit keeps the existing decision
+  // (status, reason) untouched, so an approved review doesn't bounce back to
+  // PENDING just because the author nudged the stars.
+  const newComment = comment ?? null;
+  const commentChanged = (existing.comment ?? null) !== newComment;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.productReview.update({
       where: { id: reviewId },
-      data: { rating, comment: comment ?? null },
-    });
-
-    const aggregate = await tx.productReview.aggregate({
-      where: { productId: existing.productId },
-      _avg: { rating: true },
-      _count: { rating: true },
-    });
-
-    await tx.product.update({
-      where: { id: existing.productId },
       data: {
-        avgRating: aggregate._avg.rating ?? 0,
-        ratingCount: aggregate._count.rating,
+        rating,
+        comment: newComment,
+        // Any author change flags "(edited)".
+        editedAt: new Date(),
+        // Re-moderate only when the text changed.
+        ...(commentChanged
+          ? { status: "PENDING", moderationReason: null, moderatedAt: null }
+          : {}),
       },
     });
 
-    return updated;
+    await recomputeRating(tx, existing.productId);
   });
 
   revalidateReviewCache(existing.productId, userId);
 
-  return review;
+  return { productId: existing.productId, commentChanged };
+}
+
+/**
+ * Applies a moderation decision (auto from AI, or manual from an admin) to a
+ * review: sets status + reason, stamps moderatedAt, and recomputes the product
+ * rating (APPROVED-only). Returns the product/user ids so the caller can
+ * revalidate caches. Returns null if the review no longer exists.
+ */
+export async function setReviewModeration(
+  reviewId: string,
+  status: ReviewStatus,
+  moderationReason: string | null,
+): Promise<{ productId: string; userId: string } | null> {
+  const existing = await prisma.productReview.findUnique({
+    where: { id: reviewId },
+    select: { productId: true, userId: true },
+  });
+  if (!existing) return null;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.productReview.update({
+      where: { id: reviewId },
+      data: {
+        status,
+        moderationReason: status === "APPROVED" ? null : moderationReason,
+        moderatedAt: new Date(),
+      },
+    });
+
+    await recomputeRating(tx, existing.productId);
+  });
+
+  revalidateReviewCache(existing.productId, existing.userId);
+
+  return existing;
 }
 
 export async function deleteReview(reviewId: string, userId: string) {
@@ -174,19 +232,7 @@ export async function deleteReview(reviewId: string, userId: string) {
   await prisma.$transaction(async (tx) => {
     await tx.productReview.delete({ where: { id: reviewId } });
 
-    const aggregate = await tx.productReview.aggregate({
-      where: { productId: review.productId },
-      _avg: { rating: true },
-      _count: { rating: true },
-    });
-
-    await tx.product.update({
-      where: { id: review.productId },
-      data: {
-        avgRating: aggregate._avg.rating ?? 0,
-        ratingCount: aggregate._count.rating,
-      },
-    });
+    await recomputeRating(tx, review.productId);
   });
 
   revalidateReviewCache(review.productId, userId);

@@ -1,4 +1,4 @@
-import { MembershipRole, Prisma, UserRole } from "@/generated/prisma/client";
+import { MembershipRole, Prisma, ReviewStatus, UserRole } from "@/generated/prisma/client";
 import type { Locale } from "@/i18n/config";
 
 export type RequestContext = {
@@ -327,8 +327,11 @@ export type SerializedProductReview = {
   id: string;
   rating: number;
   comment: string | null;
+  status: ReviewStatus;
+  moderationReason: string | null;
   createdAt: Date;
   updatedAt: Date;
+  editedAt: Date | null;
   user: {
     id: string;
     name: string | null;

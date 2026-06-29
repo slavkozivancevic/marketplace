@@ -44,6 +44,7 @@ const KNOWN_ACTIONS = new Set([
   "category.created", "category.updated", "category.deleted", "category.duplicated",
   "attribute.created", "attribute.updated", "attribute.deleted", "attribute.duplicated",
   "coupon.created", "coupon.updated", "coupon.deleted",
+  "review.approved", "review.rejected",
 ]);
 
 type Labels = {
@@ -164,6 +165,7 @@ export function AuditLogView({
     Membership: t("entities.membership"),
     Organization: t("entities.organization"),
     Coupon: t("entities.coupon"),
+    Review: t("entities.review"),
   };
   const fieldLabels: Record<string, string> = {
     count: t("fields.count"),

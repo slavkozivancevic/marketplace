@@ -178,6 +178,45 @@ export async function publishUserRoleChanged(params: {
   );
 }
 
+/**
+ * Author "your review was approved/rejected" email. Fired only on an admin
+ * moderation decision (not on AI auto-decisions at submit time, where the author
+ * sees the outcome on the page). Recipient-targeted: renders in the AUTHOR's own
+ * locale. Each decision is a distinct event (admin can re-decide), so the eventId
+ * includes a timestamp rather than being collapsed per review.
+ */
+export async function publishReviewModerated(params: {
+  userEmail: string;
+  userName: string | null;
+  productName: string;
+  productPath: string;
+  status: "APPROVED" | "REJECTED";
+  rating: number;
+  comment?: string | null;
+  reason?: string | null;
+  locale: string;
+}): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "review.moderated",
+        eventId: `review-mod:${params.userEmail}:${Date.now()}`,
+        userEmail: params.userEmail,
+        userName: params.userName,
+        productName: params.productName,
+        productPath: params.productPath,
+        status: params.status,
+        rating: params.rating,
+        comment: params.comment,
+        reason: params.reason,
+        locale: params.locale,
+      }),
+    })
+  );
+}
+
 // ── Fulfillment publisher ───────────────────────────────────────────────
 
 export async function publishOrderShipped(params: {
