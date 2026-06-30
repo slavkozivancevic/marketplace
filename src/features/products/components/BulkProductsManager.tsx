@@ -8,6 +8,7 @@ import { useStickyTabState } from "@/lib/hooks/useStickyTabState";
 import { setPreserveAcrossLocaleSwitch } from "@/lib/i18n/localeSwitch";
 import { BulkSelectPanel } from "./BulkSelectPanel";
 import { CsvImportPanel } from "./CsvImportPanel";
+import { TranslationsCsvPanel } from "./TranslationsCsvPanel";
 import { ConditionalBulkPanel } from "./ConditionalBulkPanel";
 
 type BrandOption = { id: string; name: string };
@@ -49,6 +50,7 @@ export function BulkProductsManager({
         <TabsTrigger value="conditional">{t("bulkProducts.filterExecute")}</TabsTrigger>
         <TabsTrigger value="manage">{t("bulkProducts.selectManage")}</TabsTrigger>
         <TabsTrigger value="import">{t("bulkProducts.importCsv")}</TabsTrigger>
+        <TabsTrigger value="translations">{t("bulkProducts.importTranslations")}</TabsTrigger>
       </TabsList>
 
       <TabsContent forceMount value="conditional" className="flex-1 min-h-0 mt-3 overflow-y-auto rounded-lg border bg-card p-6 data-[state=inactive]:hidden">
@@ -61,6 +63,10 @@ export function BulkProductsManager({
 
       <TabsContent forceMount value="import" className="flex-1 min-h-0 mt-3 overflow-y-auto rounded-lg border bg-card p-6 data-[state=inactive]:hidden">
         <CsvImportPanel key={resetKey} />
+      </TabsContent>
+
+      <TabsContent forceMount value="translations" className="flex-1 min-h-0 mt-3 overflow-y-auto rounded-lg border bg-card p-6 data-[state=inactive]:hidden">
+        <TranslationsCsvPanel key={resetKey} />
       </TabsContent>
     </Tabs>
   );

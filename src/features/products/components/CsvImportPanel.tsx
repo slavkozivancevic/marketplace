@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { bulkCreateProducts, type BulkCreateRow, type BulkCreateResult } from "@/features/products/actions/products";
+import { detectDelimiter, parseCsv, csvEscape } from "@/features/products/utils/csv";
 import type { ProductStatus } from "@/generated/prisma/client";
 
 // ---------------------------------------------------------------------------
@@ -44,14 +45,6 @@ const CSV_COLUMNS = [
   "metaDescription",
 ] as const;
 
-function csvEscape(value: string): string {
-  if (value === "") return "";
-  if (/[",\r\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
-}
-
 function downloadTemplate(exampleRow: string[]) {
   const header = CSV_COLUMNS.join(",");
   const example = exampleRow.map(csvEscape).join(",");
@@ -63,84 +56,6 @@ function downloadTemplate(exampleRow: string[]) {
   a.download = "products-import-template.csv";
   a.click();
   URL.revokeObjectURL(url);
-}
-
-// ---------------------------------------------------------------------------
-// CSV parser (RFC 4180-compatible, handles quoted fields)
-// ---------------------------------------------------------------------------
-
-/**
- * Sniffs the field delimiter from the header row. Excel saved under a European
- * locale uses `;` (and German/French Excel may even use a tab), which would
- * otherwise collapse the whole file into one column. We pick whichever of
- * `, ; \t` appears most in the first line, defaulting to comma.
- */
-function detectDelimiter(raw: string): "," | ";" | "\t" {
-  const firstLine = raw.split(/\r?\n/, 1)[0] ?? "";
-  const candidates: Array<"," | ";" | "\t"> = [",", ";", "\t"];
-  let best: "," | ";" | "\t" = ",";
-  let bestCount = 0;
-  for (const d of candidates) {
-    const count = firstLine.split(d).length - 1;
-    if (count > bestCount) {
-      bestCount = count;
-      best = d;
-    }
-  }
-  return best;
-}
-
-function parseCsv(raw: string, delimiter: string = ","): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let cell = "";
-  let inQuotes = false;
-  let i = 0;
-
-  while (i < raw.length) {
-    const ch = raw[i];
-
-    if (inQuotes) {
-      if (ch === '"') {
-        if (raw[i + 1] === '"') {
-          cell += '"';
-          i += 2;
-        } else {
-          inQuotes = false;
-          i++;
-        }
-      } else {
-        cell += ch;
-        i++;
-      }
-    } else {
-      if (ch === '"') {
-        inQuotes = true;
-        i++;
-      } else if (ch === delimiter) {
-        row.push(cell);
-        cell = "";
-        i++;
-      } else if (ch === "\r" || ch === "\n") {
-        if (ch === "\r" && raw[i + 1] === "\n") i++;
-        row.push(cell);
-        cell = "";
-        if (row.some((c) => c !== "")) rows.push(row);
-        row = [];
-        i++;
-      } else {
-        cell += ch;
-        i++;
-      }
-    }
-  }
-
-  if (cell !== "" || row.length > 0) {
-    row.push(cell);
-    if (row.some((c) => c !== "")) rows.push(row);
-  }
-
-  return rows;
 }
 
 // ---------------------------------------------------------------------------
@@ -470,7 +385,7 @@ export function CsvImportPanel() {
         <p className="text-xs text-muted-foreground text-center">{t("pasteDirect")}</p>
         <Textarea
           placeholder={t("textareaPlaceholder")}
-          className="font-mono text-xs min-h-32 resize-y"
+          className="font-mono text-xs min-h-32 max-h-64 overflow-auto resize-y"
           value={rawCsv}
           onChange={(e) => processCsvText(e.target.value)}
         />
@@ -498,7 +413,7 @@ export function CsvImportPanel() {
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>{t("validationErrors", { count: invalidRows.length })}</AlertTitle>
               <AlertDescription>
-                <ul className="mt-1 space-y-0.5 text-xs">
+                <ul className="mt-1 max-h-48 space-y-0.5 overflow-auto text-xs">
                   {invalidRows.map(({ rowIndex, result }) =>
                     !result.ok
                       ? result.errors.map((err, i) => (
@@ -514,16 +429,16 @@ export function CsvImportPanel() {
           )}
 
           {/* Preview table */}
-          <div className="rounded-lg border overflow-auto">
+          <div className="rounded-lg border overflow-auto max-h-96">
             <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t("colHash")}</th>
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t("colTitle")}</th>
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t("colPrice")}</th>
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t("colBrand")}</th>
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t("colCategories")}</th>
-                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">{t("colStatus")}</th>
+              <thead className="sticky top-0 z-10">
+                <tr className="border-b">
+                  <th className="bg-muted px-3 py-2 text-left font-medium text-muted-foreground">{t("colHash")}</th>
+                  <th className="bg-muted px-3 py-2 text-left font-medium text-muted-foreground">{t("colTitle")}</th>
+                  <th className="bg-muted px-3 py-2 text-left font-medium text-muted-foreground">{t("colPrice")}</th>
+                  <th className="bg-muted px-3 py-2 text-left font-medium text-muted-foreground">{t("colBrand")}</th>
+                  <th className="bg-muted px-3 py-2 text-left font-medium text-muted-foreground">{t("colCategories")}</th>
+                  <th className="bg-muted px-3 py-2 text-left font-medium text-muted-foreground">{t("colStatus")}</th>
                 </tr>
               </thead>
               <tbody>

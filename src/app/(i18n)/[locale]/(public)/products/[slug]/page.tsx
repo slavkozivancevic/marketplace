@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { JsonLdScript } from "@/components/seo/JsonLdScript";
 import { absoluteUrl, productJsonLd } from "@/lib/seo/jsonLd";
+import { SEO_MERCHANT_POLICY } from "@/lib/seo/config";
 import { PublishLocalePaths, type LocalePaths } from "@/i18n/LocalePathsContext";
 import type { Locale } from "@/i18n/config";
 import { ProductDetailLayout } from "@/features/products/components/ProductDetailLayout";
@@ -198,10 +199,12 @@ export default async function PublicProductPage({
     );
   }
 
-  const [relatedProducts, frequentlyBoughtTogether] = await Promise.all([
-    fetchRelatedProducts(product.id),
-    getFrequentlyBoughtTogether(product.id),
-  ]);
+  const [relatedProducts, frequentlyBoughtTogether, sellerShipping] =
+    await Promise.all([
+      fetchRelatedProducts(product.id),
+      getFrequentlyBoughtTogether(product.id),
+      fetchSellerShipping(product.id),
+    ]);
 
   const localTitle = getProductTitle(product, locale);
   // PageHeader gets the short description (one-liner); the full description is
@@ -262,6 +265,18 @@ export default async function PublicProductPage({
             reviewCount: product.ratingCount,
           }
         : null,
+    // Merchant listing fields (clears Search Console's shipping/returns
+    // recommendations). Shipping rate is this seller's flat rate in USD base
+    // cents (0 = free); return window is the platform default.
+    shipping: {
+      rate: sellerShipping.shippingFlatRate,
+      currency: "USD",
+      country: SEO_MERCHANT_POLICY.country,
+    },
+    returnPolicy: {
+      country: SEO_MERCHANT_POLICY.country,
+      days: SEO_MERCHANT_POLICY.returnDays,
+    },
   });
 
   const homePath = getPathname({ href: "/", locale });
@@ -358,6 +373,24 @@ async function fetchPublicProductBySlug(
   if (!product) return null;
 
   return serializePublicProduct(product);
+}
+
+/**
+ * The selling org's shipping rule for this product, for the merchant-listing
+ * JSON-LD. Cached alongside the product; defaults to free (0) when the org or
+ * rule is missing so the structured data is always well-formed.
+ */
+async function fetchSellerShipping(
+  productId: string,
+): Promise<{ shippingFlatRate: number }> {
+  "use cache";
+  cacheTag(CacheTags.products.publicById(productId));
+
+  const row = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { organization: { select: { shippingFlatRate: true } } },
+  });
+  return { shippingFlatRate: row?.organization?.shippingFlatRate ?? 0 };
 }
 
 async function fetchRelatedProducts(

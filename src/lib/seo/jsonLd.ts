@@ -64,6 +64,25 @@ type Offer = {
   availability: "InStock" | "OutOfStock" | "PreOrder";
 };
 
+/** Shipping cost for the offer (smallest currency unit). Powers Google's
+ *  `shippingDetails`. `rate` 0 renders as free shipping. */
+type ShippingPolicy = {
+  rate: number;
+  currency: string;
+  /** Destination country (ISO 3166-1 alpha-2). */
+  country: string;
+};
+
+/** Return policy for the offer. Powers Google's `hasMerchantReturnPolicy`. */
+type ReturnPolicy = {
+  /** Applicable country (ISO 3166-1 alpha-2). */
+  country: string;
+  /** Return window in days. */
+  days: number;
+  /** Who bears return shipping. Defaults to the customer (ReturnShippingFees). */
+  free?: boolean;
+};
+
 type ProductSchemaInput = {
   name: string;
   description?: string | null;
@@ -73,10 +92,56 @@ type ProductSchemaInput = {
   brand?: string | null;
   offers: Offer | Offer[];
   aggregateRating?: { ratingValue: number; reviewCount: number } | null;
+  /** Optional merchant listing fields, applied to every offer. */
+  shipping?: ShippingPolicy;
+  returnPolicy?: ReturnPolicy;
 };
+
+function shippingDetailsLd(shipping: ShippingPolicy) {
+  return {
+    "@type": "OfferShippingDetails",
+    shippingRate: {
+      "@type": "MonetaryAmount",
+      value: (shipping.rate / 100).toFixed(2),
+      currency: shipping.currency.toUpperCase(),
+    },
+    shippingDestination: {
+      "@type": "DefinedRegion",
+      addressCountry: shipping.country,
+    },
+  };
+}
+
+function returnPolicyLd(rp: ReturnPolicy) {
+  return {
+    "@type": "MerchantReturnPolicy",
+    applicableCountry: rp.country,
+    returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+    merchantReturnDays: rp.days,
+    returnMethod: "https://schema.org/ReturnByMail",
+    returnFees: rp.free
+      ? "https://schema.org/FreeReturn"
+      : "https://schema.org/ReturnShippingFees",
+  };
+}
 
 /** Builds the schema.org `Product` JSON-LD object. */
 export function productJsonLd(input: ProductSchemaInput) {
+  const shippingDetails = input.shipping ? shippingDetailsLd(input.shipping) : undefined;
+  const hasMerchantReturnPolicy = input.returnPolicy
+    ? returnPolicyLd(input.returnPolicy)
+    : undefined;
+
+  const buildOffer = (o: Offer) => ({
+    "@type": "Offer",
+    url: o.url,
+    price: (o.price / 100).toFixed(2),
+    priceCurrency: o.priceCurrency.toUpperCase(),
+    availability: `https://schema.org/${o.availability}`,
+    shippingDetails,
+    hasMerchantReturnPolicy,
+  });
+
   return {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -87,20 +152,8 @@ export function productJsonLd(input: ProductSchemaInput) {
     url: input.url,
     brand: input.brand ? { "@type": "Brand", name: input.brand } : undefined,
     offers: Array.isArray(input.offers)
-      ? input.offers.map((o) => ({
-          "@type": "Offer",
-          url: o.url,
-          price: (o.price / 100).toFixed(2),
-          priceCurrency: o.priceCurrency.toUpperCase(),
-          availability: `https://schema.org/${o.availability}`,
-        }))
-      : {
-          "@type": "Offer",
-          url: input.offers.url,
-          price: (input.offers.price / 100).toFixed(2),
-          priceCurrency: input.offers.priceCurrency.toUpperCase(),
-          availability: `https://schema.org/${input.offers.availability}`,
-        },
+      ? input.offers.map(buildOffer)
+      : buildOffer(input.offers),
     aggregateRating: input.aggregateRating
       ? {
           "@type": "AggregateRating",
