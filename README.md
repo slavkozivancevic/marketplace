@@ -11,13 +11,13 @@ A production-grade, multi-tenant e-commerce platform built as a monorepo of four
 | **marketplace** | Full-stack storefront & seller dashboard | Next.js 16, React 19, PostgreSQL, Redis |
 | **marketplace-messaging** | Real-time chat with WebSocket, reactions & file attachments | AWS Lambda, API Gateway WebSocket, DynamoDB |
 | **marketplace-conversation-search** | Conversation search index, event-driven via SNS/SQS | AWS Lambda, DynamoDB, SNS, SQS |
-| **marketplace-notifications** | Transactional email service (orders, invites, role changes) + weekly currency-rate cron | AWS Lambda, SES, DynamoDB, SNS/SQS, EventBridge |
+| **marketplace-notifications** | Transactional email (orders, COD, shipping, delivery, payouts, returns, review moderation, invites, roles) + weekly review-digest & currency-rate crons | AWS Lambda, SES, DynamoDB, SNS/SQS, EventBridge |
 
 ---
 
 ## marketplace - Core Platform
 
-Multi-tenant e-commerce storefront. Organizations (sellers) manage products with variants, images, categories, brands, tags, and stock; customers browse, search, wishlist, review, and check out via Stripe or Cash-on-Delivery (COD). Includes a full admin panel, seller dashboard, related-products carousel, multi-currency pricing (EUR/RSD with daily-refreshed FX rates), and full i18n across **English, Serbian, German, and Spanish**.
+Multi-tenant e-commerce storefront. Organizations (sellers) manage products with variants, media (images **and videos**), a controlled **attribute/facet** system, categories, brands, tags, and atomically-guarded stock; customers browse, search, wishlist, review, and check out via Stripe or Cash-on-Delivery (COD). Post-checkout it covers the full commerce lifecycle - **seller payouts via Stripe Connect**, **shipment tracking**, **returns/RMA with partial refunds**, a **payment-transaction ledger**, and **PDF invoices**. Growth & trust features include **platform-funded coupons**, **per-org shipping rules**, **AI-moderated reviews**, personalized **"recently viewed" / "frequently bought together"** strips, an append-only **audit log**, and a full admin panel. Pricing is multi-currency (EUR/RSD with weekly-refreshed FX rates) and the whole app is localized across **English, Serbian, German, and Spanish** with locale-prefixed, slug-translated URLs.
 
 ### Tech Stack
 
@@ -25,22 +25,24 @@ Multi-tenant e-commerce storefront. Organizations (sellers) manage products with
 - **Language:** TypeScript 5 (strict)
 - **Database:** PostgreSQL 17 via **Prisma 7** with the native `@prisma/adapter-pg` driver adapter
 - **Auth:** **Clerk** (`@clerk/nextjs` v6) with Svix-verified webhooks for real-time user sync
-- **Payments:** Stripe Checkout + webhook-driven order fulfillment, plus **Cash-on-Delivery (COD)** with seller-driven fulfillment / cancellation flows
-- **i18n:** **next-intl v4** with a cookie-based locale (`NEXT_LOCALE`), four supported locales (`en`, `sr`, `de`, `es`), per-product translation tables, and a search-text blob backfilled across locales for cross-language full-text search
+- **Payments:** Stripe Checkout + webhook-driven order fulfillment, plus **Cash-on-Delivery (COD)** with seller-driven fulfillment / cancellation flows. Order state is modeled on **two orthogonal axes** (`PaymentStatus` × `FulfillmentStatus`) with a derived display status. Every money movement is recorded in a **`PaymentTransaction` ledger** (CHARGE / REFUND / PAYOUT / FEE)
+- **Seller payouts:** **Stripe Connect** (Express) - per-org `ConnectedAccount`, onboarding flow, `application_fee` / transfer split, payout status surfaced in the dashboard; delivery charge goes to the seller in full (no platform fee)
+- **AI:** **Anthropic Claude** (Haiku) for synchronous **review moderation** on submit/edit (3-way clean / reject / needs-review), env-gated with a manual-moderation fallback when no API key is present
+- **PDF:** **`@react-pdf/renderer`** server-side invoice generation (sequential invoice numbers, product thumbnails) rendered to S3; `pdfjs-dist` for in-browser PDF attachment preview in chat
+- **i18n:** **next-intl v4** with **locale-prefixed URLs** (`localePrefix: "always"`, e.g. `/en/products`, `/sr/proizvodi`) and **localized pathnames** (the URL segments themselves are translated), default locale from the `NEXT_LOCALE` cookie, four locales (`en`, `sr`, `de`, `es`), per-entity translation tables, **`SlugHistory` 308-redirects** for changed slugs, and a per-locale `searchText` blob (Postgres `pg_trgm` GIN index) for cross-language full-text search
 - **Currencies:** Multi-currency display (EUR / RSD) backed by a `CurrencyRate` table refreshed weekly by the notifications service (see below)
 - **Storage:** AWS S3 with presigned upload URLs (browser → S3 direct), `sharp` for server-side image processing, and bucket-level **lifecycle rules** that sweep abandoned uploads tagged `lifecycle=pending` after 24h
 - **Email:** AWS SES - invoked exclusively by the **marketplace-notifications** service; the marketplace itself publishes events to SNS and never calls SES directly
-- **Outbound events:** AWS **SNS** publishes domain events (`order.completed`, `order.refunded`, `order.cod_*`, `invite.sent`, `member.role_changed`, `user.role_changed`) consumed by the notifications service
+- **Outbound events:** AWS **SNS** publishes domain events (`order.completed`, `order.refunded`, `order.cod_*`, `order.shipped`, `order.delivered`, `payout.released`, `return.*`, `review.moderated`, `invite.sent`, `member.role_changed`, `user.role_changed`) consumed by the notifications service
 - **Cache / Queues:** Redis via `ioredis`
 - **UI:** **Tailwind CSS 4** (native CSS cascade layers, polished light/dark themes), Radix UI primitives, **shadcn/ui** component library, `lucide-react`, `next-themes`
-- **Carousel:** Embla Carousel with autoplay (related products on PDP)
+- **Carousel:** Embla Carousel with autoplay - one shared `<ProductCard>` powers the products grid, wishlist, and the PDP strips (related, **frequently bought together**, **recently viewed**)
 - **Drag & Drop:** `@dnd-kit` (image ordering, variant management)
 - **Forms & Validation:** `react-hook-form` + **Zod 4** + `@hookform/resolvers`
 - **Server State:** **TanStack Query v5** (with DevTools)
 - **Virtualization:** **TanStack Virtual v3** (efficient rendering of long lists)
 - **URL State:** `nuqs` (type-safe, SSR-compatible URL search params as state)
 - **Client State:** Zustand v5
-- **PDF Rendering:** `pdfjs-dist` v5 (in-browser PDF attachment preview)
 - **Env Validation:** `@t3-oss/env-nextjs` (type-safe environment variables with Zod, validated at build time)
 
 ### Project Structure
@@ -51,12 +53,14 @@ src/
 │   ├── (auth)/             Sign-in / sign-up (Clerk)
 │   ├── (dashboard)/        Seller dashboard
 │   ├── (public)/           Storefront, product pages, checkout
-│   ├── admin/              Admin panel (organizations, products, users)
+│   ├── admin/              Admin panel (orgs, products, users, coupons, reviews, audit)
 │   ├── api/                Route handlers (uploads, webhooks, admin, clerk)
 │   └── invite/             Organization invite acceptance
 ├── components/             Shared UI components
 ├── core/                   Low-level primitives (db, cache, validation, utils)
-├── features/               Domain modules (cart, orders, organizations, products, users, webhooks, common)
+├── features/               Domain modules (products, attributes, brands, categories, cart,
+│                           orders, payments, returns, shipments, invoices, coupons, reviews,
+│                           interactions, wishlist, organizations, users, audit, currency, webhooks)
 ├── modules/                Higher-level feature modules (auth, marketplace, payments, search)
 ├── lib/                    Integrations (ai, auth, cache, stripe, utils)
 ├── services/               External service clients (S3, SES, Stripe, Clerk, image processor)
@@ -74,17 +78,38 @@ prisma/
 
 Defined in [prisma/schema.prisma](prisma/schema.prisma):
 
+**Identity & tenancy**
+
 - **User** - synced from Clerk (`clerkUserId`), with `UserRole` (`USER` / `ADMIN` / `SELLER`), `activeOrgId`, and a preferred `locale`.
-- **Organization / Membership / Invite** - multi-tenant sellers. Members have a `MembershipRole` (`OWNER` / `ADMIN` / `MEMBER`). Invites are token-based with expiry and `InviteStatus`; invitation emails are dispatched by the notifications service.
-- **Product** - belongs to an `Organization`, has `ProductStatus` (`DRAFT` / `PUBLISHED` / `ARCHIVED`), optional stock, versioning, soft-delete (`deletedAt`), audit fields (`createdById`, `updatedById`), per-locale translations, and a denormalized **search-text blob** for fast cross-language search.
-- **ProductHistory** - snapshot per version for audit.
-- **ProductVariant / ProductVariantImage / VariantOption / VariantOptionValue** - flexible variant matrix (e.g. size × color) with per-variant SKU, price, stock, and dedicated variant images.
-- **ProductImage** - S3-backed (`url`, `key`) with ordering.
-- **Brand / Category / ProductCategory / Tag / ProductTag** - taxonomy. Categories form a tree (parent/child) used by the storefront's category browser and the related-products engine.
+- **Organization / Membership / Invite** - multi-tenant sellers. Members have a `MembershipRole` (`OWNER` / `ADMIN` / `MEMBER`) that gates every seller action. Orgs carry per-org **shipping rules** (`shippingFlatRate`, `shippingFreeThreshold`). Invites are token-based with expiry and `InviteStatus`.
+- **ConnectedAccount** - per-org **Stripe Connect** account (`chargesEnabled` / `payoutsEnabled` / `detailsSubmitted`) backing seller payouts.
+
+**Catalog**
+
+- **Product** - belongs to an `Organization`, has `ProductStatus` (`DRAFT` / `PUBLISHED` / `ARCHIVED`), atomically-guarded stock, versioning, soft-delete (`deletedAt`), audit fields (`createdById`, `updatedById`), per-locale translations, and a denormalized per-locale **search-text blob**.
+- **ProductVariant / ProductVariantAttributeValue / ProductVariantMedia** - variant matrix (e.g. size × color) where each axis value references the controlled **attribute vocabulary** (below); per-variant SKU, price, stock, and media.
+- **ProductMedia** - S3-backed media with `MediaType` (`IMAGE` / `VIDEO`) and ordering; videos carry a server-generated poster.
+- **Attribute / AttributeOption / CategoryAttribute / ProductAttributeValue** - a controlled **attribute & facet system** (select / number / boolean). Attributes attach to categories and drive both the variant axes and the storefront's faceted filters with live counts.
+- **Brand / Category / Tag** (+ translation & join tables) - taxonomy. Categories form a tree (parent/child) used by the department browser and the related-products engine.
+- **ProductHistory** - snapshot per version.
 - **Wishlist** - per-user saved products.
-- **ProductReview** - buyer reviews with ratings.
-- **Order / OrderItem** - linked to a Stripe session (`stripeSessionId`) **or** flagged as COD, with `OrderStatus` (`PENDING` / `COMPLETED` / `CANCELLED` / `REFUNDED`) and a denormalized **shipping address** snapshot captured at checkout.
-- **CurrencyRate** - single-row-per-currency rate table (relative to USD) upserted weekly by the notifications service's currency-refresh cron.
+- **ProductReview** - buyer reviews with a moderation `ReviewStatus` (`PENDING` / `APPROVED` / `REJECTED`); only `APPROVED` reviews feed `avgRating` / `ratingCount` and the public list.
+
+**Commerce & fulfillment**
+
+- **Order / OrderItem** - linked to a Stripe session **or** flagged COD (`PaymentMethod`). State lives on two orthogonal axes - `PaymentStatus` (`UNPAID` / `PAID` / `PARTIALLY_REFUNDED` / `REFUNDED`) and `FulfillmentStatus` (`UNFULFILLED` → `DELIVERED`) - with a derived `OrderStatus`. Snapshots a **shipping address**, the applied **coupon** (`couponCode`), and **shipping totals** (`shippingTotal`, per-seller `shippingByOrg`) at checkout.
+- **PaymentTransaction** - append-only **ledger** (`CHARGE` / `REFUND` / `PAYOUT` / `FEE`) per order, optionally per seller org - the audit trail behind refunds, payouts, and COD.
+- **Shipment** - per-order, per-org tracking (`carrier`, `trackingNumber`, `shippedAt`, `deliveredAt`).
+- **Return / ReturnItem** - buyer-initiated RMA with a `ReturnStatus` state machine (`REQUESTED` → `APPROVED` → `SHIPPED` → `REFUNDED`, or `REJECTED`) and partial refunds.
+- **Invoice** - one per order, sequential `number`, PDF stored on S3 (`pdfKey`).
+- **Coupon** - platform-funded discount (`CouponType` `PERCENT` / `FIXED`, min-order, usage cap, expiry); the seller still receives full net while the platform absorbs the discount from its fee.
+
+**Platform**
+
+- **InteractionEvent** - FK-less append-only log (`InteractionType` `VIEW` / `ADD_TO_CART` / `PURCHASE`, keyed by `userId` or anonymous `sessionId`) powering "recently viewed"; "frequently bought together" is derived from authoritative `OrderItem` co-occurrence.
+- **AuditLog** - append-only record of admin/seller mutations (actor, action, entity, JSON `diff`), surfaced read-only at `/admin/audit`.
+- **CurrencyRate** - single-row-per-currency rate table (relative to USD), upserted weekly by the notifications cron.
+- **SlugHistory** - per-locale old→new slug map (`SluggedEntityType`) driving 308 redirects so changed product/brand/category URLs never 404.
 - **WebhookEvent** - idempotency tracking for external webhooks (Stripe / Clerk).
 
 ### Prerequisites
@@ -142,6 +167,10 @@ NOTIFICATIONS_SNS_TOPIC_ARN=
 # Internal API key used by marketplace-notifications to call
 # /api/internal/order-details and /api/internal/currency-rates.
 MARKETPLACE_INTERNAL_API_KEY=
+
+# Optional - enables AI review moderation (Anthropic Claude Haiku).
+# Without it, all text reviews fall back to manual moderation (PENDING).
+ANTHROPIC_API_KEY=
 ```
 
 **Client (`NEXT_PUBLIC_*`):**
@@ -209,12 +238,14 @@ External services hit the following routes - expose them via a tunnel (e.g. `ngr
 - `(public)` - storefront: home, product listing/detail, cart, checkout
 - `(auth)` - Clerk sign-in / sign-up
 - `(dashboard)` - authenticated seller dashboard
-- `admin/` - admin panel for managing organizations, products, and users
+- `admin/` - admin panel: organizations, products, users, **coupons**, **review moderation**, and the **audit log**
 - `invite/` - accept organization invites
 - `api/uploads` - presigned S3 upload endpoints
 - `api/admin`, `api/clerk`, `api/webhooks` - internal and integration endpoints
 - `api/internal/order-details` - internal endpoint consumed by marketplace-notifications to render order emails (`x-api-key`-protected)
 - `api/internal/currency-rates` - internal endpoint upserted by the notifications weekly cron with fresh USD→{EUR,RSD} rates
+- `api/internal/review-digest` - internal endpoint the notifications weekly cron reads to assemble the pending-review digest
+- `api/interactions/*` - personalized "recently viewed" feed + view/add-to-cart event recording
 
 ---
 
@@ -403,9 +434,9 @@ A serverless, event-driven service that owns **all transactional email** for the
 ```
 marketplace (Next.js)
   │
-  │  publish (order.completed, order.refunded, order.cod_placed,
-  │           order.cod_fulfilled, order.cod_cancelled, invite.sent,
-  │           member.role_changed, user.role_changed)
+  │  publish (order.completed, order.refunded, order.cod_*, order.shipped,
+  │           order.delivered, payout.released, return.*, review.moderated,
+  │           invite.sent, member.role_changed, user.role_changed)
   ▼
 SNS Topic (NotificationEventsTopic)
   │
@@ -441,7 +472,7 @@ Lambda: refreshCurrencyRates
 - **Message broker:** **AWS SNS → SQS** with a Dead-Letter Queue after 3 failed retries; SQS configured for **partial-batch responses** so only the failing record is re-queued, not the whole batch
 - **Database:** **AWS DynamoDB** - single-table idempotency / audit log. `PK = NOTIF#{eventId}`, `SK = SENT`, with a `TTL` attribute auto-purging records after 30 days. Conditional `PutItem` (`attribute_not_exists(PK)`) guarantees exactly-once email delivery even under SQS at-least-once semantics.
 - **Email:** **AWS SES** - `SendEmail` / `SendRawEmail`; HTML templates rendered in-process per locale
-- **Scheduler:** **EventBridge CronV2** (`cron(0 6 ? * MON *)`) for the weekly currency-rate refresh
+- **Scheduler:** **EventBridge CronV2** - weekly currency-rate refresh and a weekly review-moderation digest to admins
 - **Secrets / Service discovery:** AWS SSM Parameter Store (SecureString) - `SES_FROM_EMAIL`, `MARKETPLACE_API_URL`, `MARKETPLACE_API_KEY`, `APP_URL`; the service also publishes its **SNS topic ARN** to SSM (`/marketplace-notifications/{stage}/SNS_TOPIC_ARN`) so the marketplace can discover it at runtime without a hardcoded ARN.
 - **Auth back to marketplace:** internal `x-api-key` header (the key lives in SSM)
 
@@ -454,18 +485,27 @@ Lambda: refreshCurrencyRates
 | `order.cod_placed` | COD checkout completion | Buyer + each seller org |
 | `order.cod_fulfilled` | Seller marks COD order fulfilled | Buyer |
 | `order.cod_cancelled` | Seller / buyer cancels a COD order | Buyer |
+| `order.cod_paid` | Seller marks COD cash collected | Buyer |
+| `order.shipped` | Seller ships an order (tracking added) | Buyer |
+| `order.delivered` | Order marked delivered | Buyer |
+| `payout.released` | Seller payout released via Stripe Connect | Seller org |
+| `return.requested` | Buyer opens an RMA | Seller org |
+| `return.approved` / `return.rejected` | Seller resolves the RMA | Buyer |
+| `return.shipped` | Buyer ships the return back | Seller org |
+| `return.refunded` | Refund issued for an approved return | Buyer |
+| `review.moderated` | Admin approves/rejects a pending review | Review author |
 | `invite.sent` | Org owner sends a membership invite | Invited email |
 | `member.role_changed` | Owner promotes/demotes a member | Affected member |
 | `user.role_changed` | Admin changes a site-wide user role (`USER`/`SELLER`/`ADMIN`) | Affected user |
 
-All events carry an `eventId` (used for idempotency) and a `locale` so emails are rendered in the recipient's language.
+All events carry an `eventId` (used for idempotency) and a `locale` so emails are rendered in the recipient's language. Two crons run alongside the consumer: the **weekly currency-rate refresh** and a **weekly review-moderation digest** to admins (sent only when reviews are pending).
 
 ### Key Engineering Decisions
 
 - **Dedicated service, not in-process SES** - moving email out of the Next.js request path eliminates SES from the critical path of Stripe webhooks, COD checkout, invites, and role changes. The marketplace publishes-and-forgets; failures are absorbed by SQS retries and the DLQ.
 - **Idempotency at the consumer** - even though SNS-to-SQS is at-least-once, the DynamoDB conditional write makes email sending exactly-once per `eventId`. Duplicate SQS deliveries are silently skipped.
 - **Partial-batch responses** - `batch.size = 1` with `partialResponses: true` means an individual poison message can fail and be redriven to the DLQ without holding up healthy events.
-- **Co-locating the currency cron** - the currency-rate refresher is operationally cheap and shares the same SSM / internal-API plumbing already needed for emails, so a single Lambda project hosts both. No new infra surface to maintain.
+- **Co-locating the crons** - the weekly currency-rate refresher and review-moderation digest are operationally cheap and reuse the same SSM / internal-API plumbing already needed for emails, so a single Lambda project hosts all of it. No new infra surface to maintain.
 - **Localized templates over user attributes in payloads** - events carry a `locale`, not pre-rendered subject/body text, so all email copy lives in the service and can be tweaked / re-rendered without redeploying the marketplace.
 
 ### Project Structure
@@ -484,19 +524,15 @@ marketplace-notifications/
         ├── ses.ts                SES SendEmail wrapper
         ├── ssm.ts                Cached SSM parameter reads
         └── templates/            Localized HTML email templates (en / sr / de / es)
-            ├── base.ts           Shared layout + i18n helpers
-            ├── i18n.ts           Translation lookup
-            ├── buyerOrderConfirmed.ts
-            ├── buyerOrderRefunded.ts
-            ├── buyerCodOrderPlaced.ts
-            ├── buyerCodOrderFulfilled.ts
-            ├── buyerCodOrderCancelled.ts
-            ├── sellerNewOrder.ts
-            ├── sellerCodNewOrder.ts
-            ├── sellerOrderRefunded.ts
-            ├── inviteSent.ts
-            ├── memberRoleChanged.ts
-            └── userRoleChanged.ts
+            ├── base.ts / i18n.ts         Shared layout + translation lookup
+            ├── buyerOrderConfirmed.ts    + Refunded / Shipped / Delivered
+            ├── buyerCodOrder*.ts         Placed / Fulfilled / Cancelled / PaymentReceived
+            ├── buyerReturn*.ts           Approved / Rejected / Refunded
+            ├── sellerNewOrder.ts         + CodNewOrder / OrderRefunded
+            ├── sellerReturn*.ts          Requested / Shipped
+            ├── sellerPayoutReleased.ts
+            ├── reviewModerated.ts        + reviewDigest.ts (weekly admin digest)
+            └── inviteSent.ts / memberRoleChanged.ts / userRoleChanged.ts
 ```
 
 ### Deployment
