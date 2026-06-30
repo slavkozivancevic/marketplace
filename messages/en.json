@@ -342,6 +342,8 @@
     "members": "Members ({count})",
     "inviteMember": "Invite Member",
     "pendingInvites": "Pending Invites",
+    "editRestricted": "Only owners and admins can change these settings.",
+    "membersManageRestricted": "Only owners and admins can manage members.",
     "orgName": "Organization Name",
     "orgNamePlaceholder": "Organization name",
     "saving": "Saving...",
@@ -1313,6 +1315,8 @@
     "loadingDetails": "Loading product details..."
   },
   "orgOrders": {
+    "readOnly": "Read-only access",
+    "viewOnly": "You can view this order, but only owners and admins can manage it.",
     "paymentHistory": "Payment history",
     "txType": {
       "charge": "Charge",
@@ -1391,6 +1395,12 @@
     "discoverMore": "Discover More",
     "youMayAlsoLike": "You May Also Like",
     "viewAll": "View all →"
+  },
+  "interactions": {
+    "frequentlyBoughtTogetherEyebrow": "Bought together",
+    "frequentlyBoughtTogether": "Frequently Bought Together",
+    "recentlyViewedEyebrow": "Pick up where you left off",
+    "recentlyViewed": "Recently Viewed"
   },
   "theme": {
     "appearance": "Appearance"

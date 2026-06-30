@@ -22,6 +22,7 @@ import {
 } from "@/features/products/utils/optionTranslations";
 import { buildCartVariantOptions, buildLocalizedText } from "@/features/cart/utils/variantOptions";
 import { getProductTitle } from "@/features/products/utils/translations";
+import { recordInteractionClient } from "@/features/interactions/recordClient";
 
 interface AddToCartProps {
   product: SerializedPublicProduct;
@@ -264,6 +265,9 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
       maxStock,
       requiresShipping: product.requiresShipping,
     });
+
+    // Engagement signal (best-effort, fire-and-forget) for the funnel/analytics.
+    recordInteractionClient("ADD_TO_CART", product.id);
 
     openCart();
   }

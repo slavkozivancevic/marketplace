@@ -342,6 +342,8 @@
     "members": "Miembros ({count})",
     "inviteMember": "Invitar miembro",
     "pendingInvites": "Invitaciones pendientes",
+    "editRestricted": "Solo los propietarios y administradores pueden cambiar estos ajustes.",
+    "membersManageRestricted": "Solo los propietarios y administradores pueden gestionar a los miembros.",
     "orgName": "Nombre de la organización",
     "orgNamePlaceholder": "Nombre de la organización",
     "saving": "Guardando...",
@@ -1313,6 +1315,8 @@
     "loadingDetails": "Cargando detalles del producto..."
   },
   "orgOrders": {
+    "readOnly": "Acceso de solo lectura",
+    "viewOnly": "Puedes ver este pedido, pero solo los propietarios y administradores pueden gestionarlo.",
     "paymentHistory": "Historial de pagos",
     "txType": {
       "charge": "Cargo",
@@ -1386,6 +1390,12 @@
     "payoutReversed": "Reverso del pago (reembolsos)",
     "payoutAfterRefunds": "Pago neto tras reembolsos",
     "shippingCollected": "Envío (cobrado)"
+  },
+  "interactions": {
+    "frequentlyBoughtTogetherEyebrow": "Comprados juntos",
+    "frequentlyBoughtTogether": "Comprados juntos frecuentemente",
+    "recentlyViewedEyebrow": "Continúa donde lo dejaste",
+    "recentlyViewed": "Vistos recientemente"
   },
   "relatedProducts": {
     "discoverMore": "Descubre más",

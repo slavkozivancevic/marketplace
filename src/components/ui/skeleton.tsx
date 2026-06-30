@@ -150,7 +150,15 @@ export function SkeletonHistoryTable({ rows = 5 }: { rows?: number }) {
   );
 }
 
-export function SkeletonProductGridCard() {
+export function SkeletonProductGridCard({
+  // The shared <ProductCard> only renders the add-to-cart button when given an
+  // `onQuickView` handler (the grid does; the wishlist and carousels don't), so
+  // surfaces without it pass `showButton={false}` to keep the skeleton height
+  // matched to the real card.
+  showButton = true,
+}: {
+  showButton?: boolean;
+} = {}) {
   return (
     <div className="border rounded-xl overflow-hidden h-full flex flex-col">
       <Skeleton className="w-full h-48 rounded-none shrink-0" />
@@ -163,7 +171,7 @@ export function SkeletonProductGridCard() {
             <Skeleton className="h-5 w-16 rounded-full" />
           </div>
         </div>
-        <SkeletonButton className="w-full mt-3" />
+        {showButton && <SkeletonButton className="w-full mt-3" />}
       </div>
     </div>
   );

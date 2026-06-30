@@ -1,14 +1,15 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Link, getPathname } from "@/i18n/navigation";
 import Image from "next/image";
 import { getTranslations, getLocale } from "next-intl/server";
-import { MapPin, Mail, Truck, CreditCard, ArrowLeft, RotateCcw } from "lucide-react";
+import { MapPin, Mail, Truck, CreditCard, ArrowLeft, RotateCcw, Info } from "lucide-react";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
 import { getOrgOrderById } from "@/features/orders/db/orgOrders";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -47,11 +48,15 @@ export default async function OrgOrderDetailPage({ params }: Props) {
   try {
     requirePermission(ctx, "order:read");
   } catch {
-    notFound();
+    // New active org doesn't grant access here - back to the dashboard.
+    redirect(`/${locale}/dashboard`);
   }
 
+  // Scoped to the active org: after an org switch this order belongs to the
+  // previous org and won't be found here, so fall back to the dashboard rather
+  // than a dead-end 404.
   const order = await getOrgOrderById(id, ctx.organizationId);
-  if (!order) notFound();
+  if (!order) redirect(`/${locale}/dashboard`);
 
   // Display stage is derived from the two real axes, so legacy rows (whose
   // stored status predates the axes) still render correctly.
@@ -167,6 +172,17 @@ export default async function OrgOrderDetailPage({ params }: Props) {
 
       <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
         <div className="max-w-2xl space-y-5">
+
+          {/* Members can read received orders but not act on them - flag it up
+              front (a top banner, matching the my-products read-only notice)
+              instead of silently dropping every management control below. */}
+          {!canManage && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertTitle>{t("readOnly")}</AlertTitle>
+              <AlertDescription>{t("viewOnly")}</AlertDescription>
+            </Alert>
+          )}
 
           {/* ── Order summary ── */}
           <Card>

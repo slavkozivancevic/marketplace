@@ -1,10 +1,10 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createSearchParamsCache } from "nuqs/server";
 import { AlertCircle } from "lucide-react";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
-import { MembershipRole } from "@/generated/prisma/client";
+import { canManageOrgPayouts } from "@/lib/auth/permissions";
 import { getPathname } from "@/i18n/navigation";
 import { getQueryClient } from "@/lib/query/getQueryClient";
 import { orgPayoutSearchParams } from "@/lib/query/searchParams";
@@ -45,10 +45,11 @@ export default async function PayoutsRoute({
     notFound();
   }
 
-  const canManage =
-    ctx.membershipRole === MembershipRole.OWNER ||
-    ctx.membershipRole === MembershipRole.ADMIN;
-  if (!canManage) notFound();
+  // The newly-active org doesn't grant payout access to this role - send the
+  // user back to the dashboard rather than a dead-end 404 (e.g. after switching
+  // into an org where they're only a member). Safety net: the nav/card already
+  // hide for roles that can't manage payouts.
+  if (!canManageOrgPayouts(ctx.membershipRole)) redirect(`/${locale}/dashboard`);
 
   const breadcrumbItems = [
     { name: tCrumbs("dashboard"), href: getPathname({ href: "/dashboard", locale }) },
@@ -72,7 +73,7 @@ export default async function PayoutsRoute({
     status = "error" in res ? DISCONNECTED : res;
 
     await queryClient.prefetchInfiniteQuery({
-      queryKey: ["payouts", "org", { ...filters, status: params.status, refunded: params.refunded }],
+      queryKey: ["payouts", "org", ctx.organizationId, { ...filters, status: params.status, refunded: params.refunded }],
       queryFn: () =>
         getOrgPayoutsPage({
           organizationId: ctx.organizationId,

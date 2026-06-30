@@ -856,6 +856,38 @@ model ProductReview {
   @@index([status, createdAt])
 }
 
+enum InteractionType {
+  VIEW
+  ADD_TO_CART
+  PURCHASE
+}
+
+// Lightweight, append-only engagement event log. Deliberately FK-LESS: no
+// relations/cascade so writes stay cheap on a hot path, and orphan rows (after a
+// product/user is removed) are harmless - reads always re-filter to live,
+// published products. Powers "Recently viewed" (VIEW) and a VIEW->ADD->PURCHASE
+// analytics funnel. "Frequently bought together" is computed from the
+// authoritative OrderItem table, not from PURCHASE events here.
+//
+// Identity: userId when signed in, else sessionId (anonymous visitor cookie);
+// at least one is set.
+model InteractionEvent {
+  id        String          @id @default(uuid())
+  userId    String?
+  sessionId String?
+  type      InteractionType
+  productId String
+  // Set on PURCHASE (the originating order); null for VIEW/ADD_TO_CART.
+  orderId   String?
+  createdAt DateTime        @default(now())
+
+  // Per-identity "recently viewed", newest first.
+  @@index([userId, type, createdAt])
+  @@index([sessionId, type, createdAt])
+  // Per-product analytics (funnel counts, trending).
+  @@index([productId, type, createdAt])
+}
+
 // Stores how many units of each currency equal 1 USD.
 // USD is always 1.0 (the base currency) and is not stored here.
 // Updated by admins or a scheduled refresh job.

@@ -6,6 +6,41 @@ import type { AttributeFilter } from "@/lib/query/attrs";
 type SortField = "createdAt" | "price" | "avgRating";
 type SortOrder = "asc" | "desc";
 
+/**
+ * Canonical Prisma `include` for a storefront product *card* - the exact
+ * relation shape `SerializedProductListItem` (and the shared `<ProductCard>`)
+ * needs. Callers spread this and override `media` to set their own `take`
+ * (grid wants several frames for the hover cycler; carousels want one still).
+ * Keeping a single source here means the grid, wishlist, related/frequently-
+ * bought and recently-viewed strips never drift in what they fetch.
+ */
+export const listItemInclude = {
+  translations: true,
+  media: { orderBy: { order: "asc" } },
+  brand: {
+    select: {
+      id: true,
+      logoUrl: true,
+      logoUrlDark: true,
+      logoBackdrop: true,
+      logoBackdropDark: true,
+      translations: true,
+    },
+  },
+} satisfies Prisma.ProductInclude;
+
+type ListItemRow = Prisma.ProductGetPayload<{ include: typeof listItemInclude }>;
+
+/** Serializes a raw card row's Decimal money fields to plain numbers. */
+export function serializeListItem(p: ListItemRow): SerializedProductListItem {
+  return {
+    ...p,
+    price: Number(p.price),
+    compareAtPrice: p.compareAtPrice != null ? Number(p.compareAtPrice) : null,
+    costPrice: p.costPrice != null ? Number(p.costPrice) : null,
+  };
+}
+
 export type PublicProductWhereParams = {
   search?: string;
   searchLocale?: string;
@@ -167,11 +202,7 @@ export async function getPublicProductsPage({
     take: take + 1,
     cursor: cursor ? { id: cursor } : undefined,
     skip: cursor ? 1 : 0,
-    include: {
-      translations: true,
-      media: { orderBy: { order: "asc" }, take: 5 },
-      brand: { select: { id: true, logoUrl: true, logoUrlDark: true, logoBackdrop: true, logoBackdropDark: true, translations: true } },
-    },
+    include: { ...listItemInclude, media: { orderBy: { order: "asc" }, take: 5 } },
   });
 
   let nextCursor: string | undefined;
@@ -180,12 +211,7 @@ export async function getPublicProductsPage({
     nextCursor = next?.id;
   }
 
-  const items: SerializedProductListItem[] = rows.map((p) => ({
-    ...p,
-    price: p.price,
-    compareAtPrice: p.compareAtPrice,
-    costPrice: p.costPrice,
-  }));
+  const items: SerializedProductListItem[] = rows.map(serializeListItem);
 
   return { items, nextCursor };
 }

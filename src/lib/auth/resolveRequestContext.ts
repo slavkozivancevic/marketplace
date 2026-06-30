@@ -43,6 +43,10 @@ export const resolveRequestContext = cache(
             user: {
               select: {
                 role: true,
+                // The DB is the source of truth for the active org. We read it
+                // here to detect a just-switched session whose JWT still names
+                // the previous org (the claim lags a token refresh).
+                activeOrgId: true,
               },
             },
           },
@@ -104,6 +108,40 @@ export const resolveRequestContext = cache(
       membershipRole: freshMembership.role,
       organizationVerified: freshMembership.organization.verified,
     };
+  }
+
+  // Claims are valid for `activeOrgId`, but the DB may name a different active
+  // org - this happens in the brief window right after an org switch, before
+  // the session token refreshes to carry the new claim. Trust the DB and
+  // re-scope to it so data updates immediately. No Clerk write here: the switch
+  // action already synced publicMetadata and the client refreshes the token, so
+  // re-syncing on every request would just hammer Clerk's write rate limit.
+  const dbActiveOrgId = membership.user.activeOrgId;
+  if (dbActiveOrgId && dbActiveOrgId !== activeOrgId) {
+    const dbMembership = await prisma.membership.findUnique({
+      where: {
+        userId_orgId: {
+          userId: dbId!,
+          orgId: dbActiveOrgId,
+        },
+      },
+      select: {
+        role: true,
+        organization: { select: { verified: true } },
+        user: { select: { role: true } },
+      },
+    });
+
+    if (dbMembership) {
+      return {
+        clerkUserId: userId,
+        userId: dbId!,
+        userRole: dbMembership.user.role,
+        organizationId: dbActiveOrgId,
+        membershipRole: dbMembership.role,
+        organizationVerified: dbMembership.organization.verified,
+      };
+    }
   }
 
   return {

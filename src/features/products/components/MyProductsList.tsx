@@ -14,6 +14,7 @@ import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
 import type { MyProductFilters } from "@/lib/query/searchParams";
 import { useCurrencyStore, getCurrentRate } from "@/store/currency";
+import { useActiveOrgId } from "@/features/organizations/components/ActiveOrgContext";
 
 function buildFetcher(filters: MyProductFilters) {
   return async ({
@@ -57,10 +58,11 @@ export function MyProductsList({
   };
   const f = filters ?? defaultFilters;
   const { currency } = useCurrencyStore();
+  const orgId = useActiveOrgId();
 
   const { parentRef, virtualizer, items, query, isSentinelIndex, isPlaceholderData } =
     useInfiniteVirtualList<SerializedProductListItem>({
-      queryKey: ["products", "my-products", f, currency],
+      queryKey: ["products", "my-products", orgId, f, currency],
       queryFn: buildFetcher(f),
       estimateSize: 73,
       // SSR prefetch uses ["products","my-products",filters] (no currency),

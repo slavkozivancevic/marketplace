@@ -11,9 +11,11 @@ import { SearchToolbar } from "@/components/search/SearchToolbar";
 import { FilterSidebar, type FilterGroup, type FilterValues } from "@/components/search/FilterSidebar";
 import { ActiveFilters } from "@/components/search/ActiveFilters";
 import { OrgPayoutsList } from "./OrgPayoutsList";
+import { useActiveOrgId } from "@/features/organizations/components/ActiveOrgContext";
 
 export function OrgPayoutsPage() {
   const t = useTranslations("payouts");
+  const orgId = useActiveOrgId();
 
   const SORT_OPTIONS = [
     { value: "createdAt", label: t("date") },
@@ -36,7 +38,7 @@ export function OrgPayoutsPage() {
     status: Record<string, number>;
     refunded: Record<string, number>;
   }>({
-    queryKey: ["payouts", "counts", search],
+    queryKey: ["payouts", "counts", orgId, search],
     queryFn: async () => {
       const sp = new URLSearchParams();
       if (search) sp.set("search", search);

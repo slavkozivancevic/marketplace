@@ -11,6 +11,7 @@ import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import type { OrgPayoutListItem } from "../db/payouts";
 import type { OrgPayoutFilters } from "@/lib/query/searchParams";
 import { OrgPayoutTableRow, PAYOUT_COL } from "./OrgPayoutTableRow";
+import { useActiveOrgId } from "@/features/organizations/components/ActiveOrgContext";
 
 function buildFetcher(filters: OrgPayoutFilters) {
   return async ({
@@ -51,10 +52,11 @@ function PayoutTableHeader({ t }: { t: ReturnType<typeof useTranslations> }) {
 
 export function OrgPayoutsList({ filters }: { filters: OrgPayoutFilters }) {
   const t = useTranslations("payouts");
+  const orgId = useActiveOrgId();
 
   const { parentRef, virtualizer, items, query, isSentinelIndex, isPlaceholderData } =
     useInfiniteVirtualList<OrgPayoutListItem>({
-      queryKey: ["payouts", "org", filters],
+      queryKey: ["payouts", "org", orgId, filters],
       queryFn: buildFetcher(filters),
       estimateSize: 56,
     });

@@ -1,7 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
-import { getLocale } from "next-intl/server";
 import {
   handleActionError,
   ForbiddenError,
@@ -48,6 +46,7 @@ export async function switchOrganizationAction(
     return handleActionError(error);
   }
 
-  const locale = await getLocale();
-  redirect(`/${locale}/dashboard`);
+  // No redirect: the client (OrganizationSwitcher) refreshes the session token
+  // and re-renders the current route in place, so the user stays on the page
+  // they switched from with data re-scoped to the new org.
 }

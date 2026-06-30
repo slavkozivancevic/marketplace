@@ -9,10 +9,13 @@ import { getBrandName } from "@/features/brands/utils/translations";
 import { useQueryStates } from "nuqs";
 import { useCurrencyStore, getCurrentRate } from "@/store/currency";
 import { getCurrencyConfig } from "@/lib/currency";
+import { useActiveOrgId } from "@/features/organizations/components/ActiveOrgContext";
 import {
   myProductSearchParams,
   type MyProductFilters,
 } from "@/lib/query/searchParams";
+import { Info } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SearchToolbar } from "@/components/search/SearchToolbar";
 import {
   FilterSidebar,
@@ -35,6 +38,7 @@ export function MyProductsPage({
   const locale = useLocale();
   const currency = useCurrencyStore((s) => s.currency);
   const currencySymbol = getCurrencyConfig(currency).symbol;
+  const orgId = useActiveOrgId();
 
   // "title" sort dropped when title moved to ProductTranslation.
   const SORT_OPTIONS = [
@@ -64,6 +68,7 @@ export function MyProductsPage({
     queryKey: [
       "my-products",
       "counts",
+      orgId,
       search,
       params.status.join(","),
       params.brandId.join(","),
@@ -200,6 +205,13 @@ export function MyProductsPage({
         onClear={handleFilterClear}
       />
       <div className="flex-1 min-w-0 flex flex-col gap-4 min-h-0">
+        {!canWrite && (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>{t("myProducts.readOnly")}</AlertTitle>
+            <AlertDescription>{t("myProducts.readOnlyDesc")}</AlertDescription>
+          </Alert>
+        )}
         <SearchToolbar
           search={search}
           onSearchChange={(v) => setParams({ search: v })}

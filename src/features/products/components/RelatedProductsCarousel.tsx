@@ -1,174 +1,91 @@
 ﻿"use client";
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { Link } from "@/i18n/navigation";
-import Image from "next/image";
-import { ImageOff, PlayCircle } from "lucide-react";
-import type { MediaType } from "@/generated/prisma/client";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import Autoplay from "embla-carousel-autoplay";
-import { useTranslations, useLocale } from "next-intl";
-import { useCurrencyStore } from "@/store/currency";
-import { getProductTitle } from "@/features/products/utils/translations";
-import { getBrandName } from "@/features/brands/utils/translations";
-import { BrandLogo, type LogoBackdrop } from "@/features/brands/components/BrandLogo";
-import { formatPrice, convertCents } from "@/lib/currency";
+import { useTranslations } from "next-intl";
+import { ProductCard } from "@/features/products/components/ProductCard";
+import type { SerializedProductListItem } from "@/types/types";
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
+  useCarousel,
 } from "@/components/ui/carousel";
 
-export type RelatedProduct = {
-  id: string;
-  translations: {
-    locale: string;
-    title: string;
-    slug: string;
-  }[];
-  price: number;
-  compareAtPrice: number | null;
-  media: {
-    url: string;
-    thumbUrl: string | null;
-    mediaType: MediaType;
-  }[];
-  brand: {
-    logoUrl: string | null;
-    logoUrlDark: string | null;
-    logoBackdrop: LogoBackdrop;
-    logoBackdropDark: LogoBackdrop;
-    translations: { locale: string; name: string }[];
-  } | null;
-};
+// Carousels render the exact same storefront card as the products grid and the
+// wishlist (single source: <ProductCard>). The data is a full product list
+// item; each strip fetches just one media frame so the shared card shows a
+// static still (no hover cycling) - lighter for these secondary strips.
+export type RelatedProduct = SerializedProductListItem;
 
-function RelatedProductCard({ product }: { product: RelatedProduct }) {
-  const { currency, currentRate } = useCurrencyStore();
-  const locale = useLocale();
-  const localTitle = getProductTitle(product, locale);
-  const localBrandName = product.brand ? getBrandName(product.brand, locale) : "";
-  const [imgLoaded, setImgLoaded] = useState(false);
-  const isOnSale =
-    product.compareAtPrice != null && product.compareAtPrice > product.price;
-  const discountPct = isOnSale
-    ? Math.round(
-        ((product.compareAtPrice! - product.price) / product.compareAtPrice!) *
-          100,
-      )
-    : 0;
-  const firstMedia = product.media[0] ?? null;
-  // Carousel tiles always show a still - for video, that's the server-generated
-  // poster. Falling back to the source URL keeps legacy rows working.
-  const thumbUrl =
-    firstMedia?.thumbUrl ??
-    (firstMedia?.mediaType === "IMAGE" ? firstMedia.url : null);
-  const isVideo = firstMedia?.mediaType === "VIDEO";
+// Nav arrows that follow the homepage department-carousel pattern: an arrow is
+// fully hidden and inert (opacity-0 + pointer-events-none) when there is
+// nothing to scroll in that direction, and fades in only when it can scroll.
+// This avoids a dead, clickable arrow sitting over a product card. Driven by
+// embla's canScroll state via the carousel context.
+const carouselArrow =
+  "absolute top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full border border-white/30 bg-black/55 text-white shadow-[0_4px_14px_rgba(0,0,0,0.4)] backdrop-blur-sm backdrop-saturate-150 flex items-center justify-center transition-[background-color,border-color,box-shadow,color,opacity] duration-300 ease-out hover:bg-black/85 hover:border-white/55 hover:shadow-[0_6px_22px_rgba(0,0,0,0.6)] cursor-pointer active:translate-y-[calc(-50%+1px)] [&_svg]:drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]";
+
+function CarouselArrows() {
+  const { scrollPrev, scrollNext, canScrollPrev, canScrollNext } =
+    useCarousel();
 
   return (
-    <Link
-      href={{
-        pathname: "/products/[slug]",
-        params: {
-          slug:
-            product.translations.find((tr) => tr.locale === locale)?.slug ??
-            product.translations.find((tr) => tr.locale === "en")?.slug ??
-            "",
-        },
-      }}
-      className="block group h-full"
-    >
-      <div className="h-full flex flex-col rounded-xl overflow-hidden border border-border/40 bg-card transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-xl group-hover:shadow-primary/10 group-hover:border-border/80">
-        {/* Media preview */}
-        <div className="relative aspect-4/3 overflow-hidden bg-muted/30">
-          {thumbUrl ? (
-            <>
-              {!imgLoaded && <div className="absolute inset-0 z-10 skeleton-shimmer" />}
-              <Image
-                src={thumbUrl}
-                alt={localTitle}
-                fill
-                sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                className="object-cover transition-transform duration-500 group-hover:scale-105"
-                onLoad={() => setImgLoaded(true)}
-              />
-              {isVideo && (
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/15">
-                  <PlayCircle className="text-white drop-shadow" size={36} />
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-2">
-              <ImageOff className="h-8 w-8 text-muted-foreground/30" />
-            </div>
-          )}
-
-          {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-linear-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-          {/* Sale badge */}
-          {isOnSale && (
-            <div className="absolute top-3 left-0 pointer-events-none">
-              <span className="bg-linear-to-r from-red-500 to-rose-600 text-white text-xs font-black px-3 py-1 rounded-r-full shadow-lg shadow-red-500/40 tracking-wider uppercase">
-                -{discountPct}%
-              </span>
-            </div>
-          )}
-
-          {/* Brand badge */}
-          {product.brand && (
-            <div className="absolute top-2 right-2 pointer-events-none">
-              <div className="flex items-center gap-1.5 bg-background/80 backdrop-blur-xs border border-border/50 rounded-full px-2 py-1 shadow-sm">
-                <BrandLogo
-                  src={product.brand.logoUrl}
-                  srcDark={product.brand.logoUrlDark}
-                  backdrop={product.brand.logoBackdrop}
-                  backdropDark={product.brand.logoBackdropDark}
-                  name={localBrandName}
-                  size={16}
-                  shape="circle"
-                />
-                <span className="text-xs font-semibold leading-none">
-                  {localBrandName}
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Info */}
-        <div className="p-4 space-y-1.5 flex-1 flex flex-col">
-          <p className="font-semibold text-sm leading-snug line-clamp-2 min-h-10 group-hover:text-primary transition-colors duration-200">
-            {localTitle}
-          </p>
-          {isOnSale ? (
-            <div className="flex items-baseline gap-2">
-              <span className="text-base font-bold text-red-500">
-                {formatPrice(convertCents(product.price, currency, currentRate()), currency)}
-              </span>
-              <span className="text-xs text-muted-foreground line-through">
-                {formatPrice(convertCents(product.compareAtPrice!, currency, currentRate()), currency)}
-              </span>
-            </div>
-          ) : (
-            <span className="text-base font-bold">
-              {formatPrice(convertCents(product.price, currency, currentRate()), currency)}
-            </span>
-          )}
-        </div>
-      </div>
-    </Link>
+    <>
+      <button
+        type="button"
+        onClick={scrollPrev}
+        aria-label="Previous"
+        className={cn(
+          carouselArrow,
+          "left-0 -translate-x-4",
+          canScrollPrev
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none",
+        )}
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </button>
+      <button
+        type="button"
+        onClick={scrollNext}
+        aria-label="Next"
+        className={cn(
+          carouselArrow,
+          "right-0 translate-x-4",
+          canScrollNext
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none",
+        )}
+      >
+        <ChevronRight className="h-5 w-5" />
+      </button>
+    </>
   );
 }
 
 export function RelatedProductsCarousel({
   products,
+  eyebrow,
+  title,
+  showViewAll = true,
+  autoplay: enableAutoplay = true,
 }: {
   products: RelatedProduct[];
+  /** Override the default "Discover more" eyebrow (e.g. for Recently viewed). */
+  eyebrow?: string;
+  /** Override the default "You may also like" heading. */
+  title?: string;
+  /** Hide the "View all" link (e.g. for personalized strips). */
+  showViewAll?: boolean;
+  /** Disable carousel autoplay (used for personalized strips). */
+  autoplay?: boolean;
 }) {
   const t = useTranslations("relatedProducts");
-  const autoplay = useRef(
+  const autoplayRef = useRef(
     Autoplay({ delay: 4000, stopOnInteraction: true, stopOnMouseEnter: true }),
   );
 
@@ -181,24 +98,26 @@ export function RelatedProductsCarousel({
         <div className="mb-8 flex items-end justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">
-              {t("discoverMore")}
+              {eyebrow ?? t("discoverMore")}
             </p>
             <h2 className="text-2xl font-bold tracking-tight">
-              {t("youMayAlsoLike")}
+              {title ?? t("youMayAlsoLike")}
             </h2>
           </div>
-          <Link
-            href="/products"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:block"
-          >
-            {t("viewAll")}
-          </Link>
+          {showViewAll && (
+            <Link
+              href="/products"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:block"
+            >
+              {t("viewAll")}
+            </Link>
+          )}
         </div>
 
         {/* Carousel */}
         <Carousel
           opts={{ loop: true, align: "start", dragFree: true }}
-          plugins={[autoplay.current]}
+          plugins={enableAutoplay ? [autoplayRef.current] : []}
           className="w-full"
         >
           <CarouselContent className="-ml-4">
@@ -207,13 +126,12 @@ export function RelatedProductsCarousel({
                 key={product.id}
                 className="pl-4 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4 xl:basis-1/5"
               >
-                <RelatedProductCard product={product} />
+                <ProductCard product={product} />
               </CarouselItem>
             ))}
           </CarouselContent>
 
-          <CarouselPrevious className="left-2 active:translate-y-[calc(-50%+1px)]" />
-          <CarouselNext className="right-2 active:translate-y-[calc(-50%+1px)]" />
+          <CarouselArrows />
         </Carousel>
       </div>
     </section>

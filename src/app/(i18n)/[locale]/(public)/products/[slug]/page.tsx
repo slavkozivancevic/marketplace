@@ -28,10 +28,15 @@ import {
 } from "@/features/products/utils/translations";
 import { getBrandName } from "@/features/brands/utils/translations";
 import { ProductReviewsSection } from "@/features/reviews/components/ProductReviewsSection";
+import { RelatedProductsCarousel } from "@/features/products/components/RelatedProductsCarousel";
 import {
-  RelatedProductsCarousel,
-  type RelatedProduct,
-} from "@/features/products/components/RelatedProductsCarousel";
+  listItemInclude,
+  serializeListItem,
+} from "@/features/products/db/publicProducts";
+import type { SerializedProductListItem } from "@/types/types";
+import { getFrequentlyBoughtTogether } from "@/features/interactions/db/interactions";
+import { RecordProductView } from "@/features/interactions/components/RecordProductView";
+import { RecentlyViewedCarousel } from "@/features/interactions/components/RecentlyViewedCarousel";
 import { Footer } from "@/components/layout/footer";
 
 // Matches a v4 UUID (the canonical product.id format). Used to detect
@@ -193,7 +198,10 @@ export default async function PublicProductPage({
     );
   }
 
-  const relatedProducts = await fetchRelatedProducts(product.id);
+  const [relatedProducts, frequentlyBoughtTogether] = await Promise.all([
+    fetchRelatedProducts(product.id),
+    getFrequentlyBoughtTogether(product.id),
+  ]);
 
   const localTitle = getProductTitle(product, locale);
   // PageHeader gets the short description (one-liner); the full description is
@@ -202,6 +210,7 @@ export default async function PublicProductPage({
   const localBrandName = product.brand ? getBrandName(product.brand, locale) : null;
   const t = await getTranslations("products");
   const tCrumbs = await getTranslations("breadcrumbs");
+  const tInteractions = await getTranslations("interactions");
 
   // Page URL in the active locale - used as `Product.url`, the breadcrumb
   // terminal, and the canonical inside structured data.
@@ -265,6 +274,7 @@ export default async function PublicProductPage({
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <PublishLocalePaths paths={localePaths} />
+      <RecordProductView productId={product.id} />
       <JsonLdScript data={productSchema} />
       <div className="shrink-0 px-6">
         <Breadcrumbs items={breadcrumbItems} />
@@ -287,7 +297,16 @@ export default async function PublicProductPage({
           </div>
         </div>
 
+        <RelatedProductsCarousel
+          products={frequentlyBoughtTogether}
+          eyebrow={tInteractions("frequentlyBoughtTogetherEyebrow")}
+          title={tInteractions("frequentlyBoughtTogether")}
+          showViewAll={false}
+        />
+
         <RelatedProductsCarousel products={relatedProducts} />
+
+        <RecentlyViewedCarousel excludeProductId={product.id} />
 
         <Footer />
       </div>
@@ -341,7 +360,9 @@ async function fetchPublicProductBySlug(
   return serializePublicProduct(product);
 }
 
-async function fetchRelatedProducts(productId: string): Promise<RelatedProduct[]> {
+async function fetchRelatedProducts(
+  productId: string,
+): Promise<SerializedProductListItem[]> {
   "use cache";
   cacheTag(CacheTags.products.publicAll());
   cacheTag(CacheTags.products.publicById(productId));
@@ -378,31 +399,8 @@ async function fetchRelatedProducts(productId: string): Promise<RelatedProduct[]
       { createdAt: "desc" },
     ],
     take: 12,
-    select: {
-      id: true,
-      translations: { select: { locale: true, title: true, slug: true } },
-      price: true,
-      compareAtPrice: true,
-      media: {
-        orderBy: { order: "asc" },
-        take: 1,
-        select: { url: true, thumbUrl: true, mediaType: true },
-      },
-      brand: {
-        select: {
-          logoUrl: true,
-          logoUrlDark: true,
-          logoBackdrop: true,
-          logoBackdropDark: true,
-          translations: { select: { locale: true, name: true } },
-        },
-      },
-    },
+    include: { ...listItemInclude, media: { orderBy: { order: "asc" }, take: 1 } },
   });
 
-  return products.map((p) => ({
-    ...p,
-    price: Number(p.price),
-    compareAtPrice: p.compareAtPrice != null ? Number(p.compareAtPrice) : null,
-  }));
+  return products.map(serializeListItem);
 }

@@ -96,6 +96,11 @@ export function OrganizationSettingsForm({
               </FormControl>
               <FieldChangedHint />
               <FormMessage />
+              {!canEdit && (
+                <p className="text-xs text-muted-foreground">
+                  {t("editRestricted")}
+                </p>
+              )}
             </FormItem>
           )}
         />

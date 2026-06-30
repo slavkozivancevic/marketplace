@@ -31,6 +31,7 @@ export function PriceInput({
   className,
   inputClassName,
   onCurrencyChange,
+  disabled = false,
 }: {
   value: number;
   onChange: (usd: number) => void;
@@ -45,6 +46,8 @@ export function PriceInput({
   /** Notified whenever the inline currency selector changes, so callers can
    *  show related amounts (e.g. a saved-value hint) in the same currency. */
   onCurrencyChange?: (currency: Currency) => void;
+  /** Read-only mode: locks both the amount input and the currency selector. */
+  disabled?: boolean;
 }) {
   // Guard against an invalid/empty currency reaching the selector (e.g. the
   // store mid-hydration or a stale persisted value) - it would render a blank
@@ -162,9 +165,10 @@ export function PriceInput({
             value={displayValue}
             onChange={handleChange}
             onBlur={onBlur}
+            disabled={disabled}
           />
         </div>
-        <Select value={inputCurrency} onValueChange={(v) => handleCurrencyChange(v as Currency)}>
+        <Select value={inputCurrency} onValueChange={(v) => handleCurrencyChange(v as Currency)} disabled={disabled}>
           <SelectTrigger className="w-24 shrink-0">
             {/* Explicit label so it shows pre-hydration (Radix SelectContent is
                 portaled and not yet available for value->item lookup). */}

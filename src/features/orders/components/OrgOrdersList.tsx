@@ -12,6 +12,7 @@ import type { OrgOrderListItem } from "../db/orgOrders";
 import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
 import type { OrgOrderFilters } from "@/lib/query/searchParams";
+import { useActiveOrgId } from "@/features/organizations/components/ActiveOrgContext";
 
 function buildFetcher(filters: OrgOrderFilters) {
   return async ({
@@ -60,10 +61,11 @@ export function OrgOrdersList({ filters }: { filters?: OrgOrderFilters }) {
     status: [],
   };
   const f = filters ?? defaultFilters;
+  const orgId = useActiveOrgId();
 
   const { parentRef, virtualizer, items, query, isSentinelIndex, isPlaceholderData } =
     useInfiniteVirtualList<OrgOrderListItem>({
-      queryKey: ["orders", "org", f],
+      queryKey: ["orders", "org", orgId, f],
       queryFn: buildFetcher(f),
       estimateSize: 56,
     });

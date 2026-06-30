@@ -37,7 +37,13 @@ export function ClerkGate({ children }: { children: React.ReactNode }) {
   );
 }
 
-function AppLoader({ hidden }: { hidden: boolean }) {
+/**
+ * Full-page branded loader. Used both for the initial Clerk boot gate and as
+ * the overlay while switching organizations (a global tenant-context change).
+ * The 500ms opacity fade-in doubles as a debounce: a fast switch barely shows
+ * it, a slow one reveals the full loader.
+ */
+export function AppLoader({ hidden }: { hidden: boolean }) {
   const t = useTranslations("header");
   // Keep the overlay mounted through the fade-out, then remove it so the
   // spinner stops animating off-screen.

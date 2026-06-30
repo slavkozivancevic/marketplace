@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createSearchParamsCache } from "nuqs/server";
@@ -45,7 +45,10 @@ export default async function OrgOrdersRoute({
   try {
     requirePermission(ctx, "order:read");
   } catch {
-    notFound();
+    // The newly-active org doesn't grant access to this section - send the user
+    // back to the dashboard instead of a dead-end 404 (e.g. after an org switch
+    // that left them on a page their new role can't see).
+    redirect(`/${locale}/dashboard`);
   }
 
   const params = searchParamsCache.parse(await searchParams);
@@ -59,7 +62,7 @@ export default async function OrgOrdersRoute({
   const queryClient = getQueryClient();
 
   await queryClient.prefetchInfiniteQuery({
-    queryKey: ["orders", "org", { ...filters, status: params.status }],
+    queryKey: ["orders", "org", ctx.organizationId, { ...filters, status: params.status }],
     queryFn: () =>
       getOrgOrdersPage({
         organizationId: ctx.organizationId,

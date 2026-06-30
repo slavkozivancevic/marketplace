@@ -11,9 +11,11 @@ import { SearchToolbar } from "@/components/search/SearchToolbar";
 import { FilterSidebar, type FilterGroup, type FilterValues } from "@/components/search/FilterSidebar";
 import { ActiveFilters } from "@/components/search/ActiveFilters";
 import { OrgOrdersList } from "./OrgOrdersList";
+import { useActiveOrgId } from "@/features/organizations/components/ActiveOrgContext";
 
 export function OrgOrdersPage() {
   const t = useTranslations("orgOrders");
+  const orgId = useActiveOrgId();
 
   const SORT_OPTIONS = [
     { value: "createdAt", label: t("date") },
@@ -34,7 +36,7 @@ export function OrgOrdersPage() {
   // Disjunctive status counts for the sidebar - ignores the status selection
   // but applies the active search and org scope, matching the list.
   const countsQuery = useQuery<{ status: Record<string, number> }>({
-    queryKey: ["org-orders", "counts", search],
+    queryKey: ["org-orders", "counts", orgId, search],
     queryFn: async () => {
       const sp = new URLSearchParams();
       if (search) sp.set("search", search);

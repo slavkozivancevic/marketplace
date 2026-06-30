@@ -88,7 +88,7 @@ export default async function MyProductsRoute({
   const orgId = user.activeOrgId;
 
   await queryClient.prefetchInfiniteQuery({
-    queryKey: ["products", "my-products", filters],
+    queryKey: ["products", "my-products", orgId, filters],
     queryFn: async () => {
       const repo = productRepository({
         organizationId: orgId,

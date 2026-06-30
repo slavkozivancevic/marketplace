@@ -101,6 +101,7 @@ export function OrgShippingForm({
           rates={rates}
           defaultCurrency={currency}
           onCurrencyChange={setFlatCurrency}
+          disabled={!canEdit}
         />
         {errors.shippingFlatRate?.message && (
           <p className="text-xs text-destructive">{errors.shippingFlatRate.message}</p>
@@ -156,6 +157,7 @@ export function OrgShippingForm({
             rates={rates}
             defaultCurrency={currency}
             onCurrencyChange={setThresholdCurrency}
+            disabled={!canEdit}
           />
           {errors.shippingFreeThreshold?.message && (
             <p className="text-xs text-destructive">{errors.shippingFreeThreshold.message}</p>
@@ -172,7 +174,7 @@ export function OrgShippingForm({
         </div>
       )}
 
-      {canEdit && (
+      {canEdit ? (
         <FormSaveBar
           isDirty={isDirty}
           isPending={isPending}
@@ -180,6 +182,8 @@ export function OrgShippingForm({
           saveLabel={t("saveChanges")}
           saveDisabled={hasErrors}
         />
+      ) : (
+        <p className="text-xs text-muted-foreground">{t("editRestricted")}</p>
       )}
     </form>
   );

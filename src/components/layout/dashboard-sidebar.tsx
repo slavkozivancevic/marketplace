@@ -19,12 +19,14 @@ interface DashboardSidebarProps {
   userRole: string;
   organizations: { id: string; name: string }[];
   currentOrgId: string;
+  canManagePayouts: boolean;
 }
 
 export function DashboardSidebar({
   userRole,
   organizations,
   currentOrgId,
+  canManagePayouts,
 }: DashboardSidebarProps) {
   const t = useTranslations("sidebar");
 
@@ -50,7 +52,10 @@ export function DashboardSidebar({
     { href: "/brands", label: t("browseBrands"), icon: Tag },
     ...(userRole === "SELLER" ? [{ href: "/dashboard/my-products", label: t("myProducts"), icon: Package } as SidebarLink] : []),
     { href: "/dashboard/orders", label: t("myOrders"), icon: ClipboardList },
-    ...(currentOrgId ? [orgOrdersLink, payoutsLink] : []),
+    // Received orders: every org member can read them. Payouts: OWNER/ADMIN
+    // only, matching the payouts page guard.
+    ...(currentOrgId ? [orgOrdersLink] : []),
+    ...(currentOrgId && canManagePayouts ? [payoutsLink] : []),
     { href: "/dashboard/organization", label: t("organization"), icon: Building2 },
   ];
   const extras = userRole === "ADMIN" ? adminLinks : undefined;

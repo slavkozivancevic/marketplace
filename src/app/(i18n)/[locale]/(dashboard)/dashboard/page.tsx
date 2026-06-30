@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
+import { canManageOrgPayouts } from "@/lib/auth/permissions";
 
 export default async function DashboardPage() {
   const { userId } = await auth();
@@ -37,7 +38,7 @@ export default async function DashboardPage() {
       role: true,
       name: true,
       activeOrgId: true,
-      memberships: { select: { orgId: true } },
+      memberships: { select: { orgId: true, role: true } },
     },
   });
 
@@ -46,6 +47,11 @@ export default async function DashboardPage() {
 
   const currentOrgId = user?.activeOrgId ?? user?.memberships[0]?.orgId ?? "";
   const showReceivedOrders = Boolean(currentOrgId);
+  // Payouts card: OWNER/ADMIN only, matching the payouts page guard.
+  const activeMembership = user?.memberships.find((m) => m.orgId === currentOrgId);
+  const showPayouts = activeMembership
+    ? canManageOrgPayouts(activeMembership.role)
+    : false;
 
   const cards = [
     {
@@ -84,6 +90,10 @@ export default async function DashboardPage() {
             description: t("dashboard.receivedOrdersDesc"),
             icon: PackageCheck,
           },
+        ]
+      : []),
+    ...(showPayouts
+      ? [
           {
             href: "/dashboard/organization/payouts",
             title: t("dashboard.payouts"),

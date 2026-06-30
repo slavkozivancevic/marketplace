@@ -342,6 +342,8 @@
     "members": "Članovi ({count})",
     "inviteMember": "Pozovi člana",
     "pendingInvites": "Pozivnice na čekanju",
+    "editRestricted": "Samo vlasnici i administratori mogu da menjaju ova podešavanja.",
+    "membersManageRestricted": "Samo vlasnici i administratori mogu da upravljaju članovima.",
     "orgName": "Naziv organizacije",
     "orgNamePlaceholder": "Naziv organizacije",
     "saving": "Čuvanje...",
@@ -1313,6 +1315,8 @@
     "loadingDetails": "Učitavanje detalja proizvoda..."
   },
   "orgOrders": {
+    "readOnly": "Pristup samo za čitanje",
+    "viewOnly": "Možeš da vidiš ovu porudžbinu, ali samo vlasnici i administratori mogu da je obrađuju.",
     "paymentHistory": "Istorija plaćanja",
     "txType": {
       "charge": "Naplata",
@@ -1386,6 +1390,12 @@
     "payoutReversed": "Storno isplate (povraćaji)",
     "payoutAfterRefunds": "Konačna isplata",
     "shippingCollected": "Dostava (naplaćena)"
+  },
+  "interactions": {
+    "frequentlyBoughtTogetherEyebrow": "Kupljeno zajedno",
+    "frequentlyBoughtTogether": "Često kupljeno zajedno",
+    "recentlyViewedEyebrow": "Nastavi gde si stao",
+    "recentlyViewed": "Nedavno gledano"
   },
   "relatedProducts": {
     "discoverMore": "Otkrijte više",

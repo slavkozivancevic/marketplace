@@ -71,6 +71,11 @@ export function MemberList({ members, currentUserId, canManage, currentUserRole 
           tUsers={tUsers}
         />
       ))}
+      {!canManage && (
+        <p className="pt-1 text-xs text-muted-foreground">
+          {t("membersManageRestricted")}
+        </p>
+      )}
     </div>
   );
 }

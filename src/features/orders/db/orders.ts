@@ -18,6 +18,7 @@ import { cacheTag } from "next/cache";
 import { CacheTags } from "@/lib/cache/tags";
 import { revalidateOrderCache } from "./cache";
 import { revalidateProductCache } from "@/features/products/db/cache";
+import { recordPurchaseEvents } from "@/features/interactions/db/interactions";
 import { InsufficientStockError } from "@/features/common/errors/domainErrors";
 
 export async function getUserOrders(userId: string) {
@@ -514,6 +515,13 @@ export async function fulfillOrder({
 
   if (couponId) await recordCouponUsage(couponId);
 
+  // Engagement log: one PURCHASE event per product (best-effort, post-commit).
+  await recordPurchaseEvents({
+    userId,
+    orderId: order.id,
+    productIds: items.map((i) => i.productId),
+  });
+
   // NOTE: sellers are NOT paid here. The platform holds the captured funds and
   // releases each seller's transfer when that seller ships (releaseSellerPayout),
   // so an order refunded before fulfillment never pays out.
@@ -674,6 +682,13 @@ export async function createCodOrder({
     select: { id: true, organizationId: true },
   });
   allProducts.forEach((p) => revalidateProductCache(p.organizationId, p.id));
+
+  // Engagement log: one PURCHASE event per product (best-effort, post-commit).
+  await recordPurchaseEvents({
+    userId,
+    orderId: order.id,
+    productIds: items.map((i) => i.productId),
+  });
 
   return order;
 }

@@ -15,6 +15,15 @@ function hasPermission(role: MembershipRole, permission: Permission) {
   return rolePermissions[role]?.includes(permission) ?? false;
 }
 
+/**
+ * Whether a membership role may view/manage the org's payouts. Single source of
+ * truth shared by the payouts page guard and the nav/card visibility, so the
+ * sidebar and dashboard never offer a link the page would bounce.
+ */
+export function canManageOrgPayouts(role: MembershipRole): boolean {
+  return hasPermission(role, "payout:manage");
+}
+
 function isWritePermission(permission: Permission) {
   return permission !== "product:read" && permission !== "order:read";
 }

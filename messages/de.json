@@ -342,6 +342,8 @@
     "members": "Mitglieder ({count})",
     "inviteMember": "Mitglied einladen",
     "pendingInvites": "Ausstehende Einladungen",
+    "editRestricted": "Nur Inhaber und Administratoren können diese Einstellungen ändern.",
+    "membersManageRestricted": "Nur Inhaber und Administratoren können Mitglieder verwalten.",
     "orgName": "Organisationsname",
     "orgNamePlaceholder": "Organisationsname",
     "saving": "Speichere...",
@@ -1313,6 +1315,8 @@
     "loadingDetails": "Produktdetails werden geladen..."
   },
   "orgOrders": {
+    "readOnly": "Schreibgeschützter Zugriff",
+    "viewOnly": "Sie können diese Bestellung ansehen, aber nur Inhaber und Administratoren können sie verwalten.",
     "paymentHistory": "Zahlungsverlauf",
     "txType": {
       "charge": "Belastung",
@@ -1386,6 +1390,12 @@
     "payoutReversed": "Auszahlungsstorno (Rückerstattungen)",
     "payoutAfterRefunds": "Auszahlung nach Rückerstattungen",
     "shippingCollected": "Versand (eingezogen)"
+  },
+  "interactions": {
+    "frequentlyBoughtTogetherEyebrow": "Zusammen gekauft",
+    "frequentlyBoughtTogether": "Häufig zusammen gekauft",
+    "recentlyViewedEyebrow": "Mach dort weiter, wo du aufgehört hast",
+    "recentlyViewed": "Zuletzt angesehen"
   },
   "relatedProducts": {
     "discoverMore": "Mehr entdecken",
