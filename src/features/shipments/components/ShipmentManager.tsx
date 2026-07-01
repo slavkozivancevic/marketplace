@@ -152,7 +152,7 @@ export function ShipmentManager({
                   ) : (
                     <PackageCheck className="h-3.5 w-3.5" />
                   )}
-                  {t("markDelivered")}
+                  {isDelivering ? t("markingDelivered") : t("markDelivered")}
                 </Button>
               )}
               <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditing(true)}>
@@ -197,7 +197,9 @@ export function ShipmentManager({
             <div className="flex gap-2">
               <Button size="sm" className="gap-1.5" disabled={isPending} onClick={submit}>
                 {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Truck className="h-3.5 w-3.5" />}
-                {shipment ? t("saveTracking") : t("markShipped")}
+                {isPending
+                  ? shipment ? t("savingTracking") : t("markingShipped")
+                  : shipment ? t("saveTracking") : t("markShipped")}
               </Button>
               {editing && (
                 <Button size="sm" variant="ghost" disabled={isPending} onClick={() => setEditing(false)}>

@@ -167,7 +167,7 @@ export function OrgOrderStatusManager({
               ) : (
                 <BadgeDollarSign className="mr-2 h-4 w-4" />
               )}
-              {t("markPaymentReceived")}
+              {activeAction === "paid" ? t("markingPaymentReceived") : t("markPaymentReceived")}
             </Button>
           )}
 

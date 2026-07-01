@@ -50,6 +50,11 @@ export function SellerReturns({
   const [isPending, start] = useTransition();
   const [rejectFor, setRejectFor] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  // A single transition drives every row's buttons, so track which return + which
+  // action is in flight to swap only that button's label/spinner (not its siblings).
+  const [pending, setPending] = useState<{ id: string; kind: "approve" | "reject" | "refund" } | null>(null);
+  const isRunning = (id: string, kind: "approve" | "reject" | "refund") =>
+    isPending && pending?.id === id && pending?.kind === kind;
 
   if (returns.length === 0) return null;
 
@@ -61,16 +66,25 @@ export function SellerReturns({
     REFUNDED: t("statusRefunded"),
   };
 
-  const run = (fn: () => Promise<{ ok: true } | ActionErrorResult>, ok: string) => {
+  const run = (
+    action: { id: string; kind: "approve" | "reject" | "refund" },
+    fn: () => Promise<{ ok: true } | ActionErrorResult>,
+    ok: string,
+  ) => {
+    setPending(action);
     start(async () => {
       const res = await fn();
       if ("error" in res) {
         toast.error(res.message);
+        setPending(null);
         return;
       }
       toast.success(ok);
       setRejectFor(null);
       setNote("");
+      // Leave `pending` set: refreshOrderViews() re-renders this row with its new
+      // status, which unmounts the button - clearing it here would blink the label
+      // back to idle in that gap.
       refreshOrderViews();
     });
   };
@@ -115,9 +129,9 @@ export function SellerReturns({
                 {r.status === "REQUESTED" && (
                   <>
                     <Button size="sm" variant="outline" className="gap-1.5" disabled={isPending}
-                      onClick={() => run(() => approveReturn(r.id), t("approved"))}>
-                      {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                      {t("approve")}
+                      onClick={() => run({ id: r.id, kind: "approve" }, () => approveReturn(r.id), t("approved"))}>
+                      {isRunning(r.id, "approve") ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                      {isRunning(r.id, "approve") ? t("approving") : t("approve")}
                     </Button>
                     <Button size="sm" variant="ghost" className="gap-1.5" disabled={isPending}
                       onClick={() => setRejectFor(rejectFor === r.id ? null : r.id)}>
@@ -128,9 +142,9 @@ export function SellerReturns({
                 )}
                 {r.status === "SHIPPED" && (
                   <Button size="sm" className="gap-1.5" disabled={isPending}
-                    onClick={() => run(() => refundReturn(r.id), t("refundDone"))}>
-                    {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BadgeDollarSign className="h-3.5 w-3.5" />}
-                    {t("markRefunded")}
+                    onClick={() => run({ id: r.id, kind: "refund" }, () => refundReturn(r.id), t("refundDone"))}>
+                    {isRunning(r.id, "refund") ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BadgeDollarSign className="h-3.5 w-3.5" />}
+                    {isRunning(r.id, "refund") ? t("refunding") : t("markRefunded")}
                   </Button>
                 )}
               </div>
@@ -145,9 +159,10 @@ export function SellerReturns({
                   onChange={(e) => setNote(e.target.value)}
                 />
                 <div className="flex gap-2">
-                  <Button size="sm" variant="destructive" disabled={isPending}
-                    onClick={() => run(() => rejectReturn(r.id, note.trim() || undefined), t("rejected"))}>
-                    {t("confirmReject")}
+                  <Button size="sm" variant="destructive" className="gap-1.5" disabled={isPending}
+                    onClick={() => run({ id: r.id, kind: "reject" }, () => rejectReturn(r.id, note.trim() || undefined), t("rejected"))}>
+                    {isRunning(r.id, "reject") && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    {isRunning(r.id, "reject") ? t("rejecting") : t("confirmReject")}
                   </Button>
                   <Button size="sm" variant="ghost" disabled={isPending}
                     onClick={() => { setRejectFor(null); setNote(""); }}>

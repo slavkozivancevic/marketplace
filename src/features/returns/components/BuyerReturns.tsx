@@ -68,6 +68,12 @@ export function BuyerReturns({
   const [openFor, setOpenFor] = useState<string | null>(null);
   const [sel, setSel] = useState<Record<string, number>>({});
   const [reason, setReason] = useState("");
+  // One transition serves every seller's form + every return's ship button, so
+  // track which id is running to swap only that button's label/spinner. `submit`
+  // is keyed by org id, `ship` by return id - these id spaces never collide here.
+  const [pending, setPending] = useState<{ id: string; kind: "submit" | "ship" } | null>(null);
+  const isRunning = (id: string, kind: "submit" | "ship") =>
+    isPending && pending?.id === id && pending?.kind === kind;
 
   // Reset the in-progress return form when the route changes - the client Router
   // Cache (dynamicOnHover) would otherwise keep a half-filled form alive across
@@ -102,10 +108,12 @@ export function BuyerReturns({
       toast.error(t("selectItemsError"));
       return;
     }
+    setPending({ id: orgId, kind: "submit" });
     start(async () => {
       const res = await requestReturn(orderId, orgId, items, reason.trim() || undefined);
       if ("error" in res) {
         toast.error(res.message);
+        setPending(null);
         return;
       }
       toast.success(t("requestSent"));
@@ -117,10 +125,12 @@ export function BuyerReturns({
   };
 
   const onShip = (returnId: string) => {
+    setPending({ id: returnId, kind: "ship" });
     start(async () => {
       const res = await shipReturn(returnId);
       if ("error" in res) {
         toast.error(res.message);
+        setPending(null);
         return;
       }
       toast.success(t("markedShipped"));
@@ -175,8 +185,8 @@ export function BuyerReturns({
                     </Badge>
                     {ret.status === "APPROVED" && (
                       <Button size="sm" className="gap-1.5 h-7" disabled={isPending} onClick={() => onShip(ret.id)}>
-                        {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Truck className="h-3.5 w-3.5" />}
-                        {t("markShipped")}
+                        {isRunning(ret.id, "ship") ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Truck className="h-3.5 w-3.5" />}
+                        {isRunning(ret.id, "ship") ? t("markingShipped") : t("markShipped")}
                       </Button>
                     )}
                   </div>
@@ -225,8 +235,8 @@ export function BuyerReturns({
                   />
                   <div className="flex gap-2">
                     <Button size="sm" disabled={isPending} className="gap-1.5" onClick={() => submit(seller.organizationId)}>
-                      {isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                      {t("submitRequest")}
+                      {isRunning(seller.organizationId, "submit") && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                      {isRunning(seller.organizationId, "submit") ? t("submittingRequest") : t("submitRequest")}
                     </Button>
                     <Button size="sm" variant="ghost" disabled={isPending} onClick={() => setOpenFor(null)}>
                       {t("cancel")}

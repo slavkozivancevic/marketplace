@@ -15,7 +15,6 @@ import { UserRole } from "@/generated/prisma/client";
 import { prisma } from "@/core/db/prisma";
 
 export async function POST(req: Request) {
-  console.log("Received Clerk webhook", req);
   const headerPayload = await headers();
 
   const svixId = headerPayload.get("svix-id");

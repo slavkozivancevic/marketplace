@@ -10,6 +10,33 @@ import { THEME_COOKIE_NAME } from "@/providers/theme/constants";
 
 const intlMiddleware = createIntlMiddleware(routing);
 
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+/**
+ * Same-origin gate for state-changing API requests (CSRF defense). Route
+ * handlers - unlike Server Actions, which Next guards automatically - have no
+ * built-in origin check, so a cross-site page could POST to them with the
+ * user's cookies. We block clearly cross-site browser requests.
+ *
+ * Primary signal is `Sec-Fetch-Site` (sent by all modern browsers); we allow
+ * everything except an explicit `cross-site`. Requests with no fetch-metadata
+ * and no Origin are NOT browser-driven CSRF (webhooks from Stripe/Clerk, the
+ * notifications Lambda hitting internal APIs, native clients) and are allowed -
+ * those paths defend themselves with signature / x-api-key checks.
+ */
+function isSameOriginRequest(req: Parameters<typeof intlMiddleware>[0]): boolean {
+  const secFetchSite = req.headers.get("sec-fetch-site");
+  if (secFetchSite) return secFetchSite !== "cross-site";
+
+  const origin = req.headers.get("origin");
+  if (!origin) return true;
+  try {
+    return new URL(origin).host === req.nextUrl.host;
+  } catch {
+    return false;
+  }
+}
+
 // First URL segment (across locale aliases) -> entity whose slug we verify.
 const ENTITY_SEGMENTS: Record<string, "product" | "category" | "brand"> = {
   products: "product", proizvodi: "product", produkte: "product", productos: "product",
@@ -152,6 +179,12 @@ export default clerkMiddleware(async (auth, req) => {
 
   const { pathname } = req.nextUrl;
   if (pathname.startsWith("/api/") || LOCALE_AGNOSTIC_FILES.has(pathname)) {
+    // CSRF: reject cross-site state-changing calls to API route handlers.
+    // Webhooks (signature-verified) and internal APIs (x-api-key) carry no
+    // browser origin headers, so they pass through untouched.
+    if (MUTATING_METHODS.has(req.method) && !isSameOriginRequest(req)) {
+      return new NextResponse("Cross-origin request blocked", { status: 403 });
+    }
     return NextResponse.next();
   }
 
