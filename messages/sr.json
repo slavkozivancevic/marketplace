@@ -1642,6 +1642,7 @@
     "forbidden": "Nije dozvoljeno",
     "notFound": "Nije pronađeno",
     "unauthenticated": "Niste prijavljeni",
+    "tooManyRequests": "Previše zahteva. Sačekajte {seconds}s pa pokušajte ponovo.",
     "concurrencyConflict": "Ovaj zapis je u međuvremenu izmenio drugi korisnik. Osvežite stranicu i pokušajte ponovo.",
     "organizationNotVerified": "Vaša organizacija još nije verifikovana",
     "membershipNotFound": "Članstvo nije pronađeno",

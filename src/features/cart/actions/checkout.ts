@@ -8,6 +8,7 @@ import { stripe } from "@/services/stripe";
 import { env } from "@/env/server";
 import { ActionErrorResult } from "@/types/types";
 import { handleActionError } from "@/features/common/errors/domainErrors";
+import { enforceRateLimit, getClientIp } from "@/lib/rateLimit/guard";
 import { getCurrencyRate } from "@/features/currency/db/currencyRates";
 import { convertCents } from "@/lib/currency";
 import { VALID_CURRENCIES, type Currency } from "@/lib/currency-config";
@@ -30,6 +31,7 @@ export async function createCheckoutSession(
 ): Promise<{ url: string } | ActionErrorResult> {
   try {
     const { userId: clerkUserId } = await auth();
+    await enforceRateLimit("checkout", clerkUserId ?? (await getClientIp()));
     const cookieStore = await cookies();
     const locale = asLocale(cookieStore.get("NEXT_LOCALE")?.value);
     const rawCurrency = cookieStore.get("NEXT_CURRENCY")?.value ?? "usd";

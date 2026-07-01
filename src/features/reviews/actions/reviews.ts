@@ -21,6 +21,7 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/core/db/prisma";
 import { requireRole } from "@/lib/auth/requireRole";
 import { recordAudit } from "@/features/audit/db/audit";
+import { enforceRateLimit } from "@/lib/rateLimit/guard";
 import { moderateReview as runAiModeration } from "@/services/aiModeration";
 import { publishReviewModerated } from "@/services/notifications";
 import { getPathname } from "@/i18n/navigation";
@@ -124,6 +125,7 @@ export async function submitReview(
     }
 
     const userId = await resolveUserId();
+    await enforceRateLimit("review", userId);
     const { productId, orderId, rating, comment } = parsed.data;
 
     const hasPurchased = await hasUserPurchasedProduct(userId, productId);
@@ -165,6 +167,7 @@ export async function updateReview(
     }
 
     const userId = await resolveUserId();
+    await enforceRateLimit("review", userId);
     const { reviewId, rating, comment } = parsed.data;
 
     const result = await dbUpdateReview({ reviewId, userId, rating, comment });
@@ -187,6 +190,7 @@ export async function deleteReview(
 ): Promise<void | ActionErrorResult> {
   try {
     const userId = await resolveUserId();
+    await enforceRateLimit("review", userId);
 
     const result = await dbDeleteReview(reviewId, userId);
     if (!result) {

@@ -1642,6 +1642,7 @@
     "forbidden": "Forbidden",
     "notFound": "Not found",
     "unauthenticated": "You are not signed in",
+    "tooManyRequests": "Too many requests. Please wait {seconds}s and try again.",
     "concurrencyConflict": "This record was modified by another user. Please reload and try again.",
     "organizationNotVerified": "Your organization is not verified yet",
     "membershipNotFound": "Membership not found",

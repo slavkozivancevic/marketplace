@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { z } from "zod";
 import { recordInteraction } from "@/features/interactions/db/interactions";
 import { resolveInteractionIdentity } from "@/features/interactions/identity";
+import { rateLimitResponse, getClientIp } from "@/lib/rateLimit/guard";
 
 const bodySchema = z.object({
   type: z.enum(["VIEW", "ADD_TO_CART"]),
@@ -17,6 +18,9 @@ const bodySchema = z.object({
  */
 export async function POST(req: NextRequest) {
   await connection();
+
+  const limited = await rateLimitResponse("interaction", await getClientIp());
+  if (limited) return limited;
 
   const json = await req.json().catch(() => null);
   const parsed = bodySchema.safeParse(json);

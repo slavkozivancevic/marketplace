@@ -98,6 +98,20 @@ export class InsufficientStockError extends Error {
   }
 }
 
+export class TooManyRequestsError extends Error {
+  readonly i18n: ErrorI18n;
+  constructor(arg: string | ErrorI18n = "Too many requests") {
+    const { i18n, message } = normalizeI18n(
+      arg,
+      "tooManyRequests",
+      "Too many requests",
+    );
+    super(message);
+    this.i18n = i18n;
+    this.name = "TooManyRequestsError";
+  }
+}
+
 export class NotFoundError extends Error {
   readonly i18n: ErrorI18n;
   constructor(arg: string | ErrorI18n = "Not found") {

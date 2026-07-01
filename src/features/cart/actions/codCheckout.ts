@@ -7,6 +7,7 @@ import { prisma } from "@/core/db/prisma";
 import { createCodOrder } from "@/features/orders/db/orders";
 import { publishCodOrderPlaced } from "@/services/notifications";
 import { handleActionError } from "@/features/common/errors/domainErrors";
+import { enforceRateLimit, getClientIp } from "@/lib/rateLimit/guard";
 import { getCurrencyRate } from "@/features/currency/db/currencyRates";
 import { convertCents } from "@/lib/currency";
 import { validateCoupon } from "@/features/coupons/db/coupons";
@@ -32,6 +33,7 @@ export async function createCodCheckout(
 ): Promise<{ orderId: string } | ActionErrorResult> {
   try {
     const { userId: clerkUserId } = await auth();
+    await enforceRateLimit("checkout", clerkUserId ?? (await getClientIp()));
     const cookieStore = await cookies();
     const locale = cookieStore.get("NEXT_LOCALE")?.value ?? "en";
     const rawCurrency = cookieStore.get("NEXT_CURRENCY")?.value ?? "usd";

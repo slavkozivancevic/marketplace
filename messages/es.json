@@ -1642,6 +1642,7 @@
     "forbidden": "No permitido",
     "notFound": "No encontrado",
     "unauthenticated": "No has iniciado sesión",
+    "tooManyRequests": "Demasiadas solicitudes. Espera {seconds}s e inténtalo de nuevo.",
     "concurrencyConflict": "Otro usuario modificó este registro. Recarga la página e inténtalo de nuevo.",
     "organizationNotVerified": "Tu organización aún no está verificada",
     "membershipNotFound": "Membresía no encontrada",

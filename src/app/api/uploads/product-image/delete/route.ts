@@ -4,11 +4,15 @@ import { toEmailThumbKey } from "@/services/s3Copy";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
 import { handleActionError } from "@/features/common/errors/domainErrors";
+import { rateLimitResponse } from "@/lib/rateLimit/guard";
 
 export async function POST(request: NextRequest) {
   try {
     const ctx = await resolveRequestContext();
     requirePermission(ctx, "product:delete");
+
+    const limited = await rateLimitResponse("upload", ctx.userId);
+    if (limited) return limited;
 
     const { key } = await request.json();
 

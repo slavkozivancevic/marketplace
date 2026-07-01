@@ -3,6 +3,7 @@ import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import { processVideo } from "@/services/videoProcessor";
+import { rateLimitResponse } from "@/lib/rateLimit/guard";
 
 // 50MB videos can take a few seconds to probe + extract a frame; bump from
 // the platform default to give ffmpeg headroom on the slow path.
@@ -13,6 +14,9 @@ export async function POST(req: Request) {
     const ctx = await resolveRequestContext();
 
     requirePermission(ctx, "product:create");
+
+    const limited = await rateLimitResponse("upload", ctx.userId);
+    if (limited) return limited;
 
     const { key }: { key: string } = await req.json();
     if (!key) {

@@ -7,6 +7,7 @@ import { dateLocale } from "@/lib/i18n/dateLocale";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/components/ui/sonner";
 import {
   Tooltip,
   TooltipContent,
@@ -98,26 +99,31 @@ function ReviewItem({
   const [editComment, setEditComment] = useState(review.comment ?? "");
   const [error, setError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  // Separate transitions for save vs delete: they render different spinners
+  // (Save button vs trash icon). Sharing one made the trash icon briefly spin
+  // after a save, since the transition was still settling as the form closed.
+  const [isSaving, startSave] = useTransition();
+  const [isDeleting, startDelete] = useTransition();
 
-  // In view mode the only in-flight action is delete, so isPending tracks it.
-  // Close the confirm dialog once that delete settles.
+  // Close the confirm dialog once the delete settles.
   const wasDeleting = useRef(false);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (wasDeleting.current && !isPending) setDeleteOpen(false);
-    wasDeleting.current = isPending && deleteOpen;
-  }, [isPending, deleteOpen]);
+    if (wasDeleting.current && !isDeleting) setDeleteOpen(false);
+    wasDeleting.current = isDeleting && deleteOpen;
+  }, [isDeleting, deleteOpen]);
 
   // "(edited)" reflects an author content edit only - moderation status writes
   // (approve/reject) bump updatedAt but must not flag the review as edited.
   const isEdited = review.editedAt != null;
 
   const handleDelete = () => {
-    startTransition(async () => {
+    startDelete(async () => {
       const result = await deleteReview(review.id);
       if (isActionErrorResult(result)) {
-        console.error(result.message);
+        // Surface the failure (e.g. rate limit) - the confirm dialog has closed,
+        // so a toast is the right channel for this row action.
+        toast.error(result.message);
       } else {
         queryClient.invalidateQueries({ queryKey: ["products", "public"] });
         queryClient.invalidateQueries({ queryKey: ["product", "rating-breakdown", productId] });
@@ -144,7 +150,7 @@ function ReviewItem({
     }
 
     setError(null);
-    startTransition(async () => {
+    startSave(async () => {
       const result = await updateReview({
         reviewId: review.id,
         rating: editRating,
@@ -183,15 +189,15 @@ function ReviewItem({
           />
           {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="flex gap-2">
-            <Button size="sm" onClick={handleSave} disabled={isPending}>
-              {isPending && <Loader2 className="animate-spin" />}
-              {isPending ? t("saving") : t("save")}
+            <Button size="sm" onClick={handleSave} disabled={isSaving}>
+              {isSaving && <Loader2 className="animate-spin" />}
+              {isSaving ? t("saving") : t("save")}
             </Button>
             <Button
               size="sm"
               variant="outline"
               onClick={handleCancel}
-              disabled={isPending}
+              disabled={isSaving}
             >
               {tCommon("cancel")}
             </Button>
@@ -254,14 +260,14 @@ function ReviewItem({
                 size="icon"
                 className="h-8 w-8"
                 onClick={handleEdit}
-                disabled={isPending}
+                disabled={isDeleting}
               >
                 <Pencil className="h-4 w-4" />
               </Button>
               <AlertDialog
                 open={deleteOpen}
                 onOpenChange={(next) => {
-                  if (isPending) return;
+                  if (isDeleting) return;
                   setDeleteOpen(next);
                 }}
               >
@@ -270,9 +276,9 @@ function ReviewItem({
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8"
-                    disabled={isPending}
+                    disabled={isDeleting}
                   >
-                    {isPending ? (
+                    {isDeleting ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <Trash2 className="h-4 w-4" />
@@ -286,7 +292,7 @@ function ReviewItem({
                     <AlertDialogDescription>{t("deleteDesc")}</AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel disabled={isPending}>
+                    <AlertDialogCancel disabled={isDeleting}>
                       {tCommon("cancel")}
                     </AlertDialogCancel>
                     <AlertDialogAction
@@ -294,10 +300,10 @@ function ReviewItem({
                         e.preventDefault();
                         handleDelete();
                       }}
-                      disabled={isPending}
+                      disabled={isDeleting}
                       variant="destructiveSolid"
                     >
-                      {isPending ? (
+                      {isDeleting ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
                           {t("deleting")}

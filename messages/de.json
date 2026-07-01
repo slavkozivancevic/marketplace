@@ -1642,6 +1642,7 @@
     "forbidden": "Nicht erlaubt",
     "notFound": "Nicht gefunden",
     "unauthenticated": "Sie sind nicht angemeldet",
+    "tooManyRequests": "Zu viele Anfragen. Bitte {seconds}s warten und erneut versuchen.",
     "concurrencyConflict": "Dieser Datensatz wurde von einem anderen Benutzer geändert. Bitte neu laden und erneut versuchen.",
     "organizationNotVerified": "Ihre Organisation ist noch nicht verifiziert",
     "membershipNotFound": "Mitgliedschaft nicht gefunden",

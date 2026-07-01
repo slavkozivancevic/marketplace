@@ -3,12 +3,16 @@ import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import { createPresignedVideoUploadUrl } from "@/services/s3Upload";
+import { rateLimitResponse } from "@/lib/rateLimit/guard";
 
 export async function POST(req: Request) {
   try {
     const ctx = await resolveRequestContext();
 
     requirePermission(ctx, "product:create");
+
+    const limited = await rateLimitResponse("upload", ctx.userId);
+    if (limited) return limited;
 
     const { contentType, size }: { contentType: string; size: number } =
       await req.json();

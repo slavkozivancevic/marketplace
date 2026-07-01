@@ -5,6 +5,7 @@ import { getPublicProductsPage } from "@/features/products/db/publicProducts";
 import { getCategoryTree, getDescendantIds } from "@/features/categories/db/categories";
 import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
 import { parseAttrs } from "@/lib/query/attrs";
+import { rateLimitResponse, getClientIp } from "@/lib/rateLimit/guard";
 
 const ALLOWED_SORTS = ["createdAt", "price", "avgRating"] as const;
 type SortField = (typeof ALLOWED_SORTS)[number];
@@ -23,6 +24,10 @@ function parseOptionalFloat(value: string | null): number | undefined {
 
 export async function GET(req: NextRequest) {
   await connection();
+
+  const limited = await rateLimitResponse("search", await getClientIp());
+  if (limited) return limited;
+
   const { searchParams } = req.nextUrl;
 
   const take = Math.min(
