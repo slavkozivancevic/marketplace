@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { rateLimitResponse } from "@/lib/rateLimit/guard";
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
         status: error.response.status,
       });
     }
-    console.error("[upload-url] error:", error);
+    logger.error("[upload-url] error:", error);
     return NextResponse.json(
       { error: "Failed to get upload URL" },
       { status: 500 },

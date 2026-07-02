@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/env/server";
 import { prisma } from "@/core/db/prisma";
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
     )
   );
 
-  console.log(`[currency-rates] updated ${entries.length} rate(s):`, Object.fromEntries(entries));
+  logger.info(`[currency-rates] updated ${entries.length} rate(s):`, Object.fromEntries(entries));
 
   return NextResponse.json({ updated: entries.map(([code]) => code) });
 }

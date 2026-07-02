@@ -1,4 +1,5 @@
 "use client";
+import { logger } from "@/lib/logger";
 
 import { useState } from "react";
 import { MessageCircle } from "lucide-react";
@@ -39,7 +40,7 @@ export function MessageSellerButton({ productId, className }: Props) {
       const { conversationId } = data;
       openConversation(conversationId);
     } catch (err) {
-      console.error("[MessageSellerButton]", err);
+      logger.error("[MessageSellerButton]", err);
     } finally {
       setLoading(false);
     }

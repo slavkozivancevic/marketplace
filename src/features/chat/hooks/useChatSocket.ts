@@ -1,4 +1,5 @@
 "use client";
+import { logger } from "@/lib/logger";
 
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -50,7 +51,7 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log("[chat] WebSocket connected");
+        logger.info("[chat] WebSocket connected");
       };
 
       ws.onmessage = (event) => {
@@ -265,11 +266,11 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
 
       ws.onerror = (event) => {
         const e = event as ErrorEvent;
-        console.warn("[chat] WebSocket error", e.message ?? "(no message)", e.type);
+        logger.warn("[chat] WebSocket error", e.message ?? "(no message)", e.type);
       };
 
       ws.onclose = (event) => {
-        console.log("[chat] WebSocket closed", event.code, event.reason);
+        logger.info("[chat] WebSocket closed", event.code, event.reason);
         wsRef.current = null;
         if (!closed && event.code !== 1000) {
           setTimeout(connect, 3000);

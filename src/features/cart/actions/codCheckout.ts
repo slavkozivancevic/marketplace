@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { auth } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
@@ -152,12 +153,12 @@ export async function createCodCheckout(
 
     // Fire-and-forget - notification failure must not block the order
     publishCodOrderPlaced(order.id, locale, currency).catch((err) =>
-      console.error("[notifications] publishCodOrderPlaced failed", err),
+      logger.error("[notifications] publishCodOrderPlaced failed", err),
     );
 
     return { orderId: order.id };
   } catch (err) {
-    console.error("[createCodCheckout]", err);
+    logger.error("[createCodCheckout]", err);
     return handleActionError(err);
   }
 }

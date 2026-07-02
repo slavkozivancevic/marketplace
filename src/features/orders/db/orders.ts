@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { prisma } from "@/core/db/prisma";
 import { convertCents } from "@/lib/currency";
 import type { Currency } from "@/lib/currency-config";
@@ -374,7 +375,7 @@ export async function fulfillOrder({
   });
 
   if (existing) {
-    console.log(
+    logger.info(
       `Order for session ${stripeSessionId} already exists, skipping`,
     );
     return existing;
@@ -716,7 +717,7 @@ export async function reconcileStripeRefund(
     },
   });
   if (!order) {
-    console.log(`No order found for session ${stripeSessionId}, skipping refund`);
+    logger.info(`No order found for session ${stripeSessionId}, skipping refund`);
     return null;
   }
 
@@ -731,7 +732,7 @@ export async function reconcileStripeRefund(
   const knownSet = new Set(known.map((k) => k.providerId));
   const external = refunds.filter((r) => !knownSet.has(r.id));
   if (external.length === 0) {
-    console.log(`charge.refunded for ${stripeSessionId} already recorded by app, skipping`);
+    logger.info(`charge.refunded for ${stripeSessionId} already recorded by app, skipping`);
     return null;
   }
 

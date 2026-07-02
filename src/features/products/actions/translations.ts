@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { prisma } from "@/core/db/prisma";
 import { Prisma } from "@/generated/prisma/client";
@@ -231,7 +232,7 @@ export async function bulkUpsertTranslations(
         affected.add(productId);
         result.upserted += 1;
       } catch (err) {
-        console.error("[translations] row failed", rowNo, err);
+        logger.error("[translations] row failed", rowNo, err);
         result.errors.push({ row: rowNo, code: "unknown" });
       }
     }

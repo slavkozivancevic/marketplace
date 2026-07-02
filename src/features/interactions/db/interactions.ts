@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { prisma } from "@/core/db/prisma";
 import { cacheTag } from "next/cache";
 import { CacheTags } from "@/lib/cache/tags";
@@ -63,7 +64,7 @@ export async function recordInteraction(params: {
       data: { type, productId, userId, sessionId },
     });
   } catch (err) {
-    console.error("[interactions] recordInteraction failed", err);
+    logger.error("[interactions] recordInteraction failed", err);
   }
 }
 
@@ -88,7 +89,7 @@ export async function recordPurchaseEvents(params: {
       })),
     });
   } catch (err) {
-    console.error("[interactions] recordPurchaseEvents failed", err);
+    logger.error("[interactions] recordPurchaseEvents failed", err);
   }
 }
 

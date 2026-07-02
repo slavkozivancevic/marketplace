@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { env } from "@/env/server";
@@ -106,7 +107,7 @@ export async function moderateReview(input: {
       reason: status === "APPROVED" ? null : parsed.reason || null,
     };
   } catch (err) {
-    console.error("[aiModeration] moderateReview failed", err);
+    logger.error("[aiModeration] moderateReview failed", err);
     return { status: "PENDING", reason: null };
   }
 }

@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { headers } from "next/headers";
 import { stripe } from "@/services/stripe";
 import { env } from "@/env/server";
@@ -28,14 +29,14 @@ export async function POST(req: Request) {
       env.STRIPE_WEBHOOK_SECRET,
     );
   } catch (err) {
-    console.error("Stripe webhook signature verification failed:", err);
+    logger.error("Stripe webhook signature verification failed:", err);
     return new Response("Invalid signature", { status: 400 });
   }
 
-  console.log("Processing Stripe webhook:", event.type, event.id);
+  logger.info("Processing Stripe webhook:", event.type, event.id);
 
   if (await isWebhookProcessed(event.id)) {
-    console.log("Stripe webhook already processed:", event.id);
+    logger.info("Stripe webhook already processed:", event.id);
     return new Response("OK", { status: 200 });
   }
 
@@ -60,7 +61,7 @@ export async function POST(req: Request) {
           : undefined;
 
         if (!userId || !itemsJson) {
-          console.error("Missing metadata in checkout session", session.id);
+          logger.error("Missing metadata in checkout session", session.id);
           return new Response("Missing metadata", { status: 400 });
         }
 
@@ -105,18 +106,18 @@ export async function POST(req: Request) {
             shippingTotal,
             shippingByOrg,
           });
-          console.log("Order fulfilled for session:", session.id);
+          logger.info("Order fulfilled for session:", session.id);
         } catch (fulfillError) {
           if (fulfillError instanceof InsufficientStockError) {
             if (paymentIntentId) {
               try {
                 await stripe.refunds.create({ payment_intent: paymentIntentId });
-                console.log(
+                logger.info(
                   "Auto-refunded session due to insufficient stock:",
                   session.id,
                 );
               } catch (refundError) {
-                console.error(
+                logger.error(
                   "Failed to auto-refund session:",
                   session.id,
                   refundError,
@@ -136,7 +137,7 @@ export async function POST(req: Request) {
         // both the buyer confirmation and seller notification emails.
         if (order) {
           publishOrderCompleted(order.id, locale, currency).catch((err) =>
-            console.error("[notifications] publishOrderCompleted failed", JSON.stringify(err, null, 2), err)
+            logger.error("[notifications] publishOrderCompleted failed", JSON.stringify(err, null, 2), err)
           );
         }
 
@@ -145,7 +146,7 @@ export async function POST(req: Request) {
 
       case "checkout.session.expired": {
         const session = event.data.object as Stripe.Checkout.Session;
-        console.log("Checkout session expired:", session.id);
+        logger.info("Checkout session expired:", session.id);
         break;
       }
 
@@ -157,7 +158,7 @@ export async function POST(req: Request) {
             : charge.payment_intent?.id;
 
         if (!paymentIntentId) {
-          console.error("No payment_intent on charge", charge.id);
+          logger.error("No payment_intent on charge", charge.id);
           break;
         }
 
@@ -169,7 +170,7 @@ export async function POST(req: Request) {
         const sessionId = sessions.data[0]?.id;
 
         if (!sessionId) {
-          console.error(
+          logger.error(
             "No checkout session found for payment_intent",
             paymentIntentId,
           );
@@ -185,22 +186,22 @@ export async function POST(req: Request) {
         }));
         const refunded = await reconcileStripeRefund(sessionId, refunds);
         if (refunded) {
-          console.log("Order fully refunded (external) for session:", sessionId);
+          logger.info("Order fully refunded (external) for session:", sessionId);
           publishOrderRefunded(refunded.id, refunded.locale ?? "en").catch((err) =>
-            console.error("[notifications] publishOrderRefunded failed", err)
+            logger.error("[notifications] publishOrderRefunded failed", err)
           );
         }
         break;
       }
 
       default:
-        console.log("Unhandled Stripe event type:", event.type);
+        logger.info("Unhandled Stripe event type:", event.type);
     }
 
     await markWebhookProcessed(event.id, event.type);
     return new Response("OK", { status: 200 });
   } catch (error) {
-    console.error("Stripe webhook processing error:", error);
+    logger.error("Stripe webhook processing error:", error);
     return new Response("Internal Error", { status: 500 });
   }
 }

@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { cookies } from "next/headers";
 import { stripe } from "@/services/stripe";
@@ -102,7 +103,7 @@ export async function startConnectOnboarding(): Promise<
 
     return { url: link.url };
   } catch (error) {
-    console.error("[startConnectOnboarding]", error);
+    logger.error("[startConnectOnboarding]", error);
     return handleActionError(error);
   }
 }
@@ -145,7 +146,7 @@ export async function syncConnectStatus(): Promise<
 
     return { connected: true, ...flags };
   } catch (error) {
-    console.error("[syncConnectStatus]", error);
+    logger.error("[syncConnectStatus]", error);
     return handleActionError(error);
   }
 }

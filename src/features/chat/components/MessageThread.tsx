@@ -1,4 +1,5 @@
 "use client";
+import { logger } from "@/lib/logger";
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { format, isToday, isYesterday } from "date-fns";
@@ -323,7 +324,7 @@ function PdfPreviewCard({ attachment }: { attachment: Attachment }) {
         pdfPreviewCache.set(attachment.key, entry);
         setPreview(entry);
       } catch (err) {
-        console.warn("[pdf-preview] render failed", err);
+        logger.warn("[pdf-preview] render failed", err);
         if (!cancelled) setRenderFailed(true);
       }
     }
@@ -955,7 +956,7 @@ export function MessageThread({
           .catch((err) => {
             // Cancellation is a normal flow (user removed before completion).
             if (signal.aborted || err?.name === "CanceledError") return;
-            console.error("[chat upload]", err);
+            logger.error("[chat upload]", err);
             setPendingAttachments((prev) =>
               prev.map((a) =>
                 a.id === item.id ? { ...a, status: "error" } : a,

@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { prisma } from "@/core/db/prisma";
 import { Prisma, CouponType } from "@/generated/prisma/client";
 import { resolveCart, type CartItemRef } from "@/features/cart/db/resolveCart";
@@ -95,7 +96,7 @@ export async function recordCouponUsage(couponId: string): Promise<void> {
       data: { usageCount: { increment: 1 } },
     });
   } catch (err) {
-    console.error("[coupons] recordCouponUsage failed", couponId, err);
+    logger.error("[coupons] recordCouponUsage failed", couponId, err);
   }
 }
 

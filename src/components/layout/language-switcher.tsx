@@ -1,4 +1,5 @@
 "use client";
+import { logger } from "@/lib/logger";
 
 import { useTransition } from "react";
 import { useTranslations } from "next-intl";
@@ -68,7 +69,7 @@ export function LanguageSwitcher() {
       // emails (role changes, seller notifications) reach them in this language.
       // Fire-and-forget: failure must not block the visible UI switch.
       syncUserLocale(newLocale).catch((err) =>
-        console.error("[language-switcher] syncUserLocale failed", err),
+        logger.error("[language-switcher] syncUserLocale failed", err),
       );
       // Persist the locale the way next-intl's router would have, so a later visit
       // to a naked URL ("/") still resolves to this language.

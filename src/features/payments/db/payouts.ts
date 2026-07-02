@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { prisma } from "@/core/db/prisma";
 import { stripe } from "@/services/stripe";
 import {
@@ -367,7 +368,7 @@ export async function releaseSellerPayout({
       amount: net,
       currency,
       locale: order.locale ?? "en",
-    }).catch((e) => console.error("[releaseSellerPayout] publishPayoutReleased failed", e));
+    }).catch((e) => logger.error("[releaseSellerPayout] publishPayoutReleased failed", e));
 
     await recordAudit({
       action: "payout.released",
@@ -376,7 +377,7 @@ export async function releaseSellerPayout({
       diff: { seller: organizationId, amount: net, currency },
     });
   } catch (err) {
-    console.error("[releaseSellerPayout] transfer failed", organizationId, err);
+    logger.error("[releaseSellerPayout] transfer failed", organizationId, err);
     await prisma.paymentTransaction.create({
       data: {
         orderId,

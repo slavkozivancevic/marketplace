@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { decimalToCents } from "@/lib/currency";
 import { NextResponse, type NextRequest } from "next/server";
 import { connection } from "next/server";
@@ -77,7 +78,7 @@ export async function GET(req: NextRequest) {
       nextCursor: result.nextCursor,
     });
   } catch (error) {
-    console.error("[/api/admin/products] failed", error);
+    logger.error("[/api/admin/products] failed", error);
     return NextResponse.json(
       { error: "Failed to load products" },
       { status: 500 },

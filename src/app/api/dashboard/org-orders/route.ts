@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextResponse, type NextRequest } from "next/server";
 import { connection } from "next/server";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest) {
     });
     return NextResponse.json(result);
   } catch (error) {
-    console.error("[/api/dashboard/org-orders] failed", error);
+    logger.error("[/api/dashboard/org-orders] failed", error);
     return NextResponse.json(
       { error: "Failed to load orders" },
       { status: 500 },

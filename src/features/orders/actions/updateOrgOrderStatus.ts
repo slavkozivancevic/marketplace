@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { prisma } from "@/core/db/prisma";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
@@ -136,7 +137,7 @@ export async function markCodPaymentReceived(
   try {
     await publishCodPaymentReceived(orderId, order.locale ?? "en");
   } catch (err) {
-    console.error(`[markCodPaymentReceived] notification failed for ${orderId}:`, err);
+    logger.error(`[markCodPaymentReceived] notification failed for ${orderId}:`, err);
   }
 
   return { success: true };
@@ -217,7 +218,7 @@ export async function cancelOrder(
   try {
     await publishCodOrderCancelled(orderId, order.locale ?? "en");
   } catch (err) {
-    console.error(`[cancelOrder] notification failed for ${orderId}:`, err);
+    logger.error(`[cancelOrder] notification failed for ${orderId}:`, err);
   }
 
   return { success: true };

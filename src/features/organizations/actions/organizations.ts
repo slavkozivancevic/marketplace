@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
 import { revalidatePath } from "next/cache";
@@ -184,7 +185,7 @@ export async function updateMemberRoleAction(
       newRole: updated.newRole,
       locale: updated.userLocale,
     }).catch((err) =>
-      console.error("[notifications] publishMemberRoleChanged failed", err),
+      logger.error("[notifications] publishMemberRoleChanged failed", err),
     );
 
     // Refresh the member list so the saved role is reflected back to the UI

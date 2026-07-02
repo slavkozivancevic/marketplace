@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { env } from "@/env/server";
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[attachment-content]", error);
+    logger.error("[attachment-content]", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

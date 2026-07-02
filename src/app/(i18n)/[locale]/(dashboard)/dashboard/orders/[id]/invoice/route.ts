@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/core/db/prisma";
 import { getOrIssueInvoicePdf, formatInvoiceNumber } from "@/features/invoices/invoice";
@@ -31,7 +32,7 @@ export async function GET(
       },
     });
   } catch (err) {
-    console.error("[invoice route]", err);
+    logger.error("[invoice route]", err);
     return new Response("Not found", { status: 404 });
   }
 }

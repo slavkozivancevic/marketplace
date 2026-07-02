@@ -1,4 +1,5 @@
 "use client";
+import { logger } from "@/lib/logger";
 
 import { useEffect, useRef } from "react";
 import { useLocale } from "next-intl";
@@ -57,7 +58,7 @@ export function LocaleSync() {
           if (!cancelled) void attempt(retryIndex + 1);
         }, nextDelay);
       } catch (err) {
-        console.error("[locale-sync] failed", err);
+        logger.error("[locale-sync] failed", err);
       }
     };
 

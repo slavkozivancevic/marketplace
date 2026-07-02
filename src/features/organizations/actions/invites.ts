@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
 import { revalidatePath } from "next/cache";
@@ -66,11 +67,11 @@ export async function sendInviteAction(
       organizationName: organization.name,
       role: parsed.data.role,
       locale,
-    }).catch((err) => console.error("[notifications] publishInviteSent failed", err));
+    }).catch((err) => logger.error("[notifications] publishInviteSent failed", err));
 
     revalidatePath("/[locale]/dashboard/organization", "page");
   } catch (error) {
-    console.error("[sendInviteAction] error:", error);
+    logger.error("[sendInviteAction] error:", error);
     return handleActionError(error);
   }
 }

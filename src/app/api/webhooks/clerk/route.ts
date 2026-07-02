@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { headers } from "next/headers";
 import { Webhook } from "svix";
 import { WebhookEvent } from "@clerk/nextjs/server";
@@ -39,17 +40,17 @@ export async function POST(req: Request) {
       "svix-signature": svixSignature,
     }) as WebhookEvent;
   } catch (err) {
-    console.error("Webhook verification failed:", err);
+    logger.error("Webhook verification failed:", err);
     return new Response("Invalid signature", { status: 400 });
   }
 
-  console.log("Processing webhook:", {
+  logger.info("Processing webhook:", {
     svixId,
     type: event.type,
   });
 
   if (await isWebhookProcessed(svixId)) {
-    console.log("Webhook already processed");
+    logger.info("Webhook already processed");
     return new Response("OK", { status: 200 });
   }
 
@@ -141,7 +142,7 @@ export async function POST(req: Request) {
 
     return new Response("OK", { status: 200 });
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     return new Response("Internal Error", { status: 500 });
   }
 }

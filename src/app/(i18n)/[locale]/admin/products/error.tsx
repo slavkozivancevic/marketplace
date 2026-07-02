@@ -1,4 +1,5 @@
 "use client";
+import { logger } from "@/lib/logger";
 
 import { useEffect } from "react";
 
@@ -16,7 +17,7 @@ export default function ProductsErrorPage({
   reset,
 }: ProductsErrorPageProps) {
   useEffect(() => {
-    console.error("Products route error:", error);
+    logger.error("Products route error:", error);
   }, [error]);
 
   return (

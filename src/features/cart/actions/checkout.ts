@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { auth } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
@@ -265,7 +266,7 @@ export async function createCheckoutSession(
 
     return { url: session.url };
   } catch (error) {
-    console.error("[createCheckoutSession]", error);
+    logger.error("[createCheckoutSession]", error);
     return handleActionError(error);
   }
 }

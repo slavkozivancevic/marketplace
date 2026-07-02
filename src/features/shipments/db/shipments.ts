@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { prisma } from "@/core/db/prisma";
 import { FulfillmentStatus, PaymentStatus, PaymentMethod } from "@/generated/prisma/client";
 import { NotFoundError, ForbiddenError } from "@/features/common/errors/domainErrors";
@@ -112,7 +113,7 @@ export async function createShipment({
   try {
     await releaseSellerPayout({ orderId, organizationId });
   } catch (err) {
-    console.error("[shipments] releaseSellerPayout failed", err);
+    logger.error("[shipments] releaseSellerPayout failed", err);
   }
 
   revalidateOrderCache(order.userId, orderId);
@@ -125,7 +126,7 @@ export async function createShipment({
     locale: order.locale,
     trackingNumber: trackingNumber || undefined,
     carrier: carrier || undefined,
-  }).catch((err) => console.error("[shipments] publishOrderShipped failed", err));
+  }).catch((err) => logger.error("[shipments] publishOrderShipped failed", err));
 
   return shipment;
 }
@@ -184,7 +185,7 @@ export async function markShipmentDelivered({
         await publishOrderDelivered(orderId, order.locale ?? "en");
       }
     } catch (err) {
-      console.error("[shipments] delivery notification failed", err);
+      logger.error("[shipments] delivery notification failed", err);
     }
   }
 

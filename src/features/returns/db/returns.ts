@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { prisma } from "@/core/db/prisma";
 import { stripe } from "@/services/stripe";
 import {
@@ -230,7 +231,7 @@ export async function createReturn({
     locale: order.locale,
     reason: reason || undefined,
     items: lines,
-  }).catch((err) => console.error("[returns] publishReturnRequested failed", err));
+  }).catch((err) => logger.error("[returns] publishReturnRequested failed", err));
 
   return created;
 }
@@ -369,7 +370,7 @@ async function settleReturnRefund(
           amount: sellerNetAmount(refundAmount),
         });
       } catch (err) {
-        console.error("[settleReturnRefund] transfer reversal failed", err);
+        logger.error("[settleReturnRefund] transfer reversal failed", err);
       }
     }
   }
@@ -513,7 +514,7 @@ export async function transitionReturn({
       ...base,
       refundAmount,
       cod: ret.order.paymentMethod === PaymentMethod.COD,
-    }).catch((err) => console.error("[returns] publishReturnRefunded failed", err));
+    }).catch((err) => logger.error("[returns] publishReturnRefunded failed", err));
   } else {
     await prisma.return.update({
       where: { id: returnId },
@@ -523,15 +524,15 @@ export async function transitionReturn({
     // Fire-and-forget notifications - email failure must not block the action.
     if (to === ReturnStatus.APPROVED) {
       publishReturnApproved(base).catch((err) =>
-        console.error("[returns] publishReturnApproved failed", err),
+        logger.error("[returns] publishReturnApproved failed", err),
       );
     } else if (to === ReturnStatus.REJECTED) {
       publishReturnRejected({ ...base, note }).catch((err) =>
-        console.error("[returns] publishReturnRejected failed", err),
+        logger.error("[returns] publishReturnRejected failed", err),
       );
     } else if (to === ReturnStatus.SHIPPED) {
       publishReturnShipped(base).catch((err) =>
-        console.error("[returns] publishReturnShipped failed", err),
+        logger.error("[returns] publishReturnShipped failed", err),
       );
     }
   }

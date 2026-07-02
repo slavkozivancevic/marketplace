@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
 import { revalidatePath } from "next/cache";
@@ -107,7 +108,7 @@ async function notifyAuthorOfDecision(
       locale,
     });
   } catch (err) {
-    console.error("[reviews] notifyAuthorOfDecision failed", err);
+    logger.error("[reviews] notifyAuthorOfDecision failed", err);
   }
 }
 

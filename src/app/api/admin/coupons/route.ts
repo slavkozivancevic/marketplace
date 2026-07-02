@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextResponse, type NextRequest } from "next/server";
 import { connection } from "next/server";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
     const result = await getCouponsPage({ take, cursor, search, status, sortBy, sortOrder });
     return NextResponse.json(result);
   } catch (error) {
-    console.error("[/api/admin/coupons] failed", error);
+    logger.error("[/api/admin/coupons] failed", error);
     return NextResponse.json({ error: "Failed to load coupons" }, { status: 500 });
   }
 }

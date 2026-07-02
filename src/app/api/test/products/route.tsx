@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextResponse } from "next/server";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
@@ -21,7 +22,7 @@ export async function GET() {
       },
     });
   } catch (error: unknown) {
-    console.error("Products API error:", error);
+    logger.error("Products API error:", error);
 
     return NextResponse.json(
       { error: true, message: (error as Error).message || "Internal error" },

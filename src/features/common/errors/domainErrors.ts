@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { ActionErrorResult } from "@/types/types";
 import { Prisma } from "@/generated/prisma/client";
+import { captureError } from "@/lib/logger";
 
 export { isActionErrorResult } from "./actionErrorResult";
 
@@ -227,8 +228,8 @@ export async function handleActionError(error: unknown): Promise<ActionErrorResu
   }
 
   // Unexpected error: the toast only ever shows the generic `internalError`
-  // string, so without this log the real cause (Prisma code, FK target, stack)
-  // is lost. Log it server-side so failures stay diagnosable from the terminal.
-  console.error("[handleActionError] unexpected error:", error);
+  // string, so without this capture the real cause (Prisma code, FK target,
+  // stack) is lost. Report it centrally so failures stay diagnosable.
+  captureError(error, { source: "handleActionError" });
   return { error: true, message: t("internalError") };
 }

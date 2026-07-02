@@ -1,4 +1,5 @@
 "use server";
+import { logger } from "@/lib/logger";
 
 import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
 import { revalidatePath } from "next/cache";
@@ -46,7 +47,7 @@ export async function updateUserRoleAction(
         newRole: result.newRole,
         locale: result.user.locale,
       }).catch((err) =>
-        console.error("[notifications] publishUserRoleChanged failed", err),
+        logger.error("[notifications] publishUserRoleChanged failed", err),
       );
     }
   } catch (error) {

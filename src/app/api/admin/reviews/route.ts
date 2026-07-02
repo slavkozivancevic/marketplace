@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextResponse, type NextRequest } from "next/server";
 import { connection } from "next/server";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
     const result = await getReviewsPage({ take, cursor, search, status, sortOrder });
     return NextResponse.json(result);
   } catch (error) {
-    console.error("[/api/admin/reviews] failed", error);
+    logger.error("[/api/admin/reviews] failed", error);
     return NextResponse.json({ error: "Failed to load reviews" }, { status: 500 });
   }
 }

@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { deleteS3Object } from "@/services/s3Delete";
 import { toEmailThumbKey } from "@/services/s3Copy";
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: false });
   } catch (error) {
-    console.error("Delete error:", error);
+    logger.error("Delete error:", error);
     return NextResponse.json(await handleActionError(error), { status: 400 });
   }
 }

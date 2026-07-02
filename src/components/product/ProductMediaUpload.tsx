@@ -1,4 +1,5 @@
 "use client";
+import { logger } from "@/lib/logger";
 
 import * as React from "react";
 import { useCallback, useId, useState } from "react";
@@ -340,7 +341,7 @@ export const ProductMediaUpload: React.FC<ProductMediaUploadProps> = ({
 
           toast.success(t("uploaded", { name: file.name }));
         } catch (err) {
-          console.error(err);
+          logger.error(err);
 
           URL.revokeObjectURL(localPreviewUrl);
 
@@ -386,7 +387,7 @@ export const ProductMediaUpload: React.FC<ProductMediaUploadProps> = ({
             : "/api/uploads/product-image/delete";
         axios
           .post(deleteEndpoint, { key: itemToRemove.key })
-          .catch((err) => console.error("Failed to delete from S3:", err));
+          .catch((err) => logger.error("Failed to delete from S3:", err));
       }
 
       return prev.filter((m) => m.key !== key);

@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { clerkClient } from "@clerk/nextjs/server";
 import { UserRole } from "@/generated/prisma/client";
 
@@ -31,6 +32,6 @@ export async function syncClerkUserMetadata({
     // populate the session JWT. A failed sync (e.g. Clerk 429 rate limit) must
     // not break the request - the DB-derived context is still valid, and the
     // next request retries once the token refreshes. So we log and swallow.
-    console.error("Clerk metadata sync failed (non-fatal):", error);
+    logger.error("Clerk metadata sync failed (non-fatal):", error);
   }
 }

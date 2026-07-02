@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { prisma } from "@/core/db/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
@@ -50,7 +51,7 @@ export async function recordAudit(entry: {
       },
     });
   } catch (err) {
-    console.error("[audit] failed to record", entry.action, err);
+    logger.error("[audit] failed to record", entry.action, err);
   }
 }
 
