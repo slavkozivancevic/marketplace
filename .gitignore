@@ -49,3 +49,11 @@ next-env.d.ts
 _email_preview.html
 *.preview.html
 /previews/
+
+# test coverage
+coverage/
+
+# playwright
+playwright-report/
+test-results/
+/e2e/.auth/

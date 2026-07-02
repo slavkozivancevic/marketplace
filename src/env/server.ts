@@ -30,4 +30,7 @@ export const env = createEnv({
     ANTHROPIC_API_KEY: z.string().optional(),
   },
   experimental__runtimeEnv: process.env,
+  // Skip full validation for integration tests / CI builds that only need a
+  // subset of vars (e.g. DATABASE_URL). Set SKIP_ENV_VALIDATION=1.
+  skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });
