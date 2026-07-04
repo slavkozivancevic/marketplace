@@ -1,0 +1,70 @@
+name: CI
+
+# Quality gate for every change. Build + deploy live in the CD pipeline
+# (AWS CodeBuild/CodeDeploy) - see DEPLOYMENT.md - so CI stays fast and needs no
+# cloud credentials.
+#
+# The common gate (lint, typecheck, unit) runs via the shared reusable workflow;
+# the DB-backed integration tests run here against an ephemeral Postgres service.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    uses: ./.github/workflows/reusable-ci.yml
+    with:
+      setup-command: npx prisma generate
+
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+
+    # Fresh throwaway Postgres per run - the "ephemeral test DB" strategy.
+    # DB name contains "test" so the integration globalSetup guard passes.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: marketplace_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/marketplace_test
+      SKIP_ENV_VALIDATION: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Integration tests
+        # globalSetup applies migrations (prisma migrate deploy) to the service DB.
+        run: npm run test:integration

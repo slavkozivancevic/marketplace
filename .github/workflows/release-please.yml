@@ -1,0 +1,23 @@
+name: Release
+
+# Automated release management. On merges to main, release-please maintains a
+# "release PR" that accumulates changelog entries from Conventional Commits.
+# Merging that PR bumps the version, tags the commit, and cuts a GitHub Release -
+# the tag is what triggers a production deploy in the CD pipeline (DEPLOYMENT.md).
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

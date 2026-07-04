@@ -1,0 +1,44 @@
+name: Reusable CI
+
+# Shared quality gate for every marketplace-* repo (polyrepo). Each service repo
+# calls this with a thin wrapper (see DEPLOYMENT.md). Steps use `--if-present`
+# so a repo without a given script (e.g. no lint config) simply skips it.
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        type: string
+        default: "22"
+      setup-command:
+        type: string
+        default: ""
+        description: "Optional command run after install (e.g. npx prisma generate)."
+
+jobs:
+  quality:
+    name: Lint, typecheck & unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup
+        if: inputs.setup-command != ''
+        run: ${{ inputs.setup-command }}
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Typecheck
+        run: npm run typecheck --if-present
+
+      - name: Unit tests
+        run: npm run test --if-present

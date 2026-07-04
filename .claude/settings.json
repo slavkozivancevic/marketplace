@@ -16,7 +16,10 @@
       "Read(//d/SourceCode/Roadmap/**)"
     ],
     "additionalDirectories": [
-      "d:\\SourceCode\\marketplace-notifications\\functions"
+      "d:\\SourceCode\\marketplace-notifications\\functions",
+      "d:\\SourceCode\\marketplace-notifications",
+      "d:\\SourceCode\\marketplace-messaging",
+      "d:\\SourceCode\\marketplace-conversation-search"
     ]
   }
 }
