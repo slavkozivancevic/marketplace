@@ -73,6 +73,24 @@ export function createVariant(input: {
   });
 }
 
+export function createConnectedAccount(input: {
+  organizationId: string;
+  stripeAccountId?: string;
+  payoutsEnabled?: boolean;
+}) {
+  return prisma.connectedAccount.create({
+    data: {
+      organizationId: input.organizationId,
+      // `acct_mock_` prefix makes isMockAccount() true, so releaseSellerPayout
+      // skips the real Stripe transfer call.
+      stripeAccountId: input.stripeAccountId ?? `acct_mock_${randomUUID().slice(0, 8)}`,
+      payoutsEnabled: input.payoutsEnabled ?? true,
+      chargesEnabled: true,
+      detailsSubmitted: true,
+    },
+  });
+}
+
 export function createCoupon(input: {
   code?: string;
   type?: CouponType;
