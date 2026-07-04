@@ -17,6 +17,10 @@
 /.next/
 /out/
 
+# sst / opennext (deploy artifacts + local platform types + secret state)
+.sst
+.open-next
+
 # production
 /build
 

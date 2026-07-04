@@ -1,0 +1,78 @@
+name: PR Preview
+
+# Deploys an ephemeral SST stage per pull request (pr-<n>) so reviewers get a
+# real URL. Uses GitHub OIDC -> a scoped AWS role (no static keys). The role +
+# OIDC provider are provisioned by infra/cicd.cfn.yml. Torn down by
+# preview-teardown.yml when the PR closes.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  # One in-flight preview deploy per PR; a new push cancels the previous.
+  group: preview-${{ github.event.number }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write # required to request the OIDC token
+  contents: read
+  pull-requests: write # to upsert the preview-URL comment
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_PREVIEW_ROLE_ARN }}
+          aws-region: eu-central-1
+
+      - name: Deploy preview stage
+        id: deploy
+        env:
+          # TODO(aws): each pr-<n> stage needs a database. Cheapest is a Neon
+          # branch per PR (branch off staging, throwaway) - set its URL as the
+          # DatabaseUrl secret for this stage, or point all previews at a shared
+          # staging DB. Migrations run against it before the app goes live.
+          STAGE: pr-${{ github.event.number }}
+        run: |
+          npx sst shell --stage "$STAGE" -- npx prisma migrate deploy || true
+          npx sst deploy --stage "$STAGE"
+          # Best-effort: surface the deployed site URL for the PR comment.
+          URL=$(node -e "try{process.stdout.write(require('./.sst/outputs.json').url||'')}catch{}")
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Comment the preview URL
+        if: steps.deploy.outputs.url != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = "${{ steps.deploy.outputs.url }}";
+            const marker = "<!-- preview-url -->";
+            const body = `${marker}\n🚀 Preview deployed: ${url}`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                comment_id: existing.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: context.issue.number, body,
+              });
+            }

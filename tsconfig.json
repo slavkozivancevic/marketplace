@@ -39,6 +39,9 @@
     ".next-prodtest/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    ".sst",
+    ".open-next",
+    "sst.config.ts"
   ]
 }

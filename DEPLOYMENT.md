@@ -183,9 +183,62 @@ Result: bad deploys self-heal, and manual rollback is one alias flip.
       no semver value); deploy stays on GitHub Pages.
       NOTE: the cross-repo `uses:` resolves once this repo's reusable workflow is
       pushed to `main` on GitHub.
-- [ ] **AWS OIDC provider + scoped deploy IAM roles** (phase #31).
-- [ ] **SST/OpenNext** for the `marketplace` app (phase #31).
-- [ ] **CodePipeline + CodeBuild + CodeDeploy** (canary + alarm rollback) per
-      service (phase #31).
-- [ ] **PR preview** ephemeral stages + teardown (phase #31).
+- [~] **SST/OpenNext for the `marketplace` app** - `sst.config.ts` authored
+      (Nextjs/OpenNext site, media bucket, secrets, cross-service SSM discovery,
+      stages, region `eu-central-1`) + `buildspec.yml` for CodeBuild. Type-checked
+      against generated SST platform types. Siblings publish their consumer URLs to
+      SSM (`HTTP_API_URL`, `SEARCH_API_URL`) so the app discovers them; the app
+      publishes its own URL back into the notifications/search namespaces. Not yet
+      deployed - see Bootstrap (section 11) for the manual AWS steps.
+- [~] **AWS OIDC provider + scoped deploy IAM roles** - authored in
+      `infra/cicd.cfn.yml` (OIDC provider + repo-scoped preview-deploy role). Not
+      deployed; see Bootstrap step 9.
+- [~] **CodePipeline + CodeBuild** - authored in `infra/cicd.cfn.yml` (CodeBuild
+      runs `buildspec.yml`; pipeline Source -> staging -> manual approval ->
+      production). **CodeDeploy canary** left as a deploy-time decision (sst deploy
+      already shifts traffic) - see `infra/README.md`.
+- [~] **PR preview** ephemeral stages + teardown - `preview.yml` /
+      `preview-teardown.yml` (OIDC assume-role -> `sst deploy` / `sst remove`).
 - [ ] **CloudWatch alarms** feeding deploy rollback (with #23B sinks, phase #31).
+
+---
+
+## 11. Bootstrap - manual AWS steps (one-time)
+
+The `sst.config.ts` + `buildspec.yml` are authored but nothing is deployed. These
+are the manual steps to light up a stage (do `staging` first, then `production`).
+All resources live in **`eu-central-1`**.
+
+1. **AWS account + local creds.** An admin AWS profile for the first `sst deploy`
+   (the pipeline later uses an assumed role instead).
+2. **Decide the database** (drives `DatabaseUrl`):
+   - external managed Postgres (e.g. Neon free tier) - `$0`, fastest, OR
+   - AWS RDS Postgres (free tier first year) / Aurora Serverless v2 - enables the
+     "RDS encryption at rest" checkbox (ROADMAP #22). Turn on storage encryption.
+3. **Deploy the sibling services first** (they publish the SSM params the app
+   reads). In each of `marketplace-messaging`, `marketplace-notifications`,
+   `marketplace-conversation-search`: set their secrets (`sst secret set ...` -
+   e.g. `INTERNAL_API_KEY`) and `sst deploy --stage staging`. This creates
+   `/marketplace-*/staging/{HTTP_API_URL,SEARCH_API_URL,SNS_TOPIC_ARN,...}`.
+4. **Set the app secrets** (per stage), for every `sst.Secret` in `sst.config.ts`:
+   `DatabaseUrl, ClerkSecretKey, ClerkWebhookSecret, StripeSecretKey,
+   StripeWebhookSecret, ChatInternalApiKey, ConversationSearchApiKey,
+   NotificationsApiKey, AnthropicApiKey` -
+   `npx sst secret set DatabaseUrl "<url>" --stage staging` (repeat per secret).
+   The `*ApiKey` values must match the ones the siblings expect.
+5. **First app deploy:** `npx sst deploy --stage staging`. This provisions the
+   media bucket + Nextjs site and writes the app URL back into the
+   notifications/search namespaces (callback loop).
+6. **Run migrations** against the stage DB (see `buildspec.yml` - verify the
+   `sst shell -- prisma migrate deploy` step resolves `DATABASE_URL`).
+7. **Fix the AWS credential chain in the app** (`TODO(aws)` in `sst.config.ts`):
+   the S3/SNS/SSM clients must use the default provider chain on Lambda (role temp
+   creds carry a session token) rather than explicit static keys.
+8. **Domain** (when ready, ROADMAP #31): map the domain in `sst.config.ts`
+   (`domain:` per stage) and set `APP_URL`; this flows into canonical/hreflang/OG.
+9. **CI/CD pipeline** - authored in [`infra/cicd.cfn.yml`](infra/cicd.cfn.yml)
+   (see [`infra/README.md`](infra/README.md)). Create a GitHub CodeConnections
+   connection, deploy the stack (`aws cloudformation deploy ... marketplace-cicd`),
+   then set the `PreviewDeployRoleArn` output as the `AWS_PREVIEW_ROLE_ARN` repo
+   variable so `preview.yml` can assume it. CodeDeploy canary + CloudWatch-alarm
+   rollback is a deploy-time decision (see `infra/README.md`).

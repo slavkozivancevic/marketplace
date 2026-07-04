@@ -1,0 +1,198 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  CI/CD infrastructure for the marketplace app (ROADMAP #31). Provisions the
+  GitHub OIDC provider + a scoped preview-deploy role (used by the PR-preview
+  GitHub Actions), and the AWS-native CD path: CodeBuild (runs buildspec.yml ->
+  sst deploy) driven by a CodePipeline that goes staging -> manual approval ->
+  production. Deploy by hand once per account:
+    aws cloudformation deploy --template-file infra/cicd.cfn.yml \
+      --stack-name marketplace-cicd --capabilities CAPABILITY_NAMED_IAM \
+      --parameter-overrides GitHubOrg=slavkozivancevic GitHubRepo=marketplace \
+        CodeConnectionArn=<arn>
+
+Parameters:
+  GitHubOrg:
+    Type: String
+    Description: GitHub org/user that owns the repo.
+  GitHubRepo:
+    Type: String
+    Default: marketplace
+  CodeConnectionArn:
+    Type: String
+    Description: >
+      ARN of an AWS CodeConnections GitHub connection (formerly "CodeStar
+      Connections"; standalone CodeStar is retired). Create it once in the
+      console: Developer Tools -> Settings -> Connections, then authorize it.
+      New connections have an arn:aws:codeconnections:... ARN.
+  CreateOidcProvider:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "true"
+    Description: >
+      Set to "false" if the token.actions.githubusercontent.com OIDC provider
+      already exists in this account (only one is allowed per account).
+
+Conditions:
+  ShouldCreateOidcProvider: !Equals [!Ref CreateOidcProvider, "true"]
+
+Resources:
+  # ── GitHub OIDC provider ────────────────────────────────────────────────
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: ShouldCreateOidcProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: [sts.amazonaws.com]
+      # GitHub's OIDC thumbprint is validated by IAM automatically now, but a
+      # value is still required by the resource.
+      ThumbprintList: ["ffffffffffffffffffffffffffffffffffffffff"]
+
+  # ── Preview-deploy role (assumed by GitHub Actions via OIDC) ─────────────
+  PreviewDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: marketplace-preview-deploy
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                # Only workflows in THIS repo may assume the role.
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrg}/${GitHubRepo}:*
+      # TODO(aws): SST/Pulumi deploys create many resource types (Lambda,
+      # CloudFront, S3, IAM, SSM...), so a deploy role is inherently broad.
+      # AdministratorAccess is used here for the learning scaffold - scope it
+      # down (or use a dedicated sandbox account) before production.
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+
+  # ── Pipeline artifact bucket ─────────────────────────────────────────────
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub marketplace-cicd-artifacts-${AWS::AccountId}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  # ── CodeBuild: runs buildspec.yml (sst deploy) ───────────────────────────
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: marketplace-codebuild
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: codebuild.amazonaws.com }
+            Action: sts:AssumeRole
+      # Same breadth caveat as the preview role: CodeBuild runs `sst deploy`.
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: marketplace-deploy
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts: { Type: CODEPIPELINE }
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:5.0
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec.yml
+      TimeoutInMinutes: 30
+
+  # ── CodePipeline: Source -> staging -> approval -> production ────────────
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: marketplace-codepipeline
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: codepipeline.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: pipeline
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                # New namespace is codeconnections:*; the legacy
+                # codestar-connections:* alias is kept for older connection ARNs.
+                Action:
+                  - codeconnections:UseConnection
+                  - codestar-connections:UseConnection
+                Resource: !Ref CodeConnectionArn
+              - Effect: Allow
+                Action: [codebuild:BatchGetBuilds, codebuild:StartBuild]
+                Resource: !GetAtt CodeBuildProject.Arn
+              - Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:GetBucketVersioning]
+                Resource:
+                  - !GetAtt ArtifactBucket.Arn
+                  - !Sub ${ArtifactBucket.Arn}/*
+
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: marketplace
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore: { Type: S3, Location: !Ref ArtifactBucket }
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: GitHub
+              # NOTE: the pipeline source provider is still literally
+              # "CodeStarSourceConnection" - AWS kept that identifier after
+              # renaming the service to CodeConnections. Do not change it.
+              ActionTypeId:
+                { Category: Source, Owner: AWS, Provider: CodeStarSourceConnection, Version: "1" }
+              Configuration:
+                ConnectionArn: !Ref CodeConnectionArn
+                FullRepositoryId: !Sub ${GitHubOrg}/${GitHubRepo}
+                BranchName: main
+              OutputArtifacts: [{ Name: source }]
+        - Name: DeployStaging
+          Actions:
+            - Name: Deploy
+              ActionTypeId: { Category: Build, Owner: AWS, Provider: CodeBuild, Version: "1" }
+              InputArtifacts: [{ Name: source }]
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+                EnvironmentVariables: '[{"name":"STAGE","value":"staging","type":"PLAINTEXT"}]'
+        - Name: ApproveProduction
+          Actions:
+            - Name: ManualApproval
+              ActionTypeId: { Category: Approval, Owner: AWS, Provider: Manual, Version: "1" }
+        - Name: DeployProduction
+          Actions:
+            - Name: Deploy
+              ActionTypeId: { Category: Build, Owner: AWS, Provider: CodeBuild, Version: "1" }
+              InputArtifacts: [{ Name: source }]
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+                EnvironmentVariables: '[{"name":"STAGE","value":"production","type":"PLAINTEXT"}]'
+
+Outputs:
+  PreviewDeployRoleArn:
+    Description: Set this as the AWS_PREVIEW_ROLE_ARN repo variable for GitHub Actions.
+    Value: !GetAtt PreviewDeployRole.Arn
+  PipelineName:
+    Value: !Ref Pipeline

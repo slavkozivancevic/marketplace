@@ -1,0 +1,45 @@
+version: 0.2
+
+# AWS CodeBuild spec: builds + deploys the marketplace app via SST (OpenNext).
+#
+# The CodePipeline stage injects STAGE (staging | production). CodeBuild runs
+# under an IAM role assumed by the project - NO static AWS keys. Per-stage
+# secrets already live in SST/SSM (set with `sst secret set ...`), so nothing
+# sensitive is passed through here.
+
+env:
+  variables:
+    # Deploy builds only have secrets + resource links, not the full local env,
+    # so skip the zod env validation at build time (runtime still has each var).
+    SKIP_ENV_VALIDATION: "1"
+  # STAGE is set by the pipeline stage (staging/production).
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 22
+    commands:
+      - npm ci
+
+  pre_build:
+    commands:
+      # Prisma client is generated into src/generated/prisma (custom output).
+      - npx prisma generate
+
+  build:
+    commands:
+      # Apply pending migrations to THIS stage's database before shifting traffic.
+      # `sst shell` runs the command with the stage's linked resources/secrets in
+      # scope so DATABASE_URL resolves without being echoed into the log.
+      # TODO(aws): verify sst exposes DATABASE_URL to `sst shell` for this app; if
+      # not, resolve it from the stage's SSM secret in a dedicated migrate step.
+      - npx sst shell --stage "$STAGE" -- npx prisma migrate deploy
+      # Build (OpenNext) + deploy. CodeDeploy handles the canary alias shift +
+      # CloudWatch-alarm rollback (configured on the Lambda alias, see DEPLOYMENT.md).
+      - npx sst deploy --stage "$STAGE"
+
+artifacts:
+  # SST writes stack outputs (site URL, bucket, etc.) - surface them to later
+  # pipeline stages (e.g. smoke tests read the deployed URL).
+  files:
+    - .sst/outputs.json
