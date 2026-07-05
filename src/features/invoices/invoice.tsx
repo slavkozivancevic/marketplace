@@ -1,5 +1,4 @@
 import { renderToBuffer } from "@react-pdf/renderer";
-import sharp from "sharp";
 import { getTranslations } from "next-intl/server";
 import { PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { Prisma } from "@/generated/prisma/client";
@@ -36,6 +35,7 @@ async function fetchThumb(url: string | null): Promise<string | null> {
     const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) return null;
     const input = Buffer.from(await res.arrayBuffer());
+    const sharp = (await import("sharp")).default;
     const png = await sharp(input).resize(80, 80, { fit: "cover" }).png().toBuffer();
     return `data:image/png;base64,${png.toString("base64")}`;
   } catch {

@@ -1,5 +1,4 @@
 import "server-only";
-import sharp from "sharp";
 import type { LogoBackdrop } from "@/features/brands/components/BrandLogo";
 
 /** Cap the download so a hostile/huge URL can't stall a brand save. */
@@ -47,6 +46,7 @@ export async function analyzeLogoBackdrop(url: string): Promise<LogoBackdrop> {
 
     // Downscale before reading raw pixels: a thumbnail is plenty for stats and
     // keeps memory/CPU bounded regardless of the source resolution.
+    const sharp = (await import("sharp")).default;
     const { data, info } = await sharp(buf)
       .resize(64, 64, { fit: "inside", withoutEnlargement: true })
       .ensureAlpha()

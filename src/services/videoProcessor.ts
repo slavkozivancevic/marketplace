@@ -11,7 +11,6 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import ffmpeg from "fluent-ffmpeg";
 import ffmpegStatic from "ffmpeg-static";
 import ffprobeInstaller from "@ffprobe-installer/ffprobe";
-import sharp from "sharp";
 
 import { s3, S3_BUCKET } from "./s3";
 import { tagS3ObjectPending } from "./s3Tagging";
@@ -120,6 +119,7 @@ export async function processVideo({
     // Convert the raw PNG frame into a 300×300 webp to match the image
     // pipeline's thumbnail dimensions so downstream <Image> sizing stays
     // consistent across both media types.
+    const sharp = (await import("sharp")).default;
     const posterBuffer = await sharp(framePath)
       .resize(300, 300, { fit: "cover" })
       .toFormat("webp")

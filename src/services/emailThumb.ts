@@ -3,7 +3,6 @@ import {
   HeadObjectCommand,
   PutObjectCommand,
 } from "@aws-sdk/client-s3";
-import sharp from "sharp";
 import { s3, S3_BUCKET } from "./s3";
 import { toThumbKey, toEmailThumbKey } from "./s3Copy";
 import { env } from "@/env/server";
@@ -69,6 +68,7 @@ export async function getEmailThumbUrl(
     const buf = await s3GetBuffer(k);
     if (!buf) continue;
     try {
+      const sharp = (await import("sharp")).default;
       const jpeg = await sharp(buf)
         .resize(80, 80, { fit: "cover" })
         .jpeg({ quality: 80 })

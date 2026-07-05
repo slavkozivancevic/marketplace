@@ -1,7 +1,6 @@
 import { s3, S3_BUCKET } from "./s3";
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import sharp from "sharp";
 import { ImageInput, ImageProcessingResult } from "@/types/types";
 import { ImageProcessorError } from "@/features/common/errors/domainErrors";
 import { tagS3ObjectPending } from "./s3Tagging";
@@ -29,6 +28,10 @@ export async function processImage({
 
     const buffer = await streamToBuffer(object.Body);
 
+    // sharp is a heavy native module - load it lazily so pages that only
+    // transitively import this file don't pull it in at module-eval (OpenNext
+    // doesn't bundle sharp into the server function, so a static import 500s).
+    const sharp = (await import("sharp")).default;
     const thumbBuffer: Buffer = await sharp(buffer)
       .resize(300, 300, { fit: "cover" })
       .toFormat("webp")
