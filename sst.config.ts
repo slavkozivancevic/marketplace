@@ -84,6 +84,12 @@ export default $config({
 
     // ── The Next.js site (OpenNext -> Lambda + CloudFront) ────────────────
     const web = new sst.aws.Nextjs("Web", {
+      // SST pins OpenNext 3.9.14 for Next 15+, which predates full Next.js 16
+      // support (the middleware -> `proxy` rename + Node.js proxy runtime).
+      // 3.9.14 doesn't propagate the proxy/Clerk auth context to the render, so
+      // server-side auth() fails ("can't detect clerkMiddleware") and pages render
+      // blank. Pin a newer OpenNext that supports Next 16. Fallback: 3.10.4.
+      openNextVersion: "4.0.3",
       link: [media, ...Object.values(secrets)],
       // TODO(aws #31): attach the real domain per stage (production apex +
       // staging/pr subdomains). Drives APP_URL below (canonical/hreflang/OG).
