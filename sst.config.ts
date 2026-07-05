@@ -48,6 +48,10 @@ export default $config({
       // Optional: AI review moderation degrades gracefully when unset. Set to an
       // empty string on stages without it.
       ANTHROPIC_API_KEY: new sst.Secret("AnthropicApiKey"),
+      // Publishable keys - public by design, but per-stage, so kept as secrets.
+      // Baked into the client bundle at build time (NEXT_PUBLIC_).
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: new sst.Secret("ClerkPublishableKey"),
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: new sst.Secret("StripePublishableKey"),
     };
 
     // ── Product media bucket ──────────────────────────────────────────────
@@ -65,6 +69,10 @@ export default $config({
     }).value;
     const conversationSearchApiUrl = aws.ssm.getParameterOutput({
       name: `/marketplace-conversation-search/${stage}/SEARCH_API_URL`,
+    }).value;
+    // Chat websocket URL for the client bundle (baked at build via NEXT_PUBLIC_).
+    const chatWsUrl = aws.ssm.getParameterOutput({
+      name: `/marketplace-messaging/${stage}/WS_API_URL`,
     }).value;
 
     // The app reads the notifications topic ARN from THIS param name at runtime
@@ -97,6 +105,17 @@ export default $config({
         CHAT_HTTP_API_URL: chatHttpApiUrl,
         CONVERSATION_SEARCH_API_URL: conversationSearchApiUrl,
         NOTIFICATIONS_TOPIC_ARN_PARAM: notificationsTopicArnParam,
+
+        // Client bundle (NEXT_PUBLIC_, baked at build time by OpenNext). The
+        // client env schema has no skipValidation, so these MUST be present.
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.value,
+        NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.value,
+        NEXT_PUBLIC_S3_PUBLIC_URL: mediaPublicUrl,
+        NEXT_PUBLIC_CHAT_WS_URL: chatWsUrl,
+        NEXT_PUBLIC_CLERK_SIGN_IN_URL: "/sign-in",
+        NEXT_PUBLIC_CLERK_SIGN_UP_URL: "/sign-up",
+        NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: "/",
+        NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: "/",
 
         // App URL. TODO(aws): replace with the mapped domain once set; until then
         // OpenNext exposes the CloudFront URL via `web.url` (see outputs).

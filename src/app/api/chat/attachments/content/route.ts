@@ -1,5 +1,5 @@
 import { logger } from "@/lib/logger";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, connection } from "next/server";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { env } from "@/env/server";
 import axios from "axios";
@@ -22,6 +22,10 @@ async function getChatToken(userId: string): Promise<string> {
  * be blocked. <img> tags work without CORS but PDF.js needs to read the bytes.
  */
 export async function GET(request: NextRequest) {
+  // Opt out of prerendering: this handler reads auth/headers, but that dynamic
+  // signal would be swallowed by the try/catch below. `connection()` marks it
+  // dynamic explicitly (the cacheComponents-safe replacement for force-dynamic).
+  await connection();
   try {
     const ctx = await resolveRequestContext();
     if (!ctx.userId) {

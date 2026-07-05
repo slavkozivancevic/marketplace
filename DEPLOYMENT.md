@@ -123,6 +123,14 @@ Result: bad deploys self-heal, and manual rollback is one alias flip.
 - The **tag/Release is the production trigger**. Staging deploys continuously
   from `main`; production is an explicit, approved release.
 
+> **TODO (pipeline refinement, do on AWS).** The current `infra/cicd.cfn.yml` is
+> a **single** pipeline `main -> staging -> manual approval -> production`, so a
+> `main` push (after approval) is what reaches prod. The target model above is
+> **tag-triggered prod**: split production into its own pipeline whose source is
+> the `vX.Y.Z` tag / GitHub Release (staging stays continuous from `main`).
+> Deliberately kept as one simpler pipeline for now; wire the split when the
+> pipeline is live on AWS.
+
 ---
 
 ## 7. Secrets, identity & config
@@ -208,6 +216,10 @@ Result: bad deploys self-heal, and manual rollback is one alias flip.
 The `sst.config.ts` + `buildspec.yml` are authored but nothing is deployed. These
 are the manual steps to light up a stage (do `staging` first, then `production`).
 All resources live in **`eu-central-1`**.
+
+> **Full click-by-click runbook: [`infra/AWS-SETUP.md`](infra/AWS-SETUP.md).**
+> The list below is the summary; the runbook has the exact commands, the
+> service-by-service order, and the shared-key pairings.
 
 1. **AWS account + local creds.** An admin AWS profile for the first `sst deploy`
    (the pipeline later uses an assumed role instead).

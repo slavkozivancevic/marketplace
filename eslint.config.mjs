@@ -13,6 +13,13 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "public/**",
+    // SST infra config (not app source; also excluded in tsconfig). Its required
+    // triple-slash reference to the generated ambient globals can't be an import.
+    "sst.config.ts",
+    ".sst/**",
+    // Generated build/type artifacts - not linted.
+    ".open-next/**",
+    "sst-env.d.ts",
   ]),
 ]);
 

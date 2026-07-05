@@ -28,12 +28,12 @@ phases:
 
   build:
     commands:
-      # Apply pending migrations to THIS stage's database before shifting traffic.
-      # `sst shell` runs the command with the stage's linked resources/secrets in
-      # scope so DATABASE_URL resolves without being echoed into the log.
-      # TODO(aws): verify sst exposes DATABASE_URL to `sst shell` for this app; if
-      # not, resolve it from the stage's SSM secret in a dedicated migrate step.
-      - npx sst shell --stage "$STAGE" -- npx prisma migrate deploy
+      # Migrations: run out-of-band for now (Prisma migrate needs a DIRECT (non-
+      # pooled) connection - advisory locks don't work over PgBouncer - and the
+      # DatabaseUrl secret is the pooled URL). Kept non-fatal + timeout-guarded so
+      # the deploy never hangs/breaks on it. TODO(aws, Phase 7): add a
+      # `DatabaseDirectUrl` secret and run `prisma migrate deploy` against it here.
+      - timeout 120 npx sst shell --stage "$STAGE" -- npx prisma migrate deploy || echo "migrate step skipped (apply migrations manually with the direct URL until wired)"
       # Build (OpenNext) + deploy. CodeDeploy handles the canary alias shift +
       # CloudWatch-alarm rollback (configured on the Lambda alias, see DEPLOYMENT.md).
       - npx sst deploy --stage "$STAGE"

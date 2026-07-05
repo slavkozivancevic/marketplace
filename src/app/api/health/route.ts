@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/core/db/prisma";
 
-// Always live - health/readiness must reflect the current state, never a cache.
-export const dynamic = "force-dynamic";
+// Always live - health/readiness reflects current state. With cacheComponents
+// enabled, this handler is dynamic by nature (uncached DB read per request), so
+// no route segment config is needed (and `dynamic` would be rejected at build).
 
 /**
  * Health / readiness probe for load balancers and uptime monitors. Verifies DB
