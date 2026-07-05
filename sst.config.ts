@@ -143,11 +143,14 @@ export default $config({
         // will fail on Lambda - switch those to the default chain.
       },
       transform: {
-        // Grant the server function the IAM it needs beyond the linked bucket:
-        // read sibling SSM params + publish order/lifecycle events to the
-        // notifications SNS topic.
-        server: {
-          permissions: [
+        // APPEND to the server function's IAM (do NOT replace it - the object
+        // form would drop OpenNext's own grants, incl. the ISR cache S3 bucket).
+        // Use the function form to extend the existing permissions array:
+        // read sibling SSM params + publish lifecycle events to the notifications
+        // SNS topic.
+        server: (args) => {
+          args.permissions = $output(args.permissions ?? []).apply((perms) => [
+            ...perms,
             {
               actions: ["ssm:GetParameter", "ssm:GetParameters"],
               resources: [
@@ -160,7 +163,7 @@ export default $config({
               actions: ["sns:Publish"],
               resources: [`arn:aws:sns:eu-central-1:*:marketplace-notifications-${stage}-*`],
             },
-          ],
+          ]);
         },
       },
     });
