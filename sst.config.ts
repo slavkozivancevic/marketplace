@@ -52,6 +52,9 @@ export default $config({
       // Baked into the client bundle at build time (NEXT_PUBLIC_).
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: new sst.Secret("ClerkPublishableKey"),
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: new sst.Secret("StripePublishableKey"),
+      // App's own public URL (per-stage): the CloudFront URL now, the custom
+      // domain later. Can't be `web.url` (self-reference), so it's a set secret.
+      APP_URL: new sst.Secret("AppUrl"),
     };
 
     // ── Product media bucket ──────────────────────────────────────────────
@@ -117,9 +120,15 @@ export default $config({
         NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: "/",
         NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: "/",
 
-        // App URL. TODO(aws): replace with the mapped domain once set; until then
-        // OpenNext exposes the CloudFront URL via `web.url` (see outputs).
-        APP_URL: process.env.APP_URL ?? "http://localhost:3000",
+        // App's own public URL (drives canonical/OG/sitemap + Stripe checkout
+        // redirect URLs). Set per stage: `sst secret set AppUrl <url> --stage ...`.
+        APP_URL: secrets.APP_URL.value,
+
+        // Stripe Connect stays mocked until there's an EU IBAN. This MUST be set
+        // explicitly: the Lambda runs with NODE_ENV=production, so MOCK_CONNECT
+        // would otherwise default to false and the app would attempt real
+        // transfers/onboarding. Flip to "false" once Stripe Connect is live.
+        MOCK_STRIPE_CONNECT: "true",
 
         // The build validates env with zod; a deploy build only has secrets +
         // links, so skip the full check (runtime still has every value).

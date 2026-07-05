@@ -254,3 +254,22 @@ All resources live in **`eu-central-1`**.
    then set the `PreviewDeployRoleArn` output as the `AWS_PREVIEW_ROLE_ARN` repo
    variable so `preview.yml` can assume it. CodeDeploy canary + CloudWatch-alarm
    rollback is a deploy-time decision (see `infra/README.md`).
+
+---
+
+## 12. Production activation checklist (test/dev -> live)
+
+Things that run in test/mock/sandbox mode and must be flipped for real production
+traffic. Staging deliberately stays in test mode; this is what changes for prod.
+
+| Item | Current (staging) | Action to go live |
+|---|---|---|
+| **Stripe Connect mock** | On the deployed Lambda `NODE_ENV=production`, so `MOCK_CONNECT` defaults to **false**. We force it on via `MOCK_STRIPE_CONNECT="true"` so seller onboarding/payouts are simulated (no real transfers). | Set `MOCK_STRIPE_CONNECT="false"` once Stripe Connect is live (needs an EU IBAN + activated account). Until then keep it `"true"` on **every** stage. |
+| **Stripe keys** | Test keys. Card checkout runs in Stripe test mode. | Set live `StripeSecretKey` + `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` per stage. **COD works without Stripe**, so a COD-only launch is possible meanwhile. |
+| **Stripe webhook** | Points at the staging URL (test mode signing secret). | Create a live-mode webhook at `<prod-url>/api/webhooks/stripe`, set `StripeWebhookSecret`. |
+| **Clerk** | Dev instance (`pk_test_`). | Create a Clerk **production instance** (requires a domain + DNS records), set live keys + `ClerkWebhookSecret` for the prod webhook `<prod-url>/api/webhooks/clerk`. |
+| **SES** | AWS account in the **sandbox** - can only email verified addresses. | Request **SES production access** so real customers receive email. |
+| **AI review moderation** | `ANTHROPIC_API_KEY` unset -> reviews stay PENDING (manual moderation). | Optional: set `AnthropicApiKey` to enable auto-moderation. |
+| **CORS** | `allowOrigins: ["*"]` on the messaging API + S3 bucket. | Lock to the real domain (ROADMAP #21) once the domain exists. |
+| **Domain / APP_URL** | Auto CloudFront URL per stage. | Register a domain; map `domain:` in `sst.config.ts` (prod = apex, staging = subdomain); `APP_URL` follows -> canonical/hreflang/OG/sitemap. |
+| **Product search** | Postgres `searchText` (in-DB, no external index). | Nothing - works out of the box, no ngrok dependency. |
