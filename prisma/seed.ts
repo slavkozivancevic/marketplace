@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { deriveOrderStatus } from "../src/features/orders/status";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -478,7 +479,15 @@ async function findCategoryByEnSlug(slug: string) {
 }
 
 function buildCatTranslationRows(names: LocaleNames, slug: string) {
-  return Object.entries(names).map(([locale, name]) => ({ locale, name: name!, slug, description: null }));
+  const rows = Object.entries(names).map(([locale, name]) => ({ locale, name: name!, slug, description: null }));
+  // Source text is only en/sr; fill de/es reusing the en name (same slug across
+  // locales for categories) so all four locale storefronts render the nav.
+  const have = new Set(rows.map((r) => r.locale));
+  const enName = names.en ?? rows[0]?.name ?? slug;
+  for (const loc of ["de", "es"]) {
+    if (!have.has(loc)) rows.push({ locale: loc, name: enName, slug, description: null });
+  }
+  return rows;
 }
 
 // ---------- Seeders ----------
@@ -564,6 +573,8 @@ async function seedBrands(): Promise<Map<string, string>> {
           create: [
             { locale: "en", name: b.name, slug: b.key },
             { locale: "sr", name: b.name, slug: `${b.key}-sr` },
+            { locale: "de", name: b.name, slug: `${b.key}-de` },
+            { locale: "es", name: b.name, slug: `${b.key}-es` },
           ],
         },
       },
@@ -694,7 +705,9 @@ async function seedProducts(
       const onSale = chance(0.3);
       const compareAtPrice = onSale ? Math.round(price * (1 + randInt(15, 40) / 100)) : null;
       const orgId = pick(orgIds);
-      const brandId = eligibleBrands.length ? brandMap.get(pick(eligibleBrands)) : undefined;
+      const brandKey = eligibleBrands.length ? pick(eligibleBrands) : undefined;
+      const brandId = brandKey ? brandMap.get(brandKey) : undefined;
+      const brandName = brandKey ? brands.find((b) => b.key === brandKey)?.name : undefined;
 
       // Attribute values (non-variant) + variant axes per kind.
       const productAttrValues: { attributeId: string; optionId?: string; valueNumeric?: number; valueBool?: boolean }[] = [];
@@ -745,9 +758,24 @@ async function seedProducts(
         if (chance(0.3)) pushBool("waterproof", true);
       }
 
+      // Fallback: any product that didn't get kind-specific variants gets a
+      // simple color axis, so every product exercises variant selection.
+      if (variantAxes.length === 0) {
+        const colorAttr = attrByKey.get("color")!;
+        variantAxes = pickSome(colorValues, randInt(2, 3)).map((c) => [
+          { attributeId: colorAttr.id, optionId: optId("color", c)! },
+        ]);
+      }
+
+      const subLabel = spec.sub.replace(/-/g, " ");
+      const bs = brandName ? ` ${brandName}` : ""; // brand name enriches searchText (brand search)
       const translations = [
-        { locale: "en", title: nm.en, slug: baseSlug, description: `${nm.en} - quality product from our ${spec.sub.replace(/-/g, " ")} selection.`, searchText: nm.en },
-        { locale: "sr", title: nm.sr, slug: `${baseSlug}-sr`, description: `${nm.sr} - kvalitetan proizvod iz naše ponude.`, searchText: nm.sr },
+        { locale: "en", title: nm.en, slug: baseSlug, description: `${nm.en} - quality product from our ${subLabel} selection.`, searchText: `${nm.en}${bs}` },
+        { locale: "sr", title: nm.sr, slug: `${baseSlug}-sr`, description: `${nm.sr} - kvalitetan proizvod iz naše ponude.`, searchText: `${nm.sr}${bs}` },
+        // de/es reuse the en title (no source translation), with localized
+        // description templates, so products appear on all four locale storefronts.
+        { locale: "de", title: nm.en, slug: `${baseSlug}-de`, description: `${nm.en} - hochwertiges Produkt aus unserem Sortiment.`, searchText: `${nm.en}${bs}` },
+        { locale: "es", title: nm.en, slug: `${baseSlug}-es`, description: `${nm.en} - producto de calidad de nuestra selección.`, searchText: `${nm.en}${bs}` },
       ];
 
       const media = spec.images.map((url, i) => ({
@@ -846,13 +874,30 @@ async function seedTransactions(buyerIds: string[], products: SeededProduct[]) {
     });
     const total = items.reduce((s, it) => s + it.price * it.quantity, 0);
 
-    const status = chance(0.8) ? "COMPLETED" : pick(["PENDING", "CANCELLED"] as const);
+    // Source of truth is the two axes (paymentStatus + fulfillmentStatus); the
+    // `status` column is DERIVED from them so the order list and the detail page
+    // (which re-derives) always agree. Distribution: ~80% completed, ~10%
+    // pending, ~10% cancelled.
     const paymentMethod = chance(0.7) ? "STRIPE" : "COD";
+    const roll = rand();
+    let paymentStatus: "UNPAID" | "PAID" = "UNPAID";
+    let fulfillmentStatus: "UNFULFILLED" | "DELIVERED" = "UNFULFILLED";
+    let cancelledAt: Date | null = null;
+    if (roll < 0.8) {
+      paymentStatus = "PAID";
+      fulfillmentStatus = "DELIVERED"; // paid + delivered -> COMPLETED
+    } else if (roll >= 0.9) {
+      cancelledAt = new Date(Date.now() - randInt(0, 60) * 86400000); // -> CANCELLED
+    } // else: UNPAID + UNFULFILLED -> PENDING
+    const status = deriveOrderStatus({ paymentStatus, fulfillmentStatus, cancelledAt });
 
     const order = await prisma.order.create({
       data: {
         userId,
         status,
+        paymentStatus,
+        fulfillmentStatus,
+        cancelledAt,
         total,
         paymentMethod,
         locale: "en",
@@ -869,15 +914,15 @@ async function seedTransactions(buyerIds: string[], products: SeededProduct[]) {
     });
 
     // Ledger backfill: every order gets a CHARGE row matching the runtime flow.
-    // Stripe charges are captured up front (SUCCEEDED); COD cash is collected on
-    // delivery, so it is SUCCEEDED only once the order is COMPLETED, else PENDING.
+    // A paid order's charge is SUCCEEDED; an unpaid (pending/cancelled) one is
+    // PENDING. COD cash has no PSP id.
     await prisma.paymentTransaction.create({
       data: {
         orderId: order.id,
         type: "CHARGE",
-        status: paymentMethod === "STRIPE" || status === "COMPLETED" ? "SUCCEEDED" : "PENDING",
+        status: paymentStatus === "PAID" ? "SUCCEEDED" : "PENDING",
         provider: paymentMethod,
-        providerId: paymentMethod === "STRIPE" ? `seed_pi_${order.id}` : null,
+        providerId: paymentMethod === "STRIPE" && paymentStatus === "PAID" ? `seed_pi_${order.id}` : null,
         amount: total,
         currency: "usd",
       },

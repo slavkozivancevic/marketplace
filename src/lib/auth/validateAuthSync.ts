@@ -4,7 +4,6 @@ import { UserRole } from "@/generated/prisma/client";
 
 export async function validateAuthSync({
   clerkUserId,
-  dbId,
   currentClaims,
 }: {
   clerkUserId: string;
@@ -16,8 +15,13 @@ export async function validateAuthSync({
     activeOrgId?: string;
   };
 }) {
+  // Always resolve by the Clerk user id - the one reliable, immutable identity.
+  // Trusting a `dbId` from the JWT breaks whenever that claim is stale: after a
+  // DB reset, or when one Clerk instance is shared across environments (its
+  // `dbId` points at a different DB's row). We re-sync the correct dbId to Clerk
+  // below, so a stale claim self-heals on the next request.
   const user = await prisma.user.findFirst({
-    where: dbId ? { id: dbId } : { clerkUserId },
+    where: { clerkUserId },
     include: { memberships: true },
   });
 

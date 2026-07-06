@@ -69,6 +69,10 @@ export function PreferencesPopover() {
   const [, startTransition] = useTransition();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  // Controlled so a language change can close the popover explicitly. On a soft
+  // (storefront) locale swap the menu would otherwise linger open and Radix
+  // re-anchors it against the new tree - it ends up clipped behind the header.
+  const [open, setOpen] = useState(false);
 
   const { currency, setCurrency: setStoreCurrency } = useCurrencyStore();
 
@@ -88,6 +92,9 @@ export function PreferencesPopover() {
   }
 
   function doLocaleSwitch(newLocale: string) {
+    // Close the popover first so it never lingers/clips across the locale swap
+    // (consistent behaviour whether we soft- or hard-navigate below).
+    setOpen(false);
     // Let any page with in-progress state (e.g. a product form) snapshot + restore
     // itself across the remount this locale change triggers. Set before every
     // navigation branch below so it fires regardless of which path we take.
@@ -143,7 +150,7 @@ export function PreferencesPopover() {
   }
 
   return (
-    <DropdownMenu modal={false}>
+    <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="icon">
           <SlidersHorizontal className="h-4 w-4" />
