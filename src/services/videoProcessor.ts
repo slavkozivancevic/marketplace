@@ -17,6 +17,7 @@ import { tagS3ObjectPending } from "./s3Tagging";
 import { PENDING_TAG_HEADER_VALUE } from "@/constants/constants";
 import { VideoProcessorError } from "@/features/common/errors/domainErrors";
 import { VideoProcessingResult } from "@/types/types";
+import { captureError } from "@/lib/logger";
 
 if (ffmpegStatic) {
   ffmpeg.setFfmpegPath(ffmpegStatic);
@@ -160,6 +161,9 @@ export async function processVideo({
       height: meta.height,
     };
   } catch (err) {
+    // See imageProcessor: the i18n-carrying VideoProcessorError short-circuits
+    // handleActionError's captureError, so log the real cause here for CloudWatch.
+    captureError(err, { source: "processVideo", key });
     if (err instanceof VideoProcessorError) throw err;
     if (err instanceof Error) throw new VideoProcessorError(err.message);
     throw new VideoProcessorError("Unknown error during video processing");

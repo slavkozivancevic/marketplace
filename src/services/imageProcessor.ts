@@ -5,6 +5,7 @@ import { ImageInput, ImageProcessingResult } from "@/types/types";
 import { ImageProcessorError } from "@/features/common/errors/domainErrors";
 import { tagS3ObjectPending } from "./s3Tagging";
 import { PENDING_TAG_HEADER_VALUE } from "@/constants/constants";
+import { captureError } from "@/lib/logger";
 
 export async function processImage({
   key,
@@ -73,6 +74,12 @@ export async function processImage({
       thumbnailDownloadUrl,
     };
   } catch (err) {
+    // The ImageProcessorError we throw carries an i18n key, so handleActionError
+    // returns the generic localized "image processing failed" message and never
+    // reaches its own captureError. Log the real cause here so the true failure
+    // (e.g. a missing native `sharp` module, an S3 AccessDenied) shows up in
+    // CloudWatch instead of a blind 400.
+    captureError(err, { source: "processImage", key });
     if (err instanceof Error) {
       throw new ImageProcessorError(err.message);
     }
