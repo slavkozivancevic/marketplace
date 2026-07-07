@@ -8,7 +8,9 @@ import { prisma } from "@/core/db/prisma";
 import { productRepository } from "@/features/products/db/products";
 import { getQueryClient } from "@/lib/query/getQueryClient";
 import { myProductSearchParams } from "@/lib/query/searchParams";
+import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Link, getPathname } from "@/i18n/navigation";
@@ -48,7 +50,11 @@ export default async function MyProductsRoute({
       role: true,
       activeOrgId: true,
       memberships: {
-        select: { orgId: true, role: true },
+        select: {
+          orgId: true,
+          role: true,
+          organization: { select: { verified: true } },
+        },
       },
     },
   });
@@ -67,6 +73,7 @@ export default async function MyProductsRoute({
 
   const canWrite =
     activeMembership?.role === "OWNER" || activeMembership?.role === "ADMIN";
+  const orgVerified = activeMembership?.organization?.verified ?? false;
 
   const params = searchParamsCache.parse(await searchParams);
 
@@ -127,7 +134,7 @@ export default async function MyProductsRoute({
           title={t("myProducts.title")}
           description={t("myProducts.manage")}
         >
-          {canWrite && (
+          {canWrite && orgVerified && (
             <Button asChild>
               <Link href="/dashboard/my-products/new">{t("myProducts.create")}</Link>
             </Button>
@@ -135,6 +142,13 @@ export default async function MyProductsRoute({
         </PageHeader>
       </div>
       <div className="flex-1 flex flex-col min-h-0 px-6 pb-6">
+        {canWrite && !orgVerified && (
+          <Alert className="mb-4">
+            <ShieldAlert />
+            <AlertTitle>{t("myProducts.verifyRequiredTitle")}</AlertTitle>
+            <AlertDescription>{t("myProducts.verifyPendingBanner")}</AlertDescription>
+          </Alert>
+        )}
         <HydrationBoundary state={dehydrate(queryClient)}>
           <MyProductsPage canWrite={canWrite} brands={brands} />
         </HydrationBoundary>

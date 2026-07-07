@@ -75,4 +75,17 @@ describe("requirePermission", () => {
       ),
     ).not.toThrow();
   });
+
+  it("lets a site ADMIN bypass the verification gate too", () => {
+    expect(() =>
+      requirePermission(
+        makeCtx({
+          userRole: UserRole.ADMIN,
+          membershipRole: MembershipRole.MEMBER,
+          organizationVerified: false,
+        }),
+        "product:create",
+      ),
+    ).not.toThrow();
+  });
 });

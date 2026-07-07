@@ -22,6 +22,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { VerificationRequiredNotice } from "@/components/VerificationRequiredNotice";
 import { SerializedProductWithRelations } from "@/types/types";
 
 interface MyProductEditPageProps {
@@ -54,7 +55,7 @@ async function ProductEditContent({ productId }: { productId: string }) {
         orgId: product.organizationId,
       },
     },
-    select: { role: true },
+    select: { role: true, organization: { select: { verified: true } } },
   });
 
   if (!membership) notFound();
@@ -73,6 +74,26 @@ async function ProductEditContent({ productId }: { productId: string }) {
   const canWrite = membership.role === "OWNER" || membership.role === "ADMIN";
 
   if (!canWrite) notFound();
+
+  // Editing is a write action - the server action blocks it for an unverified
+  // org, so surface the gate here instead of letting the save fail late.
+  if (!membership.organization.verified) {
+    return (
+      <VerificationRequiredNotice
+        title={t("myProducts.verifyRequiredTitle")}
+        description={t("myProducts.verifyRequiredDesc")}
+      >
+        <Button asChild variant="outline" size="sm">
+          <Link href={{ pathname: "/dashboard/my-products/[id]", params: { id: productId } }}>
+            {t("myProducts.backToProduct")}
+          </Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/dashboard/organization">{t("myProducts.viewOrgStatus")}</Link>
+        </Button>
+      </VerificationRequiredNotice>
+    );
+  }
 
   const [result, brands, categoryTree, attributeLibrary, categoryAttributeMap] =
     await Promise.all([

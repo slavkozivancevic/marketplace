@@ -2,20 +2,17 @@ import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
 import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
 import { env } from "@/env/server";
 
+// No explicit `credentials`: on Lambda the role's temporary (ASIA...) creds are
+// only valid alongside AWS_SESSION_TOKEN. Passing accessKeyId/secretAccessKey
+// without the session token makes every SNS/SSM call fail with 403. The default
+// credential provider chain picks up all three env vars on Lambda and still
+// reads the static keys locally. (See the matching note in ./s3.ts.)
 const sns = new SNSClient({
   region: env.AWS_REGION,
-  credentials: {
-    accessKeyId: env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
-  },
 });
 
 const ssm = new SSMClient({
   region: env.AWS_REGION,
-  credentials: {
-    accessKeyId: env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
-  },
 });
 
 // Cached in-process - Next.js server instances are long-lived

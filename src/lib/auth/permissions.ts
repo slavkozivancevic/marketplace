@@ -29,10 +29,15 @@ function isWritePermission(permission: Permission) {
 }
 
 export function requirePermission(ctx: RequestContext, permission: Permission) {
-  if (
-    ctx.userRole !== UserRole.ADMIN &&
-    !hasPermission(ctx.membershipRole, permission)
-  ) {
+  // Platform admins operate the marketplace itself. They bypass BOTH the
+  // membership-role check and the seller verification gate: verification is a
+  // merchant KYC requirement that doesn't apply to the platform operator, and
+  // their active org (which may be any org) must never block admin tooling.
+  if (ctx.userRole === UserRole.ADMIN) {
+    return;
+  }
+
+  if (!hasPermission(ctx.membershipRole, permission)) {
     throw new ForbiddenError(`No permission for ${permission}`);
   }
 
