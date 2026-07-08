@@ -63,8 +63,11 @@ Resources:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
               StringLike:
-                # Only workflows in THIS repo may assume the role.
-                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrg}/${GitHubRepo}:*
+                # Any repo in the marketplace family (app + sibling services)
+                # may assume this role: the app's preview.yml and each service's
+                # deploy.yml all use it for `sst deploy`. Scoped to the org's
+                # marketplace* repos only.
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrg}/marketplace*:*
       # TODO(aws): SST/Pulumi deploys create many resource types (Lambda,
       # CloudFront, S3, IAM, SSM...), so a deploy role is inherently broad.
       # AdministratorAccess is used here for the learning scaffold - scope it
