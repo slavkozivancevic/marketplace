@@ -10,6 +10,10 @@ declare module "sst" {
       "type": "sst.sst.Secret"
       "value": string
     }
+    "AppUrl": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
     "ChatInternalApiKey": {
       "type": "sst.sst.Secret"
       "value": string
