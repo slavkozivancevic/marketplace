@@ -19,6 +19,9 @@ export const env = createEnv({
     // Leave unset in production to use the real Stripe Connect flow.
     MOCK_STRIPE_CONNECT: z.enum(["true", "false"]).optional(),
     CHAT_HTTP_API_URL: z.string().min(1),
+    // Internal service-auth keys below are per-stage shared secrets: each pairs
+    // with the matching service's SSM key and must be rotated in lockstep per
+    // stage (dev/staging/production).
     CHAT_INTERNAL_API_KEY: z.string().min(1),
     CONVERSATION_SEARCH_API_URL: z.string().min(1),
     CONVERSATION_SEARCH_API_KEY: z.string().min(1),
