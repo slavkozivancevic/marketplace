@@ -154,11 +154,18 @@ async function syncProductMedia(
     );
   }
 
-  const toInsert = media.filter((m) => !existingMap.has(m.key));
+  // Keep each insert's index within the full `media` array - that index IS its
+  // final `order`. Using the position in the filtered `toInsert` subset instead
+  // would clash with the orders of the retained rows (e.g. a video appended at
+  // position 3 would land on `order: 0`), producing duplicate `order` values
+  // and an unstable `orderBy: { order: "asc" }` on every read.
+  const toInsert = media
+    .map((m, index) => ({ media: m, index }))
+    .filter(({ media: m }) => !existingMap.has(m.key));
 
   if (toInsert.length > 0) {
     await tx.productMedia.createMany({
-      data: toInsert.map((m, index) => ({
+      data: toInsert.map(({ media: m, index }) => ({
         productId,
         key: m.key,
         url: `${env.S3_PUBLIC_URL}/${m.key}`,
@@ -178,7 +185,7 @@ async function syncProductMedia(
     // longer marks the objects for deletion. Best-effort: if S3 is briefly
     // unavailable the next save (or the rule's 24h grace) resolves it.
     await Promise.all(
-      toInsert.map((m) =>
+      toInsert.map(({ media: m }) =>
         commitProductMedia(m.key, m.thumbKey ?? null).catch(() => {}),
       ),
     );
@@ -726,7 +733,9 @@ async function syncProductAttributes(
 
 const productWithRelationsInclude = {
   translations: true,
-  media: { orderBy: { order: "asc" } as const },
+  // `id` breaks ties deterministically so equal `order` values (e.g. legacy
+  // rows written before the insert-order fix) never sort unstably per query.
+  media: { orderBy: [{ order: "asc" } as const, { id: "asc" } as const] },
   brand: { select: { id: true, logoUrl: true, logoUrlDark: true, logoBackdrop: true, logoBackdropDark: true, translations: true } },
   variants: {
     orderBy: { order: "asc" } as const,
@@ -820,7 +829,7 @@ export function productRepository(
           translations: true,
           media: {
             take: 5,
-            orderBy: { order: "asc" },
+            orderBy: [{ order: "asc" }, { id: "asc" }],
           },
           brand: {
             select: { id: true, logoUrl: true, logoUrlDark: true, logoBackdrop: true, logoBackdropDark: true, translations: true },

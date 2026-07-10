@@ -15,7 +15,9 @@ import type {
  */
 export const publicProductInclude = {
   translations: true,
-  media: { orderBy: { order: "asc" } },
+  // `id` breaks ties so equal `order` values sort deterministically (legacy
+  // rows written before the insert-order fix could share an `order`).
+  media: { orderBy: [{ order: "asc" }, { id: "asc" }] },
   variants: {
     orderBy: { order: "asc" },
     include: {

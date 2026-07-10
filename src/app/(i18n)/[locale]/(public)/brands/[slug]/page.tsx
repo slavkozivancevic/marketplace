@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { cacheTag } from "next/cache";
+import { cookies } from "next/headers";
 import { notFound, permanentRedirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import { VALID_CURRENCIES } from "@/lib/currency-config";
 
 import { prisma } from "@/core/db/prisma";
 import { Link, getPathname } from "@/i18n/navigation";
@@ -214,8 +216,16 @@ export default async function BrandDetailPage({ params }: BrandPageProps) {
     attrs: "",
   };
 
+  // Currency must be in the key so the SSR prefetch matches the client grid's
+  // query key (which includes it) - otherwise hydration seeds a different cache
+  // entry and the list stays stale until a full reload.
+  const rawCurrency = (await cookies()).get("NEXT_CURRENCY")?.value;
+  const currency = VALID_CURRENCIES.includes(rawCurrency as never)
+    ? rawCurrency!
+    : "usd";
+
   await queryClient.prefetchInfiniteQuery({
-    queryKey: ["products", "public", lockedFilters],
+    queryKey: ["products", "public", lockedFilters, currency],
     queryFn: () =>
       getPublicProductsPage({
         take: GRID_PAGE_SIZE,

@@ -16,7 +16,10 @@ type SortOrder = "asc" | "desc";
  */
 export const listItemInclude = {
   translations: true,
-  media: { orderBy: { order: "asc" } },
+  // `id` is a deterministic tiebreaker so equal `order` values never sort
+  // unstably across queries (which flickers the video pill in/out of the
+  // `take`-limited media window).
+  media: { orderBy: [{ order: "asc" }, { id: "asc" }] },
   brand: {
     select: {
       id: true,
@@ -202,7 +205,7 @@ export async function getPublicProductsPage({
     take: take + 1,
     cursor: cursor ? { id: cursor } : undefined,
     skip: cursor ? 1 : 0,
-    include: { ...listItemInclude, media: { orderBy: { order: "asc" }, take: 5 } },
+    include: { ...listItemInclude, media: { orderBy: [{ order: "asc" }, { id: "asc" }], take: 5 } },
   });
 
   let nextCursor: string | undefined;

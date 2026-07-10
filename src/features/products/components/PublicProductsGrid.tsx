@@ -80,12 +80,12 @@ export function PublicProductsGrid({
     gap: 24,
     estimateRowHeight: 380,
     scrollContainerRef,
-    // Public listings reflect cross-tenant product status changes (publish /
-    // unpublish / archive). Server actions revalidate the Next route, but the
-    // queryKey on the client includes `currency` while the SSR prefetch does
-    // not, so hydration never carries new data into this cache. Force a
-    // refetch on every mount so a soft-nav back to /products after a status
-    // change always reflects the latest state.
+    // Public listings reflect cross-tenant changes (publish/unpublish/archive,
+    // media edits). The SSR prefetch now uses this exact key (currency included),
+    // so a product mutation's revalidatePath re-runs the page RSC and hydration
+    // carries the fresh list into this cache on navigation. `refetchOnMount`
+    // stays as a safety net for cases hydration can't cover (e.g. a filtered
+    // view whose prefetch only seeded the unfiltered page).
     refetchOnMount: "always",
   });
 

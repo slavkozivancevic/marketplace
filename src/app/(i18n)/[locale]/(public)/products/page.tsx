@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { cacheTag } from "next/cache";
+import { cookies } from "next/headers";
 import { getLocale, getTranslations } from "next-intl/server";
+import { VALID_CURRENCIES } from "@/lib/currency-config";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createSearchParamsCache } from "nuqs/server";
 import { getQueryClient } from "@/lib/query/getQueryClient";
@@ -76,6 +78,17 @@ export default async function ProductsRoute({
   const locale = await getLocale();
   const params = searchParamsCache.parse(await searchParams);
 
+  // The client grid's query key includes the active currency (its fetcher bakes
+  // rate-converted price bounds into the request), so the SSR prefetch key MUST
+  // include it too - otherwise the prefetch seeds a different cache entry and
+  // hydration never carries fresh data into the grid's query, leaving the list
+  // stale until a full reload. Read the same NEXT_CURRENCY cookie the currency
+  // store is seeded from and coerce it identically (invalid/absent -> "usd").
+  const rawCurrency = (await cookies()).get("NEXT_CURRENCY")?.value;
+  const currency = VALID_CURRENCIES.includes(rawCurrency as never)
+    ? rawCurrency!
+    : "usd";
+
   const breadcrumbItems = [
     { name: tCrumbs("home"), href: getPathname({ href: "/", locale }) },
     { name: tCrumbs("products"), href: getPathname({ href: "/products", locale }) },
@@ -107,7 +120,7 @@ export default async function ProductsRoute({
   };
 
   await queryClient.prefetchInfiniteQuery({
-    queryKey: ["products", "public", filters],
+    queryKey: ["products", "public", filters, currency],
     queryFn: () =>
       getPublicProductsPage({
         take: GRID_PAGE_SIZE,
