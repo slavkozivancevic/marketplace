@@ -1,11 +1,30 @@
 import { prisma } from "@/core/db/prisma";
 import { MembershipRole, InviteStatus } from "@/generated/prisma/client";
-import { NotFoundError } from "@/features/common/errors/domainErrors";
+import {
+  NotFoundError,
+  ForbiddenError,
+  InviteInvalidError,
+} from "@/features/common/errors/domainErrors";
 import {
   revalidateOrganizationInvites,
   revalidateOrganizationMembers,
 } from "./cache";
 import { randomUUID } from "crypto";
+
+// Invite emails are compared against Clerk-provided user emails, whose casing we
+// don't control. Store and match everything lowercased+trimmed so "A@x.com" and
+// "a@x.com" resolve to the same person.
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+// Privilege ordering used to guarantee invite acceptance never demotes an
+// existing member (see acceptInvite). Higher = more privileged.
+const ROLE_RANK: Record<MembershipRole, number> = {
+  [MembershipRole.OWNER]: 3,
+  [MembershipRole.ADMIN]: 2,
+  [MembershipRole.MEMBER]: 1,
+};
 
 export async function getInviteByToken(token: string) {
   return prisma.invite.findUnique({
@@ -36,12 +55,30 @@ export async function createInvite({
   role: MembershipRole;
   createdById: string;
 }) {
+  const normalizedEmail = normalizeEmail(email);
+
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
 
+  // Don't invite someone who already belongs to this org - the accept flow would
+  // just reject them, so fail early with a clear message for the inviter.
+  const existingMember = await prisma.membership.findFirst({
+    where: {
+      orgId,
+      user: {
+        email: { equals: normalizedEmail, mode: "insensitive" },
+        deletedAt: null,
+      },
+    },
+  });
+
+  if (existingMember) {
+    throw new ForbiddenError({ key: "inviteAlreadyMember" });
+  }
+
   const existingPending = await prisma.invite.findFirst({
     where: {
-      email,
+      email: normalizedEmail,
       orgId,
       status: InviteStatus.PENDING,
       expiresAt: { gt: new Date() },
@@ -54,7 +91,7 @@ export async function createInvite({
 
   const invite = await prisma.invite.create({
     data: {
-      email,
+      email: normalizedEmail,
       orgId,
       role,
       token: randomUUID(),
@@ -68,7 +105,10 @@ export async function createInvite({
   return invite;
 }
 
-export async function acceptInvite(token: string, userId: string) {
+export async function acceptInvite(
+  token: string,
+  user: { id: string; email: string },
+) {
   const invite = await prisma.invite.findUnique({
     where: { token },
     include: { organization: true },
@@ -79,17 +119,24 @@ export async function acceptInvite(token: string, userId: string) {
   }
 
   if (invite.status !== InviteStatus.PENDING) {
-    throw new Error("Invite is no longer valid");
+    throw new InviteInvalidError({ key: "inviteNoLongerValid" });
   }
 
   if (invite.expiresAt < new Date()) {
-    throw new Error("Invite has expired");
+    throw new InviteInvalidError({ key: "inviteExpired" });
+  }
+
+  // The invite link is a bearer token: without binding it to the invited email,
+  // anyone who obtains the URL could join the org under a different account.
+  // Compare case-insensitively since Clerk emails aren't normalized on our side.
+  if (normalizeEmail(invite.email) !== normalizeEmail(user.email)) {
+    throw new ForbiddenError({ key: "inviteEmailMismatch" });
   }
 
   const existingMembership = await prisma.membership.findUnique({
     where: {
       userId_orgId: {
-        userId,
+        userId: user.id,
         orgId: invite.orgId,
       },
     },
@@ -97,14 +144,26 @@ export async function acceptInvite(token: string, userId: string) {
 
   await prisma.$transaction(async (tx) => {
     if (existingMembership) {
-      await tx.membership.update({
-        where: { userId_orgId: { userId, orgId: invite.orgId } },
-        data: { role: invite.role },
-      });
+      // Never DOWNGRADE an existing member through invite acceptance. The classic
+      // trap: an OWNER opens an invite (sent to someone else, or to their own
+      // email at a lower role) and clicking Accept rewrites their role to the
+      // invite's - silently demoting the owner and leaving the org with none.
+      // Only apply the invited role when it's a strict promotion; otherwise the
+      // accept is a no-op on their role. Role changes belong to the member-
+      // management UI, not to invite acceptance.
+      const shouldPromote =
+        ROLE_RANK[invite.role] > ROLE_RANK[existingMembership.role];
+
+      if (shouldPromote) {
+        await tx.membership.update({
+          where: { userId_orgId: { userId: user.id, orgId: invite.orgId } },
+          data: { role: invite.role },
+        });
+      }
     } else {
       await tx.membership.create({
         data: {
-          userId,
+          userId: user.id,
           orgId: invite.orgId,
           role: invite.role,
         },
@@ -115,12 +174,19 @@ export async function acceptInvite(token: string, userId: string) {
       where: { token },
       data: { status: InviteStatus.ACCEPTED },
     });
+
+    // Land the member in the org they just joined so the dashboard they're
+    // redirected to is scoped to it, not their personal org.
+    await tx.user.update({
+      where: { id: user.id },
+      data: { activeOrgId: invite.orgId },
+    });
   });
 
   revalidateOrganizationMembers(invite.orgId);
   revalidateOrganizationInvites(invite.orgId);
 
-  return invite;
+  return { orgId: invite.orgId, role: invite.role };
 }
 
 export async function declineInvite(token: string) {

@@ -977,7 +977,9 @@
     "accept": "Einladung annehmen",
     "decline": "Ablehnen",
     "accepting": "Akzeptiere...",
-    "declining": "Lehne ab..."
+    "declining": "Lehne ab...",
+    "wrongAccountHeading": "Falsches Konto",
+    "wrongAccountBody": "Diese Einladung wurde an {email} gesendet. Melden Sie sich ab und mit dieser E-Mail-Adresse wieder an, um sie anzunehmen."
   },
   "users": {
     "user": "Benutzer",
@@ -1686,6 +1688,12 @@
     "cannotRemoveOwner": "Der Organisationsinhaber kann nicht entfernt werden",
     "cannotChangeOwnerRole": "Die Rolle des Inhabers kann nicht geändert werden",
     "cannotAssignOwnerRole": "Die Inhaberrolle kann nicht direkt vergeben werden",
+    "inviteEmailMismatch": "Diese Einladung wurde an eine andere E-Mail-Adresse gesendet. Melden Sie sich mit der eingeladenen E-Mail an, um sie anzunehmen.",
+    "inviteAlreadyMember": "Diese Person ist bereits Mitglied der Organisation.",
+    "inviteInvalid": "Diese Einladung ist nicht mehr gültig.",
+    "inviteNoLongerValid": "Diese Einladung ist nicht mehr gültig.",
+    "inviteExpired": "Diese Einladung ist abgelaufen.",
+    "accountSyncInProgress": "Ihr Konto wird noch eingerichtet. Bitte versuchen Sie es gleich noch einmal.",
     "notMemberOfOrganization": "Sie sind kein Mitglied dieser Organisation",
     "organizationNotFound": "Organisation nicht gefunden",
     "alreadyReviewed": "Sie haben dieses Produkt bereits bewertet",

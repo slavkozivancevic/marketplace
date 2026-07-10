@@ -977,7 +977,9 @@
     "accept": "Prihvati pozivnicu",
     "decline": "Odbij",
     "accepting": "Prihvatanje...",
-    "declining": "Odbijanje..."
+    "declining": "Odbijanje...",
+    "wrongAccountHeading": "Pogrešan nalog",
+    "wrongAccountBody": "Ova pozivnica je poslata na {email}. Odjavite se i prijavite se sa tom imejl adresom da biste je prihvatili."
   },
   "users": {
     "user": "Korisnik",
@@ -1686,6 +1688,12 @@
     "cannotRemoveOwner": "Ne možete ukloniti vlasnika organizacije",
     "cannotChangeOwnerRole": "Ne možete promeniti ulogu vlasnika",
     "cannotAssignOwnerRole": "Ulogu vlasnika nije moguće dodeliti direktno",
+    "inviteEmailMismatch": "Ova pozivnica je poslata na drugu imejl adresu. Prijavite se sa pozvanim imejlom da biste je prihvatili.",
+    "inviteAlreadyMember": "Ova osoba je već član organizacije.",
+    "inviteInvalid": "Ova pozivnica više nije važeća.",
+    "inviteNoLongerValid": "Ova pozivnica više nije važeća.",
+    "inviteExpired": "Ova pozivnica je istekla.",
+    "accountSyncInProgress": "Vaš nalog se još uvek priprema. Pokušajte ponovo za trenutak.",
     "notMemberOfOrganization": "Niste član ove organizacije",
     "organizationNotFound": "Organizacija nije pronađena",
     "alreadyReviewed": "Već ste ocenili ovaj proizvod",

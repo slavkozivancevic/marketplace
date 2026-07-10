@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { getInviteByToken } from "@/features/organizations/db/invites";
+import { getUserByClerkId } from "@/features/users/db/users";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +53,32 @@ export default async function InvitePage({ params }: InvitePageProps) {
           </AlertTitle>
           <AlertDescription>
             {isExpired ? t("expiredBody") : t("usedBody")}
+          </AlertDescription>
+        </Alert>
+        <Button asChild className="mt-4">
+          <Link href="/dashboard">{t("goToDashboard")}</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  // Surface the account mismatch before the user clicks Accept - the invite is
+  // bound to a specific email, so signing in with another account can't claim
+  // it. Show which address it's for instead of letting them hit a toast.
+  const currentUser = await getUserByClerkId(userId);
+  const emailMismatch =
+    currentUser != null &&
+    currentUser.email.trim().toLowerCase() !==
+      invite.email.trim().toLowerCase();
+
+  if (emailMismatch) {
+    return (
+      <div className="container px-6">
+        <PageHeader title={t("pageTitle")} description={t("pageDesc")} />
+        <Alert variant="destructive">
+          <AlertTitle>{t("wrongAccountHeading")}</AlertTitle>
+          <AlertDescription>
+            {t("wrongAccountBody", { email: invite.email })}
           </AlertDescription>
         </Alert>
         <Button asChild className="mt-4">

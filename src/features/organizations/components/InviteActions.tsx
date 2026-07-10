@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/sonner";
 import { acceptInviteAction, declineInviteAction } from "../actions/invites";
 
 interface InviteActionsProps {
@@ -23,9 +24,14 @@ export function InviteActions({ token }: InviteActionsProps) {
   const handleAccept = () => {
     startAcceptTransition(async () => {
       const result = await acceptInviteAction(token);
-      if (!result || !("error" in result)) {
-        router.push(`/${locale}/dashboard/organization`);
+      if (result && "error" in result) {
+        toast.error(result.message);
+        return;
       }
+      // Accepting switched the active org server-side; refresh so the session
+      // token is reissued with the new org before landing on the dashboard.
+      router.refresh();
+      router.push(`/${locale}/dashboard/organization`);
     });
   };
 

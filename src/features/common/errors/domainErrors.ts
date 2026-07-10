@@ -167,6 +167,20 @@ export class MembershipNotFoundError extends Error {
   }
 }
 
+export class InviteInvalidError extends Error {
+  readonly i18n: ErrorI18n;
+  constructor(arg: string | ErrorI18n = "This invite is no longer valid") {
+    const { i18n, message } = normalizeI18n(
+      arg,
+      "inviteInvalid",
+      "This invite is no longer valid",
+    );
+    super(message);
+    this.i18n = i18n;
+    this.name = "InviteInvalidError";
+  }
+}
+
 export class ImageProcessorError extends Error {
   readonly i18n: ErrorI18n;
   constructor(arg: string | ErrorI18n) {

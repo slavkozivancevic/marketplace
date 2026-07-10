@@ -977,7 +977,9 @@
     "accept": "Accept Invite",
     "decline": "Decline",
     "accepting": "Accepting...",
-    "declining": "Declining..."
+    "declining": "Declining...",
+    "wrongAccountHeading": "Wrong Account",
+    "wrongAccountBody": "This invite was sent to {email}. Sign out and sign in with that email address to accept it."
   },
   "users": {
     "user": "User",
@@ -1686,6 +1688,12 @@
     "cannotRemoveOwner": "Cannot remove the organization owner",
     "cannotChangeOwnerRole": "Cannot change the owner's role",
     "cannotAssignOwnerRole": "Cannot assign owner role directly",
+    "inviteEmailMismatch": "This invite was sent to a different email address. Sign in with the invited email to accept it.",
+    "inviteAlreadyMember": "This person is already a member of the organization.",
+    "inviteInvalid": "This invite is no longer valid.",
+    "inviteNoLongerValid": "This invite is no longer valid.",
+    "inviteExpired": "This invite has expired.",
+    "accountSyncInProgress": "Your account is still being set up. Please try again in a moment.",
     "notMemberOfOrganization": "You are not a member of this organization",
     "organizationNotFound": "Organization not found",
     "alreadyReviewed": "You have already reviewed this product",
