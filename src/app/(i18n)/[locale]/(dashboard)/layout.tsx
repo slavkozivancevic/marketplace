@@ -61,6 +61,10 @@ async function fetchLayoutUser(clerkUserId: string) {
   "use cache";
   cacheTag(CacheTags.users.all());
   cacheTag(CacheTags.users.byClerkId(clerkUserId));
+  // We join each membership's organization name below, so this cache must also
+  // react to org mutations (e.g. a rename). Without the org tag the sidebar
+  // switcher keeps showing the stale name until the user cache happens to bust.
+  cacheTag(CacheTags.organizations.all());
   return prisma.user.findUnique({
     where: { clerkUserId },
     select: {

@@ -78,11 +78,16 @@ export function OrganizationSwitcher({
         onValueChange={handleSwitch}
         disabled={isPending}
       >
-        <SelectTrigger className="w-full text-sm cursor-pointer">
+        {/* The value slot must stay a real <SelectValue>: Radix's item-aligned
+            content positions itself against that node, and without it the menu
+            silently fails to open. The shared trigger makes the slot
+            `display:flex`, which cancels its own `line-clamp-1`; force it back to
+            a truncating block so long names get an ellipsis. */}
+        <SelectTrigger className="w-full text-sm cursor-pointer *:data-[slot=select-value]:block! *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:truncate">
           {isPending ? (
-            <span className="flex items-center gap-2">
+            <span className="flex min-w-0 items-center gap-2">
               <Loader2 className="size-3.5 animate-spin shrink-0" />
-              <span className="truncate">
+              <span className="min-w-0 truncate">
                 {organizations.find((o) => o.id === currentOrgId)?.name}
               </span>
             </span>
