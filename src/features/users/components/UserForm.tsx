@@ -50,6 +50,14 @@ export function UserForm({ userId, currentRole, onSuccess }: UserFormProps) {
     mode: "onChange",
     resolver: useZodResolver(updateUserRoleSchema),
     defaultValues: { role: currentRole },
+    // Rebase the baseline whenever the server-confirmed role changes. After a
+    // successful save the action revalidates, so `currentRole` updates in the
+    // same commit that clears `isPending` - `isDirty` drops to false at that
+    // same moment, so the dot/Discard/Update controls all settle in one frame
+    // instead of flashing an intermediate "saving" state. RHF deep-compares
+    // `values`, so re-creating this object each render doesn't wipe an in-
+    // progress edit (currentRole is unchanged while editing).
+    values: { role: currentRole },
   });
 
   // Reset on every navigation - the admin users list is a long-lived page that
