@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "@/components/ui/sonner";
 import { Badge } from "@/components/ui/badge";
@@ -66,11 +67,16 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
           disabled={isPending}
           onClick={handleVerifyToggle}
         >
-          {isPending
-            ? t("saving")
-            : organization.verified
-              ? t("unverify")
-              : t("verify")}
+          {isPending ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {t("saving")}
+            </>
+          ) : organization.verified ? (
+            t("unverify")
+          ) : (
+            t("verify")
+          )}
         </Button>
       </CardHeader>
       <CardContent>
