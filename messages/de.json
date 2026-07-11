@@ -471,6 +471,7 @@
         "return": "Rücksendung",
         "user": "Benutzer",
         "membership": "Mitgliedschaft",
+        "invite": "Einladung",
         "organization": "Organisation",
         "coupon": "Gutschein",
         "review": "Bewertung"
@@ -535,7 +536,9 @@
         },
         "member": {
           "role_changed": "Mitgliederrolle geändert",
-          "removed": "Mitglied entfernt"
+          "removed": "Mitglied entfernt",
+          "invite_accepted": "Einladung angenommen",
+          "invite_declined": "Einladung abgelehnt"
         },
         "organization": {
           "verified_changed": "Organisationsverifizierung geändert"

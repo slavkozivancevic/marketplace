@@ -471,6 +471,7 @@
         "return": "Povraćaj",
         "user": "Korisnik",
         "membership": "Članstvo",
+        "invite": "Pozivnica",
         "organization": "Organizacija",
         "coupon": "Kupon",
         "review": "Recenzija"
@@ -535,7 +536,9 @@
         },
         "member": {
           "role_changed": "Promenjena uloga člana",
-          "removed": "Član uklonjen"
+          "removed": "Član uklonjen",
+          "invite_accepted": "Pozivnica prihvaćena",
+          "invite_declined": "Pozivnica odbijena"
         },
         "organization": {
           "verified_changed": "Promenjena verifikacija organizacije"

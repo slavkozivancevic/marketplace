@@ -471,6 +471,7 @@
         "return": "Return",
         "user": "User",
         "membership": "Membership",
+        "invite": "Invite",
         "organization": "Organization",
         "coupon": "Coupon",
         "review": "Review"
@@ -535,7 +536,9 @@
         },
         "member": {
           "role_changed": "Member role changed",
-          "removed": "Member removed"
+          "removed": "Member removed",
+          "invite_accepted": "Invite accepted",
+          "invite_declined": "Invite declined"
         },
         "organization": {
           "verified_changed": "Organization verification changed"

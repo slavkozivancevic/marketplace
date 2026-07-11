@@ -15,9 +15,14 @@ import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { prisma } from "@/core/db/prisma";
 import { syncClerkUserMetadata } from "@/services/clerk";
 import { revalidateUserCache } from "@/features/users/db/cache";
+import { recordAudit } from "@/features/audit/db/audit";
 import { createInvite, cancelInvite, acceptInvite, declineInvite } from "../db/invites";
 import { getOrganizationById } from "../db/organizations";
-import { publishInviteSent } from "@/services/notifications";
+import {
+  publishInviteSent,
+  publishInviteAccepted,
+  publishInviteDeclined,
+} from "@/services/notifications";
 import { sendInviteSchema, SendInviteInput } from "../schema/invites";
 import { ActionErrorResult } from "@/types/types";
 import { env } from "@/env/server";
@@ -122,7 +127,7 @@ export async function acceptInviteAction(
 
     const dbUser = await prisma.user.findFirst({
       where: { clerkUserId, deletedAt: null },
-      select: { id: true, email: true, role: true, clerkUserId: true },
+      select: { id: true, email: true, name: true, role: true, clerkUserId: true },
     });
 
     if (!dbUser) {
@@ -133,9 +138,10 @@ export async function acceptInviteAction(
       return { error: true, message: t("accountSyncInProgress") };
     }
 
-    const { orgId } = await acceptInvite(token, {
+    const result = await acceptInvite(token, {
       id: dbUser.id,
       email: dbUser.email,
+      name: dbUser.name,
     });
 
     // acceptInvite already set activeOrgId in the DB; mirror it into Clerk
@@ -145,8 +151,32 @@ export async function acceptInviteAction(
       clerkUserId: dbUser.clerkUserId,
       dbId: dbUser.id,
       role: dbUser.role,
-      activeOrgId: orgId,
+      activeOrgId: result.orgId,
     });
+
+    await recordAudit({
+      action: "member.invite_accepted",
+      entityType: "Membership",
+      entityId: dbUser.id,
+      diff: { role: result.role, member: dbUser.email },
+      // The acting user is the person accepting; scope the entry to the org they
+      // joined (their request context still points at their previous active org).
+      actor: { actorId: dbUser.id, actorEmail: dbUser.email, orgId: result.orgId },
+    });
+
+    // Confirmation + security signal to the inviter, in the inviter's locale.
+    publishInviteAccepted({
+      token,
+      inviterEmail: result.inviter.email,
+      inviterName: result.inviter.name,
+      memberEmail: result.member.email,
+      memberName: result.member.name,
+      organizationName: result.organizationName,
+      role: result.role,
+      locale: result.inviter.locale,
+    }).catch((err) =>
+      logger.error("[notifications] publishInviteAccepted failed", err),
+    );
 
     revalidateUserCache(dbUser.id, dbUser.clerkUserId);
     revalidatePath("/[locale]/dashboard/organization", "page");
@@ -160,7 +190,33 @@ export async function declineInviteAction(
   token: string,
 ): Promise<void | ActionErrorResult> {
   try {
-    await declineInvite(token);
+    const result = await declineInvite(token);
+
+    // Only audit/notify on the real PENDING -> CANCELED transition, so a repeat
+    // decline (or a page reload) can't double-fire.
+    if (result.wasPending) {
+      await recordAudit({
+        action: "member.invite_declined",
+        entityType: "Invite",
+        entityId: result.id,
+        diff: { email: result.invitedEmail, role: result.role },
+        // The decliner may not have an account; best-effort actor is the invited
+        // email, scoped to the inviting org.
+        actor: { actorId: null, actorEmail: result.invitedEmail, orgId: result.orgId },
+      });
+
+      publishInviteDeclined({
+        token,
+        inviterEmail: result.inviter.email,
+        inviterName: result.inviter.name,
+        invitedEmail: result.invitedEmail,
+        organizationName: result.organizationName,
+        role: result.role,
+        locale: result.inviter.locale,
+      }).catch((err) =>
+        logger.error("[notifications] publishInviteDeclined failed", err),
+      );
+    }
 
     revalidatePath('/[locale]/dashboard/organization', "page");
   } catch (error) {

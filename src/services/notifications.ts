@@ -445,3 +445,68 @@ export async function publishInviteSent(params: {
     })
   );
 }
+
+/**
+ * "Your invite was accepted" email to the INVITER. Recipient-targeted, so it
+ * renders in the inviter's own locale (not the new member's). One per invite -
+ * eventId `invite:${token}:accepted` keeps it idempotent against retries.
+ */
+export async function publishInviteAccepted(params: {
+  token: string;
+  inviterEmail: string;
+  inviterName: string | null;
+  memberEmail: string;
+  memberName: string | null;
+  organizationName: string;
+  role: string;
+  locale: string;
+}): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "invite.accepted",
+        eventId: `invite:${params.token}:accepted`,
+        inviterEmail: params.inviterEmail,
+        inviterName: params.inviterName,
+        memberEmail: params.memberEmail,
+        memberName: params.memberName,
+        organizationName: params.organizationName,
+        role: params.role,
+        locale: params.locale,
+      }),
+    })
+  );
+}
+
+/**
+ * "Your invite was declined" email to the INVITER, in the inviter's locale. One
+ * per invite - eventId `invite:${token}:declined` keeps it idempotent.
+ */
+export async function publishInviteDeclined(params: {
+  token: string;
+  inviterEmail: string;
+  inviterName: string | null;
+  invitedEmail: string;
+  organizationName: string;
+  role: string;
+  locale: string;
+}): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "invite.declined",
+        eventId: `invite:${params.token}:declined`,
+        inviterEmail: params.inviterEmail,
+        inviterName: params.inviterName,
+        invitedEmail: params.invitedEmail,
+        organizationName: params.organizationName,
+        role: params.role,
+        locale: params.locale,
+      }),
+    })
+  );
+}

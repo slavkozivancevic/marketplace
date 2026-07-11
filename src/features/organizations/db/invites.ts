@@ -107,11 +107,11 @@ export async function createInvite({
 
 export async function acceptInvite(
   token: string,
-  user: { id: string; email: string },
+  user: { id: string; email: string; name: string | null },
 ) {
   const invite = await prisma.invite.findUnique({
     where: { token },
-    include: { organization: true },
+    include: { organization: true, createdBy: true },
   });
 
   if (!invite) {
@@ -186,24 +186,58 @@ export async function acceptInvite(
   revalidateOrganizationMembers(invite.orgId);
   revalidateOrganizationInvites(invite.orgId);
 
-  return { orgId: invite.orgId, role: invite.role };
+  return {
+    orgId: invite.orgId,
+    role: invite.role,
+    organizationName: invite.organization.name,
+    wasNewMember: !existingMembership,
+    // createdBy is a required relation, so it's always present. It's the invite
+    // notification's recipient (rendered in the inviter's own locale).
+    inviter: {
+      email: invite.createdBy.email,
+      name: invite.createdBy.name,
+      locale: invite.createdBy.locale,
+    },
+    member: { email: user.email, name: user.name },
+  };
 }
 
 export async function declineInvite(token: string) {
   const invite = await prisma.invite.findUnique({
     where: { token },
+    include: { organization: true, createdBy: true },
   });
 
   if (!invite) {
     throw new NotFoundError('Invite not found');
   }
 
-  await prisma.invite.update({
-    where: { token },
-    data: { status: InviteStatus.CANCELED },
-  });
+  // Only a still-pending invite transitions to CANCELED (and notifies). Guards
+  // against re-declining an already-final invite double-firing the email/audit.
+  const wasPending = invite.status === InviteStatus.PENDING;
 
-  revalidateOrganizationInvites(invite.orgId);
+  if (wasPending) {
+    await prisma.invite.update({
+      where: { token },
+      data: { status: InviteStatus.CANCELED },
+    });
+
+    revalidateOrganizationInvites(invite.orgId);
+  }
+
+  return {
+    id: invite.id,
+    orgId: invite.orgId,
+    role: invite.role,
+    organizationName: invite.organization.name,
+    invitedEmail: invite.email,
+    wasPending,
+    inviter: {
+      email: invite.createdBy.email,
+      name: invite.createdBy.name,
+      locale: invite.createdBy.locale,
+    },
+  };
 }
 
 export async function cancelInvite(inviteId: string, orgId: string) {
