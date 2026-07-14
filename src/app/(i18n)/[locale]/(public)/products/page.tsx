@@ -3,6 +3,8 @@ import { cacheTag } from "next/cache";
 import { cookies } from "next/headers";
 import { getLocale, getTranslations } from "next-intl/server";
 import { VALID_CURRENCIES } from "@/lib/currency-config";
+import { decimalToCents } from "@/lib/currency";
+import { getCurrencyRate } from "@/features/currency/db/currencyRates";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createSearchParamsCache } from "nuqs/server";
 import { getQueryClient } from "@/lib/query/getQueryClient";
@@ -105,6 +107,20 @@ export default async function ProductsRoute({
     ? getDescendantIds(categoryTree, params.dept)
     : undefined;
 
+  // Price bounds in the URL are in the buyer's display currency (what the user
+  // typed). The DB stores prices in USD cents, so the SSR prefetch must apply
+  // the exact same pipeline the client grid + API do: divide by the rate
+  // (display → USD), then decimalToCents (USD → cents). Skip the rate lookup
+  // entirely when no price filter is active.
+  const rate =
+    params.minPrice != null || params.maxPrice != null
+      ? await getCurrencyRate(currency)
+      : 1;
+  const minPriceCents =
+    params.minPrice != null ? decimalToCents(params.minPrice / rate) : undefined;
+  const maxPriceCents =
+    params.maxPrice != null ? decimalToCents(params.maxPrice / rate) : undefined;
+
   const filters = {
     search: params.search,
     sortBy: params.sortBy,
@@ -127,8 +143,8 @@ export default async function ProductsRoute({
         search: filters.search || undefined,
         sortBy: filters.sortBy,
         sortOrder: filters.sortOrder,
-        minPrice: filters.minPrice ?? undefined,
-        maxPrice: filters.maxPrice ?? undefined,
+        minPrice: minPriceCents,
+        maxPrice: maxPriceCents,
         onSale: filters.onSale,
         isDigital: filters.isDigital,
         brandId: filters.brandId.length ? filters.brandId : undefined,
