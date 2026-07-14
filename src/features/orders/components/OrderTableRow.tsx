@@ -22,6 +22,19 @@ export function OrderTableRow({ order }: { order: UserOrderListItem }) {
   const locale = useLocale();
   const dl = dateLocale(locale);
 
+  const itemSummary = order.items
+    .map((item) => {
+      // Order row label uses the title in the order's captured locale so the
+      // buyer sees their own language even when navigating later.
+      const title =
+        item.product.translations.find((tr) => tr.locale === order.locale)?.title ??
+        item.product.translations.find((tr) => tr.locale === "en")?.title ??
+        "";
+      const label = item.variant?.sku ? `${title} (${item.variant.sku})` : title;
+      return item.quantity > 1 ? `${label} ×${item.quantity}` : label;
+    })
+    .join(", ");
+
   return (
     <div
       role="row"
@@ -51,18 +64,8 @@ export function OrderTableRow({ order }: { order: UserOrderListItem }) {
       </div>
 
       {/* Items */}
-      <div role="cell" className="text-sm truncate">
-        {order.items.map((item, i) => {
-          // Order row label uses the title in the order's captured locale so
-          // the buyer sees their own language even when navigating later.
-          const title =
-            item.product.translations.find((tr) => tr.locale === order.locale)?.title ??
-            item.product.translations.find((tr) => tr.locale === "en")?.title ??
-            "";
-          const label = item.variant?.sku ? `${title} (${item.variant.sku})` : title;
-          const qty = item.quantity > 1 ? ` ×${item.quantity}` : "";
-          return (i > 0 ? ", " : "") + label + qty;
-        }).join("")}
+      <div role="cell" className="text-sm truncate" title={itemSummary}>
+        {itemSummary}
       </div>
 
       {/* Total */}

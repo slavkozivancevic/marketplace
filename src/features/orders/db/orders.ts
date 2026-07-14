@@ -31,6 +31,10 @@ export async function getUserOrders(userId: string) {
     orderBy: { createdAt: "desc" },
     include: {
       items: {
+        // Deterministic item order so the "Items" column is stable across
+        // reloads and matches the org-orders list (which sorts the same way)
+        // for the shared items of a given order.
+        orderBy: { id: "asc" },
         include: {
           product: { select: { translations: { select: { locale: true, title: true } } } },
           variant: { select: { sku: true } },
@@ -109,6 +113,10 @@ export async function getUserOrdersPage({
     skip: cursor ? 1 : 0,
     include: {
       items: {
+        // Deterministic item order so the "Items" column is stable across
+        // reloads and matches the org-orders list (which sorts the same way)
+        // for the shared items of a given order.
+        orderBy: { id: "asc" },
         include: {
           product: { select: { translations: { select: { locale: true, title: true } } } },
           variant: { select: { sku: true } },

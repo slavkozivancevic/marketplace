@@ -71,6 +71,9 @@ export async function getOrgOrdersPage({
     include: {
       items: {
         where: { product: { organizationId } },
+        // Deterministic item order so the "Items" column is stable across
+        // reloads and matches the buyer orders list (which sorts the same way).
+        orderBy: { id: "asc" },
         include: {
           product: {
             select: {
