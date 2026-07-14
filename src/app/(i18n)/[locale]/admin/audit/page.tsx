@@ -1,4 +1,5 @@
 import { getLocale, getTranslations } from "next-intl/server";
+import { connection } from "next/server";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { getPathname } from "@/i18n/navigation";
@@ -6,6 +7,7 @@ import { getAuditFacets } from "@/features/audit/db/queries";
 import { AuditLogView } from "@/features/audit/components/AuditLogView";
 
 export default async function AdminAuditRoute() {
+  await connection();
   const t = await getTranslations("admin.audit");
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();

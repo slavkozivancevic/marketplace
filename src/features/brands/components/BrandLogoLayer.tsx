@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +29,14 @@ interface BrandLogoLayerProps {
  */
 export function BrandLogoLayer({ src, alt, size, surface, pad, visibility }: BrandLogoLayerProps) {
   const [loaded, setLoaded] = useState(false);
+
+  // A cached logo can be `complete` before React attaches `onLoad`, so the load
+  // event is missed and the shimmer would never clear (the tile stays hidden).
+  // The ref callback catches that case on mount.
+  const refCallback = useCallback((img: HTMLImageElement | null) => {
+    if (img?.complete && img.naturalWidth > 0) setLoaded(true);
+  }, []);
+
   return (
     <div className={cn("absolute inset-0", visibility)}>
       {/* Full-bleed shimmer until the image is ready - opaque, so it hides the
@@ -53,7 +61,9 @@ export function BrandLogoLayer({ src, alt, size, surface, pad, visibility }: Bra
             sizes={`${size}px`}
             className="object-contain"
             unoptimized
+            ref={refCallback}
             onLoad={() => setLoaded(true)}
+            onError={() => setLoaded(true)}
           />
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
@@ -19,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MembershipRole } from "@/generated/prisma/client";
 
 export default async function OrganizationPage() {
+  await connection();
   const t = await getTranslations();
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();

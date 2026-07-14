@@ -1,25 +1,15 @@
 import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import { createSearchParamsCache } from "nuqs/server";
+import { connection } from "next/server";
 import { getLocale, getTranslations } from "next-intl/server";
 import { prisma } from "@/core/db/prisma";
-import { getUserOrdersPage } from "@/features/orders/db/orders";
-import { getQueryClient } from "@/lib/query/getQueryClient";
-import { orderSearchParams } from "@/lib/query/searchParams";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { OrdersPage } from "@/features/orders/components/OrdersPage";
-import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import { getPathname } from "@/i18n/navigation";
 
-const searchParamsCache = createSearchParamsCache(orderSearchParams);
-
-export default async function OrdersRoute({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
+export default async function OrdersRoute() {
+  await connection();
   const t = await getTranslations();
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();
@@ -36,31 +26,8 @@ export default async function OrdersRoute({
   });
   if (!user) notFound();
 
-  const params = searchParamsCache.parse(await searchParams);
-
-  const filters = {
-    search: params.search,
-    sortBy: params.sortBy,
-    sortOrder: params.sortOrder,
-    status: params.status,
-  };
-
-  const queryClient = getQueryClient();
-
-  await queryClient.prefetchInfiniteQuery({
-    queryKey: ["orders", "user", filters],
-    queryFn: () =>
-      getUserOrdersPage({
-        userId: user.id,
-        take: LIST_PAGE_SIZE,
-        search: filters.search || undefined,
-        sortBy: filters.sortBy,
-        sortOrder: filters.sortOrder,
-        status: filters.status.length > 0 ? filters.status : undefined,
-      }),
-    initialPageParam: undefined as string | undefined,
-  });
-
+  // The list is fetched client-side (OrdersList via React Query), so we skip a
+  // blocking SSR prefetch and let its own skeleton be the single loading state.
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6 pt-2">
@@ -68,9 +35,7 @@ export default async function OrdersRoute({
         <PageHeader title={t("orders.title")} description={t("orders.history")} />
       </div>
       <div className="flex-1 flex flex-col min-h-0 px-6 pb-6">
-        <HydrationBoundary state={dehydrate(queryClient)}>
-          <OrdersPage />
-        </HydrationBoundary>
+        <OrdersPage />
       </div>
     </div>
   );

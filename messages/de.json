@@ -436,6 +436,8 @@
     "orderSummary": "Bestellübersicht",
     "shippingAddress": "Lieferadresse",
     "viewMyOrders": "Meine Bestellungen anzeigen",
+    "viewMyOrdersPending": "Bestellungen werden geöffnet...",
+    "continueShoppingPending": "Wird geladen...",
     "total": "Gesamt",
     "shipping": "Versand",
     "freeShippingNudge": "Noch {amount} bei {seller} für kostenlosen Versand"

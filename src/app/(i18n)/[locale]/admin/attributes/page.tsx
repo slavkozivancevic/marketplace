@@ -1,6 +1,7 @@
 import { Link, getPathname } from "@/i18n/navigation";
 import { cacheTag } from "next/cache";
 import { getLocale, getTranslations } from "next-intl/server";
+import { connection } from "next/server";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { getAllAttributes } from "@/features/attributes/db/attributes";
 import { AdminAttributesPage } from "@/features/attributes/components/AdminAttributesPage";
 
 export default async function AdminAttributesRoute() {
+  await connection();
   const t = await getTranslations("adminAttributes");
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();

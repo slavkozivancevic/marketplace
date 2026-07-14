@@ -70,7 +70,7 @@ export function OrdersList({ filters }: { filters?: OrderFilters }) {
 
   if (query.status === "pending") {
     return (
-      <div role="table" className="rounded-lg border">
+      <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
         <OrderTableHeader t={t} />
         {Array.from({ length: 8 }).map((_, i) => (
           <SkeletonOrderRow key={i} />
@@ -114,7 +114,7 @@ export function OrdersList({ filters }: { filters?: OrderFilters }) {
     return (
       <div
         role="table"
-        className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
+        className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
       >
         <OrderTableHeader t={t} />
         {items.map((order) => (
@@ -128,7 +128,7 @@ export function OrdersList({ filters }: { filters?: OrderFilters }) {
   return (
     <div
       role="table"
-      className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
+      className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
       ref={parentRef}
     >
       <OrderTableHeader t={t} />

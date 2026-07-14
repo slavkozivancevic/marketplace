@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import Image, { type ImageProps } from "next/image";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +15,18 @@ import { cn } from "@/lib/utils";
  */
 export function LoadingImage(props: ImageProps) {
   const [loaded, setLoaded] = useState(false);
+
+  // A cached image can finish loading before React attaches `onLoad`, so the
+  // load event is missed and the shimmer would spin forever. This is common on
+  // a client-side navigation right after an upload (e.g. creating a product and
+  // landing on the list): the freshly-uploaded thumbnail is already in the
+  // browser cache, so the <img> mounts already `complete`. The ref callback
+  // catches that case - if the element reports a decoded image the moment it's
+  // attached, treat it as loaded.
+  const refCallback = useCallback((img: HTMLImageElement | null) => {
+    if (img?.complete && img.naturalWidth > 0) setLoaded(true);
+  }, []);
+
   return (
     <>
       {!loaded && (
@@ -22,11 +34,18 @@ export function LoadingImage(props: ImageProps) {
       )}
       <Image
         {...props}
+        ref={refCallback}
         alt={props.alt}
         className={cn(props.className)}
         onLoad={(e) => {
           setLoaded(true);
           props.onLoad?.(e);
+        }}
+        onError={(e) => {
+          // Clear the shimmer on failure too, so a broken/blocked URL never
+          // leaves an endlessly spinning placeholder.
+          setLoaded(true);
+          props.onError?.(e);
         }}
       />
     </>

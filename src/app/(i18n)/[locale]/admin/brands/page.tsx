@@ -1,6 +1,7 @@
 import { Link, getPathname } from "@/i18n/navigation";
 import { cacheTag } from "next/cache";
 import { getLocale, getTranslations } from "next-intl/server";
+import { connection } from "next/server";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { getAllBrands } from "@/features/brands/db/brands";
 import { AdminBrandsPage } from "@/features/brands/components/AdminBrandsPage";
 
 export default async function AdminBrandsRoute() {
+  await connection();
   const t = await getTranslations();
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();

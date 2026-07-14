@@ -231,15 +231,20 @@ function Row({
 }
 
 function SkeletonRow() {
+  // Height matches the real row, whose `RowActions` cell holds two h-8 icon
+  // buttons (approve / reject) - the tallest element in the row.
   return (
     <div role="row" className={cn(GRID, "border-b px-3 py-2.5 min-w-fit")}>
-      <Skeleton className="h-3 w-32" />
-      <Skeleton className="h-3 w-24" />
-      <Skeleton className="h-3 w-20" />
-      <Skeleton className="h-3 w-40" />
+      <Skeleton className="h-3.5 w-32" />
+      <Skeleton className="h-3.5 w-24" />
+      <Skeleton className="h-3.5 w-20" />
+      <Skeleton className="h-3.5 w-40" />
       <Skeleton className="h-5 w-16 rounded-full mx-auto" />
-      <Skeleton className="h-3 w-20" />
-      <div />
+      <Skeleton className="h-3.5 w-20" />
+      <div className="flex items-center justify-end gap-1">
+        <Skeleton className="h-8 w-8 rounded-md" />
+        <Skeleton className="h-8 w-8 rounded-md" />
+      </div>
     </div>
   );
 }
@@ -367,7 +372,7 @@ export function ReviewsView({ counts }: { counts: Record<ReviewStatus, number> }
     );
   } else if (query.status === "pending") {
     body = (
-      <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto">
+      <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
         {Header}
         {Array.from({ length: 10 }).map((_, i) => <SkeletonRow key={i} />)}
       </div>
@@ -381,7 +386,7 @@ export function ReviewsView({ counts }: { counts: Record<ReviewStatus, number> }
     );
   } else if (!query.hasNextPage) {
     body = (
-      <div role="table" className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", blockClass)}>
+      <div role="table" className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", blockClass)}>
         {Header}
         {items.map((r) => (
           <Row key={r.id} r={r} locale={locale} dl={dl} approvingId={approvingId} rejectingId={rejectingId} onApprove={handleApprove} onReject={handleReject} />
@@ -390,7 +395,7 @@ export function ReviewsView({ counts }: { counts: Record<ReviewStatus, number> }
     );
   } else {
     body = (
-      <div role="table" ref={parentRef} className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", blockClass)}>
+      <div role="table" ref={parentRef} className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", blockClass)}>
         {Header}
         <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
           {virtualizer.getVirtualItems().map((vRow) => {

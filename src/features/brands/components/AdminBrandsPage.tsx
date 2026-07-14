@@ -277,7 +277,7 @@ export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
         <div
           role="table"
           className={cn(
-            "rounded-lg border flex-1 min-h-0 overflow-auto",
+            "rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]",
             // Lock the whole table while any row's action is in flight, so
             // the user can't start a second action on a different row.
             (isPending || isNavigating || isDuplicating) &&

@@ -436,6 +436,8 @@
     "orderSummary": "Pregled narudžbine",
     "shippingAddress": "Adresa dostave",
     "viewMyOrders": "Pogledaj moje narudžbine",
+    "viewMyOrdersPending": "Otvaram narudžbine...",
+    "continueShoppingPending": "Učitavam...",
     "total": "Ukupno",
     "shipping": "Dostava",
     "freeShippingNudge": "Dodaj još {amount} kod {seller} za besplatnu dostavu"

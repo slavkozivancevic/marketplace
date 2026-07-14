@@ -72,10 +72,10 @@ export function OrgOrdersList({ filters }: { filters?: OrgOrderFilters }) {
 
   if (query.status === "pending") {
     return (
-      <div role="table" className="rounded-lg border">
+      <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
         <OrgOrderTableHeader t={t} />
         {Array.from({ length: 8 }).map((_, i) => (
-          <SkeletonOrderRow key={i} />
+          <SkeletonOrderRow key={i} cols={COL} withBuyer />
         ))}
       </div>
     );
@@ -114,7 +114,7 @@ export function OrgOrdersList({ filters }: { filters?: OrgOrderFilters }) {
     return (
       <div
         role="table"
-        className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
+        className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
       >
         <OrgOrderTableHeader t={t} />
         {items.map((order) => (
@@ -128,7 +128,7 @@ export function OrgOrdersList({ filters }: { filters?: OrgOrderFilters }) {
   return (
     <div
       role="table"
-      className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
+      className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
       ref={parentRef}
     >
       <OrgOrderTableHeader t={t} />

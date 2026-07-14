@@ -125,7 +125,7 @@ export function SidebarNav(props: SidebarNavProps) {
           </h2>
           {props.children && <div className="mt-4">{props.children}</div>}
         </div>
-        <div className="flex-1 overflow-y-auto px-5 pb-5">
+        <div className="flex-1 overflow-y-auto px-5 pb-5 -mt-1.5 pt-1.5">
           <NavLinks
             links={props.links}
             extraLinks={props.extraLinks}
@@ -155,7 +155,7 @@ export function SidebarNav(props: SidebarNavProps) {
             {props.children && (
               <div className="shrink-0 px-5 pb-3">{props.children}</div>
             )}
-            <div className="flex-1 overflow-y-auto px-5 pb-5">
+            <div className="flex-1 overflow-y-auto px-5 pb-5 -mt-1.5 pt-1.5">
               <NavLinks
                 links={props.links}
                 extraLinks={props.extraLinks}

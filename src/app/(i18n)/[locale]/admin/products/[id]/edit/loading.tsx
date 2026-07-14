@@ -2,13 +2,14 @@ import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
-import { SkeletonProductForm } from "@/components/ui/skeleton";
+import { SkeletonBreadcrumbs, SkeletonProductForm } from "@/components/ui/skeleton";
 
 export default async function EditProductLoadingPage() {
   const t = await getTranslations();
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="shrink-0 px-6">
+      <div className="shrink-0 px-6 pt-2">
+        <SkeletonBreadcrumbs width="w-72" />
         <PageHeader
           title={t("admin.editProduct")}
           description={t("admin.editProductDesc")}

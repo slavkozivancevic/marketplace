@@ -137,7 +137,7 @@ export function ProductHistoryTable({
   const latestVersion = history[0]?.version;
 
   return (
-    <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto">
+    <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
       <HistoryTableHeader />
       {history.map((entry) => (
         <HistoryRow

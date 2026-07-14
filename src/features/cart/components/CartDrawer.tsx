@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import Image from "next/image";
 import { Minus, Plus, Trash2, ShoppingCart, X, Loader2 } from "lucide-react";
+import { LoadingImage } from "@/components/ui/LoadingImage";
 import { useRouter, usePathname } from "@/i18n/navigation";
 import {
   Sheet,
@@ -20,19 +20,14 @@ import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
 
 function CartItemImage({ src, alt }: { src: string; alt: string }) {
-  const [loaded, setLoaded] = useState(false);
   return (
-    <>
-      {!loaded && <div className="absolute inset-0 z-10 skeleton-shimmer" />}
-      <Image
-        src={src}
-        alt={alt}
-        fill
-        sizes="64px"
-        className="object-cover"
-        onLoad={() => setLoaded(true)}
-      />
-    </>
+    <LoadingImage
+      src={src}
+      alt={alt}
+      fill
+      sizes="64px"
+      className="object-cover"
+    />
   );
 }
 

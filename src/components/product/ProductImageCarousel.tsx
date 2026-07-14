@@ -50,6 +50,16 @@ export function ProductImageCarousel({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set());
+
+  // Clears a slide's shimmer once its image is painted. Guarded so re-marking an
+  // already-loaded index returns the same Set reference (no needless re-render,
+  // and no render loop when driven from a ref callback). Used by both `onLoad`
+  // and a ref-callback `complete` check - the latter catches cached images that
+  // finish before React attaches `onLoad`, which otherwise leaves the shimmer
+  // spinning forever.
+  const markImageLoaded = useCallback((index: number) => {
+    setLoadedImages((prev) => (prev.has(index) ? prev : new Set(prev).add(index)));
+  }, []);
   const [zoomState, setZoomState] = useState<{
     index: number;
     x: number;
@@ -156,9 +166,12 @@ export function ProductImageCarousel({
                           sizes="(max-width: 768px) 100vw, 50vw"
                           className="object-cover"
                           priority={index === 0}
-                          onLoad={() =>
-                            setLoadedImages((prev) => new Set(prev).add(index))
-                          }
+                          ref={(img) => {
+                            if (img?.complete && img.naturalWidth > 0)
+                              markImageLoaded(index);
+                          }}
+                          onLoad={() => markImageLoaded(index)}
+                          onError={() => markImageLoaded(index)}
                         />
                         {zoomState?.index === index &&
                           (() => {

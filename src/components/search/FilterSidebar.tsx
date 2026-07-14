@@ -369,7 +369,7 @@ function DesktopFilterSidebar(props: {
         </div>
         <Separator className="mt-2" />
       </div>
-      <div className="flex-1 overflow-y-auto pr-6">
+      <div className="flex-1 overflow-y-auto pr-6 -ml-1.5 pl-1.5">
         <FilterGroups
           groups={props.groups}
           values={props.values}

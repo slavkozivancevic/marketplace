@@ -224,15 +224,21 @@ function Row({
 }
 
 function SkeletonRow() {
+  // Height matches the real row, whose `RowActions` cell holds three h-8 icon
+  // buttons - the tallest element in the row.
   return (
     <div role="row" className={cn(GRID, "border-b px-3 py-2.5 min-w-fit")}>
-      <Skeleton className="h-3 w-24" />
-      <Skeleton className="h-3 w-12" />
-      <Skeleton className="h-3 w-16" />
-      <Skeleton className="h-3 w-10" />
-      <Skeleton className="h-3 w-20" />
+      <Skeleton className="h-3.5 w-24" />
+      <Skeleton className="h-3.5 w-12" />
+      <Skeleton className="h-3.5 w-16" />
+      <Skeleton className="h-3.5 w-10" />
+      <Skeleton className="h-3.5 w-20" />
       <Skeleton className="h-5 w-16 rounded-full" />
-      <div />
+      <div className="flex items-center justify-end gap-1">
+        <Skeleton className="h-8 w-8 rounded-md" />
+        <Skeleton className="h-8 w-8 rounded-md" />
+        <Skeleton className="h-8 w-8 rounded-md" />
+      </div>
     </div>
   );
 }
@@ -376,7 +382,7 @@ export function CouponsView() {
     );
   } else if (query.status === "pending") {
     body = (
-      <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto">
+      <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
         {Header}
         {Array.from({ length: 10 }).map((_, i) => <SkeletonRow key={i} />)}
       </div>
@@ -390,7 +396,7 @@ export function CouponsView() {
     );
   } else if (!query.hasNextPage) {
     body = (
-      <div role="table" className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", blockClass)}>
+      <div role="table" className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", blockClass)}>
         {Header}
         {items.map((c) => (
           <Row
@@ -408,7 +414,7 @@ export function CouponsView() {
     );
   } else {
     body = (
-      <div role="table" ref={parentRef} className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", blockClass)}>
+      <div role="table" ref={parentRef} className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", blockClass)}>
         {Header}
         <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
           {virtualizer.getVirtualItems().map((vRow) => {

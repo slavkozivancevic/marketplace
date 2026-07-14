@@ -89,7 +89,7 @@ export function MyProductsList({
 
   if (query.status === "pending") {
     return (
-      <div role="table" className="rounded-lg border">
+      <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
         <ProductTableHeader showActions={canWrite} />
         {Array.from({ length: 8 }).map((_, i) => (
           <SkeletonProductTableRow key={i} showActions={canWrite} />
@@ -127,7 +127,7 @@ export function MyProductsList({
       <div
         role="table"
         className={cn(
-          "rounded-lg border flex-1 min-h-0 overflow-auto",
+          "rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]",
           tableLocked && "opacity-60 pointer-events-none transition-opacity duration-150",
         )}
       >
@@ -150,7 +150,7 @@ export function MyProductsList({
     <div
       role="table"
       className={cn(
-        "rounded-lg border flex-1 min-h-0 overflow-auto",
+        "rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]",
         tableLocked && "opacity-60 pointer-events-none transition-opacity duration-150",
       )}
       ref={parentRef}

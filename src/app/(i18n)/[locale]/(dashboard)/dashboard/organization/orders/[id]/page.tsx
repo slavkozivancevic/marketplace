@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { connection } from "next/server";
 import { Link, getPathname } from "@/i18n/navigation";
 import Image from "next/image";
 import { getTranslations, getLocale } from "next-intl/server";
@@ -32,6 +33,7 @@ interface Props {
 }
 
 export default async function OrgOrderDetailPage({ params }: Props) {
+  await connection();
   const t = await getTranslations("orgOrders");
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();

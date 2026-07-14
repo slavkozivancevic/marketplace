@@ -1,5 +1,6 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { Plus } from "lucide-react";
+import { connection } from "next/server";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Link, getPathname } from "@/i18n/navigation";
 import { CouponsView } from "@/features/coupons/components/CouponsView";
 
 export default async function AdminCouponsRoute() {
+  await connection();
   const t = await getTranslations("coupons");
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();

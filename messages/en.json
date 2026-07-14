@@ -436,6 +436,8 @@
     "orderSummary": "Order Summary",
     "shippingAddress": "Shipping Address",
     "viewMyOrders": "View My Orders",
+    "viewMyOrdersPending": "Opening orders...",
+    "continueShoppingPending": "Loading...",
     "total": "Total",
     "shipping": "Shipping",
     "freeShippingNudge": "Add {amount} more from {seller} for free shipping"

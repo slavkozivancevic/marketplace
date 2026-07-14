@@ -436,6 +436,8 @@
     "orderSummary": "Resumen del pedido",
     "shippingAddress": "Dirección de envío",
     "viewMyOrders": "Ver mis pedidos",
+    "viewMyOrdersPending": "Abriendo pedidos...",
+    "continueShoppingPending": "Cargando...",
     "total": "Total",
     "shipping": "Envío",
     "freeShippingNudge": "Añade {amount} más de {seller} para envío gratis"

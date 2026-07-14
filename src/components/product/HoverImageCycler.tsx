@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,13 @@ export function HoverImageCycler({
   const [isHovered, setIsHovered] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // The first image drives the shimmer. A cached image can be `complete` before
+  // React attaches `onLoad`, so the event is missed and the shimmer would spin
+  // forever; the ref callback catches that on mount.
+  const firstImageRef = useCallback((img: HTMLImageElement | null) => {
+    if (img?.complete && img.naturalWidth > 0) setLoaded(true);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -81,7 +88,9 @@ export function HoverImageCycler({
             i === index ? "opacity-100" : "opacity-0",
           )}
           priority={i === 0}
+          ref={i === 0 ? firstImageRef : undefined}
           onLoad={i === 0 ? () => setLoaded(true) : undefined}
+          onError={i === 0 ? () => setLoaded(true) : undefined}
         />
       ))}
       {videoIndexes?.has(index) && (

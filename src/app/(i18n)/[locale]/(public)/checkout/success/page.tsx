@@ -6,6 +6,7 @@ import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { auth } from "@clerk/nextjs/server";
 import { AlertCircle, CheckCircle, Clock, MapPin, Package, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PendingLinkButton } from "@/components/ui/pending-link-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ClearCartOnSuccess } from "@/features/cart/components/ClearCartOnSuccess";
@@ -57,7 +58,11 @@ export default async function CheckoutSuccessPage({
                 <AlertCircle className="h-16 w-16 text-destructive mx-auto" />
                 <h1 className="text-2xl font-bold">{t("checkout.orderFailed")}</h1>
               </div>
-              <Button asChild><Link href="/products">{t("checkout.continueShopping")}</Link></Button>
+              <PendingLinkButton
+                href="/products"
+                label={t("checkout.continueShopping")}
+                pendingLabel={t("checkout.continueShoppingPending")}
+              />
             </div>
             <Footer />
           </div>
@@ -194,12 +199,17 @@ export default async function CheckoutSuccessPage({
           )}
 
           <div className="flex flex-col gap-3">
-            <Button asChild>
-              <Link href="/dashboard/orders">{t("checkout.viewMyOrders")}</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/products">{t("checkout.continueShopping")}</Link>
-            </Button>
+            <PendingLinkButton
+              href="/dashboard/orders"
+              label={t("checkout.viewMyOrders")}
+              pendingLabel={t("checkout.viewMyOrdersPending")}
+            />
+            <PendingLinkButton
+              href="/products"
+              variant="outline"
+              label={t("checkout.continueShopping")}
+              pendingLabel={t("checkout.continueShoppingPending")}
+            />
           </div>
         </div>
         <Footer />
@@ -246,9 +256,11 @@ export default async function CheckoutSuccessPage({
               </p>
             </div>
             <div className="flex flex-col gap-3">
-              <Button asChild>
-                <Link href="/products">{t("checkout.continueShopping")}</Link>
-              </Button>
+              <PendingLinkButton
+                href="/products"
+                label={t("checkout.continueShopping")}
+                pendingLabel={t("checkout.continueShoppingPending")}
+              />
             </div>
           </div>
           <Footer />
@@ -285,9 +297,12 @@ export default async function CheckoutSuccessPage({
                   {t("checkout.refresh")}
                 </Link>
               </Button>
-              <Button asChild variant="ghost">
-                <Link href="/products">{t("checkout.continueShopping")}</Link>
-              </Button>
+              <PendingLinkButton
+                href="/products"
+                variant="ghost"
+                label={t("checkout.continueShopping")}
+                pendingLabel={t("checkout.continueShoppingPending")}
+              />
             </div>
           </div>
           <Footer />
@@ -428,12 +443,17 @@ export default async function CheckoutSuccessPage({
         )}
 
         <div className="flex flex-col gap-3">
-          <Button asChild>
-            <Link href="/dashboard/orders">{t("checkout.viewMyOrders")}</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/products">{t("checkout.continueShopping")}</Link>
-          </Button>
+          <PendingLinkButton
+            href="/dashboard/orders"
+            label={t("checkout.viewMyOrders")}
+            pendingLabel={t("checkout.viewMyOrdersPending")}
+          />
+          <PendingLinkButton
+            href="/products"
+            variant="outline"
+            label={t("checkout.continueShopping")}
+            pendingLabel={t("checkout.continueShoppingPending")}
+          />
         </div>
       </div>
       <Footer />

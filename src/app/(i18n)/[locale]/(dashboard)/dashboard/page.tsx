@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { connection } from "next/server";
 import { prisma } from "@/core/db/prisma";
 import {
   Card,
@@ -23,6 +24,7 @@ import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { canManageOrgPayouts } from "@/lib/auth/permissions";
 
 export default async function DashboardPage() {
+  await connection();
   const { userId } = await auth();
   const t = await getTranslations();
   const tCrumbs = await getTranslations("breadcrumbs");

@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import Image from "next/image";
 import { Copy, ImageOff, Loader2, Pencil, Trash2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -22,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/components/ui/sonner";
 import { BrandLogo } from "@/features/brands/components/BrandLogo";
+import { LoadingImage } from "@/components/ui/LoadingImage";
 import { deleteProduct, duplicateProduct } from "@/features/products/actions/products";
 import { SerializedProductListItem } from "@/types/types";
 import { useCurrencyStore } from "@/store/currency";
@@ -103,7 +103,6 @@ export function ProductTableRow({
   const [isDuplicating, startDuplicate] = useTransition();
   const [isNavigating, startNavigate] = useTransition();
   const { currency, currentRate } = useCurrencyStore();
-  const [thumbLoaded, setThumbLoaded] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const localTitle = getProductTitle(product, locale);
@@ -177,14 +176,12 @@ export function ProductTableRow({
       <div role="cell">
         {thumbnailUrl ? (
           <div className="relative h-12 w-12 overflow-hidden rounded border bg-muted">
-            {!thumbLoaded && <div className="absolute inset-0 z-10 skeleton-shimmer" />}
-            <Image
+            <LoadingImage
               src={thumbnailUrl}
               alt={localTitle}
               fill
               sizes="48px"
               className="object-cover"
-              onLoad={() => setThumbLoaded(true)}
             />
           </div>
         ) : (

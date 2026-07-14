@@ -33,7 +33,7 @@ export function OrgPayoutTableRow({ payout }: { payout: OrgPayoutListItem }) {
   return (
     <div
       role="row"
-      className={cn("grid items-center gap-4 border-b p-3 min-w-fit", PAYOUT_COL)}
+      className={cn("grid items-center gap-4 border-b h-14 px-3 min-w-fit", PAYOUT_COL)}
     >
       {/* Order ID */}
       <div role="cell" className="font-mono text-xs text-muted-foreground">

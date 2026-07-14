@@ -27,7 +27,7 @@ import type { AuditLogItem } from "../db/queries";
 
 // Radix Select can't use an empty-string item value, so "all" is the sentinel.
 const ALL = "__all__";
-const GRID = "grid grid-cols-[155px_minmax(160px,1.2fr)_minmax(170px,1.2fr)_minmax(150px,1fr)_minmax(180px,2fr)] gap-4";
+const GRID = "grid grid-cols-[155px_minmax(160px,1.2fr)_minmax(230px,1.3fr)_minmax(150px,1fr)_minmax(180px,2fr)] gap-4";
 
 // Action keys we emit and have localized labels for. Unknown (future) keys fall
 // back to the raw identifier so the table never breaks on a missing translation.
@@ -320,7 +320,7 @@ export function AuditLogView({
     );
   } else if (query.status === "pending") {
     body = (
-      <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto">
+      <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
         {Header}
         {Array.from({ length: 10 }).map((_, i) => <SkeletonRow key={i} />)}
       </div>
@@ -334,14 +334,14 @@ export function AuditLogView({
     );
   } else if (!query.hasNextPage) {
     body = (
-      <div role="table" className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}>
+      <div role="table" className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}>
         {Header}
         {items.map((row) => <Row key={row.id} row={row} dl={dl} labels={labels} />)}
       </div>
     );
   } else {
     body = (
-      <div role="table" ref={parentRef} className={cn("rounded-lg border flex-1 min-h-0 overflow-auto", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}>
+      <div role="table" ref={parentRef} className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}>
         {Header}
         <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
           {virtualizer.getVirtualItems().map((vRow) => {

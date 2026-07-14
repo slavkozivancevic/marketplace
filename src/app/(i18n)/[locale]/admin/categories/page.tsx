@@ -1,6 +1,7 @@
 import { Link, getPathname } from "@/i18n/navigation";
 import { cacheTag } from "next/cache";
 import { getLocale, getTranslations } from "next-intl/server";
+import { connection } from "next/server";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { getAllCategoriesFlat } from "@/features/categories/db/categories";
 import { AdminCategoriesPage } from "@/features/categories/components/AdminCategoriesPage";
 
 export default async function AdminCategoriesRoute() {
+  await connection();
   const t = await getTranslations("adminCategories");
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();

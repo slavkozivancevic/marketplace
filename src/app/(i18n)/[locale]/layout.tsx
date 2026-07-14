@@ -17,6 +17,7 @@ import {
 import { CurrencyRatesProvider } from "@/providers/CurrencyRatesProvider";
 import { getCurrencyRates } from "@/features/currency/db/currencyRates";
 import { FoucScript } from "@/providers/theme/FoucScript";
+import { NavigationProgress } from "@/components/layout/NavigationProgress";
 import { CacheTags } from "@/lib/cache/tags";
 import { cn } from "@/lib/utils";
 import { env } from "@/env/server";
@@ -107,6 +108,13 @@ export default async function LocaleRootLayout({
             HTML parser executes it before any visible content paints. See
             FoucScript.tsx for the React-19-warning workaround details. */}
         <FoucScript />
+        {/* Wrapped in Suspense: NavigationProgress is a client component that
+            reads usePathname(), a dynamic API. Outside a Suspense boundary that
+            opts the whole route into blocking (dev "blocking-route" warning)
+            under cacheComponents. The boundary isolates it; it renders null. */}
+        <Suspense fallback={null}>
+          <NavigationProgress />
+        </Suspense>
         <div className="page-background">
           <Image
             src={BG_IMAGE_URL}

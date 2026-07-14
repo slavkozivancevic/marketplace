@@ -1,14 +1,10 @@
 import { notFound, redirect } from "next/navigation";
+import { connection } from "next/server";
 import { getTranslations, getLocale } from "next-intl/server";
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import { createSearchParamsCache } from "nuqs/server";
 import { AlertCircle } from "lucide-react";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { canManageOrgPayouts } from "@/lib/auth/permissions";
 import { getPathname } from "@/i18n/navigation";
-import { getQueryClient } from "@/lib/query/getQueryClient";
-import { orgPayoutSearchParams } from "@/lib/query/searchParams";
-import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -16,11 +12,8 @@ import {
   syncConnectStatus,
   type ConnectStatus,
 } from "@/features/payments/actions/connect";
-import { getOrgPayoutsPage } from "@/features/payments/db/payouts";
 import { ConnectPayouts } from "@/features/payments/components/ConnectPayouts";
 import { OrgPayoutsPage } from "@/features/payments/components/OrgPayoutsPage";
-
-const searchParamsCache = createSearchParamsCache(orgPayoutSearchParams);
 
 const DISCONNECTED: ConnectStatus = {
   connected: false,
@@ -29,11 +22,8 @@ const DISCONNECTED: ConnectStatus = {
   detailsSubmitted: false,
 };
 
-export default async function PayoutsRoute({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
+export default async function PayoutsRoute() {
+  await connection();
   const t = await getTranslations("payouts");
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();
@@ -46,9 +36,7 @@ export default async function PayoutsRoute({
   }
 
   // The newly-active org doesn't grant payout access to this role - send the
-  // user back to the dashboard rather than a dead-end 404 (e.g. after switching
-  // into an org where they're only a member). Safety net: the nav/card already
-  // hide for roles that can't manage payouts.
+  // user back to the dashboard rather than a dead-end 404.
   if (!canManageOrgPayouts(ctx.membershipRole)) redirect(`/${locale}/dashboard`);
 
   const breadcrumbItems = [
@@ -57,31 +45,14 @@ export default async function PayoutsRoute({
     { name: t("pageTitle"), href: getPathname({ href: "/dashboard/organization/payouts", locale }) },
   ];
 
-  const params = searchParamsCache.parse(await searchParams);
-  const filters = {
-    search: params.search,
-    sortBy: params.sortBy,
-    sortOrder: params.sortOrder,
-    status: params.status.length > 0 ? params.status : undefined,
-    refunded: params.refunded.length > 0 ? params.refunded : undefined,
-  };
-
+  // Connect status is a Stripe round-trip. The payouts list itself is fetched
+  // client-side (OrgPayoutsList via React Query), so we do NOT SSR-prefetch it -
+  // that avoids a double skeleton (a blocking prefetch would flash a loading.tsx
+  // while the client re-fetches and shows its own skeleton anyway).
   let status: ConnectStatus | null = null;
-  const queryClient = getQueryClient();
   if (ctx.organizationVerified) {
     const res = await syncConnectStatus();
     status = "error" in res ? DISCONNECTED : res;
-
-    await queryClient.prefetchInfiniteQuery({
-      queryKey: ["payouts", "org", ctx.organizationId, { ...filters, status: params.status, refunded: params.refunded }],
-      queryFn: () =>
-        getOrgPayoutsPage({
-          organizationId: ctx.organizationId,
-          take: LIST_PAGE_SIZE,
-          ...filters,
-        }),
-      initialPageParam: undefined as string | undefined,
-    });
   }
 
   return (
@@ -97,9 +68,7 @@ export default async function PayoutsRoute({
             <div className="shrink-0">
               <ConnectPayouts status={status ?? DISCONNECTED} />
             </div>
-            <HydrationBoundary state={dehydrate(queryClient)}>
-              <OrgPayoutsPage />
-            </HydrationBoundary>
+            <OrgPayoutsPage />
           </>
         ) : (
           <Alert>
