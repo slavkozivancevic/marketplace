@@ -94,7 +94,29 @@ export function HeaderAuth({
       <div className={cn(avatarSlot, "flex items-center justify-center")}>
         <UserButton
           appearance={{
-            elements: { rootBox: "size-8", userButtonBox: "size-8", avatarBox: "size-8" },
+            elements: {
+              rootBox: "size-8",
+              userButtonBox: "size-8",
+              // CSS objects (not classes): Clerk's internal styles win over
+              // appended class names, which left the avatar at its 28px
+              // default, LEFT-aligned inside the 32px trigger - so Clerk's
+              // own focus ring (a gray circle in light mode) sat visibly
+              // off-center from the avatar. The avatar now fills the trigger
+              // exactly, and the mouse-click ring is dropped entirely
+              // (opening the menu is feedback enough); keyboard focus gets
+              // the app's own ring tokens so it's visible on every theme.
+              userButtonTrigger: {
+                width: "2rem",
+                height: "2rem",
+                borderRadius: "9999px",
+                "&:focus": { boxShadow: "none" },
+                "&:focus-visible": {
+                  boxShadow:
+                    "0 0 0 3px color-mix(in oklab, var(--color-ring) 50%, transparent)",
+                },
+              },
+              avatarBox: { width: "2rem", height: "2rem" },
+            },
           }}
         />
       </div>

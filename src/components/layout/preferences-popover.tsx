@@ -8,6 +8,7 @@ import { useEffect, useState, useTransition } from "react";
 import { setCurrency } from "@/actions/setCurrency";
 import { useLocalePaths } from "@/i18n/LocalePathsContext";
 import { markLanguageSwitch, shouldHardSwitchLocale } from "@/lib/i18n/localeSwitch";
+import { localeSwitchOverlayStore } from "@/lib/i18n/localeSwitchOverlay";
 import { useUnsavedGuardStore } from "@/lib/forms/unsavedGuard";
 import { useHardNav } from "@/components/layout/hard-nav-boundary";
 import type { Locale } from "@/i18n/config";
@@ -53,6 +54,7 @@ export function PreferencesPopover() {
   const tLang = useTranslations("language");
   const tTheme = useTranslations("theme");
   const tCurrency = useTranslations("currency");
+  const tHeader = useTranslations("header");
   const locale = useLocale();
   // `useRouter` from `@/i18n/navigation` handles URL-based locale swaps
   // (swapping `/en/products` <-> `/sr/proizvodi`). `useNextRouter` is kept
@@ -82,6 +84,12 @@ export function PreferencesPopover() {
   }, []);
 
   function handleLocale(newLocale: string) {
+    // Clicking the already-active language is a no-op - just close the menu
+    // (otherwise the switch overlay would flash for nothing).
+    if (newLocale === locale) {
+      setOpen(false);
+      return;
+    }
     // A language switch remounts the page and would drop any unsaved form edits.
     // Route it through the unsaved-changes guard so the user gets the same
     // confirmation dialog as any other navigation instead of silently losing work.
@@ -95,6 +103,14 @@ export function PreferencesPopover() {
     // Close the popover first so it never lingers/clips across the locale swap
     // (consistent behaviour whether we soft- or hard-navigate below).
     setOpen(false);
+    // Cover the whole switch with the branded full-page loader: the [locale]
+    // remount repaints everything (tables, toolbars, borders visibly settle),
+    // so the transition is deliberately hidden behind the loader instead.
+    // <LocaleSwitchLoader> (hosted in the root layout, above the suspending
+    // intl providers) clears it once the new tree has mounted AND settled; on
+    // the hard-nav branch it simply covers until the full reload. The brand
+    // label rides along because the overlay renders outside intl context.
+    localeSwitchOverlayStore.getState().start(newLocale, tHeader("brand"));
     // Let any page with in-progress state (e.g. a product form) snapshot + restore
     // itself across the remount this locale change triggers. Set before every
     // navigation branch below so it fires regardless of which path we take.

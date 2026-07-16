@@ -57,6 +57,17 @@ export function useWishlistToggle() {
 
       return { previousIds };
     },
+    onSuccess: (result, productId) => {
+      // Converge on the server's answer. The optimistic update assumes a
+      // plain inversion of the client state; if client and server drifted
+      // apart (stale cache, missed hydration), the toggle would otherwise do
+      // the opposite of what the heart showed and stay diverged forever.
+      queryClient.setQueryData<string[]>(WISHLIST_IDS_KEY, (old = []) => {
+        const has = old.includes(productId);
+        if (result.isWishlisted) return has ? old : [...old, productId];
+        return has ? old.filter((id) => id !== productId) : old;
+      });
+    },
     onError: (_err, _productId, context) => {
       if (context?.previousIds !== undefined) {
         queryClient.setQueryData(WISHLIST_IDS_KEY, context.previousIds);

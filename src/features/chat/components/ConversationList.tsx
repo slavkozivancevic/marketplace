@@ -120,7 +120,7 @@ export function ConversationList({
               <img
                 src={profile.imageUrl}
                 alt={displayName}
-                className="size-9 rounded-full shrink-0 object-cover"
+                className="size-9 rounded-full shrink-0 object-cover bg-muted"
               />
             ) : (
               <div className="size-9 rounded-full bg-muted flex items-center justify-center shrink-0 text-xs font-semibold uppercase text-muted-foreground">

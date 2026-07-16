@@ -42,6 +42,11 @@ export default async function EditBrandPage({
     if (row) {
       nonDefault[loc] = {
         name: row.name,
+        // The stored slug MUST round-trip through the form. Omitting it made
+        // every save regenerate the slug from the (possibly unchanged) name,
+        // which collided with the source brand after a duplicate ("already
+        // exists" on any edit of the copy).
+        slug: row.slug,
         description: row.description ?? undefined,
       };
     }

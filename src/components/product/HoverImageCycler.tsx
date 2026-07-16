@@ -17,6 +17,13 @@ interface HoverImageCyclerProps {
   videoIndexes?: Set<number>;
 }
 
+// A freshly uploaded image is cold end-to-end (CDN miss + first optimizer
+// resize), so its very first fetch can fail; next/image never retries a
+// failed src, which would leave the frame broken until a full page reload.
+// Remounting the <Image> (key bump) forces a fresh attempt.
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 1500;
+
 export function HoverImageCycler({
   images,
   alt,
@@ -27,30 +34,87 @@ export function HoverImageCycler({
 }: HoverImageCyclerProps) {
   const [index, setIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  // First image drives the shimmer; it clears on load OR error so it can
+  // never spin forever.
+  const [firstSettled, setFirstSettled] = useState(false);
+  // Per-URL load tracking: the cycle only ever advances onto a frame that has
+  // actually loaded, so a slow/cold frame keeps the current image visible
+  // instead of flashing broken-image alt text.
+  const [loadedUrls, setLoadedUrls] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const [retryCounts, setRetryCounts] = useState<Record<string, number>>({});
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const retryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  // The first image drives the shimmer. A cached image can be `complete` before
-  // React attaches `onLoad`, so the event is missed and the shimmer would spin
-  // forever; the ref callback catches that on mount.
-  const firstImageRef = useCallback((img: HTMLImageElement | null) => {
-    if (img?.complete && img.naturalWidth > 0) setLoaded(true);
+  // Mirror for the interval closure (state there would be stale).
+  const loadedUrlsRef = useRef(loadedUrls);
+  useEffect(() => {
+    loadedUrlsRef.current = loadedUrls;
+  }, [loadedUrls]);
+
+  const markLoaded = useCallback((url: string) => {
+    setLoadedUrls((prev) => {
+      if (prev.has(url)) return prev;
+      const next = new Set(prev);
+      next.add(url);
+      return next;
+    });
   }, []);
 
+  // A cached image can be `complete` before React attaches `onLoad`, so the
+  // event is missed; this ref callback catches that on mount. The URL rides
+  // along as a data attribute so one stable callback serves every frame.
+  const completeCheckRef = useCallback(
+    (img: HTMLImageElement | null) => {
+      if (!img || !img.complete || img.naturalWidth <= 0) return;
+      const url = img.getAttribute("data-cycler-url");
+      if (!url) return;
+      markLoaded(url);
+      if (url === img.getAttribute("data-cycler-first")) setFirstSettled(true);
+    },
+    [markLoaded],
+  );
+
   useEffect(() => {
+    const retryTimers = retryTimersRef.current;
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      for (const t of retryTimers) clearTimeout(t);
     };
   }, []);
 
   if (images.length === 0) return null;
+
+  const handleLoad = (url: string, isFirst: boolean) => {
+    markLoaded(url);
+    if (isFirst) setFirstSettled(true);
+  };
+
+  const handleError = (url: string, isFirst: boolean) => {
+    if (isFirst) setFirstSettled(true);
+    const attempts = retryCounts[url] ?? 0;
+    if (attempts >= MAX_RETRIES) return;
+    const t = setTimeout(() => {
+      setRetryCounts((prev) => ({ ...prev, [url]: attempts + 1 }));
+    }, RETRY_DELAY_MS * (attempts + 1));
+    retryTimersRef.current.push(t);
+  };
 
   const handleEnter = () => {
     setIsHovered(true);
     if (images.length <= 1) return;
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
-      setIndex((i) => (i + 1) % images.length);
+      setIndex((i) => {
+        // Advance to the nearest loaded frame; hold the current one if no
+        // other frame is ready yet (it joins the cycle once it loads).
+        for (let step = 1; step <= images.length; step++) {
+          const next = (i + step) % images.length;
+          if (loadedUrlsRef.current.has(images[next])) return next;
+        }
+        return i;
+      });
     }, intervalMs);
   };
 
@@ -73,12 +137,12 @@ export function HoverImageCycler({
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
     >
-      {!loaded && (
+      {!firstSettled && (
         <div className="absolute inset-0 z-10 skeleton-shimmer" />
       )}
       {images.map((url, i) => (
         <Image
-          key={url}
+          key={`${url}#${retryCounts[url] ?? 0}`}
           src={url}
           alt={alt}
           fill
@@ -88,9 +152,11 @@ export function HoverImageCycler({
             i === index ? "opacity-100" : "opacity-0",
           )}
           priority={i === 0}
-          ref={i === 0 ? firstImageRef : undefined}
-          onLoad={i === 0 ? () => setLoaded(true) : undefined}
-          onError={i === 0 ? () => setLoaded(true) : undefined}
+          ref={completeCheckRef}
+          data-cycler-url={url}
+          data-cycler-first={images[0]}
+          onLoad={() => handleLoad(url, i === 0)}
+          onError={() => handleError(url, i === 0)}
         />
       ))}
       {videoIndexes?.has(index) && (

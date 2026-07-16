@@ -347,6 +347,54 @@ function CategoryFormInner(props: CategoryFormProps & { onDiscard: () => void })
             )}
           />
 
+          {/* Slug lives inside the locale box, mirroring the per-locale
+              sections (name -> slug -> description). */}
+          <FormField
+            control={form.control}
+            name="slug"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("slug")}</FormLabel>
+                <div className="flex gap-2">
+                  <FormControl>
+                    <Input
+                      placeholder={withEgPrefix(locale, CATEGORY_EXAMPLES.slug[DEFAULT_LOCALE])}
+                      {...field}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        setSlugManuallyEdited(true);
+                      }}
+                    />
+                  </FormControl>
+                  {slugManuallyEdited && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        form.setValue("slug", slugify(form.getValues("name") ?? ""));
+                        setSlugManuallyEdited(false);
+                      }}
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  <FormDescription>{t("slugDesc")}</FormDescription>
+                  <SlugAvailabilityIndicator
+                    entity="category"
+                    locale={DEFAULT_LOCALE}
+                    slug={field.value}
+                    excludeId={props.mode === "edit" ? props.categoryId : undefined}
+                  />
+                </div>
+                <FieldChangedHint />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           <FormField
             control={form.control}
             name="description"
@@ -380,53 +428,6 @@ function CategoryFormInner(props: CategoryFormProps & { onDiscard: () => void })
             t={t}
           />
         ))}
-
-        {/* Slug */}
-        <FormField
-          control={form.control}
-          name="slug"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t("slug")}</FormLabel>
-              <div className="flex gap-2">
-                <FormControl>
-                  <Input
-                    placeholder={withEgPrefix(locale, CATEGORY_EXAMPLES.slug[DEFAULT_LOCALE])}
-                    {...field}
-                    onChange={(e) => {
-                      field.onChange(e);
-                      setSlugManuallyEdited(true);
-                    }}
-                  />
-                </FormControl>
-                {slugManuallyEdited && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      form.setValue("slug", slugify(form.getValues("name") ?? ""));
-                      setSlugManuallyEdited(false);
-                    }}
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                  </Button>
-                )}
-              </div>
-              <div className="flex items-center justify-between">
-                <FormDescription>{t("slugDesc")}</FormDescription>
-                <SlugAvailabilityIndicator
-                  entity="category"
-                  locale={DEFAULT_LOCALE}
-                  slug={field.value}
-                  excludeId={props.mode === "edit" ? props.categoryId : undefined}
-                />
-              </div>
-              <FieldChangedHint />
-              <FormMessage />
-            </FormItem>
-          )}
-        />
 
         {/* Parent */}
         <FormField

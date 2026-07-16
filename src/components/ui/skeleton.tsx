@@ -169,6 +169,31 @@ export function SkeletonHistoryTable({ rows = 8 }: { rows?: number }) {
   );
 }
 
+/**
+ * Skeleton for <PublicProductsGrid>. Mirrors the grid's exact @container
+ * column breakpoints so the placeholder column count matches what the real
+ * grid renders at every width - viewport-based sm:/lg:/xl: columns drift on
+ * wide screens, where the real grid shows 5-6 columns and the page would
+ * visibly reflow when it streams in.
+ */
+export function SkeletonProductGrid({
+  amount = 8,
+  showButton = true,
+}: {
+  amount?: number;
+  showButton?: boolean;
+} = {}) {
+  return (
+    <div className="@container">
+      <div className="grid grid-cols-1 @[584px]:grid-cols-2 @[888px]:grid-cols-3 @[1192px]:grid-cols-4 @[1496px]:grid-cols-5 @[1800px]:grid-cols-6 gap-6">
+        <SkeletonArray amount={amount}>
+          <SkeletonProductGridCard showButton={showButton} />
+        </SkeletonArray>
+      </div>
+    </div>
+  );
+}
+
 export function SkeletonProductGridCard({
   // The shared <ProductCard> only renders the add-to-cart button when given an
   // `onQuickView` handler (the grid does; the wishlist and carousels don't), so

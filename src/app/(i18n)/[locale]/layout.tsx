@@ -18,6 +18,7 @@ import { CurrencyRatesProvider } from "@/providers/CurrencyRatesProvider";
 import { getCurrencyRates } from "@/features/currency/db/currencyRates";
 import { FoucScript } from "@/providers/theme/FoucScript";
 import { NavigationProgress } from "@/components/layout/NavigationProgress";
+import { LocaleSwitchLoader } from "@/components/layout/locale-switch-loader";
 import { CacheTags } from "@/lib/cache/tags";
 import { cn } from "@/lib/utils";
 import { env } from "@/env/server";
@@ -115,6 +116,13 @@ export default async function LocaleRootLayout({
         <Suspense fallback={null}>
           <NavigationProgress />
         </Suspense>
+        {/* Language-switch arrival detector (renders null). The overlay
+            itself is a plain DOM node managed outside React (see
+            localeSwitchOverlay.ts) so no mid-switch commit can unmount or
+            remount it. The detector lives HERE, above the suspending intl
+            providers, so it exists in every phase of the switch and gets the
+            new locale straight from the [locale] param. Uses no intl hooks. */}
+        <LocaleSwitchLoader locale={locale} />
         <div className="page-background">
           <Image
             src={BG_IMAGE_URL}

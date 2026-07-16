@@ -10,12 +10,17 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+        // The aria-expanded "held open" styling is scoped to MENU triggers
+        // (aria-haspopup=menu, i.e. DropdownMenu). Radix sets aria-expanded on
+        // dialog/popover triggers too - an un-scoped variant restyled e.g. a
+        // ghost delete icon-button into a muted rectangle (and overrode its
+        // text-destructive color) the whole time its confirm dialog was open.
         outline:
-          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:aria-[haspopup=menu]:bg-muted aria-expanded:aria-[haspopup=menu]:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:aria-[haspopup=menu]:bg-secondary aria-expanded:aria-[haspopup=menu]:text-secondary-foreground",
         ghost:
-          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+          "hover:bg-muted hover:text-foreground aria-expanded:aria-[haspopup=menu]:bg-muted aria-expanded:aria-[haspopup=menu]:text-foreground dark:hover:bg-muted/50",
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         // High-emphasis (filled) destructive - the canonical style for the

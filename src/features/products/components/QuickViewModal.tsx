@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/carousel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton, SkeletonArray } from "@/components/ui/skeleton";
 import { StarRating } from "@/features/reviews/components/StarRating";
 import { AddToCart } from "@/features/cart/components/AddToCart";
 import { buildCartVariantOptions, buildLocalizedText } from "@/features/cart/utils/variantOptions";
@@ -65,6 +65,19 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [activeVariantId, setActiveVariantId] = useState<string | null>(null);
+
+  // Shimmer-until-loaded tracking for slides and thumbs, keyed by media id so
+  // entries never collide when the modal is reused across products. The ref
+  // callback catches cached images that complete before React attaches onLoad
+  // (same pattern as ProductImageCarousel / HoverImageCycler).
+  const [loadedSlides, setLoadedSlides] = useState<Set<string>>(new Set());
+  const markSlideLoaded = useCallback((id: string) => {
+    setLoadedSlides((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+  }, []);
+  const [loadedThumbs, setLoadedThumbs] = useState<Set<string>>(new Set());
+  const markThumbLoaded = useCallback((id: string) => {
+    setLoadedThumbs((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+  }, []);
 
   const { data: product, isLoading, error, refetch } = useQuery({
     queryKey: ["product", "quick-view", productId],
@@ -242,7 +255,17 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
 
             {/* Embla carousel */}
             {isLoading ? (
-              <Skeleton className="w-full h-44 sm:h-52 rounded-none shrink-0" />
+              <div className="shrink-0">
+                <Skeleton className="w-full h-44 sm:h-52 rounded-none" />
+                {/* Thumbnail strip placeholder - same box as the real strip
+                    (h-9 thumbs + px-1.5 py-1 + border-t) so the left panel
+                    doesn't grow when the thumbs stream in. */}
+                <div className="flex gap-1 px-1.5 py-1 border-t border-border/50">
+                  <SkeletonArray amount={4}>
+                    <Skeleton className="h-9 w-9 rounded shrink-0" />
+                  </SkeletonArray>
+                </div>
+              </div>
             ) : media.length > 0 ? (
               <div className="shrink-0">
                 <Carousel
@@ -264,14 +287,25 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                               className="absolute inset-0 w-full h-full bg-black object-contain"
                             />
                           ) : (
-                            <Image
-                              src={m.url}
-                              alt={`${localTitle} ${idx + 1}`}
-                              fill
-                              sizes="(max-width:640px) calc(100vw-2rem), 44vw"
-                              className="object-contain"
-                              priority={idx === 0}
-                            />
+                            <>
+                              {!loadedSlides.has(m.id) && (
+                                <div className="absolute inset-0 z-10 skeleton-shimmer" />
+                              )}
+                              <Image
+                                src={m.url}
+                                alt={`${localTitle} ${idx + 1}`}
+                                fill
+                                sizes="(max-width:640px) calc(100vw-2rem), 44vw"
+                                className="object-contain"
+                                priority={idx === 0}
+                                ref={(img) => {
+                                  if (img?.complete && img.naturalWidth > 0)
+                                    markSlideLoaded(m.id);
+                                }}
+                                onLoad={() => markSlideLoaded(m.id)}
+                                onError={() => markSlideLoaded(m.id)}
+                              />
+                            </>
                           )}
                         </div>
                       </CarouselItem>
@@ -305,7 +339,22 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                         i === currentSlide ? "border-primary" : "border-transparent hover:border-border",
                       )}
                     >
-                      <Image src={thumbSrc} alt={`${localTitle} ${i + 1}`} fill sizes="36px" className="object-cover" />
+                      {!loadedThumbs.has(m.id) && (
+                        <div className="absolute inset-0 z-10 skeleton-shimmer" />
+                      )}
+                      <Image
+                        src={thumbSrc}
+                        alt={`${localTitle} ${i + 1}`}
+                        fill
+                        sizes="36px"
+                        className="object-cover"
+                        ref={(img) => {
+                          if (img?.complete && img.naturalWidth > 0)
+                            markThumbLoaded(m.id);
+                        }}
+                        onLoad={() => markThumbLoaded(m.id)}
+                        onError={() => markThumbLoaded(m.id)}
+                      />
                       {m.mediaType === "VIDEO" && (
                         <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/25 text-white text-[8px] font-bold">
                           ▶

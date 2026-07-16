@@ -557,6 +557,10 @@ function InlineAttachmentDisplay({ attachment }: { attachment: Attachment }) {
     isError,
   } = useAttachmentReadUrl(attachment.key);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  // Shimmer must cover BOTH phases: presigned-URL fetch AND the image bytes
+  // download. Keying it off `url` alone dropped it the moment the URL arrived,
+  // leaving a blank muted box while the image itself still loaded.
+  const [imgLoaded, setImgLoaded] = useState(false);
   const isImage = attachment.type.startsWith("image/");
 
   if (isImage) {
@@ -591,17 +595,26 @@ function InlineAttachmentDisplay({ attachment }: { attachment: Attachment }) {
         >
           <div
             style={{ width: w, height: h }}
-            className="rounded-lg overflow-hidden bg-muted"
+            className="relative rounded-lg overflow-hidden bg-muted"
           >
-            {url ? (
+            {url && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={url}
                 alt="attachment"
                 className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+                // Cached images can be `complete` before React attaches
+                // onLoad; the ref callback catches that (same pattern as
+                // ProductImageCarousel / HoverImageCycler).
+                ref={(img) => {
+                  if (img?.complete && img.naturalWidth > 0) setImgLoaded(true);
+                }}
+                onLoad={() => setImgLoaded(true)}
+                onError={() => setImgLoaded(true)}
               />
-            ) : (
-              <div className="w-full h-full skeleton-shimmer" />
+            )}
+            {!imgLoaded && (
+              <div className="absolute inset-0 z-10 skeleton-shimmer" />
             )}
           </div>
         </button>

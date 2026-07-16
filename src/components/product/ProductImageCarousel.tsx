@@ -60,6 +60,14 @@ export function ProductImageCarousel({
   const markImageLoaded = useCallback((index: number) => {
     setLoadedImages((prev) => (prev.has(index) ? prev : new Set(prev).add(index)));
   }, []);
+
+  // Same shimmer mechanics for the thumbnail strip - without it, cold thumbs
+  // (fresh product, empty CDN/optimizer cache) render as blank squares with
+  // only the selected border visible until the image arrives.
+  const [loadedThumbs, setLoadedThumbs] = useState<Set<number>>(new Set());
+  const markThumbLoaded = useCallback((index: number) => {
+    setLoadedThumbs((prev) => (prev.has(index) ? prev : new Set(prev).add(index)));
+  }, []);
   const [zoomState, setZoomState] = useState<{
     index: number;
     x: number;
@@ -255,12 +263,21 @@ export function ProductImageCarousel({
                       : "border-transparent opacity-60 hover:opacity-100",
                   )}
                 >
+                  {!loadedThumbs.has(index) && (
+                    <div className="absolute inset-0 z-10 skeleton-shimmer" />
+                  )}
                   <Image
                     src={thumbSrc}
                     alt={`${title} thumbnail ${index + 1}`}
                     fill
                     sizes="64px"
                     className="object-cover"
+                    ref={(img) => {
+                      if (img?.complete && img.naturalWidth > 0)
+                        markThumbLoaded(index);
+                    }}
+                    onLoad={() => markThumbLoaded(index)}
+                    onError={() => markThumbLoaded(index)}
                   />
                   {isVideo && (
                     <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/25">

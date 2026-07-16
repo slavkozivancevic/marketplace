@@ -147,6 +147,11 @@ export function useInfiniteVirtualGrid<TItem>({
     getScrollElement: () => scrollContainerRef?.current ?? parentRef.current,
     estimateSize: () => estimateRowHeight,
     overscan,
+    // Vertical spacing between virtual rows. The `gap` inside each row's grid
+    // style only spaces columns (a row is a single line of cards), so without
+    // this the measured rows stack flush - the non-virtualized small-catalog
+    // branch uses `gap-6` and the two must look identical.
+    gap,
   });
 
   // When column count changes (resize), all row positions shift.

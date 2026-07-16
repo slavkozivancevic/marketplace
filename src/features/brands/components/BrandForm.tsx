@@ -425,6 +425,54 @@ function BrandFormInner(props: BrandFormProps & { onDiscard: () => void }) {
             )}
           />
 
+          {/* Slug lives inside the locale box, mirroring the per-locale
+              sections (name -> slug -> description). */}
+          <FormField
+            control={form.control}
+            name="slug"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("slug")}</FormLabel>
+                <div className="flex gap-2">
+                  <FormControl>
+                    <Input
+                      placeholder={withEgPrefix(locale, BRAND_EXAMPLES.slug[DEFAULT_LOCALE])}
+                      {...field}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        setSlugManuallyEdited(true);
+                      }}
+                    />
+                  </FormControl>
+                  {slugManuallyEdited && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        form.setValue("slug", slugify(form.getValues("name") ?? ""));
+                        setSlugManuallyEdited(false);
+                      }}
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  <FormDescription>{t("slugDesc")}</FormDescription>
+                  <SlugAvailabilityIndicator
+                    entity="brand"
+                    locale={DEFAULT_LOCALE}
+                    slug={field.value}
+                    excludeId={props.mode === "edit" ? props.brandId : undefined}
+                  />
+                </div>
+                <FieldChangedHint />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           <FormField
             control={form.control}
             name="description"
@@ -458,52 +506,6 @@ function BrandFormInner(props: BrandFormProps & { onDiscard: () => void }) {
             t={t}
           />
         ))}
-
-        <FormField
-          control={form.control}
-          name="slug"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t("slug")}</FormLabel>
-              <div className="flex gap-2">
-                <FormControl>
-                  <Input
-                    placeholder={withEgPrefix(locale, BRAND_EXAMPLES.slug[DEFAULT_LOCALE])}
-                    {...field}
-                    onChange={(e) => {
-                      field.onChange(e);
-                      setSlugManuallyEdited(true);
-                    }}
-                  />
-                </FormControl>
-                {slugManuallyEdited && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      form.setValue("slug", slugify(form.getValues("name") ?? ""));
-                      setSlugManuallyEdited(false);
-                    }}
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                  </Button>
-                )}
-              </div>
-              <div className="flex items-center justify-between">
-                <FormDescription>{t("slugDesc")}</FormDescription>
-                <SlugAvailabilityIndicator
-                  entity="brand"
-                  locale={DEFAULT_LOCALE}
-                  slug={field.value}
-                  excludeId={props.mode === "edit" ? props.brandId : undefined}
-                />
-              </div>
-              <FieldChangedHint />
-              <FormMessage />
-            </FormItem>
-          )}
-        />
 
         {/* ── Logo & backdrop ── */}
         <div className="rounded-lg border border-border/60 p-4 space-y-4">

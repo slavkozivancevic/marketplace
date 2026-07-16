@@ -29,6 +29,7 @@ import { copyProductImage, toThumbKey, toEmailThumbKey } from "@/services/s3Copy
 import { commitProductMedia } from "@/services/s3Tagging";
 import { env } from "@/env/server";
 import { slugify } from "@/lib/utils";
+import { copyName } from "@/lib/i18n/copyName";
 import {
   DEFAULT_LOCALE,
   NON_DEFAULT_LOCALES,
@@ -1538,12 +1539,18 @@ export function productRepository(
 
       // Rebuild the form translations input from the source ProductTranslation
       // rows so the duplicate carries every locale, not just the default one.
+      // Each locale gets a "Copy of" title (the admin list shows the viewer
+      // locale's title) and an explicitly suffixed slug - create() only
+      // suffixes the DEFAULT locale's slug, so an unchanged translated title
+      // would re-derive the source's slug and violate the (locale, slug)
+      // unique index ("already exists" on products that have translations).
       const defaultRow = defaultTranslation(source.translations);
       const sourceTranslations: ProductTranslationsInput = {};
       for (const t of source.translations) {
         if (t.locale === DEFAULT_LOCALE) continue;
         sourceTranslations[t.locale as keyof ProductTranslationsInput] = {
-          title: t.title,
+          title: copyName(t.locale, t.title),
+          slug: `${t.slug}-copy-${suffix}`,
           description: t.description,
           shortDescription: t.shortDescription ?? undefined,
           metaTitle: t.metaTitle ?? undefined,
@@ -1554,7 +1561,7 @@ export function productRepository(
       // 4. Create the duplicate.  On DB failure, clean up the copied S3 objects.
       try {
         return await this.create({
-          title: `Copy of ${defaultRow?.title ?? ""}`,
+          title: copyName(DEFAULT_LOCALE, defaultRow?.title ?? ""),
           description: defaultRow?.description ?? "",
           shortDescription: defaultRow?.shortDescription ?? undefined,
           metaTitle: defaultRow?.metaTitle ?? undefined,

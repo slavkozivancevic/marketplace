@@ -401,17 +401,20 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
                         onClick={() => compatible && handleSelect(option.id, value)}
                         disabled={!compatible}
                         className={cn(
-                          "relative px-3 py-1.5 text-sm rounded-md border transition-all select-none",
+                          // Every enabled pill is clickable (a selected one
+                          // deselects on click), so the pointer cursor lives in
+                          // the base; only the disabled state overrides it.
+                          "relative px-3 py-1.5 text-sm rounded-md border transition-all select-none cursor-pointer",
                           isSelected &&
                             "border-primary bg-primary text-primary-foreground shadow-sm",
                           !isSelected &&
                             compatible &&
                             inStock &&
-                            "border-input bg-background hover:border-primary cursor-pointer",
+                            "border-input bg-background hover:border-primary",
                           !isSelected &&
                             compatible &&
                             !inStock &&
-                            "border-input bg-background text-muted-foreground cursor-pointer",
+                            "border-input bg-background text-muted-foreground",
                           !compatible &&
                             "border-input bg-muted text-muted-foreground opacity-40 cursor-not-allowed",
                         )}
@@ -448,15 +451,17 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
                       key={variant.id}
                       onClick={() => handleSelectManual(variant.id)}
                       className={cn(
-                        "relative px-3 py-1.5 text-sm rounded-md border transition-all select-none",
+                        // Manual variant pills are always clickable (selected
+                        // deselects), so the pointer cursor lives in the base.
+                        "relative px-3 py-1.5 text-sm rounded-md border transition-all select-none cursor-pointer",
                         isSelected &&
                           "border-primary bg-primary text-primary-foreground shadow-sm",
                         !isSelected &&
                           !outOfStock &&
-                          "border-input bg-background hover:border-primary cursor-pointer",
+                          "border-input bg-background hover:border-primary",
                         !isSelected &&
                           outOfStock &&
-                          "border-input bg-background text-muted-foreground cursor-pointer",
+                          "border-input bg-background text-muted-foreground",
                       )}
                     >
                       {outOfStock && !isSelected && (

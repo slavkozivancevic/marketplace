@@ -97,7 +97,10 @@ export function AppLoader({ hidden }: { hidden: boolean }) {
 
         {/* Brand name + bouncing dots */}
         <div className="flex flex-col items-center gap-3">
-          <span className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+          {/* pl compensates the trailing letter-space: tracking adds 0.3em
+              after the LAST glyph too, so without it the visible text sits
+              left of the spinner's center. */}
+          <span className="text-sm font-semibold uppercase tracking-[0.3em] pl-[0.3em] text-muted-foreground">
             {t("brand")}
           </span>
           <div className="flex items-center gap-1.5">

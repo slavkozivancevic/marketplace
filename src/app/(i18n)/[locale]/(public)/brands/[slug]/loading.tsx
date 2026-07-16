@@ -1,10 +1,9 @@
 import {
   Skeleton,
-  SkeletonArray,
   SkeletonBreadcrumbs,
   SkeletonButton,
   SkeletonFilterSidebar,
-  SkeletonProductGridCard,
+  SkeletonProductGrid,
   SkeletonSearchToolbar,
   SkeletonText,
 } from "@/components/ui/skeleton";
@@ -35,11 +34,7 @@ export default function BrandLoading() {
           <div className="flex gap-6 flex-1 px-6">
             <SkeletonFilterSidebar />
             <div className="flex-1 min-w-0">
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                <SkeletonArray amount={8}>
-                  <SkeletonProductGridCard />
-                </SkeletonArray>
-              </div>
+              <SkeletonProductGrid />
             </div>
           </div>
         </div>

@@ -1,9 +1,13 @@
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath, revalidateTag, updateTag } from "next/cache";
 import { CacheTags } from "@/lib/cache/tags";
 
 export function revalidateBrandCache(brandId: string) {
-  revalidateTag(CacheTags.brands.all(), "max");
-  revalidateTag(CacheTags.brands.byId(brandId), "max");
+  // updateTag, NOT revalidateTag(tag, "max"): brand mutations are admin
+  // actions and the admin immediately navigates back to the list / reopens
+  // the edit page - those reads must see the write. The "max" profile is
+  // stale-while-revalidate and can serve the old name once more.
+  updateTag(CacheTags.brands.all());
+  updateTag(CacheTags.brands.byId(brandId));
 
   // Dynamic routes must be revalidated by their route pattern (bracketed
   // params), not a concrete value - passing a literal id matches nothing,

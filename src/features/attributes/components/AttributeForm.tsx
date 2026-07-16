@@ -190,9 +190,11 @@ function AttributeFormInner(props: AttributeFormProps & { onDiscard: () => void 
   const onInvalid = useInvalidToast();
   const uiLocale = useLocale();
   const [isPending, startTransition] = useTransition();
-  const [keyManuallyEdited, setKeyManuallyEdited] = useState(
-    props.mode === "edit",
-  );
+  // Auto-derive stays on in edit mode too, consistent with the brand/category
+  // slug fields: typing a new label regenerates the key until the admin edits
+  // the key by hand. The effect below only fires when the label CHANGES, so a
+  // freshly opened edit form never rewrites a stored key by itself.
+  const [keyManuallyEdited, setKeyManuallyEdited] = useState(false);
 
   const derivedValues = useMemo<AttributeInput>(
     () => ({
@@ -321,7 +323,7 @@ function AttributeFormInner(props: AttributeFormProps & { onDiscard: () => void 
                       }}
                     />
                   </FormControl>
-                  {keyManuallyEdited && props.mode === "create" && (
+                  {keyManuallyEdited && (
                     <Button
                       type="button"
                       variant="outline"

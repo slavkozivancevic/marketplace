@@ -2,6 +2,7 @@ import { prisma } from "@/core/db/prisma";
 import { NotFoundError } from "@/features/common/errors/domainErrors";
 import { revalidateBrandCache, revalidateBrandProductCaches } from "./cache";
 import { slugify } from "@/lib/utils";
+import { copyName } from "@/lib/i18n/copyName";
 import { refreshProductSearchText } from "@/features/products/db/products";
 import { recordSlugChanges } from "@/lib/seo/slugHistory";
 import { DEFAULT_LOCALE, NON_DEFAULT_LOCALES } from "@/i18n/config";
@@ -274,12 +275,14 @@ export async function duplicateBrand(id: string) {
   if (!source) throw new NotFoundError(`Brand ${id} not found`);
 
   // Suffix every slug so the copy can never collide with the source on the
-  // unique BrandTranslation.slug constraint; prefix only the default-locale
-  // name with "Copy of" to mirror the product-duplicate convention.
+  // unique BrandTranslation.slug constraint. Prefix EVERY locale's name with
+  // its localized "Copy of" (copyName) - the admin list displays the
+  // viewer-locale name, so a prefix only on the default locale left e.g. the
+  // sr list showing a row identical to the source.
   const suffix = Date.now().toString(36);
   const rows: BrandTranslationRow[] = source.translations.map((t) => ({
     locale: t.locale,
-    name: t.locale === DEFAULT_LOCALE ? `Copy of ${t.name}` : t.name,
+    name: copyName(t.locale, t.name),
     slug: `${t.slug}-copy-${suffix}`,
     description: t.description,
   }));
