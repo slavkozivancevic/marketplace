@@ -247,6 +247,37 @@ External services hit the following routes - expose them via a tunnel (e.g. `ngr
 - `api/internal/review-digest` - internal endpoint the notifications weekly cron reads to assemble the pending-review digest
 - `api/interactions/*` - personalized "recently viewed" feed + view/add-to-cart event recording
 
+### Deployment & CI/CD (AWS)
+
+The storefront is deployed to AWS the same serverless way as the sibling
+services, and its full CI/CD is automated. See [DEPLOYMENT.md](DEPLOYMENT.md) for
+the strategy and [infra/](infra/) for the pipeline IaC.
+
+- **Hosting:** **SST v4 (Ion)** + **OpenNext** compile the Next.js app to
+  **Lambda + CloudFront** (`sst.config.ts`). OpenNext is pinned to **4.0.3** for
+  Next.js 16 `proxy`-middleware support (the SST default, 3.9.14, predates it).
+- **Database:** managed serverless **Postgres (Neon)** - the app uses the
+  **pooled** endpoint at runtime (PrismaPg adapter); migrations run over the
+  **direct** endpoint (advisory locks don't survive PgBouncer).
+- **CI (GitHub Actions):** on every PR/push - lint, typecheck, unit tests, and
+  integration tests against an ephemeral Postgres service container. Shared via a
+  **reusable workflow** referenced by every repo.
+- **CD (AWS-native):** **CodePipeline → CodeBuild** (runs `buildspec.yml` →
+  `sst deploy` on Linux) with the GitHub source wired through **CodeConnections**.
+  Flow: `Source (main) → DeployStaging → manual approval → DeployProduction`.
+- **PR previews:** ephemeral `pr-<n>` stages deployed/torn down by GitHub Actions
+  (`preview.yml`) that assume a scoped AWS role via **GitHub OIDC** (no static
+  keys). OIDC provider + roles are provisioned by `infra/cicd.cfn.yml`.
+- **Secrets & discovery:** per-stage secrets live in **SSM Parameter Store**
+  (`sst secret set`); services discover each other's URLs/ARNs through SSM, never
+  hardcoded endpoints.
+- **Releases:** **Conventional Commits** + **release-please** (rolling Release PR
+  → version bump → `vX.Y.Z` tag → GitHub Release).
+
+> First-run bootstrap (accounts, DB, secrets, siblings-then-app order) is a
+> click-by-click runbook in [infra/AWS-SETUP.md](infra/AWS-SETUP.md); the
+> test/dev → production activation checklist is DEPLOYMENT.md §12.
+
 ---
 
 ## marketplace-messaging - Real-Time Chat Service
