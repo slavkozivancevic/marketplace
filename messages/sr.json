@@ -1,6 +1,6 @@
 {
   "header": {
-    "brand": "Marketplace",
+    "brand": "MarketVerse",
     "tagline": "Enterprise platforma",
     "dashboardTagline": "Kontrolna tabla",
     "adminTagline": "Admin panel"
@@ -95,7 +95,7 @@
   "footer": {
     "tagline": "Enterprise platforma za modernu trgovinu, za prodavce i kupce.",
     "crafted": "Napravljeno s pažnjom za ozbiljnu trgovinu.",
-    "copyright": "© {year} Marketplace. Sva prava zadržana.",
+    "copyright": "© {year} MarketVerse. Sva prava zadržana.",
     "platform": "Platforma",
     "company": "Kompanija",
     "legal": "Pravno",
@@ -122,7 +122,7 @@
   },
   "home": {
     "badge": "Uživo - Počni da prodaješ danas",
-    "headline": "Marketplace",
+    "headline": "MarketVerse",
     "headlineGradient": "napravljen za rast",
     "subheadline": "Moderna enterprise platforma gde prodavci napreduju, a kupci otkrivaju izvanredne proizvode.",
     "exploreProducts": "Istraži proizvode",
@@ -140,9 +140,9 @@
     "performanceDesc": "Izgrađeno na najsavremenijoj infrastrukturi za trenutno učitavanje i besprekorno kupovanje.",
     "scale": "Globalni doseg",
     "scaleDesc": "Dosegni kupce širom sveta uz podršku za više valuta i globalnu CDN isporuku.",
-    "siteName": "Marketplace",
-    "metaTitle": "Marketplace - Moderna trgovina, napravljena za rast",
-    "metaDescription": "Otkrij izuzetne proizvode prodavaca iz celog sveta. Marketplace enterprise klase sa podrškom za više valuta i munjevitim performansama."
+    "siteName": "MarketVerse",
+    "metaTitle": "MarketVerse - Moderna trgovina, napravljena za rast",
+    "metaDescription": "Otkrij izuzetne proizvode prodavaca iz celog sveta. MarketVerse platforma enterprise klase sa podrškom za više valuta i munjevitim performansama."
   },
   "products": {
     "title": "Proizvodi",
@@ -1557,7 +1557,7 @@
     "subtotal": "Međuzbir",
     "discount": "Popust",
     "total": "Ukupno",
-    "footer": "Hvala na kupovini. Ovu fakturu je generisao Marketplace.",
+    "footer": "Hvala na kupovini. Ovu fakturu je generisao MarketVerse.",
     "download": "Preuzmi fakturu",
     "shipping": "Dostava"
   },

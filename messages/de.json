@@ -1,6 +1,6 @@
 {
   "header": {
-    "brand": "Marketplace",
+    "brand": "MarketVerse",
     "tagline": "Enterprise-Plattform",
     "dashboardTagline": "Dashboard",
     "adminTagline": "Admin-Bereich"
@@ -95,7 +95,7 @@
   "footer": {
     "tagline": "Die Enterprise-Commerce-Plattform für moderne Verkäufer und Käufer.",
     "crafted": "Mit Präzision für Enterprise-Commerce entwickelt.",
-    "copyright": "© {year} Marketplace. Alle Rechte vorbehalten.",
+    "copyright": "© {year} MarketVerse. Alle Rechte vorbehalten.",
     "platform": "Plattform",
     "company": "Unternehmen",
     "legal": "Rechtliches",
@@ -122,7 +122,7 @@
   },
   "home": {
     "badge": "Jetzt live – heute mit dem Verkauf beginnen",
-    "headline": "Der Marketplace",
+    "headline": "MarketVerse",
     "headlineGradient": "Für Wachstum konzipiert",
     "subheadline": "Eine moderne Enterprise-Commerce-Plattform, auf der Verkäufer florieren und Käufer außergewöhnliche Produkte entdecken.",
     "exploreProducts": "Produkte entdecken",
@@ -131,7 +131,7 @@
     "whyChooseGradient": "Unsere Plattform",
     "whyChooseDesc": "Von Grund auf für ernsthaften Handel gebaut, mit den Tools und der Infrastruktur, die Sie für den Erfolg brauchen.",
     "readyToStart": "Bereit loszulegen?",
-    "joinThousands": "Schließen Sie sich Tausenden von Verkäufern und Käufern auf der leistungsstärksten Marketplace-Plattform an.",
+    "joinThousands": "Schließen Sie sich Tausenden von Verkäufern und Käufern auf der leistungsstärksten MarketVerse-Plattform an.",
     "createAccount": "Kostenloses Konto erstellen",
     "browseProducts": "Produkte durchsuchen",
     "security": "Enterprise-Sicherheit",
@@ -140,9 +140,9 @@
     "performanceDesc": "Auf modernster Infrastruktur für sofortiges Laden und reibungsloses Einkaufen.",
     "scale": "Globale Skalierung",
     "scaleDesc": "Erreichen Sie Kunden weltweit mit Mehrwährungsunterstützung und globalem CDN.",
-    "siteName": "Marketplace",
-    "metaTitle": "Marketplace - Moderner Handel, gebaut für Wachstum",
-    "metaDescription": "Entdecken Sie außergewöhnliche Produkte von Händlern weltweit. Marketplace auf Enterprise-Niveau mit Mehrwährungsunterstützung und blitzschneller Performance."
+    "siteName": "MarketVerse",
+    "metaTitle": "MarketVerse - Moderner Handel, gebaut für Wachstum",
+    "metaDescription": "Entdecken Sie außergewöhnliche Produkte von Händlern weltweit. MarketVerse auf Enterprise-Niveau mit Mehrwährungsunterstützung und blitzschneller Performance."
   },
   "products": {
     "title": "Produkte",
@@ -245,12 +245,12 @@
   "dashboard": {
     "title": "Dashboard",
     "welcome": "Willkommen, {name}!",
-    "overview": "Hier ist eine Übersicht Ihrer Marketplace-Aktivität.",
+    "overview": "Hier ist eine Übersicht Ihrer MarketVerse-Aktivität.",
     "quickLinks": "Schnellzugriff",
     "browse": "Produkte durchsuchen",
-    "browseDesc": "Entdecken Sie Produkte aus unserem Marketplace.",
+    "browseDesc": "Entdecken Sie Produkte aus unserem MarketVerse.",
     "browseBrands": "Marken durchsuchen",
-    "browseBrandsDesc": "Entdecken Sie Marken auf unserem Marketplace.",
+    "browseBrandsDesc": "Entdecken Sie Marken auf unserem MarketVerse.",
     "orders": "Meine Bestellungen",
     "ordersDesc": "Ihre Kaufhistorie anzeigen.",
     "org": "Organisation",
@@ -633,12 +633,12 @@
       "empty": "Noch keine Bewertungen."
     },
     "title": "Admin-Bereich",
-    "welcome": "Willkommen zurück, {name}. Verwalten Sie Ihren Marketplace von hier aus.",
+    "welcome": "Willkommen zurück, {name}. Verwalten Sie Ihren MarketVerse von hier aus.",
     "management": "Verwaltung",
     "quickLinks": "Schnellzugriff",
     "overview": "Übersicht",
     "products": "Produkte",
-    "productsDesc": "Alle Marketplace-Produkte verwalten.",
+    "productsDesc": "Alle MarketVerse-Produkte verwalten.",
     "productsBrowse": "Durchsuchen und verwalten Sie Ihren Produktkatalog.",
     "bulkOps": "Massenoperationen",
     "addProduct": "Produkt hinzufügen",
@@ -1557,7 +1557,7 @@
     "subtotal": "Zwischensumme",
     "discount": "Rabatt",
     "total": "Gesamt",
-    "footer": "Vielen Dank für Ihren Einkauf. Diese Rechnung wurde von Marketplace erstellt.",
+    "footer": "Vielen Dank für Ihren Einkauf. Diese Rechnung wurde von MarketVerse erstellt.",
     "download": "Rechnung herunterladen",
     "shipping": "Versand"
   },

@@ -71,7 +71,7 @@ const COPY: Record<string, Copy> = {
       terms: "Terms",
       cookies: "Cookies",
       crafted: "Crafted with precision for enterprise commerce.",
-      copyright: "© {year} Marketplace. All rights reserved.",
+      copyright: "© {year} MarketVerse. All rights reserved.",
     },
   },
   sr: {
@@ -95,7 +95,7 @@ const COPY: Record<string, Copy> = {
       terms: "Uslovi",
       cookies: "Kolačići",
       crafted: "Napravljeno s pažnjom za ozbiljnu trgovinu.",
-      copyright: "© {year} Marketplace. Sva prava zadržana.",
+      copyright: "© {year} MarketVerse. Sva prava zadržana.",
     },
   },
   de: {
@@ -119,7 +119,7 @@ const COPY: Record<string, Copy> = {
       terms: "AGB",
       cookies: "Cookies",
       crafted: "Mit Präzision für Enterprise-Commerce entwickelt.",
-      copyright: "© {year} Marketplace. Alle Rechte vorbehalten.",
+      copyright: "© {year} MarketVerse. Alle Rechte vorbehalten.",
     },
   },
   es: {
@@ -143,7 +143,7 @@ const COPY: Record<string, Copy> = {
       terms: "Términos",
       cookies: "Cookies",
       crafted: "Creado con precisión para el comercio empresarial.",
-      copyright: "© {year} Marketplace. Todos los derechos reservados.",
+      copyright: "© {year} MarketVerse. Todos los derechos reservados.",
     },
   },
 };
@@ -202,7 +202,7 @@ const COSMOS: Tokens = {
   fg: "oklch(0.95 0.01 80)",
   muted: "oklch(0.2 0.04 280)",
   mutedFg: "oklch(0.65 0.06 270)",
-  primary: "oklch(0.78 0.14 60)",
+  primary: "oklch(0.85 0.02 255)",
   primaryFg: "oklch(0.12 0.03 275)",
   border: "oklch(0.35 0.08 285 / 40%)",
   imgOpacity: "0.07",
@@ -251,9 +251,10 @@ const SEARCH_ICON =
 const HOME_ICON =
   '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>';
 
-// Lucide "store" glyph (brand mark). Header uses 18px (h-4.5), footer 16px (h-4).
+// MarketVerse mark (comet + bag + stars), white variant for the fixed dark
+// brand tile. Header uses 28px, footer 24px. Keep in sync with BrandMark.
 const storeIcon = (px: number) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2 2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7"/></svg>`;
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 64 64"><defs><linearGradient id="nf-tail-${px}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f2eee7" stop-opacity="0"/><stop offset=".55" stop-color="#c9c7d0" stop-opacity=".5"/><stop offset="1" stop-color="#f2eee7"/></linearGradient></defs><path d="M3 7 C20 8 34 12 44.2 17.8 L43.6 23.3 C32 18.5 17 12 3 7 Z" fill="url(#nf-tail-${px})"/><circle cx="47" cy="20.5" r="4.2" fill="#f2eee7"/><path d="M20 30 L44 30 L47.3 46.8 Q48 50 44.5 50 L19.5 50 Q16 50 16.7 46.8 Z" fill="#0a0b1e" stroke="#f2eee7" stroke-width="1.5"/><path d="M27 30 v-2.8 a5 5 0 0 1 10 0 V30" fill="none" stroke="#f2eee7" stroke-width="2.4" stroke-linecap="round"/><path d="M10 11.2 Q10.7 13.3 12.8 14 Q10.7 14.7 10 16.8 Q9.3 14.7 7.2 14 Q9.3 13.3 10 11.2 Z" fill="#f2eee7"/><path d="M55 10 Q55.5 11.5 57 12 Q55.5 12.5 55 14 Q54.5 12.5 53 12 Q54.5 11.5 55 10 Z" fill="#c9c7d0" opacity=".9"/><path d="M7 35.6 Q7.6 37.4 9.4 38 Q7.6 38.6 7 40.4 Q6.4 38.6 4.6 38 Q6.4 37.4 7 35.6 Z" fill="#f2eee7" opacity=".85"/><path d="M57 40.2 Q57.45 41.55 58.8 42 Q57.45 42.45 57 43.8 Q56.55 42.45 55.2 42 Q56.55 41.55 57 40.2 Z" fill="#a5a3b0" opacity=".85"/><path d="M12 53.4 Q12.4 54.6 13.6 55 Q12.4 55.4 12 56.6 Q11.6 55.4 10.4 55 Q11.6 54.6 12 53.4 Z" fill="#c9c7d0" opacity=".8"/><circle cx="52" cy="31" r="0.9" fill="#f2eee7" opacity=".55"/><circle cx="34" cy="57.5" r="1" fill="#a5a3b0" opacity=".6"/></svg>`;
 
 function escapeHtml(value: string): string {
   return value
@@ -310,7 +311,8 @@ export function notFoundResponse(locale: string, theme?: string): NextResponse {
   .brand-mark {
     display: inline-flex; align-items: center; justify-content: center;
     width: 2.25rem; height: 2.25rem; border-radius: 0.625rem;
-    background: var(--primary); color: var(--primary-fg);
+    /* Fixed dark brand tile - the mark is drawn for a dark backdrop. */
+    background: #0a0b1e; border: 1px solid rgb(255 255 255 / 10%);
   }
   .brand-text { display: flex; flex-direction: column; }
   /* text-lg font-bold tracking-tight leading-tight */
@@ -358,7 +360,7 @@ export function notFoundResponse(locale: string, theme?: string): NextResponse {
   .ftr-brand-mark {
     display: inline-flex; align-items: center; justify-content: center;
     width: 2rem; height: 2rem; border-radius: 0.625rem;
-    background: var(--primary); color: var(--primary-fg);
+    background: #0a0b1e; border: 1px solid rgb(255 255 255 / 10%);
   }
   .ftr-brand-name { font-size: 1.125rem; line-height: 1.75rem; font-weight: 700; letter-spacing: -0.025em; }
   /* text-sm text-muted-foreground leading-relaxed max-w-xs, 1rem below brand */
@@ -434,9 +436,9 @@ export function notFoundResponse(locale: string, theme?: string): NextResponse {
   <header class="site-header">
     <div class="container hdr">
       <a class="brand" href="${home}">
-        <span class="brand-mark">${storeIcon(18)}</span>
+        <span class="brand-mark">${storeIcon(28)}</span>
         <span class="brand-text">
-          <span class="brand-name">Marketplace</span>
+          <span class="brand-name">MarketVerse</span>
           <span class="brand-tag">${escapeHtml(t.tagline)}</span>
         </span>
       </a>
@@ -464,8 +466,8 @@ export function notFoundResponse(locale: string, theme?: string): NextResponse {
       <div class="ftr-grid">
         <div>
           <a class="ftr-brand" href="${home}">
-            <span class="ftr-brand-mark">${storeIcon(16)}</span>
-            <span class="ftr-brand-name">Marketplace</span>
+            <span class="ftr-brand-mark">${storeIcon(24)}</span>
+            <span class="ftr-brand-name">MarketVerse</span>
           </a>
           <p class="ftr-tag">${escapeHtml(t.footer.tagline)}</p>
         </div>

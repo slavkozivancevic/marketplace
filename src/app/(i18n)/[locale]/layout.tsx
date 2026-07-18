@@ -33,8 +33,8 @@ export const metadata: Metadata = {
   // (per-page metadata already emits absolute URLs, but this keeps Next from
   // falling back to localhost and silences the metadataBase warning).
   metadataBase: new URL(env.APP_URL),
-  title: "Marketplace",
-  description: "Modern SaaS Marketplace",
+  title: "MarketVerse",
+  description: "MarketVerse - modern commerce, built for scale",
 };
 
 async function fetchCurrencyRates() {

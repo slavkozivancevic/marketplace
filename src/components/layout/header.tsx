@@ -6,7 +6,8 @@ import { useTranslations } from "next-intl";
 import { HeaderAuth } from "./header-auth";
 import { PreferencesPopover } from "./preferences-popover";
 import { ChatDrawerTrigger } from "@/features/chat/components/ChatDrawer";
-import { Store, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
+import { BrandMark } from "./brand-mark";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -40,8 +41,8 @@ export function Header() {
             href="/"
             className="group flex items-center gap-2.5 shrink-0"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/25 group-hover:scale-105">
-              <Store className="h-4.5 w-4.5" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0a0b1e] ring-1 ring-white/10 transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/25 group-hover:scale-105">
+              <BrandMark className="h-7 w-7" />
             </div>
             <div className="flex flex-col">
               <span className="text-lg font-bold tracking-tight leading-tight">

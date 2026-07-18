@@ -2,7 +2,7 @@
 
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { Store } from "lucide-react";
+import { BrandMark } from "./brand-mark";
 
 export function Footer() {
   const t = useTranslations("footer");
@@ -32,11 +32,11 @@ export function Footer() {
           {/* Brand */}
           <div className="space-y-4">
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Store className="h-4 w-4" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0a0b1e] ring-1 ring-white/10">
+                <BrandMark className="h-6 w-6" />
               </div>
               <span className="text-lg font-bold tracking-tight">
-                Marketplace
+                MarketVerse
               </span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">

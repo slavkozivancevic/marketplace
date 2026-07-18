@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
 import { useTranslations } from "next-intl";
-import { Store } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandMark } from "./brand-mark";
 import { HERO_IMAGE_URL } from "./hero-image";
 
 /**
@@ -89,8 +89,8 @@ export function AppLoader({ hidden }: { hidden: boolean }) {
         <div className="relative h-24 w-24">
           <div className="app-loader-ring absolute inset-0 animate-spin rounded-full animation-duration-[1s]" />
           <div className="absolute inset-0 grid place-items-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 animate-pulse">
-              <Store className="h-6 w-6" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0a0b1e] ring-1 ring-white/10 shadow-lg shadow-primary/30 animate-pulse">
+              <BrandMark className="h-9 w-9" />
             </div>
           </div>
         </div>

@@ -103,11 +103,12 @@
   --sidebar-border: oklch(0.855 0.014 240);
   --sidebar-ring: oklch(0.44 0.18 255);
 
-  /* Enterprise extras */
-  --gold: oklch(0.795 0.155 86);
-  --cosmos-purple: oklch(0.5 0.2 290);
+  /* Enterprise extras - "gold"/"orange" tokens hold platinum/silver values
+     since the MarketVerse rebrand; class names kept to avoid churn. */
+  --gold: oklch(0.62 0.02 255);
+  --cosmos-purple: oklch(0.5 0.13 285);
   --cosmos-blue: oklch(0.45 0.15 260);
-  --cosmos-orange: oklch(0.7 0.18 55);
+  --cosmos-orange: oklch(0.48 0.03 250);
   --hero-overlay: oklch(0 0 0 / 3%);
   --glass: oklch(1 0 0 / 70%);
   --glass-border: oklch(0 0 0 / 8%);
@@ -168,10 +169,10 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 
-  --gold: oklch(0.82 0.14 86);
-  --cosmos-purple: oklch(0.65 0.22 290);
+  --gold: oklch(0.85 0.02 255);
+  --cosmos-purple: oklch(0.62 0.14 285);
   --cosmos-blue: oklch(0.55 0.18 260);
-  --cosmos-orange: oklch(0.75 0.18 55);
+  --cosmos-orange: oklch(0.68 0.03 250);
   --hero-overlay: oklch(0 0 0 / 50%);
   --glass: oklch(0.13 0 0 / 70%);
   --glass-border: oklch(1 0 0 / 10%);
@@ -192,39 +193,39 @@
   --card-foreground: oklch(0.95 0.01 80);
   --popover: oklch(0.16 0.04 280);
   --popover-foreground: oklch(0.95 0.01 80);
-  --primary: oklch(0.78 0.14 60);
+  --primary: oklch(0.85 0.02 255);
   --primary-foreground: oklch(0.12 0.03 275);
   --secondary: oklch(0.22 0.05 285);
   --secondary-foreground: oklch(0.92 0.02 80);
   --muted: oklch(0.2 0.04 280);
   --muted-foreground: oklch(0.65 0.06 270);
-  --accent: oklch(0.45 0.2 290);
+  --accent: oklch(0.42 0.13 285);
   --accent-foreground: oklch(0.95 0.01 80);
   --destructive: oklch(0.65 0.22 25);
   --border: oklch(0.35 0.08 285 / 40%);
   --input: oklch(0.35 0.08 285 / 50%);
-  --ring: oklch(0.65 0.18 290);
-  --chart-1: oklch(0.78 0.14 60);
-  --chart-2: oklch(0.65 0.22 290);
-  --chart-3: oklch(0.7 0.18 55);
+  --ring: oklch(0.62 0.11 285);
+  --chart-1: oklch(0.85 0.02 255);
+  --chart-2: oklch(0.6 0.14 288);
+  --chart-3: oklch(0.68 0.06 240);
   --chart-4: oklch(0.55 0.18 260);
-  --chart-5: oklch(0.5 0.15 310);
+  --chart-5: oklch(0.5 0.1 305);
   --sidebar: oklch(0.14 0.035 278);
   --sidebar-foreground: oklch(0.92 0.02 80);
-  --sidebar-primary: oklch(0.78 0.14 60);
+  --sidebar-primary: oklch(0.85 0.02 255);
   --sidebar-primary-foreground: oklch(0.12 0.03 275);
   --sidebar-accent: oklch(0.22 0.05 285);
   --sidebar-accent-foreground: oklch(0.92 0.02 80);
   --sidebar-border: oklch(0.35 0.08 285 / 40%);
-  --sidebar-ring: oklch(0.65 0.18 290);
+  --sidebar-ring: oklch(0.62 0.11 285);
 
-  --gold: oklch(0.82 0.16 72);
-  --cosmos-purple: oklch(0.55 0.25 290);
+  --gold: oklch(0.87 0.02 255);
+  --cosmos-purple: oklch(0.55 0.15 288);
   --cosmos-blue: oklch(0.5 0.2 260);
-  --cosmos-orange: oklch(0.75 0.19 55);
+  --cosmos-orange: oklch(0.68 0.03 250);
   --hero-overlay: oklch(0.1 0.04 275 / 60%);
   --glass: oklch(0.14 0.04 280 / 60%);
-  --glass-border: oklch(0.55 0.15 290 / 25%);
+  --glass-border: oklch(0.55 0.1 285 / 25%);
 
   /* Match the dark-theme treatment: dimmed light tile, deep dark tile. */
   --logo-light: oklch(0.93 0.005 280);
@@ -446,6 +447,21 @@
   background: var(--background);
 }
 
+/* MarketVerse: subtle star-field in the app header (cosmos theme only, the
+   dark brand surface), echoing the transactional-email header strip. Tiny,
+   low-opacity dots - pure decoration, text contrast stays untouched. */
+.cosmos .header-bg,
+.cosmos .sticky-header-bg::before {
+  background-image:
+    radial-gradient(1px 1px at 8% 30%, oklch(0.88 0.01 255 / 45%) 50%, transparent),
+    radial-gradient(1.5px 1.5px at 22% 70%, oklch(0.62 0.11 285 / 35%) 50%, transparent),
+    radial-gradient(1px 1px at 37% 25%, oklch(0.88 0.01 255 / 40%) 50%, transparent),
+    radial-gradient(1px 1px at 52% 80%, oklch(0.88 0.01 255 / 30%) 50%, transparent),
+    radial-gradient(1.5px 1.5px at 66% 35%, oklch(0.62 0.11 285 / 30%) 50%, transparent),
+    radial-gradient(1px 1px at 78% 65%, oklch(0.88 0.01 255 / 45%) 50%, transparent),
+    radial-gradient(1px 1px at 91% 28%, oklch(0.88 0.01 255 / 35%) 50%, transparent);
+}
+
 /* Full-width sticky header background - extends beyond any parent container */
 .sticky-header-bg {
   position: relative;
@@ -524,28 +540,28 @@
     radial-gradient(1px 1px at 10% 20%, oklch(0.9 0.02 80 / 60%) 50%, transparent),
     radial-gradient(1.5px 1.5px at 30% 65%, oklch(0.8 0.1 290 / 40%) 50%, transparent),
     radial-gradient(1px 1px at 50% 10%, oklch(0.9 0.02 80 / 50%) 50%, transparent),
-    radial-gradient(1.5px 1.5px at 70% 40%, oklch(0.85 0.12 60 / 30%) 50%, transparent),
+    radial-gradient(1.5px 1.5px at 70% 40%, oklch(0.88 0.01 255 / 30%) 50%, transparent),
     radial-gradient(1px 1px at 90% 80%, oklch(0.9 0.02 80 / 60%) 50%, transparent),
     radial-gradient(1px 1px at 15% 90%, oklch(0.8 0.1 290 / 40%) 50%, transparent),
-    radial-gradient(2px 2px at 45% 45%, oklch(0.85 0.12 60 / 25%) 50%, transparent),
+    radial-gradient(2px 2px at 45% 45%, oklch(0.88 0.01 255 / 25%) 50%, transparent),
     radial-gradient(1px 1px at 80% 15%, oklch(0.9 0.02 80 / 50%) 50%, transparent),
     radial-gradient(1.5px 1.5px at 25% 35%, oklch(0.9 0.02 80 / 35%) 50%, transparent),
     radial-gradient(1px 1px at 60% 75%, oklch(0.8 0.1 290 / 45%) 50%, transparent),
     radial-gradient(1px 1px at 85% 55%, oklch(0.9 0.02 80 / 40%) 50%, transparent),
-    radial-gradient(1.5px 1.5px at 5% 50%, oklch(0.85 0.12 60 / 30%) 50%, transparent);
+    radial-gradient(1.5px 1.5px at 5% 50%, oklch(0.88 0.01 255 / 30%) 50%, transparent);
   animation: glow-pulse 8s ease-in-out infinite;
 }
 
 .cosmos .star-field::after {
   background-image:
-    radial-gradient(1px 1px at 20% 50%, oklch(0.85 0.12 60 / 50%) 50%, transparent),
+    radial-gradient(1px 1px at 20% 50%, oklch(0.88 0.01 255 / 50%) 50%, transparent),
     radial-gradient(1px 1px at 40% 30%, oklch(0.9 0.02 80 / 40%) 50%, transparent),
     radial-gradient(1.5px 1.5px at 65% 60%, oklch(0.8 0.1 290 / 35%) 50%, transparent),
     radial-gradient(1px 1px at 75% 25%, oklch(0.9 0.02 80 / 55%) 50%, transparent),
-    radial-gradient(1px 1px at 95% 45%, oklch(0.85 0.12 60 / 30%) 50%, transparent),
+    radial-gradient(1px 1px at 95% 45%, oklch(0.88 0.01 255 / 30%) 50%, transparent),
     radial-gradient(1.5px 1.5px at 35% 85%, oklch(0.8 0.1 290 / 45%) 50%, transparent),
     radial-gradient(1px 1px at 55% 95%, oklch(0.9 0.02 80 / 35%) 50%, transparent),
-    radial-gradient(1px 1px at 10% 70%, oklch(0.85 0.12 60 / 40%) 50%, transparent);
+    radial-gradient(1px 1px at 10% 70%, oklch(0.88 0.01 255 / 40%) 50%, transparent);
   animation: glow-pulse 12s ease-in-out infinite reverse;
 }
 
@@ -576,7 +592,7 @@
   background-image:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Ccircle cx='1' cy='1' r='0.85' fill='rgba(160%2C130%2C255%2C0.09)'/%3E%3C/svg%3E"),
     radial-gradient(ellipse 80% 60% at 8%  12%,  oklch(0.20 0.055 290 / 45%) 0%, transparent 55%),
-    radial-gradient(ellipse 70% 75% at 92% 88%,  oklch(0.22 0.040 58  / 25%) 0%, transparent 50%),
+    radial-gradient(ellipse 70% 75% at 92% 88%,  oklch(0.22 0.020 250 / 25%) 0%, transparent 50%),
     radial-gradient(ellipse 55% 50% at 52% 42%,  oklch(0.19 0.050 278 / 30%) 0%, transparent 50%),
     radial-gradient(ellipse 45% 55% at 78% 18%,  oklch(0.21 0.035 262 / 20%) 0%, transparent 45%);
 }
@@ -634,8 +650,8 @@ input[type="number"] {
 }
 
 .cosmos .hover-glow:hover {
-  box-shadow: 0 0 40px oklch(0.6 0.2 290 / 25%),
-              0 0 80px oklch(0.7 0.15 60 / 10%);
+  box-shadow: 0 0 40px oklch(0.6 0.13 285 / 25%),
+              0 0 80px oklch(0.8 0.02 255 / 10%);
 }
 
 /* Hide the native number-input steppers app-wide. Chromium ignores `cursor` on

@@ -1,6 +1,6 @@
 {
   "header": {
-    "brand": "Marketplace",
+    "brand": "MarketVerse",
     "tagline": "Plataforma empresarial",
     "dashboardTagline": "Panel",
     "adminTagline": "Panel de administración"
@@ -95,7 +95,7 @@
   "footer": {
     "tagline": "La plataforma de comercio empresarial creada para vendedores y compradores modernos.",
     "crafted": "Creado con precisión para el comercio empresarial.",
-    "copyright": "© {year} Marketplace. Todos los derechos reservados.",
+    "copyright": "© {year} MarketVerse. Todos los derechos reservados.",
     "platform": "Plataforma",
     "company": "Empresa",
     "legal": "Legal",
@@ -122,7 +122,7 @@
   },
   "home": {
     "badge": "Ya disponible: empieza a vender hoy",
-    "headline": "El Marketplace",
+    "headline": "MarketVerse",
     "headlineGradient": "Diseñado para escalar",
     "subheadline": "Una plataforma de comercio empresarial moderna donde los vendedores prosperan y los compradores descubren productos extraordinarios.",
     "exploreProducts": "Explorar productos",
@@ -140,9 +140,9 @@
     "performanceDesc": "Construido sobre infraestructura de vanguardia para cargas instantáneas y compras fluidas.",
     "scale": "Escala global",
     "scaleDesc": "Llega a clientes en todo el mundo con soporte multidivisa y entrega CDN global.",
-    "siteName": "Marketplace",
-    "metaTitle": "Marketplace - Comercio moderno, hecho para escalar",
-    "metaDescription": "Descubre productos extraordinarios de vendedores de todo el mundo. Marketplace de nivel empresarial con soporte multidivisa y rendimiento ultrarrápido."
+    "siteName": "MarketVerse",
+    "metaTitle": "MarketVerse - Comercio moderno, hecho para escalar",
+    "metaDescription": "Descubre productos extraordinarios de vendedores de todo el mundo. MarketVerse, plataforma de nivel empresarial con soporte multidivisa y rendimiento ultrarrápido."
   },
   "products": {
     "title": "Productos",
@@ -1557,7 +1557,7 @@
     "subtotal": "Subtotal",
     "discount": "Descuento",
     "total": "Total",
-    "footer": "Gracias por tu compra. Esta factura fue generada por Marketplace.",
+    "footer": "Gracias por tu compra. Esta factura fue generada por MarketVerse.",
     "download": "Descargar factura",
     "shipping": "Envío"
   },
