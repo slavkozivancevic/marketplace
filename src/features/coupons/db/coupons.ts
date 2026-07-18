@@ -13,12 +13,18 @@ export type Coupon = {
   minOrder: number | null;
   usageLimit: number | null;
   usageCount: number;
+  perUserLimit: number | null;
   expiresAt: Date | null;
   active: boolean;
 };
 
 /** Reason a coupon can't be applied (mapped to a localized message in the UI). */
-export type CouponInvalidReason = "notFound" | "expired" | "usedUp" | "minOrder";
+export type CouponInvalidReason =
+  | "notFound"
+  | "expired"
+  | "usedUp"
+  | "alreadyUsed"
+  | "minOrder";
 
 export type CouponValidation =
   | { ok: true; couponId: string; code: string; type: CouponType; value: number; discountUsd: number }
@@ -50,10 +56,16 @@ export function computeDiscount(
 /**
  * Validates a code against the live coupon state and a USD-base subtotal. Pure
  * read - the redemption itself is recorded separately when the order is created.
+ *
+ * `userId` (internal User.id) enables the per-customer limit: redemptions are
+ * counted from the buyer's non-cancelled orders that snapshot this coupon, so a
+ * cancelled order naturally frees the code again. Callers without a signed-in
+ * user skip the check - checkout always has one (sign-in is required there).
  */
 export async function validateCoupon(
   rawCode: string,
   subtotalUsd: number,
+  userId?: string | null,
 ): Promise<CouponValidation> {
   const code = rawCode.trim().toUpperCase();
   if (!code) return { ok: false, reason: "notFound" };
@@ -65,6 +77,14 @@ export async function validateCoupon(
   }
   if (coupon.usageLimit != null && coupon.usageCount >= coupon.usageLimit) {
     return { ok: false, reason: "usedUp" };
+  }
+  if (coupon.perUserLimit != null && userId) {
+    const usedByUser = await prisma.order.count({
+      where: { couponId: coupon.id, userId, cancelledAt: null },
+    });
+    if (usedByUser >= coupon.perUserLimit) {
+      return { ok: false, reason: "alreadyUsed" };
+    }
   }
   if (coupon.minOrder != null && subtotalUsd < coupon.minOrder) {
     return { ok: false, reason: "minOrder", minOrder: coupon.minOrder };
@@ -108,6 +128,7 @@ export type CouponMutationData = {
   value: number;
   minOrder: number | null;
   usageLimit: number | null;
+  perUserLimit: number | null;
   expiresAt: Date | null;
   active: boolean;
 };
@@ -150,6 +171,7 @@ export async function duplicateCoupon(id: string) {
       value: src.value,
       minOrder: src.minOrder,
       usageLimit: src.usageLimit,
+      perUserLimit: src.perUserLimit,
       expiresAt: src.expiresAt,
       active: false,
     },

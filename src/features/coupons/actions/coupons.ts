@@ -41,6 +41,7 @@ function toMutationData(data: CouponInput) {
     value: data.type === "FIXED" ? decimalToCents(data.value) : Math.round(data.value),
     minOrder: data.minOrder != null ? decimalToCents(data.minOrder) : null,
     usageLimit: data.usageLimit ?? null,
+    perUserLimit: data.perUserLimit ?? null,
     expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
     active: data.active,
   };

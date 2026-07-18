@@ -832,7 +832,10 @@
     "selectAllOptions": "Selecciona todas las opciones",
     "outOfStockBtn": "Agotado",
     "addToCart": "Añadir al carrito - {price}",
-    "addToCartShort": "Añadir al carrito"
+    "addToCartShort": "Añadir al carrito",
+    "quantity": "Cantidad",
+    "decreaseQty": "Reducir cantidad",
+    "increaseQty": "Aumentar cantidad"
   },
   "reviews": {
     "write": "Escribir una reseña",
@@ -1500,6 +1503,7 @@
       "notFound": "Este código promocional no es válido.",
       "expired": "Este código promocional ha caducado.",
       "usedUp": "Este código promocional alcanzó su límite de uso.",
+      "alreadyUsed": "Ya has usado este código promocional.",
       "minOrder": "Este código requiere un pedido mínimo de {amount}.",
       "cartEmpty": "Tu carrito está vacío."
     },
@@ -1512,6 +1516,8 @@
       "valueFixed": "Importe de descuento",
       "minOrder": "Pedido mínimo",
       "usageLimit": "Límite de uso",
+      "perUserLimit": "Límite por cliente",
+      "perUserLimitDesc": "Cuántas veces un mismo cliente puede canjear este código. Vacío = ilimitado.",
       "expiresAt": "Caduca el",
       "optional": "Opcional",
       "active": "Activo",
@@ -1528,6 +1534,7 @@
       "discount": "Descuento",
       "minOrder": "Pedido mín.",
       "usage": "Uso",
+      "perUser": "Por cliente",
       "expires": "Caduca",
       "status": "Estado",
       "active": "Activo",

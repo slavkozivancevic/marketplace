@@ -34,6 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton, SkeletonArray } from "@/components/ui/skeleton";
 import { StarRating } from "@/features/reviews/components/StarRating";
 import { AddToCart } from "@/features/cart/components/AddToCart";
+import { QuantityStepper } from "@/features/cart/components/QuantityStepper";
 import { buildCartVariantOptions, buildLocalizedText } from "@/features/cart/utils/variantOptions";
 import { useCartStore } from "@/features/cart/store/cartStore";
 import { SerializedPublicProduct } from "@/types/types";
@@ -145,6 +146,24 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
       : product.stock !== null && (product.stock === 0 || cartQuantity >= product.stock)
     : true;
 
+  // Requested quantity for the next add - reset per product/variant. Capped at
+  // what stock still allows on top of what's already in the cart.
+  const [quantity, setQuantity] = useState(1);
+  useEffect(() => {
+    setQuantity(1);
+  }, [productId, activeVariantId]);
+  const stockLimit = product
+    ? hasVariants
+      ? (activeVariant?.stock ?? 0)
+      : product.stock
+    : 0;
+  const availableToAdd =
+    stockLimit === null ? null : Math.max(0, stockLimit - cartQuantity);
+  const qty =
+    availableToAdd === null
+      ? quantity
+      : Math.min(quantity, Math.max(1, availableToAdd));
+
   function handleAdd() {
     if (!product) return;
     // Cart preview is a still - pick the first IMAGE-type media from variant
@@ -169,19 +188,23 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
     const variantLabel = activeVariant?.sku ?? null;
     const price = activeVariant ? activeVariant.price : product.price;
     const maxStock = activeVariant ? activeVariant.stock : (product.stock ?? null);
-    addItem({
-      productId: product.id,
-      productTitleI18n: buildLocalizedText((loc) => getProductTitle(product, loc)),
-      productTitle: localTitle,
-      productImage: firstImage,
-      variantId: activeVariant?.id ?? null,
-      variantSku: activeVariant?.sku ?? null,
-      variantOptions,
-      variantLabel,
-      price,
-      maxStock,
-      requiresShipping: product.requiresShipping,
-    });
+    addItem(
+      {
+        productId: product.id,
+        productTitleI18n: buildLocalizedText((loc) => getProductTitle(product, loc)),
+        productTitle: localTitle,
+        productImage: firstImage,
+        variantId: activeVariant?.id ?? null,
+        variantSku: activeVariant?.sku ?? null,
+        variantOptions,
+        variantLabel,
+        price,
+        maxStock,
+        requiresShipping: product.requiresShipping,
+      },
+      qty,
+    );
+    setQuantity(1);
     openCart();
   }
 
@@ -480,6 +503,21 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                 <Skeleton className="h-8 w-full" />
               ) : product ? (
                 <>
+                  {/* Quantity on its own row - sharing a row with the button
+                      squeezes the label out of the dialog on narrow widths. */}
+                  {!isOutOfStock && isAllSelected && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">
+                        {tCart("quantity")}
+                      </span>
+                      <QuantityStepper
+                        value={qty}
+                        onChange={setQuantity}
+                        max={availableToAdd}
+                        size="sm"
+                      />
+                    </div>
+                  )}
                   <Button
                     className="w-full h-8 text-sm relative"
                     onClick={handleAdd}
@@ -491,10 +529,10 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                       : isOutOfStock
                         ? tCart("outOfStockBtn")
                         : tCart("addToCart", {
-                            price: formatPrice(convertCents(displayPrice, currency, currentRate()), currency),
+                            price: formatPrice(convertCents(displayPrice * qty, currency, currentRate()), currency),
                           })}
                     {isOnSale && !isOutOfStock && isAllSelected && (
-                      <span className="ml-1.5 bg-white/20 text-white text-[10px] font-bold px-1 py-0.5 rounded-full">
+                      <span className="ml-1.5 bg-primary-foreground/20 text-primary-foreground text-[10px] font-bold px-1 py-0.5 rounded-full">
                         -{salePct}%
                       </span>
                     )}

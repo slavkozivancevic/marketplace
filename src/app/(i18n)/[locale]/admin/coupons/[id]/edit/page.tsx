@@ -48,6 +48,7 @@ export default async function EditCouponRoute({ params }: Props) {
             value: coupon.value,
             minOrder: coupon.minOrder,
             usageLimit: coupon.usageLimit,
+            perUserLimit: coupon.perUserLimit,
             expiresAt: coupon.expiresAt ? coupon.expiresAt.toISOString() : null,
             active: coupon.active,
           }}

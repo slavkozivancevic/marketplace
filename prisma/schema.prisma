@@ -649,6 +649,9 @@ model Coupon {
   // Total redemptions allowed across all buyers; null = unlimited.
   usageLimit Int?
   usageCount Int        @default(0)
+  // Redemptions allowed per buyer (checked against their non-cancelled orders);
+  // null = unlimited. 1 = the common "once per customer" case.
+  perUserLimit Int?
   expiresAt  DateTime?
   active     Boolean    @default(true)
 

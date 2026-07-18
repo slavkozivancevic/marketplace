@@ -832,7 +832,10 @@
     "selectAllOptions": "Izaberite sve opcije",
     "outOfStockBtn": "Nema na stanju",
     "addToCart": "Dodaj u korpu - {price}",
-    "addToCartShort": "Dodaj u korpu"
+    "addToCartShort": "Dodaj u korpu",
+    "quantity": "Količina",
+    "decreaseQty": "Smanji količinu",
+    "increaseQty": "Povećaj količinu"
   },
   "reviews": {
     "write": "Napišite recenziju",
@@ -1500,6 +1503,7 @@
       "notFound": "Ovaj promo kod nije važeći.",
       "expired": "Ovaj promo kod je istekao.",
       "usedUp": "Ovaj promo kod je dostigao limit korišćenja.",
+      "alreadyUsed": "Već ste iskoristili ovaj promo kod.",
       "minOrder": "Ovaj kod zahteva minimalnu porudžbinu od {amount}.",
       "cartEmpty": "Vaša korpa je prazna."
     },
@@ -1512,6 +1516,8 @@
       "valueFixed": "Iznos popusta",
       "minOrder": "Minimalna porudžbina",
       "usageLimit": "Limit korišćenja",
+      "perUserLimit": "Limit po kupcu",
+      "perUserLimitDesc": "Koliko puta jedan kupac može da iskoristi ovaj kod. Prazno = neograničeno.",
       "expiresAt": "Ističe",
       "optional": "Opciono",
       "active": "Aktivan",
@@ -1528,6 +1534,7 @@
       "discount": "Popust",
       "minOrder": "Min. porudžbina",
       "usage": "Korišćenje",
+      "perUser": "Po kupcu",
       "expires": "Ističe",
       "status": "Status",
       "active": "Aktivan",

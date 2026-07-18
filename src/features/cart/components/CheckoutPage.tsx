@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
 import { useCartStore } from "../store/cartStore";
+import { COUPON_STORAGE_KEY } from "../utils/couponStorage";
 import { localizedVariantLabel, pickLocalized } from "../utils/variantOptions";
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
@@ -28,11 +29,6 @@ import type { OrgShippingLine } from "@/features/shipping/db/shipping";
 import { Link } from "@/i18n/navigation";
 
 type PaymentMethod = "card" | "cod";
-
-// Persist the applied coupon code (not the discount - that's re-derived) across
-// a full page reload, so it survives the Stripe redirect + browser Back round
-// trip where React state is lost but the cart (localStorage) is restored.
-const COUPON_STORAGE_KEY = "checkout:coupon";
 
 const shippingSchema = z.object({
   name: z.string().min(2),

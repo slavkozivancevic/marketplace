@@ -1,7 +1,9 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { auth } from "@clerk/nextjs/server";
 import { getTranslations } from "next-intl/server";
+import { prisma } from "@/core/db/prisma";
 import { validateCoupon, cartSubtotalUsd, type CartItemRef } from "../db/coupons";
 import { getCurrencyRate } from "@/features/currency/db/currencyRates";
 import { convertCents, formatPrice } from "@/lib/currency";
@@ -28,8 +30,15 @@ export async function validateCouponAction(
   const currency: Currency = VALID_CURRENCIES.includes(raw as Currency) ? (raw as Currency) : "usd";
   const rate = await getCurrencyRate(currency);
 
+  // Resolve the signed-in buyer (if any) so per-customer limits apply already
+  // at the cart check, not only at checkout - the buyer learns immediately.
+  const { userId: clerkUserId } = await auth();
+  const user = clerkUserId
+    ? await prisma.user.findUnique({ where: { clerkUserId }, select: { id: true } })
+    : null;
+
   const subtotalUsd = await cartSubtotalUsd(items);
-  const res = await validateCoupon(code, subtotalUsd);
+  const res = await validateCoupon(code, subtotalUsd, user?.id);
   if (!res.ok) {
     const message =
       res.reason === "minOrder"

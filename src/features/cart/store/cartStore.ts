@@ -28,7 +28,7 @@ interface CartStore {
   isOpen: boolean;
   openCart: () => void;
   closeCart: () => void;
-  addItem: (item: Omit<CartItem, "quantity">) => void;
+  addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
   removeItem: (productId: string, variantId: string | null) => void;
   updateQuantity: (
     productId: string,
@@ -53,21 +53,27 @@ export const useCartStore = create<CartStore>()(
       openCart: () => set({ isOpen: true }),
       closeCart: () => set({ isOpen: false }),
 
-      addItem: (newItem) => {
+      addItem: (newItem, quantity = 1) => {
+        const qty = Math.max(1, Math.floor(quantity));
         set((state) => {
           const existing = state.items.find((i) =>
             isSameItem(i, newItem.productId, newItem.variantId),
           );
           if (existing) {
             return {
-              items: state.items.map((i) =>
-                isSameItem(i, newItem.productId, newItem.variantId)
-                  ? { ...i, quantity: i.quantity + 1 }
-                  : i,
-              ),
+              items: state.items.map((i) => {
+                if (!isSameItem(i, newItem.productId, newItem.variantId)) return i;
+                const next = i.quantity + qty;
+                return {
+                  ...i,
+                  quantity: i.maxStock !== null ? Math.min(next, i.maxStock) : next,
+                };
+              }),
             };
           }
-          return { items: [...state.items, { ...newItem, quantity: 1 }] };
+          const capped =
+            newItem.maxStock !== null ? Math.min(qty, newItem.maxStock) : qty;
+          return { items: [...state.items, { ...newItem, quantity: capped }] };
         });
       },
 

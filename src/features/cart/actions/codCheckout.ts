@@ -106,7 +106,7 @@ export async function createCodCheckout(
     let appliedCouponId: string | undefined;
     let appliedCouponCode: string | undefined;
     if (couponCode) {
-      const res = await validateCoupon(couponCode, subtotalUsd);
+      const res = await validateCoupon(couponCode, subtotalUsd, user.id);
       if (res.ok && res.discountUsd > 0) {
         const discountInCurrency = convertCents(res.discountUsd, currency, exchangeRate);
         totalInCurrency = Math.max(0, totalInCurrency - discountInCurrency);

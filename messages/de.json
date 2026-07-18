@@ -832,7 +832,10 @@
     "selectAllOptions": "Alle Optionen auswählen",
     "outOfStockBtn": "Nicht auf Lager",
     "addToCart": "In den Warenkorb - {price}",
-    "addToCartShort": "In den Warenkorb"
+    "addToCartShort": "In den Warenkorb",
+    "quantity": "Menge",
+    "decreaseQty": "Menge verringern",
+    "increaseQty": "Menge erhöhen"
   },
   "reviews": {
     "write": "Bewertung schreiben",
@@ -1500,6 +1503,7 @@
       "notFound": "Dieser Promo-Code ist ungültig.",
       "expired": "Dieser Promo-Code ist abgelaufen.",
       "usedUp": "Dieser Promo-Code hat sein Nutzungslimit erreicht.",
+      "alreadyUsed": "Du hast diesen Promo-Code bereits verwendet.",
       "minOrder": "Dieser Code erfordert einen Mindestbestellwert von {amount}.",
       "cartEmpty": "Ihr Warenkorb ist leer."
     },
@@ -1512,6 +1516,8 @@
       "valueFixed": "Betrag Rabatt",
       "minOrder": "Mindestbestellwert",
       "usageLimit": "Nutzungslimit",
+      "perUserLimit": "Limit pro Kunde",
+      "perUserLimitDesc": "Wie oft ein einzelner Kunde diesen Code einlösen kann. Leer = unbegrenzt.",
       "expiresAt": "Läuft ab am",
       "optional": "Optional",
       "active": "Aktiv",
@@ -1528,6 +1534,7 @@
       "discount": "Rabatt",
       "minOrder": "Mindestbestellung",
       "usage": "Nutzung",
+      "perUser": "Pro Kunde",
       "expires": "Läuft ab",
       "status": "Status",
       "active": "Aktiv",

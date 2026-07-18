@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { QuantityStepper } from "./QuantityStepper";
 import { useCartStore } from "../store/cartStore";
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
@@ -87,6 +88,14 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
     onActiveVariantChange?.(activeVariant?.id ?? null);
   }, [activeVariant?.id, onActiveVariantChange]);
 
+  // Requested quantity for the next add. Reset when the variant changes so a
+  // high count picked for a well-stocked variant doesn't carry over.
+  const [quantity, setQuantity] = useState(1);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setQuantity(1);
+  }, [activeVariant?.id]);
+
   const allOptionsSelected =
     !hasOptions ||
     Boolean(selectedManualId) ||
@@ -118,6 +127,19 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
         cartQuantity >= activeVariant.stock
       : product.stock !== null &&
         (product.stock === 0 || cartQuantity >= product.stock);
+
+  // How many more units can still go into the cart (stock minus what's already
+  // there). null = untracked stock; the stepper applies its own safety cap.
+  const stockLimit =
+    product.variants.length > 0 ? (activeVariant?.stock ?? 0) : product.stock;
+  const availableToAdd =
+    stockLimit === null ? null : Math.max(0, stockLimit - cartQuantity);
+  // Clamp for renders where stock shrank under the picked quantity (e.g. the
+  // cart absorbed some units in the meantime).
+  const qty =
+    availableToAdd === null
+      ? quantity
+      : Math.min(quantity, Math.max(1, availableToAdd));
 
   function isCompatible(optionId: string, value: string): boolean {
     const otherEntries = Object.entries(selectedValues).filter(
@@ -252,19 +274,23 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
       ? activeVariant.stock
       : (product.stock ?? null);
 
-    addItem({
-      productId: product.id,
-      productTitleI18n: buildLocalizedText((loc) => getProductTitle(product, loc)),
-      productTitle: getProductTitle(product, locale),
-      productImage: firstImage,
-      variantId: activeVariant?.id ?? null,
-      variantSku: activeVariant?.sku ?? null,
-      variantOptions,
-      variantLabel,
-      price,
-      maxStock,
-      requiresShipping: product.requiresShipping,
-    });
+    addItem(
+      {
+        productId: product.id,
+        productTitleI18n: buildLocalizedText((loc) => getProductTitle(product, loc)),
+        productTitle: getProductTitle(product, locale),
+        productImage: firstImage,
+        variantId: activeVariant?.id ?? null,
+        variantSku: activeVariant?.sku ?? null,
+        variantOptions,
+        variantLabel,
+        price,
+        maxStock,
+        requiresShipping: product.requiresShipping,
+      },
+      qty,
+    );
+    setQuantity(1);
 
     // Engagement signal (best-effort, fire-and-forget) for the funnel/analytics.
     recordInteractionClient("ADD_TO_CART", product.id);
@@ -528,24 +554,33 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
       )}
 
       {!hideButton && (
-        <Button
-          className="w-full relative"
-          size="lg"
-          onClick={handleAdd}
-          disabled={isOutOfStock}
-        >
-          <ShoppingCart className="mr-2 h-4 w-4" />
-          {!allOptionsSelected
-            ? t("selectAllOptions")
-            : isOutOfStock
-              ? t("outOfStockBtn")
-              : t("addToCart", { price: formatPrice(convertCents(price, currency, currentRate()), currency) })}
-          {isOnSale && !isOutOfStock && allOptionsSelected && (
-            <span className="ml-2 bg-white/20 text-white text-xs font-bold px-1.5 py-0.5 rounded-4xl">
-              -{salePct}%
-            </span>
+        <div className="flex items-center gap-3">
+          {!isOutOfStock && allOptionsSelected && (
+            <QuantityStepper
+              value={qty}
+              onChange={setQuantity}
+              max={availableToAdd}
+            />
           )}
-        </Button>
+          <Button
+            className="flex-1 relative"
+            size="lg"
+            onClick={handleAdd}
+            disabled={isOutOfStock}
+          >
+            <ShoppingCart className="mr-2 h-4 w-4" />
+            {!allOptionsSelected
+              ? t("selectAllOptions")
+              : isOutOfStock
+                ? t("outOfStockBtn")
+                : t("addToCart", { price: formatPrice(convertCents(price * qty, currency, currentRate()), currency) })}
+            {isOnSale && !isOutOfStock && allOptionsSelected && (
+              <span className="ml-2 bg-primary-foreground/20 text-primary-foreground text-xs font-bold px-1.5 py-0.5 rounded-4xl">
+                -{salePct}%
+              </span>
+            )}
+          </Button>
+        </div>
       )}
     </div>
   );

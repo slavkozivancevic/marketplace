@@ -832,7 +832,10 @@
     "selectAllOptions": "Select all options",
     "outOfStockBtn": "Out of Stock",
     "addToCart": "Add to Cart - {price}",
-    "addToCartShort": "Add to Cart"
+    "addToCartShort": "Add to Cart",
+    "quantity": "Quantity",
+    "decreaseQty": "Decrease quantity",
+    "increaseQty": "Increase quantity"
   },
   "reviews": {
     "write": "Write a Review",
@@ -1500,6 +1503,7 @@
       "notFound": "This promo code isn't valid.",
       "expired": "This promo code has expired.",
       "usedUp": "This promo code has reached its usage limit.",
+      "alreadyUsed": "You've already used this promo code.",
       "minOrder": "This code requires a minimum order of {amount}.",
       "cartEmpty": "Your cart is empty."
     },
@@ -1512,6 +1516,8 @@
       "valueFixed": "Amount off",
       "minOrder": "Minimum order",
       "usageLimit": "Usage limit",
+      "perUserLimit": "Per-customer limit",
+      "perUserLimitDesc": "How many times a single customer can redeem this code. Empty = unlimited.",
       "expiresAt": "Expires on",
       "optional": "Optional",
       "active": "Active",
@@ -1528,6 +1534,7 @@
       "discount": "Discount",
       "minOrder": "Min order",
       "usage": "Usage",
+      "perUser": "Per customer",
       "expires": "Expires",
       "status": "Status",
       "active": "Active",

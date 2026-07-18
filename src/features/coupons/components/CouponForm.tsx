@@ -38,6 +38,7 @@ type CouponRow = {
   value: number;
   minOrder: number | null;
   usageLimit: number | null;
+  perUserLimit: number | null;
   expiresAt: string | null;
   active: boolean;
 };
@@ -60,10 +61,11 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
             value: coupon.type === "FIXED" ? coupon.value / 100 : coupon.value,
             minOrder: coupon.minOrder != null ? coupon.minOrder / 100 : null,
             usageLimit: coupon.usageLimit,
+            perUserLimit: coupon.perUserLimit,
             expiresAt: coupon.expiresAt ? coupon.expiresAt.slice(0, 10) : null,
             active: coupon.active,
           }
-        : { code: "", type: "PERCENT", value: 10, minOrder: null, usageLimit: null, expiresAt: null, active: true },
+        : { code: "", type: "PERCENT", value: 10, minOrder: null, usageLimit: null, perUserLimit: null, expiresAt: null, active: true },
     [coupon],
   );
 
@@ -146,6 +148,7 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
   const value = watch("value");
   const minOrder = watch("minOrder");
   const usageLimit = watch("usageLimit");
+  const perUserLimit = watch("perUserLimit");
   const expiresAt = watch("expiresAt");
   const active = watch("active");
 
@@ -276,6 +279,25 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
             <ChangedHint
               changed={!!dirtyFields.usageLimit}
               savedText={coupon.usageLimit != null ? String(coupon.usageLimit) : t("form.unlimited")}
+            />
+          )}
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="perUserLimit">{t("form.perUserLimit")}</Label>
+          <NumberStepper
+            id="perUserLimit"
+            min={1}
+            allowEmpty
+            placeholder={t("form.optional")}
+            value={perUserLimit ?? null}
+            onChange={(v) => setValue("perUserLimit", v, { shouldValidate: true, shouldDirty: true })}
+          />
+          <p className="text-xs text-muted-foreground">{t("form.perUserLimitDesc")}</p>
+          {errors.perUserLimit && <p className="text-xs text-destructive">{errors.perUserLimit.message}</p>}
+          {coupon && (
+            <ChangedHint
+              changed={!!dirtyFields.perUserLimit}
+              savedText={coupon.perUserLimit != null ? String(coupon.perUserLimit) : t("form.unlimited")}
             />
           )}
         </div>

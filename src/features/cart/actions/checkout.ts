@@ -177,7 +177,7 @@ export async function createCheckoutSession(
     let discounts: Stripe.Checkout.SessionCreateParams.Discount[] | undefined;
     const couponMeta: Record<string, string> = {};
     if (couponCode) {
-      const res = await validateCoupon(couponCode, subtotalUsd);
+      const res = await validateCoupon(couponCode, subtotalUsd, user.id);
       if (res.ok && res.discountUsd > 0) {
         const stripeCoupon = await stripe.coupons.create(
           res.type === CouponType.PERCENT

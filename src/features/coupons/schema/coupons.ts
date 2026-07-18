@@ -12,6 +12,7 @@ export const couponSchema = z
     value: z.number().positive(),
     minOrder: z.number().nonnegative().nullable(),
     usageLimit: z.number().int().positive().nullable(),
+    perUserLimit: z.number().int().positive().nullable(),
     expiresAt: z.string().nullable(),
     active: z.boolean(),
   })

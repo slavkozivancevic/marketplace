@@ -47,7 +47,7 @@ import { deleteCouponAction, duplicateCouponAction } from "../actions/coupons";
 
 const ALL = "__all__";
 const GRID =
-  "grid grid-cols-[minmax(120px,1.2fr)_minmax(90px,0.9fr)_minmax(100px,1fr)_minmax(130px,1.1fr)_minmax(110px,1fr)_minmax(90px,0.8fr)_120px] items-center gap-4";
+  "grid grid-cols-[minmax(120px,1.2fr)_minmax(90px,0.9fr)_minmax(100px,1fr)_minmax(130px,1.1fr)_minmax(100px,0.9fr)_minmax(110px,1fr)_minmax(90px,0.8fr)_120px] items-center gap-4";
 
 function buildFetcher(f: CouponFilters) {
   return async ({ pageParam }: { pageParam: string | undefined }): Promise<InfinitePage<CouponListItem>> => {
@@ -199,6 +199,9 @@ function Row({
       <div className="tabular-nums whitespace-nowrap">
         {c.usageCount} / {c.usageLimit != null ? c.usageLimit : t("form.unlimited")}
       </div>
+      <div className={cn("tabular-nums", c.perUserLimit == null && "text-muted-foreground")}>
+        {c.perUserLimit != null ? c.perUserLimit : t("form.unlimited")}
+      </div>
       <div className="text-muted-foreground">
         {c.expiresAt
           ? new Date(c.expiresAt).toLocaleDateString(dl, { year: "numeric", month: "short", day: "numeric" })
@@ -232,6 +235,7 @@ function SkeletonRow() {
       <Skeleton className="h-3.5 w-12" />
       <Skeleton className="h-3.5 w-16" />
       <Skeleton className="h-3.5 w-10" />
+      <Skeleton className="h-3.5 w-8" />
       <Skeleton className="h-3.5 w-20" />
       <Skeleton className="h-5 w-16 rounded-full" />
       <div className="flex items-center justify-end gap-1">
@@ -334,6 +338,7 @@ export function CouponsView() {
       <div role="columnheader">{t("table.discount")}</div>
       <div role="columnheader">{t("table.minOrder")}</div>
       <div role="columnheader">{t("table.usage")}</div>
+      <div role="columnheader">{t("table.perUser")}</div>
       <div role="columnheader">{t("table.expires")}</div>
       <div role="columnheader">{t("table.status")}</div>
       <div role="columnheader" className="text-right pr-2">{t("table.actions")}</div>
