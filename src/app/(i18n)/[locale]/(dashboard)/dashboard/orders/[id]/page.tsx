@@ -158,7 +158,7 @@ export default async function OrderDetailPage({
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="shrink-0 px-6 pt-2">
+      <div className="shrink-0 px-6 pt-2 sticky-header-bg">
         <Breadcrumbs items={breadcrumbItems} seo={false} />
         <PageHeader
           title={`${t("orders.details")} ${shortId}`}
@@ -211,7 +211,7 @@ export default async function OrderDetailPage({
                 </Badge>
               )}
               {order.paymentStatus === "PARTIALLY_REFUNDED" && (
-                <Badge variant="outline" className="gap-1 text-xs text-amber-600 border-amber-300">
+                <Badge variant="outline" className="gap-1 text-xs text-steel border-steel/40">
                   {t("orders.partiallyRefunded")}
                 </Badge>
               )}
@@ -409,7 +409,7 @@ export default async function OrderDetailPage({
               </div>
               {buyerRefunded > 0 && (
                 <>
-                  <div className="flex justify-between text-sm text-amber-600">
+                  <div className="flex justify-between text-sm text-steel">
                     <span>{t("orders.refunded")}</span>
                     <span>-{formatPrice(buyerRefunded, order.currency as Currency)}</span>
                   </div>

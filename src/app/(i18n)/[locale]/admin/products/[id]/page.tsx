@@ -51,7 +51,7 @@ async function ProductDetailsLoading({ id }: { id: string }) {
   const breadcrumbItems = await buildAdminProductCrumbs(id, tCrumbs("productDetails"));
   return (
     <>
-      <div className="shrink-0 px-6 pt-2">
+      <div className="shrink-0 px-6 pt-2 sticky-header-bg">
         <Breadcrumbs items={breadcrumbItems} seo={false} />
         <PageHeader
           title={t("admin.productDetails")}
@@ -88,7 +88,7 @@ async function ProductDetailsContent({ id }: { id: string }) {
     const breadcrumbItems = await buildAdminProductCrumbs(id, tCrumbs("productDetails"));
     return (
       <>
-        <div className="shrink-0 px-6 pt-2">
+        <div className="shrink-0 px-6 pt-2 sticky-header-bg">
           <Breadcrumbs items={breadcrumbItems} seo={false} />
           <PageHeader
             title={t("admin.productDetails")}
@@ -122,7 +122,7 @@ async function ProductDetailsContent({ id }: { id: string }) {
 
   return (
     <>
-      <div className="shrink-0 px-6 pt-2">
+      <div className="shrink-0 px-6 pt-2 sticky-header-bg">
         <Breadcrumbs items={breadcrumbItems} seo={false} />
         <PageHeader
           title={titleForHeader}

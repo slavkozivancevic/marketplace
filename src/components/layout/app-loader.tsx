@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
-import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "./brand-mark";
+import { BrandWordmark } from "./brand-wordmark";
 import { HERO_IMAGE_URL } from "./hero-image";
 
 /**
@@ -44,7 +44,6 @@ export function ClerkGate({ children }: { children: React.ReactNode }) {
  * it, a slow one reveals the full loader.
  */
 export function AppLoader({ hidden }: { hidden: boolean }) {
-  const t = useTranslations("header");
   // Keep the overlay mounted through the fade-out, then remove it so the
   // spinner stops animating off-screen.
   const [gone, setGone] = useState(false);
@@ -89,7 +88,7 @@ export function AppLoader({ hidden }: { hidden: boolean }) {
         <div className="relative h-24 w-24">
           <div className="app-loader-ring absolute inset-0 animate-spin rounded-full animation-duration-[1s]" />
           <div className="absolute inset-0 grid place-items-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0a0b1e] ring-1 ring-white/10 shadow-lg shadow-primary/30 animate-pulse">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl brand-tile shadow-lg shadow-primary/30 animate-pulse">
               <BrandMark className="h-9 w-9" />
             </div>
           </div>
@@ -101,7 +100,7 @@ export function AppLoader({ hidden }: { hidden: boolean }) {
               after the LAST glyph too, so without it the visible text sits
               left of the spinner's center. */}
           <span className="text-sm font-semibold uppercase tracking-[0.3em] pl-[0.3em] text-muted-foreground">
-            {t("brand")}
+            <BrandWordmark />
           </span>
           <div className="flex items-center gap-1.5">
             <span className="app-loader-dot h-1.5 w-1.5 rounded-full bg-primary" />

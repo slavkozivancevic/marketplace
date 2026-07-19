@@ -151,7 +151,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="shrink-0 px-6 pt-2">
+      <div className="shrink-0 px-6 pt-2 sticky-header-bg">
         <Breadcrumbs items={breadcrumbItems} seo={false} />
         <PageHeader
           title={`${t("orderDetail")} ${shortId}`}
@@ -209,7 +209,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                   </Badge>
                 )}
                 {order.paymentStatus === "PARTIALLY_REFUNDED" && (
-                  <Badge variant="outline" className="gap-1 text-xs text-amber-600 border-amber-300">
+                  <Badge variant="outline" className="gap-1 text-xs text-steel border-steel/40">
                     {t("partiallyRefunded")}
                   </Badge>
                 )}

@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ActionButton";
@@ -121,6 +122,7 @@ function HistoryRow({
             onConfirm={handleRollback}
           >
             <Button variant="outline" size="sm" disabled={isPending}>
+              {isPending && <Loader2 className="animate-spin" />}
               {isPending ? t("historyRollingBack") : t("historyRollback")}
             </Button>
           </ActionButton>

@@ -92,9 +92,9 @@ export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
         )}
         {/* Partial refund: the derived status still reads e.g. "Completed", so
             flag it here (full refunds already show as the main "Refunded").
-            Amber text pill - consistent with the order detail + payouts pages. */}
+            Steel text pill - consistent with the order detail + payouts pages. */}
         {order.paymentStatus === "PARTIALLY_REFUNDED" && (
-          <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">
+          <Badge variant="outline" className="text-[10px] text-steel border-steel/40">
             {t("partiallyRefunded")}
           </Badge>
         )}

@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/sonner";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ActionButton";
 import {
@@ -82,6 +83,7 @@ export function ProductStatusActions({
     <div className="flex items-center gap-2">
       {status === "DRAFT" && (
         <Button size="sm" onClick={handlePublish} disabled={isPublishing}>
+          {isPublishing && <Loader2 className="animate-spin" />}
           {isPublishing ? t("publishing") : t("publish")}
         </Button>
       )}
@@ -94,6 +96,7 @@ export function ProductStatusActions({
             onClick={handleUnpublish}
             disabled={isUnpublishing}
           >
+            {isUnpublishing && <Loader2 className="animate-spin" />}
             {isUnpublishing ? t("unpublishing") : t("unpublish")}
           </Button>
           <Button
@@ -102,6 +105,7 @@ export function ProductStatusActions({
             onClick={handleArchive}
             disabled={isArchiving}
           >
+            {isArchiving && <Loader2 className="animate-spin" />}
             {isArchiving ? t("archiving") : t("archive")}
           </Button>
         </>
@@ -114,6 +118,7 @@ export function ProductStatusActions({
           onClick={handleUnarchive}
           disabled={isUnarchiving}
         >
+          {isUnarchiving && <Loader2 className="animate-spin" />}
           {isUnarchiving ? t("restoring") : t("restoreToDraft")}
         </Button>
       )}
@@ -136,6 +141,7 @@ export function ProductStatusActions({
         }}
       >
         <Button variant="destructive" size="sm" disabled={isDeleting}>
+          {isDeleting && <Loader2 className="animate-spin" />}
           {isDeleting ? t("deleting") : t("deleteProduct")}
         </Button>
       </ActionButton>

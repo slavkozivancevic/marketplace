@@ -167,6 +167,21 @@ type Tokens = {
   primary: string;
   primaryFg: string;
   border: string;
+  // Brand violet for the "Verse" half of the wordmark (deep on light
+  // surfaces, luminous on dark - mirrors `.brand-verse` in globals.css).
+  verse: string;
+  // MarketVerse mark colors (mirror the bm-* classes in globals.css):
+  // ink/star tones, bag outline, and the chip behind the mark. The light
+  // theme renders the inverted ink variant without a tile.
+  bmInk: string;
+  bmB: string;
+  bmC: string;
+  bmBagStroke: string;
+  bmTile: string;
+  bmTileBorder: string;
+  // Bag interior - matches the tile family: ink silhouette on light,
+  // neutral black on dark, deep-space navy in cosmos.
+  bmBag: string;
   // Background hero image treatment per theme (mirrors HeroBackground's
   // grayscale/opacity classes) so the 404 shares the same subtle backdrop.
   imgOpacity: string;
@@ -181,6 +196,14 @@ const LIGHT: Tokens = {
   primary: "oklch(0.205 0 0)",
   primaryFg: "oklch(0.985 0 0)",
   border: "oklch(0.855 0.014 240)",
+  verse: "#5a30b9",
+  bmInk: "#0a0b1e",
+  bmB: "#4a4956",
+  bmC: "#6b6a78",
+  bmBagStroke: "transparent",
+  bmTile: "transparent",
+  bmTileBorder: "transparent",
+  bmBag: "#0a0b1e",
   imgOpacity: "0.08",
   imgFilter: "grayscale(1)",
 };
@@ -193,6 +216,14 @@ const DARK: Tokens = {
   primary: "oklch(0.922 0 0)",
   primaryFg: "oklch(0.145 0 0)",
   border: "oklch(1 0 0 / 10%)",
+  verse: "#9076f3",
+  bmInk: "#f2eee7",
+  bmB: "#c9c7d0",
+  bmC: "#a5a3b0",
+  bmBagStroke: "#f2eee7",
+  bmTile: "#101011",
+  bmTileBorder: "rgb(255 255 255 / 10%)",
+  bmBag: "#101011",
   imgOpacity: "0.05",
   imgFilter: "grayscale(1)",
 };
@@ -205,6 +236,14 @@ const COSMOS: Tokens = {
   primary: "oklch(0.85 0.02 255)",
   primaryFg: "oklch(0.12 0.03 275)",
   border: "oklch(0.35 0.08 285 / 40%)",
+  verse: "#9076f3",
+  bmInk: "#f2eee7",
+  bmB: "#c9c7d0",
+  bmC: "#a5a3b0",
+  bmBagStroke: "#f2eee7",
+  bmTile: "#0a0b1e",
+  bmTileBorder: "rgb(255 255 255 / 10%)",
+  bmBag: "#0a0b1e",
   imgOpacity: "0.07",
   imgFilter: "grayscale(0.4) hue-rotate(220deg)",
 };
@@ -218,6 +257,14 @@ function vars(t: Tokens): string {
     `--primary:${t.primary}`,
     `--primary-fg:${t.primaryFg}`,
     `--border:${t.border}`,
+    `--verse:${t.verse}`,
+    `--bm-ink:${t.bmInk}`,
+    `--bm-b:${t.bmB}`,
+    `--bm-c:${t.bmC}`,
+    `--bm-bag-stroke:${t.bmBagStroke}`,
+    `--bm-tile:${t.bmTile}`,
+    `--bm-tile-border:${t.bmTileBorder}`,
+    `--bm-bag:${t.bmBag}`,
     `--img-opacity:${t.imgOpacity}`,
     `--img-filter:${t.imgFilter}`,
   ].join(";");
@@ -251,10 +298,12 @@ const SEARCH_ICON =
 const HOME_ICON =
   '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>';
 
-// MarketVerse mark (comet + bag + stars), white variant for the fixed dark
-// brand tile. Header uses 28px, footer 24px. Keep in sync with BrandMark.
+// MarketVerse mark (comet + bag + stars), theme-aware through the --bm-*
+// tokens (light = inverted ink variant, dark/cosmos = white outline; the
+// tail gradient is flattened to a translucent solid so it can be var-driven).
+// Header uses 28px, footer 24px. Keep in sync with BrandMark.
 const storeIcon = (px: number) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 64 64"><defs><linearGradient id="nf-tail-${px}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f2eee7" stop-opacity="0"/><stop offset=".55" stop-color="#c9c7d0" stop-opacity=".5"/><stop offset="1" stop-color="#f2eee7"/></linearGradient></defs><path d="M3 7 C20 8 34 12 44.2 17.8 L43.6 23.3 C32 18.5 17 12 3 7 Z" fill="url(#nf-tail-${px})"/><circle cx="47" cy="20.5" r="4.2" fill="#f2eee7"/><path d="M20 30 L44 30 L47.3 46.8 Q48 50 44.5 50 L19.5 50 Q16 50 16.7 46.8 Z" fill="#0a0b1e" stroke="#f2eee7" stroke-width="1.5"/><path d="M27 30 v-2.8 a5 5 0 0 1 10 0 V30" fill="none" stroke="#f2eee7" stroke-width="2.4" stroke-linecap="round"/><path d="M10 11.2 Q10.7 13.3 12.8 14 Q10.7 14.7 10 16.8 Q9.3 14.7 7.2 14 Q9.3 13.3 10 11.2 Z" fill="#f2eee7"/><path d="M55 10 Q55.5 11.5 57 12 Q55.5 12.5 55 14 Q54.5 12.5 53 12 Q54.5 11.5 55 10 Z" fill="#c9c7d0" opacity=".9"/><path d="M7 35.6 Q7.6 37.4 9.4 38 Q7.6 38.6 7 40.4 Q6.4 38.6 4.6 38 Q6.4 37.4 7 35.6 Z" fill="#f2eee7" opacity=".85"/><path d="M57 40.2 Q57.45 41.55 58.8 42 Q57.45 42.45 57 43.8 Q56.55 42.45 55.2 42 Q56.55 41.55 57 40.2 Z" fill="#a5a3b0" opacity=".85"/><path d="M12 53.4 Q12.4 54.6 13.6 55 Q12.4 55.4 12 56.6 Q11.6 55.4 10.4 55 Q11.6 54.6 12 53.4 Z" fill="#c9c7d0" opacity=".8"/><circle cx="52" cy="31" r="0.9" fill="#f2eee7" opacity=".55"/><circle cx="34" cy="57.5" r="1" fill="#a5a3b0" opacity=".6"/></svg>`;
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 64 64"><path class="nf-tail" d="M3 7 C20 8 34 12 44.2 17.8 L43.6 23.3 C32 18.5 17 12 3 7 Z"/><circle class="nf-a" cx="47" cy="20.5" r="4.2"/><path class="nf-bag" d="M20 30 L44 30 L47.3 46.8 Q48 50 44.5 50 L19.5 50 Q16 50 16.7 46.8 Z"/><path class="nf-handle" d="M27 30 v-2.8 a5 5 0 0 1 10 0 V30" fill="none" stroke-width="2.4" stroke-linecap="round"/><path class="nf-a" d="M10 11.2 Q10.7 13.3 12.8 14 Q10.7 14.7 10 16.8 Q9.3 14.7 7.2 14 Q9.3 13.3 10 11.2 Z"/><path class="nf-b" d="M55 10 Q55.5 11.5 57 12 Q55.5 12.5 55 14 Q54.5 12.5 53 12 Q54.5 11.5 55 10 Z" opacity=".9"/><path class="nf-a" d="M7 35.6 Q7.6 37.4 9.4 38 Q7.6 38.6 7 40.4 Q6.4 38.6 4.6 38 Q6.4 37.4 7 35.6 Z" opacity=".85"/><path class="nf-c" d="M57 40.2 Q57.45 41.55 58.8 42 Q57.45 42.45 57 43.8 Q56.55 42.45 55.2 42 Q56.55 41.55 57 40.2 Z" opacity=".85"/><path class="nf-b" d="M12 53.4 Q12.4 54.6 13.6 55 Q12.4 55.4 12 56.6 Q11.6 55.4 10.4 55 Q11.6 54.6 12 53.4 Z" opacity=".8"/><circle class="nf-a" cx="52" cy="31" r="0.9" opacity=".55"/><circle class="nf-c" cx="34" cy="57.5" r="1" opacity=".6"/></svg>`;
 
 function escapeHtml(value: string): string {
   return value
@@ -311,12 +360,20 @@ export function notFoundResponse(locale: string, theme?: string): NextResponse {
   .brand-mark {
     display: inline-flex; align-items: center; justify-content: center;
     width: 2.25rem; height: 2.25rem; border-radius: 0.625rem;
-    /* Fixed dark brand tile - the mark is drawn for a dark backdrop. */
-    background: #0a0b1e; border: 1px solid rgb(255 255 255 / 10%);
+    /* Theme-aware chip: transparent in light, dark brand tile on dark. */
+    background: var(--bm-tile); border: 1px solid var(--bm-tile-border);
   }
   .brand-text { display: flex; flex-direction: column; }
   /* text-lg font-bold tracking-tight leading-tight */
   .brand-name { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.025em; line-height: 1.25; }
+  .nf-verse { color: var(--verse); }
+  /* MarketVerse mark colors - driven by the theme tokens. */
+  .nf-a { fill: var(--bm-ink); }
+  .nf-b { fill: var(--bm-b); }
+  .nf-c { fill: var(--bm-c); }
+  .nf-tail { fill: var(--bm-b); opacity: 0.5; }
+  .nf-bag { fill: var(--bm-bag); stroke: var(--bm-bag-stroke); stroke-width: 1.5; }
+  .nf-handle { stroke: var(--bm-ink); }
   /* text-[10px] font-medium uppercase tracking-[0.2em] leading-tight */
   .brand-tag {
     font-size: 10px; font-weight: 500; line-height: 1.25;
@@ -360,7 +417,7 @@ export function notFoundResponse(locale: string, theme?: string): NextResponse {
   .ftr-brand-mark {
     display: inline-flex; align-items: center; justify-content: center;
     width: 2rem; height: 2rem; border-radius: 0.625rem;
-    background: #0a0b1e; border: 1px solid rgb(255 255 255 / 10%);
+    background: var(--bm-tile); border: 1px solid var(--bm-tile-border);
   }
   .ftr-brand-name { font-size: 1.125rem; line-height: 1.75rem; font-weight: 700; letter-spacing: -0.025em; }
   /* text-sm text-muted-foreground leading-relaxed max-w-xs, 1rem below brand */
@@ -438,7 +495,7 @@ export function notFoundResponse(locale: string, theme?: string): NextResponse {
       <a class="brand" href="${home}">
         <span class="brand-mark">${storeIcon(28)}</span>
         <span class="brand-text">
-          <span class="brand-name">MarketVerse</span>
+          <span class="brand-name">Market<span class="nf-verse">Verse</span></span>
           <span class="brand-tag">${escapeHtml(t.tagline)}</span>
         </span>
       </a>
@@ -467,7 +524,7 @@ export function notFoundResponse(locale: string, theme?: string): NextResponse {
         <div>
           <a class="ftr-brand" href="${home}">
             <span class="ftr-brand-mark">${storeIcon(24)}</span>
-            <span class="ftr-brand-name">MarketVerse</span>
+            <span class="ftr-brand-name">Market<span class="nf-verse">Verse</span></span>
           </a>
           <p class="ftr-tag">${escapeHtml(t.footer.tagline)}</p>
         </div>

@@ -3,6 +3,7 @@
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { BrandMark } from "./brand-mark";
+import { BrandWordmark } from "./brand-wordmark";
 
 export function Footer() {
   const t = useTranslations("footer");
@@ -32,11 +33,11 @@ export function Footer() {
           {/* Brand */}
           <div className="space-y-4">
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0a0b1e] ring-1 ring-white/10">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg brand-tile">
                 <BrandMark className="h-6 w-6" />
               </div>
               <span className="text-lg font-bold tracking-tight">
-                MarketVerse
+                <BrandWordmark />
               </span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">

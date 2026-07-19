@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Copy, ImageOff, Pencil, Trash2, Video as VideoIcon } from "lucide-react";
+import { Copy, ImageOff, Loader2, Pencil, Trash2, Video as VideoIcon } from "lucide-react";
 import { HoverImageCycler } from "@/components/product/HoverImageCycler";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -192,7 +192,11 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
                 onClick={handleDuplicate}
                 className="flex-1 gap-1.5"
               >
-                <Copy className="h-3.5 w-3.5" />
+                {isDuplicating ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
                 {isDuplicating ? t("duplicating") : t("duplicate")}
               </Button>
               <ActionButton
@@ -209,7 +213,11 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
                   disabled={isDeleting}
                   className="flex-1 gap-1.5"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  {isDeleting ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
                   {isDeleting ? t("deleting") : tCommon("delete")}
                 </Button>
               </ActionButton>

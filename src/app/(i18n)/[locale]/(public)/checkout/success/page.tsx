@@ -49,7 +49,7 @@ export default async function CheckoutSuccessPage({
     if (!order || order.paymentMethod !== "COD") {
       return (
         <>
-          <div className="shrink-0 px-6 pt-2">
+          <div className="shrink-0 px-6 pt-2 sticky-header-bg">
             <Breadcrumbs items={breadcrumbItems} seo={false} />
           </div>
           <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
@@ -74,7 +74,7 @@ export default async function CheckoutSuccessPage({
 
     return (
       <>
-        <div className="shrink-0 px-6 pt-2">
+        <div className="shrink-0 px-6 pt-2 sticky-header-bg">
           <Breadcrumbs items={breadcrumbItems} seo={false} />
         </div>
         <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
@@ -241,7 +241,7 @@ export default async function CheckoutSuccessPage({
   if (status === "refunded") {
     return (
       <>
-        <div className="shrink-0 px-6 pt-2">
+        <div className="shrink-0 px-6 pt-2 sticky-header-bg">
           <Breadcrumbs items={breadcrumbItems} seo={false} />
         </div>
         <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
@@ -272,7 +272,7 @@ export default async function CheckoutSuccessPage({
   if (status === "processing") {
     return (
       <>
-        <div className="shrink-0 px-6 pt-2">
+        <div className="shrink-0 px-6 pt-2 sticky-header-bg">
           <Breadcrumbs items={breadcrumbItems} seo={false} />
         </div>
         <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
@@ -317,7 +317,7 @@ export default async function CheckoutSuccessPage({
 
   return (
     <>
-      <div className="shrink-0 px-6 pt-2">
+      <div className="shrink-0 px-6 pt-2 sticky-header-bg">
         <Breadcrumbs items={breadcrumbItems} seo={false} />
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">

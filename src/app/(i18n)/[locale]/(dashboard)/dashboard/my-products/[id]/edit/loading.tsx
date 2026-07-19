@@ -8,7 +8,7 @@ export default async function MyProductEditLoadingPage() {
   const t = await getTranslations();
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="shrink-0 px-6 pt-2">
+      <div className="shrink-0 px-6 pt-2 sticky-header-bg">
         <SkeletonBreadcrumbs width="w-72" />
         <PageHeader
           title={t("myProducts.edit")}

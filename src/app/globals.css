@@ -52,10 +52,10 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 
   /* Custom enterprise colors */
-  --color-gold: var(--gold);
+  --color-platinum: var(--platinum);
   --color-cosmos-purple: var(--cosmos-purple);
   --color-cosmos-blue: var(--cosmos-blue);
-  --color-cosmos-orange: var(--cosmos-orange);
+  --color-steel: var(--steel);
   --color-hero-overlay: var(--hero-overlay);
   --color-glass: var(--glass);
   --color-glass-border: var(--glass-border);
@@ -105,10 +105,10 @@
 
   /* Enterprise extras - "gold"/"orange" tokens hold platinum/silver values
      since the MarketVerse rebrand; class names kept to avoid churn. */
-  --gold: oklch(0.62 0.02 255);
+  --platinum: oklch(0.62 0.02 255);
   --cosmos-purple: oklch(0.5 0.13 285);
   --cosmos-blue: oklch(0.45 0.15 260);
-  --cosmos-orange: oklch(0.48 0.03 250);
+  --steel: oklch(0.48 0.03 250);
   --hero-overlay: oklch(0 0 0 / 3%);
   --glass: oklch(1 0 0 / 70%);
   --glass-border: oklch(0 0 0 / 8%);
@@ -169,10 +169,10 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 
-  --gold: oklch(0.85 0.02 255);
+  --platinum: oklch(0.85 0.02 255);
   --cosmos-purple: oklch(0.62 0.14 285);
   --cosmos-blue: oklch(0.55 0.18 260);
-  --cosmos-orange: oklch(0.68 0.03 250);
+  --steel: oklch(0.68 0.03 250);
   --hero-overlay: oklch(0 0 0 / 50%);
   --glass: oklch(0.13 0 0 / 70%);
   --glass-border: oklch(1 0 0 / 10%);
@@ -219,10 +219,10 @@
   --sidebar-border: oklch(0.35 0.08 285 / 40%);
   --sidebar-ring: oklch(0.62 0.11 285);
 
-  --gold: oklch(0.87 0.02 255);
+  --platinum: oklch(0.87 0.02 255);
   --cosmos-purple: oklch(0.55 0.15 288);
   --cosmos-blue: oklch(0.5 0.2 260);
-  --cosmos-orange: oklch(0.68 0.03 250);
+  --steel: oklch(0.68 0.03 250);
   --hero-overlay: oklch(0.1 0.04 275 / 60%);
   --glass: oklch(0.14 0.04 280 / 60%);
   --glass-border: oklch(0.55 0.1 285 / 25%);
@@ -447,19 +447,54 @@
   background: var(--background);
 }
 
-/* MarketVerse: subtle star-field in the app header (cosmos theme only, the
-   dark brand surface), echoing the transactional-email header strip. Tiny,
-   low-opacity dots - pure decoration, text contrast stays untouched. */
-.cosmos .header-bg,
-.cosmos .sticky-header-bg::before {
-  background-image:
-    radial-gradient(1px 1px at 8% 30%, oklch(0.88 0.01 255 / 45%) 50%, transparent),
-    radial-gradient(1.5px 1.5px at 22% 70%, oklch(0.62 0.11 285 / 35%) 50%, transparent),
-    radial-gradient(1px 1px at 37% 25%, oklch(0.88 0.01 255 / 40%) 50%, transparent),
-    radial-gradient(1px 1px at 52% 80%, oklch(0.88 0.01 255 / 30%) 50%, transparent),
-    radial-gradient(1.5px 1.5px at 66% 35%, oklch(0.62 0.11 285 / 30%) 50%, transparent),
-    radial-gradient(1px 1px at 78% 65%, oklch(0.88 0.01 255 / 45%) 50%, transparent),
-    radial-gradient(1px 1px at 91% 28%, oklch(0.88 0.01 255 / 35%) 50%, transparent);
+/* Two-tone brand wordmark: "Verse" carries the brand violet, tuned per theme
+   (deep violet on light surfaces, luminous violet on dark). Matches the email
+   header + Stripe lockups. */
+.brand-verse {
+  color: #5a30b9;
+}
+.dark .brand-verse,
+.cosmos .brand-verse {
+  color: #9076f3;
+}
+
+/* MarketVerse mark (BrandMark + the inline copies in localeSwitchOverlay):
+   theme-driven colors. Light theme = inverted ink variant without a tile;
+   dark/cosmos = white-outline variant on the dark brand tile. Mirrors the
+   light/dark lockups in the brand artifact. */
+.bm-a { fill: #0a0b1e; }
+.bm-b { fill: #4a4956; }
+.bm-c { fill: #6b6a78; }
+.bm-tail { fill: url(#bm-tail-l); }
+.bm-bag { fill: #0a0b1e; stroke: none; }
+.bm-handle { stroke: #0a0b1e; }
+.dark .bm-a, .cosmos .bm-a { fill: #f2eee7; }
+.dark .bm-b, .cosmos .bm-b { fill: #c9c7d0; }
+.dark .bm-c, .cosmos .bm-c { fill: #a5a3b0; }
+.dark .bm-tail, .cosmos .bm-tail { fill: url(#bm-tail-w); }
+.dark .bm-bag, .cosmos .bm-bag { stroke: #f2eee7; stroke-width: 1.5; }
+.dark .bm-handle, .cosmos .bm-handle { stroke: #f2eee7; }
+/* Bag interior matches the tile behind it: neutral black on the (neutral)
+   dark theme, deep-space navy only in cosmos. */
+.dark .bm-bag { fill: #101011; }
+.cosmos .bm-bag { fill: #0a0b1e; }
+
+/* Chip behind the mark: invisible in the light theme (the ink mark carries
+   itself), dark brand tile on dark themes - neutral black in the dark theme,
+   deep-space navy in cosmos, so the tile always matches the theme's own
+   surface family. */
+.brand-tile {
+  background: transparent;
+}
+.dark .brand-tile,
+.cosmos .brand-tile {
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%);
+}
+.dark .brand-tile {
+  background: #101011;
+}
+.cosmos .brand-tile {
+  background: #0a0b1e;
 }
 
 /* Full-width sticky header background - extends beyond any parent container */
@@ -477,6 +512,95 @@
   background: var(--background);
   border-bottom: 1px solid var(--border);
   z-index: -1;
+}
+
+/* Unified sub-header surface: pages put `sticky-header-bg` on the wrapper
+   that holds Breadcrumbs + PageHeader, so the breadcrumb strip sits on the
+   same opaque, starred surface (the faint fixed .page-background image would
+   otherwise show through around it on the light theme). PageHeader carries
+   its own sticky-header-bg; when nested inside such a wrapper, the outer
+   keeps the paint + stars and drops its border (the separator stays at the
+   PageHeader's bottom edge, where it always was), while the inner drops its
+   star layer so the two star patterns don't double-paint. NOTE: the paint
+   must NOT extend above the wrapper - PageHeader is sticky z-10, so its
+   pseudo-elements stack above preceding siblings and an upward overshoot
+   would cover the breadcrumbs entirely. */
+/* Nested PageHeader: the outer wrapper owns the paint, the stars AND the
+   separator border (so the line sits exactly where the unified surface ends);
+   the inner contributes nothing visual. (Its sticky never engages in this
+   pattern - the scroll container is a sibling - so the transparent inner
+   paint can never expose scrolling content.) The inner also drops its pt-6 /
+   mb-2 spacing: the breadcrumb strip already provides the top rhythm, and
+   the stray bottom margin left a background-only band below the border. */
+.sticky-header-bg .sticky-header-bg {
+  padding-top: 0.25rem;
+  margin-bottom: 0;
+}
+/* Breathing room BELOW the separator line: on the wrapper (outside the
+   painted surface), so the content below never sits glued to the line. */
+.sticky-header-bg:has(.sticky-header-bg) {
+  margin-bottom: 0.625rem;
+}
+.sticky-header-bg .sticky-header-bg::before {
+  background: transparent;
+  border-bottom: none;
+}
+
+/* MarketVerse: star-field on the app headers - same sparkle strips as the
+   transactional-email header (4-point sparkles + dots), rendered by
+   scripts/generate-brand-assets.mjs on a TRANSPARENT background so the theme
+   surface shows through. One tuned PNG per theme. On sub-headers the stars
+   live on ::after (spanning just the header box) so the ::before overshoot
+   above doesn't drag them behind the breadcrumbs, and so the rule order can
+   never lose to the ::before background shorthand again. */
+.sticky-header-bg::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -9999px;
+  right: -9999px;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.header-bg,
+.sticky-header-bg::after {
+  background-image: url("/header-stars-light.png");
+  /* The strip tile is 3 stacked 64px rows with DIFFERENT star layouts.
+     Tiling on both axes covers sub-headers taller than one row; the main
+     header (exactly one row tall) shows row 1. */
+  background-repeat: repeat;
+  background-size: 640px 192px;
+  background-position: top center;
+}
+
+/* Sub-headers start the tile at row 2, so the breadcrumb strip (row 2) and
+   the title row (row 3) both differ from the main header's row 1 - three
+   adjacent surfaces, three distinct arrangements. */
+.sticky-header-bg::after {
+  background-position: 50% -64px;
+}
+
+.dark .header-bg,
+.dark .sticky-header-bg::after {
+  background-image: url("/header-stars-dark.png");
+}
+
+.cosmos .header-bg,
+.cosmos .sticky-header-bg::after {
+  background-image: url("/header-stars-cosmos.png");
+}
+
+/* Nested PageHeader contributes NO star layer of its own - the outer wrapper
+   already paints the stars for the whole block. This rule must come AFTER
+   the per-theme rules above: it ties with `.dark/.cosmos .sticky-header-bg::after`
+   on specificity, so source order is what makes the suppression win. (When it
+   sat earlier in the file, dark/cosmos re-enabled the inner layer and painted
+   a second, vertically offset star tiling over the wrapper's - the "doubled
+   stars" glitch on dark themes.) */
+.sticky-header-bg .sticky-header-bg::after {
+  background-image: none;
 }
 
 /* ===== PARALLAX ===== */
@@ -507,8 +631,8 @@
 }
 
 /* ===== ENTERPRISE TEXT EFFECTS ===== */
-.text-gradient-gold {
-  background: linear-gradient(135deg, var(--gold), var(--cosmos-orange), var(--gold));
+.text-gradient-platinum {
+  background: linear-gradient(135deg, var(--platinum), var(--steel), var(--platinum));
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -517,7 +641,7 @@
 }
 
 .text-gradient-cosmos {
-  background: linear-gradient(135deg, var(--cosmos-blue), var(--cosmos-purple), var(--cosmos-orange));
+  background: linear-gradient(135deg, var(--cosmos-blue), var(--cosmos-purple), var(--steel));
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;

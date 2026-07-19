@@ -26,7 +26,10 @@ export function MessageSellerButton({ productId, className }: Props) {
   const handleClick = async () => {
     if (!isSignedIn) {
       // Redirect to sign-in with return URL - both legs prefixed with locale
-      // so middleware doesn't have to bounce again.
+      // so middleware doesn't have to bounce again. Keep the pending state on
+      // for the whole hard navigation - the page is about to unload, so the
+      // spinner correctly runs until the browser leaves.
+      setLoading(true);
       window.location.href = `/${locale}/sign-in?redirect_url=${encodeURIComponent(window.location.pathname)}`;
       return;
     }

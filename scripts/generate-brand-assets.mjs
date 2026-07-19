@@ -171,8 +171,12 @@ const icoFrames = [];
 for (const size of [16, 32, 48]) {
   icoFrames.push({ size, buf: await png(rounded, size) });
 }
-await writeFile(path.join(root, "src/app/favicon.ico"), packIco(icoFrames));
-console.log("wrote src/app/favicon.ico (16/32/48)");
+// public/ (not src/app/) so Next does NOT emit a <link> for the .ico: the
+// adaptive icon.svg (prefers-color-scheme swap) must be the only declared
+// icon for browsers that support SVG favicons; legacy agents still find
+// /favicon.ico by convention.
+await writeFile(path.join(root, "public/favicon.ico"), packIco(icoFrames));
+console.log("wrote public/favicon.ico (16/32/48)");
 
 await writeFile(path.join(root, "src/app/apple-icon.png"), await png(fullBleed, 180));
 console.log("wrote src/app/apple-icon.png (180)");
@@ -264,3 +268,74 @@ await lockupPng(
   lockupSvg({ mark: MARK_DARK, markWord: "#f2eee7", verseWord: "#9076f3" }),
   "public/brand/stripe-logo-dark.png",
 );
+
+// App-header star strips: same sparkle language as the email header strip,
+// but on a TRANSPARENT background so the theme's own surface shows through.
+// THREE stacked 64px rows with distinct layouts (640x192 tile): the main
+// header shows row 1; sub-header wrappers offset the background by -64px so
+// the breadcrumb strip gets row 2 and the title row gets row 3 - no two
+// adjacent surfaces repeat the same arrangement. One tuned variant per
+// theme; referenced from globals.css (.header-bg / .sticky-header-bg::after).
+function starsStripSvg(star, accent, starO, accentO) {
+  const sparkle = (x, y, s, fill, o) =>
+    `<path d="M${x} ${y - s} Q${x + s * 0.25} ${y - s * 0.25} ${x + s} ${y} Q${x + s * 0.25} ${y + s * 0.25} ${x} ${y + s} Q${x - s * 0.25} ${y + s * 0.25} ${x - s} ${y} Q${x - s * 0.25} ${y - s * 0.25} ${x} ${y - s} Z" fill="${fill}" opacity="${o}"/>`;
+  const dot = (x, y, r, fill, o) =>
+    `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" opacity="${o}"/>`;
+
+  // Anti-column layout, computed instead of hand-picked: 21 x-slots spaced
+  // 30px apart are dealt round-robin to the three rows with a rotating order
+  // in which the same row never lands in adjacent slots. Guarantees: stars of
+  // vertically adjacent rows (incl. the 3->1 tile wrap on tall sub-headers)
+  // are >=22px apart horizontally, same-row stars >=60px. Hand-tuned rows
+  // kept ending up with accidental 0-15px columns that scream "copied" on the
+  // dark themes where the stars are bright enough to notice.
+  const orders = [
+    [0, 1, 2], [1, 2, 0], [2, 0, 1], [0, 2, 1], [2, 1, 0], [1, 0, 2], [0, 1, 2],
+  ];
+  const jitter = [3, -4, 2, 4, -3, 0, -4, 3, 4, -2, 2, -4, 1, 4, -3, -4, 3, 0, -2, 2, 4];
+  const ys = [22, 44, 12, 50, 30, 8, 56, 18, 38, 26, 52, 10, 46, 34, 14, 58, 24, 42, 16, 48, 28];
+  const rows = [[], [], []];
+  for (let k = 0; k < 21; k++) {
+    const row = orders[Math.floor(k / 3)][k % 3];
+    rows[row].push({ x: 15 + k * 30 + jitter[k], y: ys[k] });
+  }
+
+  // Per-row item styling: positions come from the dealer above; only the
+  // mix of sparkles vs dots, sizes and tones vary per row.
+  const SPARKLE_SIZES = [5, 4, 5.5];
+  const renderRow = (items, rowIdx) =>
+    items
+      .map((p, i) => {
+        const isSparkle = i === 1 || i === 4 || (rowIdx !== 1 && i === 6);
+        const isAccent = (i + rowIdx) % 3 === 1;
+        const fill = isAccent ? accent : star;
+        const baseO = isAccent ? accentO : starO;
+        if (isSparkle) {
+          const s = SPARKLE_SIZES[(i + rowIdx) % SPARKLE_SIZES.length];
+          return sparkle(p.x, p.y, s, fill, baseO);
+        }
+        const r = 1.1 + ((i * 7 + rowIdx * 3) % 7) * 0.1;
+        const o = baseO * (0.7 + ((i + rowIdx) % 4) * 0.1);
+        return dot(p.x, p.y, r, fill, Math.round(o * 100) / 100);
+      })
+      .join("\n  ");
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 192">
+  <g>${renderRow(rows[0], 0)}</g>
+  <g transform="translate(0,64)">${renderRow(rows[1], 1)}</g>
+  <g transform="translate(0,128)">${renderRow(rows[2], 2)}</g>
+</svg>`;
+}
+
+async function starsPng(svg, file) {
+  const buf = await sharp(Buffer.from(svg), { density: 300 })
+    .resize(1280, 384)
+    .png()
+    .toBuffer();
+  await writeFile(path.join(root, file), buf);
+  console.log(`wrote ${file} (1280x384)`);
+}
+
+await starsPng(starsStripSvg("#23203a", "#5a30b9", 0.28, 0.22), "public/header-stars-light.png");
+await starsPng(starsStripSvg("#e0e3ea", "#807cc6", 0.4, 0.34), "public/header-stars-dark.png");
+await starsPng(starsStripSvg("#e0e3ea", "#807cc6", 0.55, 0.45), "public/header-stars-cosmos.png");

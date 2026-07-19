@@ -17,7 +17,7 @@ export default async function CheckoutCancelPage() {
 
   return (
     <>
-      <div className="shrink-0 px-6 pt-2">
+      <div className="shrink-0 px-6 pt-2 sticky-header-bg">
         <Breadcrumbs items={breadcrumbItems} seo={false} />
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">

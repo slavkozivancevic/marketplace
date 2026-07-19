@@ -44,11 +44,21 @@ export function CartDrawer() {
 
   useEffect(() => {
     if (pathname === "/checkout") {
+      // Deliberately do NOT reset `checkingOut` here: the sheet's close
+      // animation is still playing, and clearing the pending state now makes
+      // the button visibly flash back to its idle label mid-animation.
       closeCart();
+    }
+  }, [pathname, closeCart]);
+
+  // Fresh pending state on every (re)open instead - by then the drawer is
+  // closed and no one can see the reset.
+  useEffect(() => {
+    if (isOpen) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setCheckingOut(false);
     }
-  }, [pathname, closeCart]);
+  }, [isOpen]);
 
   const handleCheckout = () => {
     if (pathname === "/checkout") {

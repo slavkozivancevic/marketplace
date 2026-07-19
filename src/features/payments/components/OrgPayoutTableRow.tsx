@@ -83,7 +83,7 @@ export function OrgPayoutTableRow({ payout }: { payout: OrgPayoutListItem }) {
           </Badge>
         )}
         {payout.refundState === "partial" && (
-          <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">
+          <Badge variant="outline" className="text-[10px] text-steel border-steel/40">
             {t("partiallyRefunded")}
           </Badge>
         )}

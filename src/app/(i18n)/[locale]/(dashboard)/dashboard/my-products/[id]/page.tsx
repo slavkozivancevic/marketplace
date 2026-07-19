@@ -58,7 +58,7 @@ async function MyProductLoading({ id }: { id: string }) {
   ];
   return (
     <>
-      <div className="shrink-0 px-6 pt-2">
+      <div className="shrink-0 px-6 pt-2 sticky-header-bg">
         <Breadcrumbs items={breadcrumbItems} seo={false} />
         <PageHeader
           title={t("myProducts.viewProduct")}
@@ -118,7 +118,7 @@ async function MyProductContent({ id }: { id: string }) {
   if (user.activeOrgId !== product.organizationId) {
     return (
       <>
-        <div className="shrink-0 px-6 pt-2">
+        <div className="shrink-0 px-6 pt-2 sticky-header-bg">
           <Breadcrumbs
             items={[...baseCrumbs, { name: tCrumbs("productDetails"), href: detailHref }]}
             seo={false}
@@ -149,7 +149,7 @@ async function MyProductContent({ id }: { id: string }) {
   if (isActionErrorResult(result)) {
     return (
       <>
-        <div className="shrink-0 px-6 pt-2">
+        <div className="shrink-0 px-6 pt-2 sticky-header-bg">
           <Breadcrumbs
             items={[...baseCrumbs, { name: tCrumbs("productDetails"), href: detailHref }]}
             seo={false}
@@ -183,7 +183,7 @@ async function MyProductContent({ id }: { id: string }) {
 
   return (
     <>
-      <div className="shrink-0 px-6 pt-2">
+      <div className="shrink-0 px-6 pt-2 sticky-header-bg">
         <Breadcrumbs
           items={[...baseCrumbs, { name: titleForHeader || tCrumbs("productDetails"), href: detailHref }]}
           seo={false}

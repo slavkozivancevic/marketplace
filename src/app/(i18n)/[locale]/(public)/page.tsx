@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { HeroBackground } from "@/components/layout/hero-background";
 import { Footer } from "@/components/layout/footer";
+import { BrandWordmark } from "@/components/layout/brand-wordmark";
 import { StatsSection } from "@/components/layout/stats-section";
 import { getLocale, getTranslations } from "next-intl/server";
 import { cacheTag } from "next/cache";
@@ -140,9 +141,9 @@ export default async function HomePage() {
 
           {/* Main heading */}
           <h1 className="animate-slide-up text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
-            {t("home.headline")}
+            <BrandWordmark />
             <br />
-            <span className="text-gradient-gold">{t("home.headlineGradient")}</span>
+            <span className="text-gradient-platinum">{t("home.headlineGradient")}</span>
           </h1>
 
           <p className="animate-slide-up delay-200 mx-auto mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl opacity-0">

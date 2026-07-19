@@ -9,27 +9,33 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+        // Every variant carries the full interaction ladder: rest -> hover
+        // (lighter) -> active/pressed (darker than hover) -> disabled (the
+        // shared opacity-50 in the base). The old default variant only
+        // restyled hover when rendered as an <a> (`[a]:hover:...`), so plain
+        // primary <button>s had no hover feedback at all - the source of the
+        // hover inconsistency across the app.
+        default: "bg-primary text-primary-foreground hover:bg-primary/85 active:bg-primary/75",
         // The aria-expanded "held open" styling is scoped to MENU triggers
         // (aria-haspopup=menu, i.e. DropdownMenu). Radix sets aria-expanded on
         // dialog/popover triggers too - an un-scoped variant restyled e.g. a
         // ghost delete icon-button into a muted rectangle (and overrode its
         // text-destructive color) the whole time its confirm dialog was open.
         outline:
-          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:aria-[haspopup=menu]:bg-muted aria-expanded:aria-[haspopup=menu]:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          "border-border bg-background hover:bg-muted hover:text-foreground active:bg-muted/70 aria-expanded:aria-[haspopup=menu]:bg-muted aria-expanded:aria-[haspopup=menu]:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 dark:active:bg-input/70",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:aria-[haspopup=menu]:bg-secondary aria-expanded:aria-[haspopup=menu]:text-secondary-foreground",
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80 active:bg-secondary/70 aria-expanded:aria-[haspopup=menu]:bg-secondary aria-expanded:aria-[haspopup=menu]:text-secondary-foreground",
         ghost:
-          "hover:bg-muted hover:text-foreground aria-expanded:aria-[haspopup=menu]:bg-muted aria-expanded:aria-[haspopup=menu]:text-foreground dark:hover:bg-muted/50",
+          "hover:bg-muted hover:text-foreground active:bg-muted/70 aria-expanded:aria-[haspopup=menu]:bg-muted aria-expanded:aria-[haspopup=menu]:text-foreground dark:hover:bg-muted/50 dark:active:bg-muted/70",
         destructive:
-          "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+          "bg-destructive/10 text-destructive hover:bg-destructive/20 active:bg-destructive/30 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:active:bg-destructive/40 dark:focus-visible:ring-destructive/40",
         // High-emphasis (filled) destructive - the canonical style for the
         // confirm action of a delete dialog. `destructive` (above) stays the
         // subtle style for inline / trigger buttons. Both use theme tokens so
         // they track every selected theme.
         destructiveSolid:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40",
-        link: "text-primary underline-offset-4 hover:underline",
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40",
+        link: "text-primary underline-offset-4 hover:underline active:text-primary/80",
       },
       size: {
         default:
