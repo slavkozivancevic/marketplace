@@ -116,12 +116,32 @@ Result: bad deploys self-heal, and manual rollback is one alias flip.
 
 - **Trunk-based**: short-lived branches -> PR -> squash-merge to `main`.
 - **Conventional Commits** (`feat:`, `fix:`, `perf:`, `refactor:`, `chore:`...)
-  drive changelog + semver.
-- **release-please** (`.github/workflows/release-please.yml`) maintains a rolling
-  Release PR; merging it bumps the version, writes `CHANGELOG.md`, tags
-  `vX.Y.Z`, and cuts a GitHub Release.
+  drive changelog + semver. release-please reads the **commit message on
+  `main`**, not the PR title directly - since we squash-merge with the default
+  squash message set to the PR title, the PR title is what ends up as that
+  commit message. This requires two repo settings (Settings -> General ->
+  Pull Requests): only "Allow squash merging" enabled (merge commit / rebase
+  merging off, so nothing bypasses the squash step), and default squash commit
+  message = "Pull request title".
+- **`ci.yml`'s `title-lint` job** enforces Conventional Commits on the PR title
+  (runs only on `pull_request`) so a malformed title can't reach `main` as the
+  squash message. It's not a required status check (solo repo, no branch
+  protection) - it just shows red/green on the PR; merging past a red check is
+  still possible.
+- **Which types bump the version**: `feat` -> minor, `fix`/`perf` -> patch,
+  any type with `!` (e.g. `feat!:`) or a `BREAKING CHANGE:` footer -> major.
+  **Non-releasing types** - `build`, `ci`, `chore`, `docs`, `test`, `style`,
+  `refactor` - never bump the version or touch the Release PR; they merge,
+  deploy to staging like any other merge (section 4), and simply don't appear
+  in the changelog (several are also marked `hidden` in
+  `release-please-config.json`).
+- **release-please** (`.github/workflows/release-please.yml`) maintains a
+  rolling Release PR from these commits; merging that PR (a manual, explicit
+  action) bumps the version, writes `CHANGELOG.md`, tags `vX.Y.Z`, and cuts a
+  GitHub Release. It never merges itself.
 - The **tag/Release is the production trigger**. Staging deploys continuously
-  from `main`; production is an explicit, approved release.
+  from `main` on every merge, regardless of commit type; production is an
+  explicit, approved release.
 
 > **TODO (pipeline refinement, do on AWS).** The current `infra/cicd.cfn.yml` is
 > a **single** pipeline `main -> staging -> manual approval -> production`, so a

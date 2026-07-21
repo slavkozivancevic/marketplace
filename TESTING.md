@@ -128,8 +128,17 @@ npm run test:e2e                  # boots the app (or reuses a running dev serve
 - **Scope today**: public storefront journeys (browse -> catalog -> product detail)
   - no auth, no payment, so they stay fast and stable. Selectors are role/URL
   based, resilient to copy changes.
-- **Follow-up** (wired with CI): the authenticated checkout journey (sign up ->
-  create product -> checkout -> review -> return) needs Clerk **test users** and
-  Stripe **test mode**; keep those flows in their own spec with a stored auth state.
+- **Wired in CI** (`ci.yml`'s `e2e` job): ephemeral Postgres, migrated + seeded
+  (`db:seed`), then `npm run test:e2e` against the dev server Playwright boots
+  itself. `clerkMiddleware` wraps every route (see `src/proxy.ts`), so even this
+  unauthenticated journey needs real Clerk keys to init - the job reads
+  `CLERK_SECRET_KEY` / `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` from repo secrets
+  (same Clerk dev/test instance as local `npm run dev`); every other required
+  env var is either skipped (`SKIP_ENV_VALIDATION=1`) or a harmless placeholder,
+  since Stripe/S3/notifications/chat aren't imported by these pages.
+- **Follow-up**: the authenticated checkout journey (sign up -> create product ->
+  checkout -> review -> return) needs Clerk **test users** and Stripe **test
+  mode**; keep those flows in their own spec with a stored auth state, and add
+  their extra secrets to the `e2e` job when written.
 - Excluded from the unit run (`e2e/**`); has its own runner and report
   (`playwright-report/`, gitignored).

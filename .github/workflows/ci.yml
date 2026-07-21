@@ -21,6 +21,34 @@ permissions:
   contents: read
 
 jobs:
+  title-lint:
+    name: PR title
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      # Enforces Conventional Commits on the PR title. We squash-merge with the
+      # default squash message set to the PR title (DEPLOYMENT.md #6), so this
+      # is what release-please reads to decide the version bump.
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            perf
+            refactor
+            revert
+            docs
+            test
+            build
+            ci
+            style
+            chore
+          requireScope: false
+
   quality:
     uses: ./.github/workflows/reusable-ci.yml
     with:
@@ -68,3 +96,82 @@ jobs:
       - name: Integration tests
         # globalSetup applies migrations (prisma migrate deploy) to the service DB.
         run: npm run test:integration
+
+  e2e:
+    name: E2E tests
+    runs-on: ubuntu-latest
+
+    # Same ephemeral-Postgres approach as `integration`, but seeded with the
+    # real catalog (db:seed) since Playwright drives actual pages.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: marketplace_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/marketplace_e2e
+      # Bypasses our own env/server.ts zod check for vars this browse-only
+      # journey never touches (Stripe, S3, notifications, chat, AWS) - those
+      # services aren't imported by the home/catalog/product-detail pages.
+      SKIP_ENV_VALIDATION: "1"
+      APP_URL: http://localhost:3000
+      # Real Clerk keys are required even here: clerkMiddleware wraps every
+      # matched route (see src/proxy.ts), so it must init successfully even
+      # for public pages. Point these at the same Clerk dev/test instance
+      # used for local `npm run dev` - add as repo secrets (Settings ->
+      # Secrets and variables -> Actions): CLERK_SECRET_KEY,
+      # NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      # Route paths, not credentials - harmless placeholders.
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: /sign-in
+      NEXT_PUBLIC_CLERK_SIGN_UP_URL: /sign-up
+      NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL: /
+      NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL: /
+      NEXT_PUBLIC_S3_PUBLIC_URL: https://example-test-bucket.s3.amazonaws.com
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
+      NEXT_PUBLIC_CHAT_WS_URL: wss://example.test/ws
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Migrate database
+        run: npx prisma migrate deploy
+
+      - name: Seed catalog
+        run: npm run db:seed
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
