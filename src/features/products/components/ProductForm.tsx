@@ -959,9 +959,10 @@ export function ProductForm({
       dirty.categoryIds ||
       dirty.brandId ||
       dirty.attributes ||
+      dirty.media ||
       translationsDirty(["title", "slug", "shortDescription", "description"])
     );
-  const pricingHasChanges = showChanges && !!(dirty.price || dirty.compareAtPrice || dirty.costPrice || dirty.stock || dirty.barcode || dirty.taxable || dirty.taxCode || dirty.media);
+  const pricingHasChanges = showChanges && !!(dirty.price || dirty.compareAtPrice || dirty.costPrice || dirty.stock || dirty.barcode || dirty.taxable || dirty.taxCode);
   const shippingHasChanges = showChanges && !!(dirty.isDigital || dirty.requiresShipping || dirty.weight || dirty.weightUnit || dirty.length || dirty.width || dirty.height || dirty.dimensionUnit);
   const seoHasChanges =
     showChanges &&

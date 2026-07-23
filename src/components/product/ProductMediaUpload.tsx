@@ -380,7 +380,14 @@ export const ProductMediaUpload: React.FC<ProductMediaUploadProps> = ({
         URL.revokeObjectURL(itemToRemove.downloadUrl);
       }
 
-      if (itemToRemove && !itemToRemove.url.startsWith("blob:")) {
+      // Only hard-delete here for media uploaded THIS session (has a
+      // clientId, set in onDrop) - it has no product row yet, so it's the
+      // only cleanup path for it. Pre-existing product media (loaded from
+      // the server, no clientId) must survive a Discard, so its S3 cleanup
+      // is left to the server's syncProductMedia diff, which runs only once
+      // the removal is actually saved - deleting it here would orphan the
+      // reference the instant the user clicks Discard.
+      if (itemToRemove?.clientId && !itemToRemove.url.startsWith("blob:")) {
         const deleteEndpoint =
           itemToRemove.mediaType === "VIDEO"
             ? "/api/uploads/product-video/delete"
