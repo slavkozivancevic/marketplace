@@ -25,10 +25,21 @@ export function SearchInput({
   const [localValue, setLocalValue] = useState(value);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Tracks the last value *this* input emitted via onChange. The debounced
+  // onChange round-trips through the parent (often a URL query param), which
+  // lands back here as a new `value` prop - without this guard, that echo
+  // re-syncs `localValue` unconditionally, and if it arrives while the user
+  // kept typing (e.g. two keystrokes spaced close to a debounce interval), it
+  // clobbers whatever they typed since, dropping/reordering characters.
+  const lastEmittedRef = useRef(value);
 
-  // Sync external value changes (e.g. from URL params or clearing filters)
+  // Sync external value changes (e.g. from URL params or clearing filters) -
+  // but not the echo of our own emitted value, which would stomp in-progress typing.
   useEffect(() => {
+    if (value === lastEmittedRef.current) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocalValue(value);
+    lastEmittedRef.current = value;
   }, [value]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,12 +48,14 @@ export function SearchInput({
 
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
+      lastEmittedRef.current = newValue;
       onChange(newValue);
     }, debounceMs);
   };
 
   const handleClear = () => {
     setLocalValue("");
+    lastEmittedRef.current = "";
     onChange("");
     inputRef.current?.focus();
   };

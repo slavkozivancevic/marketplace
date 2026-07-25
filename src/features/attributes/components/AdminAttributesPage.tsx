@@ -27,6 +27,7 @@ import {
 import type { AttributeListItem } from "../db/attributes";
 import { getAttributeLabel } from "../utils/translations";
 import { cn } from "@/lib/utils";
+import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 
 const GRID = "1fr 130px 80px 90px 116px";
 
@@ -140,14 +141,16 @@ export function AdminAttributesPage({
               style={{ gridTemplateColumns: GRID }}
             >
               {/* Label */}
-              <span className="truncate font-medium">
-                {getAttributeLabel(row, locale)}
-                {row.type === "RANGE" && row.unit && (
-                  <span className="ml-1.5 text-xs text-muted-foreground">
-                    ({row.unit})
-                  </span>
-                )}
-              </span>
+              <TruncatedTooltip content={getAttributeLabel(row, locale)}>
+                <span className="truncate font-medium">
+                  {getAttributeLabel(row, locale)}
+                  {row.type === "RANGE" && row.unit && (
+                    <span className="ml-1.5 text-xs text-muted-foreground">
+                      ({row.unit})
+                    </span>
+                  )}
+                </span>
+              </TruncatedTooltip>
 
               {/* Key */}
               <span className="font-mono text-xs text-muted-foreground truncate">

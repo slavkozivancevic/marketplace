@@ -11,6 +11,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { useMobileBottomBarStore } from "@/store/mobileBottomBar";
 import type { LucideIcon } from "lucide-react";
 
 export interface SidebarLink {
@@ -114,6 +115,11 @@ function NavLinks({
 export function SidebarNav(props: SidebarNavProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  // An edit form's inline save bar (ProductForm, BrandForm, ...) renders as a
+  // full-width footer at the bottom of this same mobile viewport - shift the
+  // trigger up to clear it instead of sitting on top of the Save/Discard
+  // buttons. See mobileBottomBar.ts.
+  const bottomBarPresent = useMobileBottomBarStore((s) => s.count > 0);
 
   return (
     <>
@@ -142,7 +148,12 @@ export function SidebarNav(props: SidebarNavProps) {
             <Button
               variant="default"
               size="icon"
-              className="fixed bottom-4 left-4 z-40 h-12 w-12 rounded-full shadow-lg hover:brightness-110"
+              className={cn(
+                "fixed left-4 z-40 h-12 w-12 rounded-full shadow-lg hover:brightness-110 transition-[bottom] duration-200",
+                bottomBarPresent
+                  ? "bottom-[calc(6rem+env(safe-area-inset-bottom))]"
+                  : "bottom-[calc(1rem+env(safe-area-inset-bottom))]",
+              )}
             >
               <Menu className="h-5 w-5" />
               <span className="sr-only">Open navigation</span>

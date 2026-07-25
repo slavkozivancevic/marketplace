@@ -23,52 +23,10 @@ import {
   fetchAttributeSelector,
   fetchCategoryAttributeMap,
 } from "@/features/attributes/db/formData";
+import { DEFAULT_LOCALE } from "@/i18n/config";
 
 interface EditProductPageProps {
   params: Promise<{ id: string }>;
-}
-
-async function EditProductForm({ productId }: { productId: string }) {
-  const t = await getTranslations();
-  const ctx = await resolveRequestContext();
-  requirePermission(ctx, "product:read");
-
-  const [result, brands, categoryTree, attributeLibrary, categoryAttributeMap] =
-    await Promise.all([
-      fetchProductForEdit(ctx.organizationId, ctx.userId, productId),
-      fetchBrands(),
-      fetchCategoryTree(),
-      fetchAttributeSelector(),
-      fetchCategoryAttributeMap(),
-    ]);
-
-  if (isActionErrorResult(result)) {
-    return (
-      <Alert variant="destructive">
-        <AlertTitle>{t("admin.errorLoading")}</AlertTitle>
-        <AlertDescription>{result.message}</AlertDescription>
-      </Alert>
-    );
-  }
-
-  const product = result as SerializedProductWithRelations | null;
-
-  if (!product) notFound();
-
-  // ProductFormView keys the form on the product id + a client-side navigation
-  // counter, so it stays mounted across the on-mount router.refresh() (no pathname
-  // change) but remounts fresh when the user navigates away and back - otherwise
-  // Next's Router Cache restores the form with stale unsaved edits.
-  return (
-    <ProductFormView
-      mode="update"
-      product={product}
-      brands={brands}
-      categoryTree={categoryTree}
-      attributeLibrary={attributeLibrary}
-      categoryAttributeMap={categoryAttributeMap}
-    />
-  );
 }
 
 async function fetchBrands() {
@@ -90,6 +48,19 @@ export default async function EditProductPage({
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();
   const { id } = await params;
+
+  const ctx = await resolveRequestContext();
+  requirePermission(ctx, "product:read");
+
+  const [result, brands, categoryTree, attributeLibrary, categoryAttributeMap] =
+    await Promise.all([
+      fetchProductForEdit(ctx.organizationId, ctx.userId, id),
+      fetchBrands(),
+      fetchCategoryTree(),
+      fetchAttributeSelector(),
+      fetchCategoryAttributeMap(),
+    ]);
+
   const breadcrumbItems = [
     { name: tCrumbs("admin"), href: getPathname({ href: "/admin", locale }) },
     { name: tCrumbs("adminProducts"), href: getPathname({ href: "/admin/products", locale }) },
@@ -103,12 +74,38 @@ export default async function EditProductPage({
     },
   ];
 
+  if (isActionErrorResult(result)) {
+    return (
+      <div className="flex-1 flex flex-col min-h-0">
+        <div className="shrink-0 px-6 pt-2 sticky-header-bg">
+          <Breadcrumbs items={breadcrumbItems} seo={false} />
+          <PageHeader title={t("admin.errorLoading")} />
+        </div>
+        <div className="flex-1 flex flex-col min-h-0 px-6">
+          <Alert variant="destructive">
+            <AlertTitle>{t("admin.errorLoading")}</AlertTitle>
+            <AlertDescription>{result.message}</AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    );
+  }
+
+  const product = result as SerializedProductWithRelations | null;
+
+  if (!product) notFound();
+
+  const title =
+    product.translations.find((tr) => tr.locale === locale)?.title ??
+    product.translations.find((tr) => tr.locale === DEFAULT_LOCALE)?.title ??
+    "";
+
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6 pt-2 sticky-header-bg">
         <Breadcrumbs items={breadcrumbItems} seo={false} />
         <PageHeader
-          title={t("admin.editProduct")}
+          title={t("admin.editProduct", { title })}
           description={t("admin.editProductDesc")}
         >
           <Button asChild variant="outline">
@@ -117,7 +114,19 @@ export default async function EditProductPage({
         </PageHeader>
       </div>
       <div className="flex-1 flex flex-col min-h-0 px-6">
-        <EditProductForm productId={id} />
+        {/* ProductFormView keys the form on the product id + a client-side
+            navigation counter, so it stays mounted across the on-mount
+            router.refresh() (no pathname change) but remounts fresh when the
+            user navigates away and back - otherwise Next's Router Cache
+            restores the form with stale unsaved edits. */}
+        <ProductFormView
+          mode="update"
+          product={product}
+          brands={brands}
+          categoryTree={categoryTree}
+          attributeLibrary={attributeLibrary}
+          categoryAttributeMap={categoryAttributeMap}
+        />
       </div>
     </div>
   );

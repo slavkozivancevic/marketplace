@@ -12,7 +12,7 @@ import { DEFAULT_LOCALE } from "@/i18n/config";
  */
 export default function RootNotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 py-12">
+    <div className="min-h-dvh flex items-center justify-center px-6 py-12">
       {/* Soft-404: PPR + the next-intl rewrite commit a 200 before this
           renders, so keep these pages out of the index via noindex. */}
       <meta name="robots" content="noindex, follow" />

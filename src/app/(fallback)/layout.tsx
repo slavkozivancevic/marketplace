@@ -1,9 +1,16 @@
+import type { Viewport } from "next";
 import "../globals.css";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { DEFAULT_LOCALE } from "@/i18n/config";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 /**
  * Minimal root layout for the fallback group - serves the global not-found
@@ -26,7 +33,7 @@ export default function FallbackRootLayout({
       className={cn("font-sans", geist.variable)}
       suppressHydrationWarning
     >
-      <body className="min-h-screen bg-background antialiased">{children}</body>
+      <body className="min-h-dvh bg-background antialiased">{children}</body>
     </html>
   );
 }

@@ -33,7 +33,7 @@ export default async function EditCouponRoute({ params }: Props) {
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6 pt-2 sticky-header-bg">
         <Breadcrumbs items={breadcrumbItems} seo={false} />
-        <PageHeader title={`${t("editCoupon")}: ${coupon.code}`} description={t("formDescription")}>
+        <PageHeader title={t("editCouponTitle", { code: coupon.code })} description={t("formDescription")}>
           <Button asChild variant="outline">
             <Link href="/admin/coupons">{t("back")}</Link>
           </Button>

@@ -1,12 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
-import { BrandMark } from "./brand-mark";
-import { BrandWordmark } from "./brand-wordmark";
-import { HERO_IMAGE_URL } from "./hero-image";
+import { LoaderVisual } from "./loader-visual";
 
 /**
  * Gates the whole app behind a full-page boot loader until Clerk has resolved
@@ -71,44 +68,7 @@ export function AppLoader({ hidden }: { hidden: boolean }) {
         hidden && "pointer-events-none opacity-0"
       )}
     >
-      {/* Same faint, theme-aware backdrop image as the rest of the app. */}
-      <div className="page-background">
-        <Image
-          src={HERO_IMAGE_URL}
-          alt=""
-          fill
-          className="object-cover"
-          sizes="100vw"
-          unoptimized
-        />
-      </div>
-
-      <div className="flex flex-col items-center gap-8">
-        {/* Spinning gradient ring orbiting the brand mark */}
-        <div className="relative h-24 w-24">
-          <div className="app-loader-ring absolute inset-0 animate-spin rounded-full animation-duration-[1s]" />
-          <div className="absolute inset-0 grid place-items-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl brand-tile shadow-lg shadow-primary/30 animate-pulse">
-              <BrandMark className="h-9 w-9" />
-            </div>
-          </div>
-        </div>
-
-        {/* Brand name + bouncing dots */}
-        <div className="flex flex-col items-center gap-3">
-          {/* pl compensates the trailing letter-space: tracking adds 0.3em
-              after the LAST glyph too, so without it the visible text sits
-              left of the spinner's center. */}
-          <span className="text-sm font-semibold uppercase tracking-[0.3em] pl-[0.3em] text-muted-foreground">
-            <BrandWordmark />
-          </span>
-          <div className="flex items-center gap-1.5">
-            <span className="app-loader-dot h-1.5 w-1.5 rounded-full bg-primary" />
-            <span className="app-loader-dot h-1.5 w-1.5 rounded-full bg-primary [animation-delay:0.15s]" />
-            <span className="app-loader-dot h-1.5 w-1.5 rounded-full bg-primary [animation-delay:0.3s]" />
-          </div>
-        </div>
-      </div>
+      <LoaderVisual />
     </div>
   );
 }

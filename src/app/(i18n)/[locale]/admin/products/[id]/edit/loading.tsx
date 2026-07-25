@@ -11,7 +11,7 @@ export default async function EditProductLoadingPage() {
       <div className="shrink-0 px-6 pt-2 sticky-header-bg">
         <SkeletonBreadcrumbs width="w-72" />
         <PageHeader
-          title={t("admin.editProduct")}
+          title={t("admin.editProductLoading")}
           description={t("admin.editProductDesc")}
         >
           <Button asChild variant="outline">

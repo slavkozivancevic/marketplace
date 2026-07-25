@@ -7,6 +7,7 @@ import { useQueryStates } from "nuqs";
 import { useQueryClient } from "@tanstack/react-query";
 import { Pencil, Copy, Trash2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
@@ -191,7 +192,9 @@ function Row({
 
   return (
     <div role="row" className={cn(GRID, "border-b px-3 py-2.5 text-sm min-w-fit")}>
-      <div className="font-mono font-medium truncate">{c.code}</div>
+      <TruncatedTooltip content={c.code}>
+        <div className="font-mono font-medium truncate">{c.code}</div>
+      </TruncatedTooltip>
       <div>{c.type === "PERCENT" ? `${c.value}%` : conv(c.value)}</div>
       <div className="tabular-nums">
         {c.minOrder != null ? conv(c.minOrder) : t("form.none")}

@@ -46,7 +46,10 @@ export function BulkProductsManager({
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-      <TabsList className="w-full justify-start flex-wrap h-auto gap-1 shrink-0">
+      {/* See the matching TabsList in ProductForm.tsx for why both `h-auto!`
+          and `*:h-7.75!` are needed here (specificity + a circular
+          percentage-height dependency once the list is allowed to wrap). */}
+      <TabsList className="w-full justify-start flex-wrap h-auto! gap-1 shrink-0 *:h-7.75!">
         <TabsTrigger value="conditional">{t("bulkProducts.filterExecute")}</TabsTrigger>
         <TabsTrigger value="manage">{t("bulkProducts.selectManage")}</TabsTrigger>
         <TabsTrigger value="import">{t("bulkProducts.importCsv")}</TabsTrigger>

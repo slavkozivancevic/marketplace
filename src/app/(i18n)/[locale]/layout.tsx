@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Image from "next/image";
 import "../../globals.css";
 import { Geist } from "next/font/google";
@@ -19,6 +19,7 @@ import { getCurrencyRates } from "@/features/currency/db/currencyRates";
 import { FoucScript } from "@/providers/theme/FoucScript";
 import { NavigationProgress } from "@/components/layout/NavigationProgress";
 import { LocaleSwitchLoader } from "@/components/layout/locale-switch-loader";
+import { BootLoaderFallback } from "@/components/layout/boot-loader-fallback";
 import { CacheTags } from "@/lib/cache/tags";
 import { cn } from "@/lib/utils";
 import { env } from "@/env/server";
@@ -35,6 +36,21 @@ export const metadata: Metadata = {
   metadataBase: new URL(env.APP_URL),
   title: "MarketVerse",
   description: "MarketVerse - modern commerce, built for scale",
+  manifest: "/manifest.webmanifest",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Lets the app draw under the notch/home-indicator instead of leaving it
+  // blank, and - more importantly - is what makes `env(safe-area-inset-*)`
+  // resolve to real values instead of 0 (used for the mobile sidebar trigger
+  // and other bottom-pinned UI).
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "oklch(0.94 0.008 240)" },
+    { media: "(prefers-color-scheme: dark)", color: "oklch(0.13 0 0)" },
+  ],
 };
 
 async function fetchCurrencyRates() {
@@ -104,7 +120,7 @@ export default async function LocaleRootLayout({
       className={cn("font-sans", geist.variable)}
       suppressHydrationWarning
     >
-      <body className="min-h-screen bg-background antialiased">
+      <body className="min-h-dvh bg-background antialiased">
         {/* Inline FOUC bootstrap. Lives at the top of <body> so the browser's
             HTML parser executes it before any visible content paints. See
             FoucScript.tsx for the React-19-warning workaround details. */}
@@ -137,7 +153,13 @@ export default async function LocaleRootLayout({
         <div className="app-shell">
           <StableOuterProviders>
             <ClerkLocaleProvider locale={locale}>
-              <Suspense fallback={null}>
+              {/* Fallback mirrors <AppLoader> (see boot-loader-fallback.tsx):
+                  this boundary suspends on real async work (messages, currency
+                  rates) both on first boot and on every locale switch, and
+                  <ClerkGate>'s <AppLoader> lives inside it - so a `null`
+                  fallback left a beat with nothing rendered but the page
+                  background, visible as the spinner flashing away and back. */}
+              <Suspense fallback={<BootLoaderFallback />}>
                 <LocaleDataProviders locale={locale}>
                   <InnerProviders>{children}</InnerProviders>
                 </LocaleDataProviders>

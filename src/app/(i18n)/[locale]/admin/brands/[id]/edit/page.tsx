@@ -52,12 +52,15 @@ export default async function EditBrandPage({
     }
   }
 
+  const displayName =
+    brand.translations.find((tr) => tr.locale === locale)?.name ?? en?.name ?? "";
+
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6 pt-2 sticky-header-bg">
         <Breadcrumbs items={breadcrumbItems} seo={false} />
         <PageHeader
-          title={t("admin.editBrand", { name: en?.name ?? "" })}
+          title={t("admin.editBrand", { name: displayName })}
           description={t("admin.editBrandDesc")}
         >
           <Button asChild variant="outline">

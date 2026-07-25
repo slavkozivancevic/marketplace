@@ -33,6 +33,7 @@ import { deleteCategoryAction, duplicateCategoryAction } from "../actions/catego
 import type { CategoryListItem } from "../db/categories";
 import { getCategoryName } from "../utils/translations";
 import { cn } from "@/lib/utils";
+import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 
 /** Sort flat list into tree order: root → its children → next root → its children */
 function toTreeOrder(categories: CategoryListItem[]): Array<CategoryListItem & { depth: number }> {
@@ -206,14 +207,16 @@ export function AdminCategoriesPage({
                   ) : (
                     <Folder className="h-4 w-4 text-muted-foreground/60 shrink-0" />
                   )}
-                  <span
-                    className={cn(
-                      "truncate",
-                      isRoot ? "font-semibold" : "text-sm",
-                    )}
-                  >
-                    {getCategoryName(row, locale)}
-                  </span>
+                  <TruncatedTooltip content={getCategoryName(row, locale)}>
+                    <span
+                      className={cn(
+                        "truncate",
+                        isRoot ? "font-semibold" : "text-sm",
+                      )}
+                    >
+                      {getCategoryName(row, locale)}
+                    </span>
+                  </TruncatedTooltip>
                   {row.isFeatured && (
                     <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400 shrink-0" />
                   )}

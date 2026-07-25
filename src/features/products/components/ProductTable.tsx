@@ -20,6 +20,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/components/ui/sonner";
+import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 import { BrandLogo } from "@/features/brands/components/BrandLogo";
 import { LoadingImage } from "@/components/ui/LoadingImage";
 import { deleteProduct, duplicateProduct } from "@/features/products/actions/products";
@@ -191,7 +192,9 @@ export function ProductTableRow({
           </div>
         )}
       </div>
-      <div role="cell" className="truncate">{localTitle}</div>
+      <TruncatedTooltip content={localTitle}>
+        <div role="cell" className="truncate">{localTitle}</div>
+      </TruncatedTooltip>
       <div role="cell">
         {product.brand ? (
           <div className="flex items-center gap-1.5 min-w-0">
@@ -203,15 +206,19 @@ export function ProductTableRow({
               name={localBrandName}
               size={20}
             />
-            <span className="truncate text-sm">{localBrandName}</span>
+            <TruncatedTooltip content={localBrandName}>
+              <span className="truncate text-sm">{localBrandName}</span>
+            </TruncatedTooltip>
           </div>
         ) : (
           <span className="text-muted-foreground text-sm">-</span>
         )}
       </div>
-      <div role="cell" className="truncate text-muted-foreground">
-        {localDescription}
-      </div>
+      <TruncatedTooltip content={localDescription}>
+        <div role="cell" className="truncate text-muted-foreground">
+          {localDescription}
+        </div>
+      </TruncatedTooltip>
       <div role="cell" className="text-right tabular-nums">
         {formatPrice(convertCents(product.price, currency, currentRate()), currency)}
       </div>

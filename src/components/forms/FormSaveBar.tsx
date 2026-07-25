@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useMobileBottomBarStore } from "@/store/mobileBottomBar";
 
 /**
  * Contextual save bar (Shopify / Stripe style). Rendered in place of a bare
@@ -38,6 +40,14 @@ export function FormSaveBar({
   className?: string;
 }) {
   const t = useTranslations("form");
+
+  // Register presence (not `isDirty`) so the offset doesn't flicker as
+  // dirtiness toggles - see mobileBottomBar.ts for why this exists at all.
+  const register = useMobileBottomBarStore((s) => s.register);
+  useEffect(() => {
+    if (sticky) return;
+    return register();
+  }, [sticky, register]);
 
   if (!isDirty) {
     return (

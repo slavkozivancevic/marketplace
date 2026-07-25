@@ -2,10 +2,10 @@
 import { logger } from "@/lib/logger";
 
 import * as React from "react";
-import { useCallback, useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
-import { useDropzone } from "react-dropzone";
+import { useDropzone, FileRejection } from "react-dropzone";
 import axios, { AxiosProgressEvent } from "axios";
 import { PlayCircle } from "lucide-react";
 import {
@@ -66,6 +66,25 @@ function preloadImage(url: string): Promise<void> {
   });
 }
 
+// dnd-kit spreads its pointer-down activator across the whole draggable card,
+// so relying only on the delete button's stopPropagation to keep it from
+// arming a drag is timing-sensitive - a fast click can register the drag
+// sensor's own document-level listeners first, which then swallows the click
+// and the button appears to "flash" without removing anything. Rejecting
+// activation outright for any interactive descendant is the pattern dnd-kit
+// itself recommends for this: https://github.com/clauderic/dnd-kit/issues/477
+class NoInteractivePointerSensor extends PointerSensor {
+  static activators = [
+    {
+      eventName: "onPointerDown" as const,
+      handler: ({ nativeEvent }: React.PointerEvent) => {
+        const target = nativeEvent.target as HTMLElement | null;
+        return !target?.closest("[data-no-dnd]");
+      },
+    },
+  ];
+}
+
 type SortableItemProps = {
   item: PresignedUploadedMedia;
   onClick: (e: React.MouseEvent) => void;
@@ -99,7 +118,7 @@ function SortableItem({ item, onClick, onRemove }: SortableItemProps) {
       style={style}
       {...attributes}
       {...listeners}
-      className={`group py-0 relative h-24 w-full cursor-pointer overflow-hidden ${isDragging ? "z-1" : ""}`}
+      className={`group py-0 relative aspect-square w-full cursor-pointer overflow-hidden ${isDragging ? "z-1" : ""}`}
     >
       <CardContent className="relative h-full w-full p-0" onClick={onClick}>
         {isVideo && !item.posterUrl ? (
@@ -145,6 +164,7 @@ function SortableItem({ item, onClick, onRemove }: SortableItemProps) {
           size="icon-sm"
           variant="destructive"
           className="cursor-pointer"
+          data-no-dnd="true"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
@@ -167,7 +187,7 @@ export const ProductMediaUpload: React.FC<ProductMediaUploadProps> = ({
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(NoInteractivePointerSensor, {
       activationConstraint: {
         delay: 200,
         tolerance: 5,
@@ -175,8 +195,57 @@ export const ProductMediaUpload: React.FC<ProductMediaUploadProps> = ({
     }),
   );
 
+  // While a tile is being dragged, lock scrolling. `autoScroll={false}` on
+  // DndContext (below) stops dnd-kit's own programmatic auto-scroll, but a
+  // trackpad/touch scroll gesture during the drag can still move the nearest
+  // real scroll container - here that's the tab panel's own `overflow-y-auto`
+  // (this form's tabs each scroll independently, not the page/body). Lock
+  // every such scroller found in the document for the duration of the drag.
+  //
+  // Just setting `overflow: hidden` makes each scroller's own scrollbar
+  // disappear immediately, which narrows its content box by the scrollbar's
+  // width and shifts everything - a visible jump right as the drag starts.
+  // Measure each scrollbar before hiding it and pad the freed width back in,
+  // so the content area's width doesn't change.
+  const [isDragging, setIsDragging] = useState(false);
+  useEffect(() => {
+    if (!isDragging) return;
+    const scrollers: HTMLElement[] = [
+      ...document.querySelectorAll<HTMLElement>(
+        '[class*="overflow-y-auto"], [class*="overflow-auto"]',
+      ),
+      document.body,
+    ];
+    const restore = scrollers.map((el) => {
+      const scrollbarWidth = el.offsetWidth - el.clientWidth;
+      const prevOverflow = el.style.overflow;
+      const prevPaddingRight = el.style.paddingRight;
+      el.style.overflow = "hidden";
+      if (scrollbarWidth > 0) {
+        const currentPaddingRight =
+          parseFloat(getComputedStyle(el).paddingRight) || 0;
+        el.style.paddingRight = `${currentPaddingRight + scrollbarWidth}px`;
+      }
+      return () => {
+        el.style.overflow = prevOverflow;
+        el.style.paddingRight = prevPaddingRight;
+      };
+    });
+    return () => {
+      restore.forEach((fn) => fn());
+    };
+  }, [isDragging]);
+
   const onDrop = useCallback(
-    async (acceptedFiles: File[]) => {
+    async (acceptedFiles: File[], fileRejections: FileRejection[]) => {
+      // react-dropzone filters against `accept` before onDrop ever sees the
+      // files, routing anything that doesn't match straight into
+      // fileRejections - the type check further down never runs for these, so
+      // without this they were dropped silently with no feedback at all.
+      for (const rejection of fileRejections) {
+        toast.error(t("typeNotAllowed", { name: rejection.file.name }));
+      }
+
       if (media.length + acceptedFiles.length > MAX_FILES) {
         toast.error(t("tooManyFiles", { max: MAX_FILES }));
         return;
@@ -405,6 +474,7 @@ export const ProductMediaUpload: React.FC<ProductMediaUploadProps> = ({
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
+    setIsDragging(false);
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
@@ -463,7 +533,16 @@ export const ProductMediaUpload: React.FC<ProductMediaUploadProps> = ({
           id={dndId}
           sensors={sensors}
           collisionDetection={closestCenter}
+          // This grid is small and never scrolls on its own, so dnd-kit's
+          // auto-scroll (which walks up to the nearest scrollable ancestor -
+          // the tab panel, or the page itself - and scrolls it while the
+          // pointer nears an edge) had nothing appropriate to target and was
+          // instead flinging the whole Details tab / page up and down during
+          // a drag, sometimes past where a scrollbar could get you back.
+          autoScroll={false}
+          onDragStart={() => setIsDragging(true)}
           onDragEnd={handleDragEnd}
+          onDragCancel={() => setIsDragging(false)}
         >
           <SortableContext
             items={media.map((m) => m.clientId ?? m.key)}

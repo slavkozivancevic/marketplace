@@ -967,7 +967,49 @@ export function ProductForm({
   const seoHasChanges =
     showChanges &&
     !!(dirty.metaTitle || dirty.metaDescription || translationsDirty(["metaTitle", "metaDescription"]));
-  const variantsHasChanges = showChanges && !!dirty.variants;
+  // Compared by content against a baseline that only depends on `product` (not
+  // `liveStock`), and excludes `stock` (which has its own live-sync path that's
+  // explicitly designed not to dirty the form - see the live-stock effect above).
+  // RHF's own `dirty.variants` is NOT used here: the live-stock refresh feeds a
+  // new `derivedValues` into the form's `values` prop, and that reset - combined
+  // with an unrelated field (e.g. media) being set dirty in the same tick - can
+  // spuriously mark the whole `variants` array dirty even when nothing in it
+  // actually changed (observed as this tab lighting up merely from adding a
+  // product image, inconsistently depending on whether the product already had
+  // media). Comparing real content sidesteps that timing-dependent false positive.
+  const savedVariantsBaseline = useMemo(() => {
+    if (!product) return [];
+    const mediaKeyById = new Map(product.media.map((m) => [m.id, m.key]));
+    return product.variants.map((v) => ({
+      sku: v.sku,
+      price: v.price / 100,
+      compareAtPrice: v.compareAtPrice != null ? v.compareAtPrice / 100 : null,
+      costPrice: v.costPrice != null ? v.costPrice / 100 : null,
+      barcode: v.barcode ?? "",
+      weight: v.weight ?? null,
+      weightUnit: (v.weightUnit ?? null) as ProductFormData["weightUnit"],
+      mediaKeys: v.media
+        .map((vm) => mediaKeyById.get(vm.mediaId))
+        .filter((k): k is string => Boolean(k)),
+      options: v.attributeValues.map((av) => ({
+        attributeId: av.attributeId,
+        optionId: av.optionId,
+      })),
+    }));
+  }, [product]);
+  const variantsHasChanges = useMemo(() => {
+    if (!showChanges) return false;
+    const strip = (rows: typeof watchedVariants) =>
+      (rows ?? []).map((row) => {
+        const rest = { ...row };
+        delete (rest as { stock?: number }).stock;
+        return rest;
+      });
+    return (
+      JSON.stringify(strip(watchedVariants)) !==
+      JSON.stringify(strip(savedVariantsBaseline as typeof watchedVariants))
+    );
+  }, [showChanges, watchedVariants, savedVariantsBaseline]);
 
   useUnsavedChangesWarning(showChanges && isDirty);
 
@@ -1124,7 +1166,21 @@ export function ProductForm({
       <ChangedHintScope enabled={mode === "update"}>
       <form noValidate onSubmit={form.handleSubmit(onSubmit, onSubmitInvalid)} className="flex-1 flex flex-col min-h-0">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0">
-          <TabsList className="w-full justify-start flex-wrap h-auto gap-1 shrink-0">
+          {/* `h-auto!`: TabsList's own `h-8` is a `group-data-horizontal/tabs:`
+              variant utility, which beats a plain `h-auto` override on CSS
+              specificity - without `!important` the list stays clipped to one
+              row's height on narrow screens, so a wrapped tab renders outside
+              its own `bg-muted` pill background as bare text.
+              `*:h-7.75!`: each TabsTrigger sizes itself off the list's OWN
+              height (`h-[calc(100%-1px)]`) rather than a fixed value. Once
+              the list's height is no longer the fixed `h-8` it wrapped
+              against, that turns circular - the list's height depends on its
+              (now taller) children, which depend right back on the list's
+              height - and every trigger, not just the wrapped one, blew up to
+              the full multi-row height. Pinning each trigger's height breaks
+              the loop; 7.75 (31px) matches what `calc(100% - 1px)` resolved to
+              when the list was a fixed `h-8` (32px). */}
+          <TabsList className="w-full justify-start flex-wrap h-auto! gap-1 shrink-0 *:h-7.75!">
             <TabsTrigger value="details">
               <TabLabel label={t("tabDetails")} hasError={detailsHasError} hasChanges={detailsHasChanges} />
             </TabsTrigger>

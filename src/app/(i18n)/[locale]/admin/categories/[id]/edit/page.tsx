@@ -67,11 +67,16 @@ export default async function EditCategoryPage({
     };
   }
 
+  const displayName =
+    category.translations.find((tr) => tr.locale === locale)?.name ??
+    en?.name ??
+    "";
+
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6 pt-2 sticky-header-bg">
         <Breadcrumbs items={breadcrumbItems} seo={false} />
-        <PageHeader title={t("editTitle")} description={en?.name ?? ""}>
+        <PageHeader title={t("editTitle", { name: displayName })}>
           <Button asChild variant="outline">
             <Link href="/admin/categories">{t("back")}</Link>
           </Button>

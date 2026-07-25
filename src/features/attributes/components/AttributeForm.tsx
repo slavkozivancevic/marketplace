@@ -95,6 +95,7 @@ function LocaleLabelInputs({
                 />
               </FormControl>
               <FieldChangedHint />
+              <FormMessage />
             </FormItem>
           )}
         />

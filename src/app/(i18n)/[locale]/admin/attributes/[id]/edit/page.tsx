@@ -44,8 +44,7 @@ export default async function EditAttributePage({
       <div className="shrink-0 px-6 pt-2 sticky-header-bg">
         <Breadcrumbs items={breadcrumbItems} seo={false} />
         <PageHeader
-          title={t("editTitle")}
-          description={getAttributeLabel(attribute, locale)}
+          title={t("editTitle", { label: getAttributeLabel(attribute, locale) })}
         >
           <Button asChild variant="outline">
             <Link href="/admin/attributes">{t("back")}</Link>

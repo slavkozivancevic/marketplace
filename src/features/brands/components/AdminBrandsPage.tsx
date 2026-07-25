@@ -7,6 +7,7 @@ import { BrandLogo } from "@/features/brands/components/BrandLogo";
 import { Copy, Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
+import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 import { SearchInput } from "@/components/search/SearchInput";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -99,7 +100,9 @@ function BrandTableRow({
           size={40}
         />
       </div>
-      <div role="cell" className="font-medium truncate">{displayName}</div>
+      <TruncatedTooltip content={displayName}>
+        <div role="cell" className="font-medium truncate">{displayName}</div>
+      </TruncatedTooltip>
       <div role="cell" className="text-muted-foreground font-mono text-xs truncate">
         {displaySlug}
       </div>

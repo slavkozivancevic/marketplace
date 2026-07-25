@@ -40,7 +40,7 @@ export default async function NotFoundPage() {
       <NextIntlClientProvider locale={locale} messages={messages}>
         <ThemeProvider>
           <HardNavBoundary>
-            <div className="flex h-screen flex-col overflow-hidden">
+            <div className="flex h-dvh flex-col overflow-hidden">
               <NotFoundHeader />
               <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
                 <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">

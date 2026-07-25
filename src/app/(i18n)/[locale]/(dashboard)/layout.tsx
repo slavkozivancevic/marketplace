@@ -38,7 +38,7 @@ export default async function DashboardLayout({
 
   return (
     <ActiveOrgProvider orgId={currentOrgId}>
-      <div className="flex h-screen flex-col overflow-hidden">
+      <div className="flex h-dvh flex-col overflow-hidden">
         <Header />
         <div className="flex flex-1 min-h-0">
           <DashboardSidebar

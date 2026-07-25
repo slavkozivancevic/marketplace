@@ -493,7 +493,7 @@ export function CheckoutPage() {
 
               <div className="space-y-1">
                 <Label htmlFor="name">{t("fullName")}</Label>
-                <Input id="name" {...register("name")} />
+                <Input id="name" {...register("name")} aria-invalid={!!errors.name} />
                 {errors.name && (
                   <p className="text-xs text-destructive">{errors.name.message}</p>
                 )}
@@ -501,7 +501,7 @@ export function CheckoutPage() {
 
               <div className="space-y-1">
                 <Label htmlFor="line1">{t("addressLine1")}</Label>
-                <Input id="line1" {...register("line1")} />
+                <Input id="line1" {...register("line1")} aria-invalid={!!errors.line1} />
                 {errors.line1 && (
                   <p className="text-xs text-destructive">{errors.line1.message}</p>
                 )}
@@ -512,31 +512,31 @@ export function CheckoutPage() {
                 <Input id="line2" {...register("line2")} />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="city">{t("city")}</Label>
-                  <Input id="city" {...register("city")} />
+                  <Input id="city" {...register("city")} aria-invalid={!!errors.city} />
                   {errors.city && (
                     <p className="text-xs text-destructive">{errors.city.message}</p>
                   )}
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="postalCode">{t("postalCode")}</Label>
-                  <Input id="postalCode" {...register("postalCode")} />
+                  <Input id="postalCode" {...register("postalCode")} aria-invalid={!!errors.postalCode} />
                   {errors.postalCode && (
                     <p className="text-xs text-destructive">{errors.postalCode.message}</p>
                   )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="state">{t("stateRegion")}</Label>
                   <Input id="state" {...register("state")} />
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="country">{t("country")}</Label>
-                  <Input id="country" {...register("country")} />
+                  <Input id="country" {...register("country")} aria-invalid={!!errors.country} />
                   {errors.country && (
                     <p className="text-xs text-destructive">{errors.country.message}</p>
                   )}

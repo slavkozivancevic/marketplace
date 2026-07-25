@@ -189,14 +189,20 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
     <form noValidate onSubmit={handleSubmit(onSubmit, onInvalid)} className="max-w-lg space-y-5">
       <div className="space-y-1.5">
         <Label htmlFor="code">{t("form.code")}</Label>
-        <Input id="code" {...register("code")} autoComplete="off" className="uppercase" />
+        <Input
+          id="code"
+          {...register("code")}
+          autoComplete="off"
+          className="uppercase"
+          aria-invalid={!!errors.code}
+        />
         {errors.code && <p className="text-xs text-destructive">{errors.code.message}</p>}
         {coupon && (
           <ChangedHint changed={!!dirtyFields.code} savedText={coupon.code} />
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label>{t("form.type")}</Label>
           <Select value={type} onValueChange={(v) => handleTypeChange(v as "PERCENT" | "FIXED")}>
@@ -239,7 +245,7 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 items-start">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
         <div className="space-y-1.5">
           <Label>{t("form.minOrder")}</Label>
           <PriceInput

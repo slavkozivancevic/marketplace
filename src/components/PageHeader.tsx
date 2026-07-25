@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 
 interface PageHeaderProps {
   title: string;
@@ -24,8 +25,10 @@ export function PageHeader({
       )}
     >
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="space-y-0.5">
-          <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+        <div className="space-y-0.5 min-w-0">
+          <TruncatedTooltip content={title}>
+            <h1 className="text-2xl font-bold text-foreground truncate">{title}</h1>
+          </TruncatedTooltip>
           {description && (
             <p className="text-sm text-muted-foreground">{description}</p>
           )}

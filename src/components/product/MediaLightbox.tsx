@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -52,6 +53,30 @@ export function MediaLightbox({
   const prev = () => onIndexChange((index - 1 + count) % count);
   const next = () => onIndexChange((index + 1) % count);
 
+  // Swipe navigation for touch devices - the arrow buttons are the only way
+  // to move between items otherwise, and on a phone this is a fullscreen
+  // modal people instinctively try to swipe. Horizontal-only: a swipe with
+  // more vertical than horizontal movement is left alone (e.g. an accidental
+  // drag while scrolling), and only fires past a real swipe distance so a tap
+  // never gets mistaken for a nudge.
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const SWIPE_THRESHOLD = 50;
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start || count < 2) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dx) < Math.abs(dy)) return;
+    if (dx < 0) next();
+    else prev();
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -61,7 +86,11 @@ export function MediaLightbox({
       >
         <DialogTitle className="sr-only">{title}</DialogTitle>
 
-        <div className="relative flex items-center justify-center w-full h-full">
+        <div
+          className="relative flex items-center justify-center w-full h-full"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
           <button
             onClick={() => onOpenChange(false)}
             className="absolute top-3 right-3 z-10 cursor-pointer rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70 transition-colors"

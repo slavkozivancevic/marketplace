@@ -260,7 +260,15 @@
      unsaved-changes confirmations) -> `alert-dialog-overlay`, Sheet/drawer ->
      `sheet-overlay`). */
   .app-shell {
+    /* dvh tracks the ACTUAL visible viewport as mobile browser chrome
+       (address bar / nav bar) shows and hides; 100vh is the LARGE viewport
+       (chrome retracted) and stays that tall even while chrome is showing,
+       pushing bottom-pinned UI (save bars, nav triggers) behind it with no
+       scroll escape (html is overflow-hidden). Kept as a fallback for
+       browsers without dvh support - invalid values are ignored, so dvh only
+       applies where supported. */
     height: 100vh;
+    height: 100dvh;
   }
   body:has([data-slot="dialog-overlay"], [data-slot="alert-dialog-overlay"], [data-slot="sheet-overlay"]) > .page-background,
   body:has([data-slot="dialog-overlay"], [data-slot="alert-dialog-overlay"], [data-slot="sheet-overlay"]) > .app-shell {
