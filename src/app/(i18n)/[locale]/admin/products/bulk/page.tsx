@@ -1,6 +1,5 @@
 import { Link, getPathname } from "@/i18n/navigation";
 import { cacheTag } from "next/cache";
-import { ArrowLeft } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
@@ -87,10 +86,7 @@ export default async function BulkProductsPage() {
           description={t("admin.bulkDesc")}
         >
           <Button asChild variant="outline" size="sm">
-            <Link href="/admin/products">
-              <ArrowLeft className="h-4 w-4 mr-1.5" />
-              {t("admin.backToProducts")}
-            </Link>
+            <Link href="/admin/products">{t("admin.backToProducts")}</Link>
           </Button>
         </PageHeader>
       </div>
