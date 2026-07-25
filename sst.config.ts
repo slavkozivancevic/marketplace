@@ -91,9 +91,14 @@ export default $config({
       // blank. Pin a newer OpenNext that supports Next 16. Fallback: 3.10.4.
       openNextVersion: "4.0.3",
       link: [media, ...Object.values(secrets)],
-      // TODO(aws #31): attach the real domain per stage (production apex +
-      // staging/pr subdomains). Drives APP_URL below (canonical/hreflang/OG).
-      // domain: stage === "production" ? "example.com" : `${stage}.example.com`,
+      // Domain: marketverseapp.com (registered at Namecheap, DNS delegated to
+      // this account's Route 53 hosted zone - SST assumes Route 53 by default).
+      // TEMPORARY: apex is on `staging` because that's the stage currently
+      // serving as prod (see DEPLOYMENT.md / project_staging_deployed memory).
+      // When a real `production` stage is deployed, remap: production -> apex,
+      // staging -> a subdomain (e.g. staging.marketverseapp.com) - both stages
+      // must never claim the same domain at once (Route 53 alias conflict).
+      domain: stage === "staging" ? "marketverseapp.com" : undefined,
       environment: {
         // Secrets
         DATABASE_URL: secrets.DATABASE_URL.value,
