@@ -60,7 +60,14 @@ export default $config({
     // ── Product media bucket ──────────────────────────────────────────────
     // Public-read objects (product images/video). TODO(aws #24): put CloudFront
     // in front and swap S3_PUBLIC_URL to the CDN domain.
-    const media = new sst.aws.Bucket("Media", { access: "public" });
+    // Browser PUTs directly to this bucket via presigned URLs (product image/
+    // video upload), so CORS matters. Only `staging` (the domain-facing stage)
+    // is locked to the real origin; dev/pr-<n> have no stable origin ahead of
+    // time and keep SST's default wildcard.
+    const media = new sst.aws.Bucket("Media", {
+      access: "public",
+      cors: { allowOrigins: stage === "staging" ? ["https://marketverseapp.com"] : ["*"] },
+    });
     const mediaPublicUrl = $interpolate`https://${media.name}.s3.eu-central-1.amazonaws.com`;
 
     // ── Cross-service discovery (SSM) ─────────────────────────────────────

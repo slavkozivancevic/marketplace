@@ -236,7 +236,7 @@ export function InvoiceDocument({ data }: { data: InvoiceData }) {
               <Text style={styles.brand}>
                 Market<Text style={styles.brandVerse}>Verse</Text>
               </Text>
-              <Text style={styles.brandSub}>marketverse.app</Text>
+              <Text style={styles.brandSub}>marketverseapp.com</Text>
             </View>
           </View>
           <Text style={styles.invoiceTitle}>{l.invoice.toUpperCase()}</Text>
