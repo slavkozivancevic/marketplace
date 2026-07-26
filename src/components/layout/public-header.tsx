@@ -92,16 +92,16 @@ export function PublicHeader({
             <div className="flex flex-1 justify-start min-w-0">
             <Link
               href="/"
-              className="group flex items-center gap-2.5 shrink-0"
+              className="group flex items-center gap-2.5 min-w-0"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg brand-tile transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/25 group-hover:scale-105">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg brand-tile transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/25 group-hover:scale-105 shrink-0">
                 <BrandMark className="h-7 w-7" />
               </div>
-              <div className="flex flex-col">
-                <span className="text-lg font-bold tracking-tight leading-tight">
+              <div className="flex flex-col min-w-0">
+                <span className="text-lg font-bold tracking-tight leading-tight truncate">
                   <BrandWordmark />
                 </span>
-                <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight">
+                <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight truncate">
                   {t("header.tagline")}
                 </span>
               </div>
@@ -109,7 +109,7 @@ export function PublicHeader({
             </div>
 
             {/* Desktop Nav */}
-            <nav className="hidden md:flex items-center gap-1 shrink-0">
+            <nav className="hidden lg:flex items-center gap-1 shrink-0">
               {navLinks.map((link) => {
                 const linkEl = (
                   <Link
@@ -127,22 +127,33 @@ export function PublicHeader({
               })}
             </nav>
 
-            {/* Right side actions - flex-1 right rail mirrors the left */}
-            <div className="flex flex-1 items-center justify-end gap-1 sm:gap-2">
-              <PreferencesPopover />
-              <ChatDrawerTrigger signedIn={signedIn} />
-              {/* Always visible - count is 0 (query disabled) when signed out,
-                  and clicking through to /wishlist redirects guests to sign-in. */}
-              <WishlistHeaderButton />
+            {/* Right side actions - mirrors the left flex-1 rail from lg up (to
+                keep the desktop nav visually centered); below lg the desktop
+                nav is hidden so this rail only needs its own content width,
+                letting the logo/tagline rail claim the rest instead of being
+                capped at a forced 50/50 split. */}
+            <div className="flex flex-none lg:flex-1 items-center justify-end gap-1 sm:gap-2">
+              {/* Below lg these move into the mobile menu instead, so the
+                  header rail stays short enough to never crowd the logo. Nav
+                  links + icons + auth all fit comfortably from lg (1024px) up;
+                  showing them any earlier squeezed the wordmark down to an
+                  ellipsis in the 768-950px range. */}
+              <div className="hidden lg:flex items-center gap-1 sm:gap-2">
+                <PreferencesPopover />
+                <ChatDrawerTrigger signedIn={signedIn} />
+                {/* Always visible - count is 0 (query disabled) when signed out,
+                    and clicking through to /wishlist redirects guests to sign-in. */}
+                <WishlistHeaderButton />
+              </div>
               <CartButton />
-              <div className="hidden sm:flex items-center gap-2 ml-1">
+              <div className="hidden lg:flex items-center gap-2 ml-1">
                 <HeaderAuth mode="modal" showDashboardLink={false} signedIn={signedIn} />
               </div>
               {/* Mobile menu button */}
               <Button
                 variant="outline"
                 size="icon"
-                className="md:hidden h-9 w-9"
+                className="lg:hidden h-9 w-9"
                 onClick={() => setMobileOpen(!mobileOpen)}
               >
                 {mobileOpen ? (
@@ -155,31 +166,40 @@ export function PublicHeader({
           </div>
         </div>
 
-        {/* Mobile menu */}
+        {/* Mobile menu - grid-rows[0fr -> 1fr] instead of a fixed max-h so the
+            collapse always fits its content (nav links + auth vary with
+            sign-in state), never clipping the last row. */}
         <div
           className={cn(
-            "md:hidden overflow-hidden transition-all duration-300 border-t border-border/50",
-            mobileOpen ? "max-h-60" : "max-h-0 border-t-0"
+            "lg:hidden grid transition-[grid-template-rows] duration-300 ease-in-out border-t border-border/50",
+            mobileOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr] border-t-0"
           )}
         >
-          <div className="px-4 py-3 space-y-1">
-            {navLinks.map((link) => {
-              const linkEl = (
-                <Link
-                  key={link.href}
-                  href={link.href as never}
-                  className="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {link.label}
-                </Link>
-              );
-              if (!link.authGated) return linkEl;
-              if (!mounted || !isSignedIn) return null;
-              return linkEl;
-            })}
-            <div className="pt-2 px-3 sm:hidden">
-              <HeaderAuth mode="modal" showDashboardLink={false} signedIn={signedIn} />
+          <div className="overflow-hidden">
+            <div className="px-4 py-3 space-y-1">
+              <div className="flex items-center gap-2 px-3 pb-3">
+                <PreferencesPopover />
+                <ChatDrawerTrigger signedIn={signedIn} />
+                <WishlistHeaderButton />
+              </div>
+              {navLinks.map((link) => {
+                const linkEl = (
+                  <Link
+                    key={link.href}
+                    href={link.href as never}
+                    className="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {link.label}
+                  </Link>
+                );
+                if (!link.authGated) return linkEl;
+                if (!mounted || !isSignedIn) return null;
+                return linkEl;
+              })}
+              <div className="pt-2 px-3 lg:hidden">
+                <HeaderAuth mode="modal" showDashboardLink={false} signedIn={signedIn} />
+              </div>
             </div>
           </div>
         </div>

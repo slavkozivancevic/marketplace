@@ -22,7 +22,7 @@ import {
 import { toast } from "@/components/ui/sonner";
 import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 import { BrandLogo } from "@/features/brands/components/BrandLogo";
-import { LoadingImage } from "@/components/ui/LoadingImage";
+import { RetryImage } from "@/components/RetryImage";
 import { deleteProduct, duplicateProduct } from "@/features/products/actions/products";
 import { SerializedProductListItem } from "@/types/types";
 import { useCurrencyStore } from "@/store/currency";
@@ -177,7 +177,7 @@ export function ProductTableRow({
       <div role="cell">
         {thumbnailUrl ? (
           <div className="relative h-12 w-12 overflow-hidden rounded border bg-muted">
-            <LoadingImage
+            <RetryImage
               src={thumbnailUrl}
               alt={localTitle}
               fill

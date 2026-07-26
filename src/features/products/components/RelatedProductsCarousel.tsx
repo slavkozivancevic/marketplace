@@ -14,6 +14,7 @@ import {
   CarouselItem,
   useCarousel,
 } from "@/components/ui/carousel";
+import { padForLoop } from "@/lib/carouselLoop";
 
 // Carousels render the exact same storefront card as the products grid and the
 // wishlist (single source: <ProductCard>). The data is a full product list
@@ -21,11 +22,6 @@ import {
 // static still (no hover cycling) - lighter for these secondary strips.
 export type RelatedProduct = SerializedProductListItem;
 
-// Nav arrows that follow the homepage department-carousel pattern: an arrow is
-// fully hidden and inert (opacity-0 + pointer-events-none) when there is
-// nothing to scroll in that direction, and fades in only when it can scroll.
-// This avoids a dead, clickable arrow sitting over a product card. Driven by
-// embla's canScroll state via the carousel context.
 const carouselArrow =
   "absolute top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full border border-white/30 bg-black/55 text-white shadow-[0_4px_14px_rgba(0,0,0,0.4)] backdrop-blur-sm backdrop-saturate-150 flex items-center justify-center transition-[background-color,border-color,box-shadow,color,opacity] duration-300 ease-out hover:bg-black/85 hover:border-white/55 hover:shadow-[0_6px_22px_rgba(0,0,0,0.6)] cursor-pointer active:translate-y-[calc(-50%+1px)] [&_svg]:drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]";
 
@@ -121,9 +117,13 @@ export function RelatedProductsCarousel({
           className="w-full"
         >
           <CarouselContent className="-ml-4">
-            {products.map((product) => (
+            {/* Padded so embla's native loop has enough slide width to build
+                a real seamless wrap (see padForLoop) - only ever matters for
+                strips with few items, since real content already clears the
+                bar on its own. */}
+            {padForLoop(products).map((product, index) => (
               <CarouselItem
-                key={product.id}
+                key={`${product.id}-${index}`}
                 className="pl-4 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4 xl:basis-1/5"
               >
                 <ProductCard product={product} />

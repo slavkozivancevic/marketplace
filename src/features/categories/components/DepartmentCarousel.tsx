@@ -1,10 +1,16 @@
 "use client";
 
-import { useRef, useState, useEffect, useCallback } from "react";
 import { Link } from "@/i18n/navigation";
-import Image from "next/image";
 import { ChevronLeft, ChevronRight, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RetryImage } from "@/components/RetryImage";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  useCarousel,
+} from "@/components/ui/carousel";
+import { padForLoop } from "@/lib/carouselLoop";
 import type { DepartmentWithImages } from "../db/categories";
 import { getCategoryName } from "../utils/translations";
 import { useLocale } from "next-intl";
@@ -28,7 +34,7 @@ function DepartmentCollage({
 
   if (images.length === 1) {
     return (
-      <Image
+      <RetryImage
         src={images[0]}
         alt={name}
         fill
@@ -43,7 +49,7 @@ function DepartmentCollage({
       <div className="absolute inset-0 grid grid-cols-2 gap-px bg-border/40">
         {images.map((url, i) => (
           <div key={i} className="relative overflow-hidden">
-            <Image
+            <RetryImage
               src={url}
               alt={name}
               fill
@@ -61,7 +67,7 @@ function DepartmentCollage({
       <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-px bg-border/40">
         {/* First image spans full left column */}
         <div className="relative overflow-hidden row-span-2">
-          <Image
+          <RetryImage
             src={images[0]}
             alt={name}
             fill
@@ -71,7 +77,7 @@ function DepartmentCollage({
         </div>
         {images.slice(1).map((url, i) => (
           <div key={i} className="relative overflow-hidden">
-            <Image
+            <RetryImage
               src={url}
               alt={name}
               fill
@@ -89,7 +95,7 @@ function DepartmentCollage({
     <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-px bg-border/40">
       {images.slice(0, 4).map((url, i) => (
         <div key={i} className="relative overflow-hidden">
-          <Image
+          <RetryImage
             src={url}
             alt={name}
             fill
@@ -151,6 +157,52 @@ function DepartmentCard({ dept }: { dept: DepartmentWithImages }) {
 
 // ---------- Carousel ----------
 
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+const carouselArrow =
+  "absolute top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full border border-white/30 bg-black/55 text-white shadow-[0_4px_14px_rgba(0,0,0,0.4)] backdrop-blur-sm backdrop-saturate-150 flex items-center justify-center transition-[background-color,border-color,box-shadow,color,opacity] duration-300 ease-out hover:bg-black/85 hover:border-white/55 hover:shadow-[0_6px_22px_rgba(0,0,0,0.6)] cursor-pointer active:translate-y-[calc(-50%+1px)] [&_svg]:drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]";
+
+function DepartmentCarouselArrows() {
+  const { scrollPrev, scrollNext, canScrollPrev, canScrollNext } = useCarousel();
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={scrollPrev}
+        aria-label="Scroll left"
+        className={cn(
+          carouselArrow,
+          "left-0 -translate-x-4",
+          canScrollPrev
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none",
+        )}
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </button>
+      <button
+        type="button"
+        onClick={scrollNext}
+        aria-label="Scroll right"
+        className={cn(
+          carouselArrow,
+          "right-0 translate-x-4",
+          canScrollNext
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none",
+        )}
+      >
+        <ChevronRight className="h-5 w-5" />
+      </button>
+    </>
+  );
+}
+
 interface DepartmentCarouselProps {
   departments: DepartmentWithImages[];
   rows?: 2 | 3;
@@ -166,40 +218,14 @@ export function DepartmentCarousel({
   titleLabel,
   subtitleLabel,
 }: DepartmentCarouselProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [canLeft, setCanLeft] = useState(false);
-  const [canRight, setCanRight] = useState(false);
-
-  const checkScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setCanLeft(el.scrollLeft > 4);
-    setCanRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
-  }, []);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    checkScroll();
-    el.addEventListener("scroll", checkScroll, { passive: true });
-    const ro = new ResizeObserver(checkScroll);
-    ro.observe(el);
-    return () => {
-      el.removeEventListener("scroll", checkScroll);
-      ro.disconnect();
-    };
-  }, [checkScroll]);
-
-  function scroll(dir: "left" | "right") {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollBy({
-      left: dir === "left" ? -(el.clientWidth * 0.75) : el.clientWidth * 0.75,
-      behavior: "smooth",
-    });
-  }
-
   if (departments.length === 0) return null;
+
+  // Each slide is a column of `rows` stacked cards, so the carousel scrolls
+  // column-by-column exactly like the old CSS-grid layout did visually - the
+  // difference is embla now owns the scrolling, which is what gets us real
+  // touch/trackpad swipe. Padded so embla's native loop has enough slide
+  // width to build a real seamless wrap (see padForLoop).
+  const columns = padForLoop(chunk(departments, rows));
 
   return (
     <section className="py-12 sm:py-20 overflow-x-clip">
@@ -221,53 +247,26 @@ export function DepartmentCarousel({
           </Link>
         </div>
 
-        {/* Carousel wrapper */}
-        <div className="relative group/carousel">
-          {/* Left arrow */}
-          <button
-            onClick={() => scroll("left")}
-            aria-label="Scroll left"
-            className={cn(
-              "absolute left-0 top-1/2 -translate-y-1/2 z-10 -translate-x-4 w-10 h-10 rounded-full border border-white/30 bg-black/55 text-white shadow-[0_4px_14px_rgba(0,0,0,0.4)] backdrop-blur-sm backdrop-saturate-150 flex items-center justify-center transition-[background-color,border-color,box-shadow,color,opacity] duration-300 ease-out hover:bg-black/85 hover:border-white/55 hover:shadow-[0_6px_22px_rgba(0,0,0,0.6)] cursor-pointer active:translate-y-[calc(-50%+1px)] [&_svg]:drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]",
-              canLeft
-                ? "opacity-100 pointer-events-auto"
-                : "opacity-0 pointer-events-none",
-            )}
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
+        <Carousel opts={{ loop: true, align: "start", dragFree: true }} className="w-full">
+          <CarouselContent className="-ml-4">
+            {columns.map((col, i) => (
+              <CarouselItem key={i} className="pl-4 basis-auto">
+                <div
+                  className={cn(
+                    "grid gap-4 w-[clamp(160px,22vw,260px)]",
+                    rows === 2 ? "grid-rows-2" : "grid-rows-3",
+                  )}
+                >
+                  {col.map((dept) => (
+                    <DepartmentCard key={dept.id} dept={dept} />
+                  ))}
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
 
-          {/* Scrollable area */}
-          <div
-            ref={scrollRef}
-            className="overflow-hidden"
-          >
-            <div
-              className={cn(
-                "grid gap-4 auto-cols-[clamp(160px,22vw,260px)] grid-flow-col",
-                rows === 2 ? "grid-rows-2" : "grid-rows-3",
-              )}
-            >
-              {departments.map((dept) => (
-                <DepartmentCard key={dept.id} dept={dept} />
-              ))}
-            </div>
-          </div>
-
-          {/* Right arrow */}
-          <button
-            onClick={() => scroll("right")}
-            aria-label="Scroll right"
-            className={cn(
-              "absolute right-0 top-1/2 -translate-y-1/2 z-10 translate-x-4 w-10 h-10 rounded-full border border-white/30 bg-black/55 text-white shadow-[0_4px_14px_rgba(0,0,0,0.4)] backdrop-blur-sm backdrop-saturate-150 flex items-center justify-center transition-[background-color,border-color,box-shadow,color,opacity] duration-300 ease-out hover:bg-black/85 hover:border-white/55 hover:shadow-[0_6px_22px_rgba(0,0,0,0.6)] cursor-pointer active:translate-y-[calc(-50%+1px)] [&_svg]:drop-shadow-[0_1px_2px_rgba(0,0,0,0.7)]",
-              canRight
-                ? "opacity-100 pointer-events-auto"
-                : "opacity-0 pointer-events-none",
-            )}
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
-        </div>
+          <DepartmentCarouselArrows />
+        </Carousel>
 
         {/* Mobile browse all */}
         <div className="mt-5 text-center sm:hidden">

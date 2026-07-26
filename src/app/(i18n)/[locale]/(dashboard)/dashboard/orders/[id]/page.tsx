@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Link, getPathname } from "@/i18n/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
-import Image from "next/image";
+import { RetryImage } from "@/components/RetryImage";
 import { MapPin, Truck, CreditCard, RotateCcw, FileText } from "lucide-react";
 import { prisma } from "@/core/db/prisma";
 import { getOrderById } from "@/features/orders/db/orders";
@@ -345,7 +345,7 @@ export default async function OrderDetailPage({
                   <div className="flex gap-4 items-center">
                     <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded border">
                       {imageUrl ? (
-                        <Image
+                        <RetryImage
                           src={imageUrl}
                           alt={productTitle}
                           fill

@@ -554,16 +554,17 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
       )}
 
       {!hideButton && (
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           {!isOutOfStock && allOptionsSelected && (
             <QuantityStepper
               value={qty}
               onChange={setQuantity}
               max={availableToAdd}
+              className="self-start sm:self-auto"
             />
           )}
           <Button
-            className="flex-1 relative"
+            className="w-full sm:flex-1 sm:w-auto min-w-0 relative"
             size="lg"
             onClick={handleAdd}
             disabled={isOutOfStock}

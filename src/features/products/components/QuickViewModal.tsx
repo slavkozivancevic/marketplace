@@ -4,9 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { useTranslations } from "next-intl";
-import Image from "next/image";
 import { Link } from "@/i18n/navigation";
 import { X, ImageOff, ExternalLink, ShoppingCart } from "lucide-react";
+import { RetryImage } from "@/components/RetryImage";
 
 import { useLocale } from "next-intl";
 import {
@@ -299,7 +299,10 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                   <CarouselContent className="ml-0">
                     {media.map((m, idx) => (
                       <CarouselItem key={m.id} className="pl-0">
-                        <div className="relative w-full h-44 sm:h-52 bg-muted/10">
+                        {/* cursor-pointer - purely a swipe affordance hint (this
+                            slide has no click handler), matching the drag-to-
+                            navigate carousel it sits in. */}
+                        <div className="relative w-full h-44 sm:h-52 bg-muted/10 cursor-pointer">
                           {m.mediaType === "VIDEO" ? (
                             <video
                               src={m.url}
@@ -314,19 +317,22 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                               {!loadedSlides.has(m.id) && (
                                 <div className="absolute inset-0 z-10 skeleton-shimmer" />
                               )}
-                              <Image
+                              <RetryImage
                                 src={m.url}
                                 alt={`${localTitle} ${idx + 1}`}
                                 fill
                                 sizes="(max-width:640px) calc(100vw-2rem), 44vw"
                                 className="object-contain"
                                 priority={idx === 0}
+                                showShimmer={false}
                                 ref={(img) => {
                                   if (img?.complete && img.naturalWidth > 0)
                                     markSlideLoaded(m.id);
                                 }}
                                 onLoad={() => markSlideLoaded(m.id)}
-                                onError={() => markSlideLoaded(m.id)}
+                                onError={(_e, willRetry) => {
+                                  if (!willRetry) markSlideLoaded(m.id);
+                                }}
                               />
                             </>
                           )}
@@ -365,18 +371,21 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                       {!loadedThumbs.has(m.id) && (
                         <div className="absolute inset-0 z-10 skeleton-shimmer" />
                       )}
-                      <Image
+                      <RetryImage
                         src={thumbSrc}
                         alt={`${localTitle} ${i + 1}`}
                         fill
                         sizes="36px"
                         className="object-cover"
+                        showShimmer={false}
                         ref={(img) => {
                           if (img?.complete && img.naturalWidth > 0)
                             markThumbLoaded(m.id);
                         }}
                         onLoad={() => markThumbLoaded(m.id)}
-                        onError={() => markThumbLoaded(m.id)}
+                        onError={(_e, willRetry) => {
+                          if (!willRetry) markThumbLoaded(m.id);
+                        }}
                       />
                       {m.mediaType === "VIDEO" && (
                         <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/25 text-white text-[8px] font-bold">

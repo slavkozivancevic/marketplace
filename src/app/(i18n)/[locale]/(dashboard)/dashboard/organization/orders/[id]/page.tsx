@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Link, getPathname } from "@/i18n/navigation";
-import Image from "next/image";
+import { RetryImage } from "@/components/RetryImage";
 import { getTranslations, getLocale } from "next-intl/server";
 import { MapPin, Mail, Truck, CreditCard, ArrowLeft, RotateCcw, Info } from "lucide-react";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
@@ -386,7 +386,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                     <div className="flex gap-4 items-center">
                       <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded border bg-muted">
                         {imageUrl && (
-                          <Image src={imageUrl} alt={productTitle} fill sizes="56px" className="object-cover" />
+                          <RetryImage src={imageUrl} alt={productTitle} fill sizes="56px" className="object-cover" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">

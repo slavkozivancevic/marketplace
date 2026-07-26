@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import Image from "next/image";
-import { PlayCircle } from "lucide-react";
+import { Maximize2, PlayCircle } from "lucide-react";
+import { RetryImage } from "@/components/RetryImage";
 import {
   Carousel,
   CarouselContent,
@@ -11,7 +11,7 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
-import { MediaLightbox } from "@/components/product/MediaLightbox";
+import { MediaLightbox, type VideoHandoff } from "@/components/product/MediaLightbox";
 import { cn } from "@/lib/utils";
 import { IMAGE_ZOOM_FACTOR, IMAGE_ZOOM_LENS_SIZE } from "@/constants/constants";
 import type { MediaType } from "@/generated/prisma/client";
@@ -49,7 +49,11 @@ export function ProductImageCarousel({
   const [current, setCurrent] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [videoHandoff, setVideoHandoff] = useState<VideoHandoff | null>(null);
   const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set());
+  // Inline <video> elements, so the expand button can hand off the exact
+  // playback position/state to the lightbox instead of it restarting muted.
+  const videoElRefs = useRef(new Map<number, HTMLVideoElement>());
 
   // Clears a slide's shimmer once its image is painted. Guarded so re-marking an
   // already-loaded index returns the same Set reference (no needless re-render,
@@ -101,6 +105,15 @@ export function ProductImageCarousel({
     });
   }, []);
 
+  // Videos play inline with native controls, so nothing stops one from
+  // still running after a swipe/arrow moves the carousel away from it -
+  // pause whatever isn't the current slide.
+  useEffect(() => {
+    videoElRefs.current.forEach((videoEl, idx) => {
+      if (idx !== current) videoEl.pause();
+    });
+  }, [current]);
+
   const lastHandledTicket = useRef<number | undefined>(jumpTicket);
 
   useEffect(() => {
@@ -115,8 +128,36 @@ export function ProductImageCarousel({
   }, [api, jumpTicket, jumpToMediaId, media]);
 
   const openLightbox = (index: number) => {
+    const videoEl = videoElRefs.current.get(index);
+    if (videoEl) {
+      // Hand off the exact playback moment, then pause the inline copy so
+      // the two elements don't both play (and both output audio) at once.
+      setVideoHandoff({
+        index,
+        time: videoEl.currentTime,
+        playing: !videoEl.paused,
+        muted: videoEl.muted,
+      });
+      videoEl.pause();
+    } else {
+      setVideoHandoff(null);
+    }
     setLightboxIndex(index);
     setLightboxOpen(true);
+  };
+
+  // Reverse of the above: when the lightbox closes on a video, pick up
+  // wherever it was left (time/play state/mute) on the inline element -
+  // otherwise reopening the compact view would silently reset it to
+  // whatever it happened to be when the visitor left it, not where the
+  // fullscreen view left off.
+  const handleVideoHandoffBack = (handoff: VideoHandoff) => {
+    const videoEl = videoElRefs.current.get(handoff.index);
+    if (!videoEl) return;
+    videoEl.currentTime = handoff.time;
+    videoEl.muted = handoff.muted;
+    if (handoff.playing) videoEl.play().catch(() => {});
+    else videoEl.pause();
   };
 
   if (media.length === 0) {
@@ -143,9 +184,7 @@ export function ProductImageCarousel({
                   <div
                     className={cn(
                       "relative w-full h-96 rounded-lg overflow-hidden border",
-                      // Videos use native controls - zoom-in/click-to-lightbox
-                      // is image-only territory.
-                      isVideo ? "" : "cursor-zoom-in",
+                      isVideo ? "cursor-pointer" : "cursor-zoom-in",
                     )}
                     onClick={isVideo ? undefined : () => openLightbox(index)}
                     onMouseMove={
@@ -154,32 +193,53 @@ export function ProductImageCarousel({
                     onMouseLeave={isVideo ? undefined : handleZoomLeave}
                   >
                     {isVideo ? (
-                      <video
-                        src={item.url}
-                        poster={item.thumbUrl ?? undefined}
-                        controls
-                        playsInline
-                        preload="metadata"
-                        className="absolute inset-0 w-full h-full bg-black object-contain"
-                      />
+                      <>
+                        {/* Plays inline like any other video - the fullscreen
+                            lightbox is an explicit opt-in (the expand button
+                            below), not the default click target, so it doesn't
+                            fight the native play/pause/seek controls. */}
+                        <video
+                          ref={(el) => {
+                            if (el) videoElRefs.current.set(index, el);
+                            else videoElRefs.current.delete(index);
+                          }}
+                          src={item.url}
+                          poster={item.thumbUrl ?? undefined}
+                          controls
+                          playsInline
+                          preload="metadata"
+                          className="absolute inset-0 w-full h-full bg-black object-contain"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => openLightbox(index)}
+                          aria-label="View fullscreen"
+                          className="absolute top-2 right-2 z-10 cursor-pointer rounded-full bg-black/50 p-1.5 text-white transition-all duration-200 hover:bg-black/75 hover:scale-110"
+                        >
+                          <Maximize2 className="h-4 w-4" />
+                        </button>
+                      </>
                     ) : (
                       <>
                         {!loadedImages.has(index) && (
                           <div className="absolute inset-0 z-10 skeleton-shimmer" />
                         )}
-                        <Image
+                        <RetryImage
                           src={item.url}
                           alt={`${title} - image ${index + 1}`}
                           fill
                           sizes="(max-width: 768px) 100vw, 50vw"
                           className="object-cover"
                           priority={index === 0}
+                          showShimmer={false}
                           ref={(img) => {
                             if (img?.complete && img.naturalWidth > 0)
                               markImageLoaded(index);
                           }}
                           onLoad={() => markImageLoaded(index)}
-                          onError={() => markImageLoaded(index)}
+                          onError={(_e, willRetry) => {
+                            if (!willRetry) markImageLoaded(index);
+                          }}
                         />
                         {zoomState?.index === index &&
                           (() => {
@@ -218,12 +278,13 @@ export function ProductImageCarousel({
                                     height: containerH * IMAGE_ZOOM_FACTOR,
                                   }}
                                 >
-                                  <Image
+                                  <RetryImage
                                     src={item.url}
                                     alt=""
                                     fill
                                     sizes="(max-width: 768px) 200vw, 100vw"
                                     className="object-cover"
+                                    showShimmer={false}
                                   />
                                 </div>
                               </div>
@@ -266,18 +327,21 @@ export function ProductImageCarousel({
                   {!loadedThumbs.has(index) && (
                     <div className="absolute inset-0 z-10 skeleton-shimmer" />
                   )}
-                  <Image
+                  <RetryImage
                     src={thumbSrc}
                     alt={`${title} thumbnail ${index + 1}`}
                     fill
                     sizes="64px"
                     className="object-cover"
+                    showShimmer={false}
                     ref={(img) => {
                       if (img?.complete && img.naturalWidth > 0)
                         markThumbLoaded(index);
                     }}
                     onLoad={() => markThumbLoaded(index)}
-                    onError={() => markThumbLoaded(index)}
+                    onError={(_e, willRetry) => {
+                      if (!willRetry) markThumbLoaded(index);
+                    }}
                   />
                   {isVideo && (
                     <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/25">
@@ -303,6 +367,8 @@ export function ProductImageCarousel({
         open={lightboxOpen}
         onOpenChange={setLightboxOpen}
         title={title}
+        videoHandoff={videoHandoff}
+        onVideoHandoffBack={handleVideoHandoffBack}
       />
     </>
   );

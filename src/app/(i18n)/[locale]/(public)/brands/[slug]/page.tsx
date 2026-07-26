@@ -242,9 +242,9 @@ export default async function BrandDetailPage({ params }: BrandPageProps) {
 
       {/* Hero strip - logo + name + back button, sits above the
           catalog's own search bar / sidebar. */}
-      <div className="shrink-0 px-6 pt-6 pb-4">
+      <div className="shrink-0 px-6 pt-2 pb-4 sticky-header-bg">
         <Breadcrumbs items={breadcrumbItems} />
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mt-3">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4 min-w-0">
             <BrandLogo
               src={brand.logoUrl}

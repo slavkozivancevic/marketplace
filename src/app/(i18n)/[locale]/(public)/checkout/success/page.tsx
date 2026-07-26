@@ -1,5 +1,5 @@
 import { connection } from "next/server";
-import Image from "next/image";
+import { RetryImage } from "@/components/RetryImage";
 import { Link, getPathname } from "@/i18n/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
@@ -117,7 +117,7 @@ export default async function CheckoutSuccessPage({
                     <div className="flex gap-4 items-center text-sm">
                       <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded border">
                         {imageUrl ? (
-                          <Image
+                          <RetryImage
                             src={imageUrl}
                             alt={productTitle}
                             fill
@@ -361,7 +361,7 @@ export default async function CheckoutSuccessPage({
                   <div className="flex gap-4 items-center text-sm">
                     <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded border">
                       {imageUrl ? (
-                        <Image
+                        <RetryImage
                           src={imageUrl}
                           alt={productTitle}
                           fill

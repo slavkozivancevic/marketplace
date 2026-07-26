@@ -36,15 +36,15 @@ export function AdminHeader() {
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-4">
-          <Link href="/" className="group flex items-center gap-2.5 shrink-0">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg brand-tile transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/25 group-hover:scale-105">
+          <Link href="/" className="group flex items-center gap-2.5 min-w-0">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg brand-tile transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/25 group-hover:scale-105 shrink-0">
               <BrandMark className="h-7 w-7" />
             </div>
-            <div className="flex flex-col">
-              <span className="text-lg font-bold tracking-tight leading-tight">
+            <div className="flex flex-col min-w-0">
+              <span className="text-lg font-bold tracking-tight leading-tight truncate">
                 <BrandWordmark />
               </span>
-              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight">
+              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight truncate">
                 {t("adminTagline")}
               </span>
             </div>

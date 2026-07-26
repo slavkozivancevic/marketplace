@@ -541,7 +541,7 @@
    mb-2 spacing: the breadcrumb strip already provides the top rhythm, and
    the stray bottom margin left a background-only band below the border. */
 .sticky-header-bg .sticky-header-bg {
-  padding-top: 0.25rem;
+  padding-top: 0;
   margin-bottom: 0;
 }
 /* Breathing room BELOW the separator line: on the wrapper (outside the

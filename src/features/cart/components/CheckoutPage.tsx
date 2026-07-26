@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useTransition } from "react";
-import Image from "next/image";
+import { RetryImage } from "@/components/RetryImage";
 import { usePathname } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
@@ -307,7 +307,7 @@ export function CheckoutPage() {
                 <div className="flex gap-3 items-center text-sm">
                   <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded border">
                     {item.productImage ? (
-                      <Image
+                      <RetryImage
                         src={item.productImage}
                         alt={title}
                         fill

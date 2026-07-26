@@ -112,7 +112,7 @@ export default async function AdminPage() {
         <div className="pt-2">
           <Breadcrumbs items={breadcrumbItems} seo={false} />
         </div>
-        <div className="pt-2 pb-4">
+        <div className="pb-4">
           <h1 className="text-2xl font-bold">{t("admin.title")}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {t("admin.welcome", { name: user?.name || "Admin" })}

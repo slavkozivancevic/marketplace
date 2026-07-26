@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { getProductTitle } from "@/features/products/utils/translations";
 import { getBrandName } from "@/features/brands/utils/translations";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import Image from "next/image";
+import { RetryImage } from "@/components/RetryImage";
 import { ImageOff, Loader2, Trash2, ChevronDown } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -268,10 +268,10 @@ export function BulkSelectPanel() {
             takes ~15px on the right, so a header rendered *outside* the
             scroll would be ~15px wider than the rows and the right-most
             column (Status) would visibly drift relative to the cells. */}
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
           <div
             role="row"
-            className="sticky top-0 z-10 grid items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground bg-background"
+            className="sticky top-0 z-10 grid items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground bg-background min-w-fit"
             style={{ gridTemplateColumns: GRID_COLS }}
           >
             <div role="columnheader">
@@ -325,7 +325,7 @@ export function BulkSelectPanel() {
                     <div role="cell">
                       {thumb ? (
                         <div className="relative h-12 w-12 overflow-hidden rounded border bg-muted shrink-0">
-                          <Image src={thumb} alt={title} fill sizes="48px" className="object-cover" />
+                          <RetryImage src={thumb} alt={title} fill sizes="48px" className="object-cover" />
                         </div>
                       ) : (
                         <div className="h-12 w-12 rounded border bg-muted shrink-0 flex flex-col items-center justify-center gap-0.5">

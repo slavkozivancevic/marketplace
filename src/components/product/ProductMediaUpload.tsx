@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 import * as React from "react";
 import { useCallback, useEffect, useId, useState } from "react";
 import { useTranslations } from "next-intl";
-import Image from "next/image";
+import { RetryImage } from "@/components/RetryImage";
 import { useDropzone, FileRejection } from "react-dropzone";
 import axios, { AxiosProgressEvent } from "axios";
 import { PlayCircle } from "lucide-react";
@@ -132,7 +132,7 @@ function SortableItem({ item, onClick, onRemove }: SortableItemProps) {
             preload="metadata"
           />
         ) : (
-          <Image
+          <RetryImage
             src={thumbSrc}
             alt={isVideo ? "Video poster" : "Uploaded"}
             fill

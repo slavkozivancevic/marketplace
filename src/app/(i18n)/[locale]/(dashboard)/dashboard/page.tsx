@@ -118,7 +118,7 @@ export default async function DashboardPage() {
         <div className="pt-2">
           <Breadcrumbs items={breadcrumbItems} seo={false} />
         </div>
-        <div className="pt-2 pb-4">
+        <div className="pb-4">
           <h1 className="text-2xl font-bold">
             {t("dashboard.welcome", { name: user?.name || "User" })}
           </h1>

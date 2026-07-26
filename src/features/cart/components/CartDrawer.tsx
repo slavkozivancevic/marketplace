@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Minus, Plus, Trash2, ShoppingCart, X, Loader2 } from "lucide-react";
-import { LoadingImage } from "@/components/ui/LoadingImage";
+import { RetryImage } from "@/components/RetryImage";
 import { useRouter, usePathname } from "@/i18n/navigation";
 import {
   Sheet,
@@ -21,7 +21,7 @@ import { formatPrice, convertCents } from "@/lib/currency";
 
 function CartItemImage({ src, alt }: { src: string; alt: string }) {
   return (
-    <LoadingImage
+    <RetryImage
       src={src}
       alt={alt}
       fill

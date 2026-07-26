@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { cacheTag } from "next/cache";
 import { notFound, permanentRedirect } from "next/navigation";
@@ -291,7 +292,7 @@ export default async function PublicProductPage({
       <PublishLocalePaths paths={localePaths} />
       <RecordProductView productId={product.id} />
       <JsonLdScript data={productSchema} />
-      <div className="shrink-0 px-6">
+      <div className="shrink-0 px-6 pt-2 sticky-header-bg">
         <Breadcrumbs items={breadcrumbItems} />
         <PageHeader title={localTitle} description={localShortDescription ?? undefined}>
           <Button asChild variant="outline">
@@ -321,7 +322,9 @@ export default async function PublicProductPage({
 
         <RelatedProductsCarousel products={relatedProducts} />
 
-        <RecentlyViewedCarousel excludeProductId={product.id} />
+        <Suspense fallback={null}>
+          <RecentlyViewedCarousel excludeProductId={product.id} />
+        </Suspense>
 
         <Footer />
       </div>

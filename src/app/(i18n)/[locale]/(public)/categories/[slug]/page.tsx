@@ -297,7 +297,7 @@ export default async function CategoryDetailPage({ params }: CategoryPageProps) 
     <div className="flex-1 flex flex-col min-h-0">
       <PublishLocalePaths paths={localePaths} />
 
-      <div className="shrink-0 px-6 pt-6 pb-4">
+      <div className="shrink-0 px-6 pt-2 sticky-header-bg">
         <Breadcrumbs items={breadcrumbItems} />
         <PageHeader
           title={localT?.name ?? ""}

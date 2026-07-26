@@ -40,16 +40,16 @@ export function Header() {
           {/* Logo */}
           <Link
             href="/"
-            className="group flex items-center gap-2.5 shrink-0"
+            className="group flex items-center gap-2.5 min-w-0"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg brand-tile transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/25 group-hover:scale-105">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg brand-tile transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/25 group-hover:scale-105 shrink-0">
               <BrandMark className="h-7 w-7" />
             </div>
-            <div className="flex flex-col">
-              <span className="text-lg font-bold tracking-tight leading-tight">
+            <div className="flex flex-col min-w-0">
+              <span className="text-lg font-bold tracking-tight leading-tight truncate">
                 <BrandWordmark />
               </span>
-              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight">
+              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight truncate">
                 {t("header.dashboardTagline")}
               </span>
             </div>
@@ -57,11 +57,15 @@ export function Header() {
 
           {/* Right side actions */}
           <div className="flex items-center gap-1 sm:gap-2">
-            <PreferencesPopover />
-            {/* Dashboard is an auth-gated route, so the user is always signed
-                in here - hand that down so the auth controls render under the
-                boot loader instead of popping in once clerk-js settles. */}
-            <ChatDrawerTrigger signedIn />
+            {/* Below sm these move into the mobile menu instead, so the
+                header rail stays short enough to never crowd the logo. */}
+            <div className="hidden sm:flex items-center gap-1 sm:gap-2">
+              <PreferencesPopover />
+              {/* Dashboard is an auth-gated route, so the user is always signed
+                  in here - hand that down so the auth controls render under the
+                  boot loader instead of popping in once clerk-js settles. */}
+              <ChatDrawerTrigger signedIn />
+            </div>
             <div className="hidden sm:flex items-center gap-2 ml-1">
               <HeaderAuth mode="redirect" showDashboardLink={false} signedIn />
             </div>
@@ -82,16 +86,23 @@ export function Header() {
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu - grid-rows[0fr -> 1fr] instead of a fixed max-h so the
+          collapse always fits its content instead of clipping the last row. */}
       <div
         className={cn(
-          "sm:hidden overflow-hidden transition-all duration-300 border-t border-border/50",
-          mobileOpen ? "max-h-60" : "max-h-0 border-t-0"
+          "sm:hidden grid transition-[grid-template-rows] duration-300 ease-in-out border-t border-border/50",
+          mobileOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr] border-t-0"
         )}
       >
-        <div className="px-4 py-3 space-y-1">
-          <div className="pt-2 px-3 sm:hidden">
-            <HeaderAuth mode="redirect" showDashboardLink={false} signedIn />
+        <div className="overflow-hidden">
+          <div className="px-4 py-3 space-y-1">
+            <div className="flex items-center gap-2 px-3 pb-1">
+              <PreferencesPopover />
+              <ChatDrawerTrigger signedIn />
+            </div>
+            <div className="pt-2 px-3">
+              <HeaderAuth mode="redirect" showDashboardLink={false} signedIn />
+            </div>
           </div>
         </div>
       </div>

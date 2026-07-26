@@ -1,45 +1,26 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import axios from "axios";
-import { useTranslations } from "next-intl";
-import {
-  RelatedProductsCarousel,
-  type RelatedProduct,
-} from "@/features/products/components/RelatedProductsCarousel";
+import { getTranslations } from "next-intl/server";
+import { getRecentlyViewed } from "@/features/interactions/db/interactions";
+import { resolveInteractionIdentity } from "@/features/interactions/identity";
+import { RelatedProductsCarousel } from "@/features/products/components/RelatedProductsCarousel";
 
 /**
- * Personalized "Recently viewed" strip. Fetched client-side (it depends on the
- * visitor's cookie/user, so it can't be part of the cached page render) and
- * renders nothing until it has products - a secondary strip shouldn't flash a
- * skeleton. Reuses the shared product carousel with its own heading.
+ * Personalized "Recently viewed" strip. Server-rendered (identity comes from
+ * cookies, so it can't be part of the cached page render) but wrapped in its
+ * own <Suspense> boundary by the caller - that lets this dynamic slice stream
+ * in with the initial response while the rest of the product page stays
+ * statically cacheable, instead of the old client-side fetch-after-hydration
+ * round trip that made it pop in visibly late.
  */
-export function RecentlyViewedCarousel({
+export async function RecentlyViewedCarousel({
   excludeProductId,
 }: {
   excludeProductId?: string;
 }) {
-  const t = useTranslations("interactions");
-  const [products, setProducts] = useState<RelatedProduct[] | null>(null);
+  const t = await getTranslations("interactions");
+  const identity = await resolveInteractionIdentity({ allowSet: false });
+  const products = await getRecentlyViewed({ identity, excludeProductId });
 
-  useEffect(() => {
-    let active = true;
-    axios
-      .get<{ products: RelatedProduct[] }>("/api/interactions/recently-viewed", {
-        params: excludeProductId ? { exclude: excludeProductId } : {},
-      })
-      .then((res) => {
-        if (active) setProducts(res.data.products ?? []);
-      })
-      .catch(() => {
-        if (active) setProducts([]);
-      });
-    return () => {
-      active = false;
-    };
-  }, [excludeProductId]);
-
-  if (!products || products.length === 0) return null;
+  if (products.length === 0) return null;
 
   return (
     <RelatedProductsCarousel

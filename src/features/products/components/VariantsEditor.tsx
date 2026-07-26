@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useWatch, useFormState, type UseFormReturn } from "react-hook-form";
 import { Plus, X, RefreshCw, ImageOff } from "lucide-react";
-import Image from "next/image";
+import { RetryImage } from "@/components/RetryImage";
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -450,7 +450,7 @@ export function VariantsEditor({
                         {isVideo && !m.posterUrl ? (
                           <video src={thumb} className="absolute inset-0 w-full h-full object-cover" muted playsInline preload="metadata" />
                         ) : (
-                          <Image src={thumb} alt="Variant media" fill sizes="64px" className="object-cover" unoptimized={thumb.startsWith("blob:")} />
+                          <RetryImage src={thumb} alt="Variant media" fill sizes="64px" className="object-cover" unoptimized={thumb.startsWith("blob:")} />
                         )}
                         {isVideo && (
                           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20">

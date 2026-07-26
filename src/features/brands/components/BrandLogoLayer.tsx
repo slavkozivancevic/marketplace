@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import Image from "next/image";
+import { RetryImage } from "@/components/RetryImage";
 import { cn } from "@/lib/utils";
 
 interface BrandLogoLayerProps {
@@ -54,16 +54,19 @@ export function BrandLogoLayer({ src, alt, size, surface, pad, visibility }: Bra
         style={{ padding: pad }}
       >
         <div className="relative h-full w-full">
-          <Image
+          <RetryImage
             src={src}
             alt={alt}
             fill
             sizes={`${size}px`}
             className="object-contain"
             unoptimized
+            showShimmer={false}
             ref={refCallback}
             onLoad={() => setLoaded(true)}
-            onError={() => setLoaded(true)}
+            onError={(_e, willRetry) => {
+              if (!willRetry) setLoaded(true);
+            }}
           />
         </div>
       </div>
