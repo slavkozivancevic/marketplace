@@ -22,6 +22,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:up": "prisma migrate deploy",
+    "db:migrate:stage": "node scripts/migrate-stage.mjs",
     "db:migrate:down": "echo 'Down migrations are not supported in Prisma default workflow'",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",

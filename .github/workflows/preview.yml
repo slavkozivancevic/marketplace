@@ -46,7 +46,13 @@ jobs:
           # staging DB. Migrations run against it before the app goes live.
           STAGE: pr-${{ github.event.number }}
         run: |
-          npx sst shell --stage "$STAGE" -- npx prisma migrate deploy || true
+          # `sst shell -- prisma migrate deploy` never actually applied
+          # anything (SST exposes linked secrets via SST_RESOURCES_JSON, not
+          # as a raw DATABASE_URL env var - see scripts/migrate-stage.mjs).
+          # `|| true` stays: most pr-<n> stages have no DatabaseUrl secret set
+          # yet (per the TODO above), so failure here is still expected until
+          # per-PR databases are wired up.
+          node scripts/migrate-stage.mjs --stage "$STAGE" || true
           npx sst deploy --stage "$STAGE"
           # Best-effort: surface the deployed site URL for the PR comment.
           URL=$(node -e "try{process.stdout.write(require('./.sst/outputs.json').url||'')}catch{}")

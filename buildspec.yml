@@ -28,12 +28,18 @@ phases:
 
   build:
     commands:
-      # Migrations: run out-of-band for now (Prisma migrate needs a DIRECT (non-
-      # pooled) connection - advisory locks don't work over PgBouncer - and the
-      # DatabaseUrl secret is the pooled URL). Kept non-fatal + timeout-guarded so
-      # the deploy never hangs/breaks on it. TODO(aws, Phase 7): add a
-      # `DatabaseDirectUrl` secret and run `prisma migrate deploy` against it here.
-      - timeout 120 npx sst shell --stage "$STAGE" -- npx prisma migrate deploy || echo "migrate step skipped (apply migrations manually with the direct URL until wired)"
+      # Migrations. `sst shell -- prisma migrate deploy` looked right but never
+      # actually applied anything: SST only exposes linked secrets through
+      # SST_RESOURCES_JSON, not as a raw DATABASE_URL env var, so the migrate
+      # step here always failed with DATABASE_URL unset (swallowed by the old
+      # `|| echo "skipped"` fallback - migrations were always applied by hand).
+      # scripts/migrate-stage.mjs reads the DatabaseUrl secret directly (via
+      # `sst secret list`) and swaps in the direct (non-pooled) endpoint -
+      # Prisma's migration engine needs a session-level connection, which the
+      # pgbouncer/pooler endpoint doesn't support (advisory locks). Fatal on
+      # failure (timeout-guarded): a migration that doesn't apply must block
+      # the deploy, not silently ship app code against the wrong schema.
+      - timeout 120 node scripts/migrate-stage.mjs --stage "$STAGE"
       # Build (OpenNext) + deploy. CodeDeploy handles the canary alias shift +
       # CloudWatch-alarm rollback (configured on the Lambda alias, see DEPLOYMENT.md).
       - npx sst deploy --stage "$STAGE"

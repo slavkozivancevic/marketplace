@@ -110,7 +110,13 @@ npx sst secret set AnthropicApiKey          "<claude key, or empty>" --stage sta
       provisions the media bucket + site, and writes the app URL back into the
       notifications/search namespaces.
 - [ ] **3.4** Run migrations against the staging DB:
-      ⌨️ `npx sst shell --stage staging -- npx prisma migrate deploy`.
+      ⌨️ `npm run db:migrate:stage -- --stage staging`.
+      (NOT `npx sst shell --stage staging -- npx prisma migrate deploy` - that
+      silently migrates your LOCAL database instead. `sst shell` only exposes
+      linked secrets via `SST_RESOURCES_JSON`, not as raw `process.env.DATABASE_URL`
+      - this app reads secrets as plain env vars, so `DATABASE_URL` falls
+      through to whatever your local `.env` sets, with no error. Verified
+      2026-07-28 - see `scripts/migrate-stage.mjs` for the fix and root cause.)
 - [ ] **3.5** Grab the site URL from the deploy output and open it.
 
 ### Shared-key pairing (keep these identical)

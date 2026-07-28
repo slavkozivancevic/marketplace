@@ -261,8 +261,11 @@ All resources live in **`eu-central-1`**.
 5. **First app deploy:** `npx sst deploy --stage staging`. This provisions the
    media bucket + Nextjs site and writes the app URL back into the
    notifications/search namespaces (callback loop).
-6. **Run migrations** against the stage DB (see `buildspec.yml` - verify the
-   `sst shell -- prisma migrate deploy` step resolves `DATABASE_URL`).
+6. **Run migrations** against the stage DB - automatic on every pipeline
+   deploy via `scripts/migrate-stage.mjs` (see `buildspec.yml`). For a manual
+   run: `npm run db:migrate:stage -- --stage staging`. (Do NOT use
+   `sst shell -- prisma migrate deploy` - SST doesn't expose linked secrets as
+   raw env vars, so that silently no-ops or hits your local DB instead.)
 7. **Fix the AWS credential chain in the app** (`TODO(aws)` in `sst.config.ts`):
    the S3/SNS/SSM clients must use the default provider chain on Lambda (role temp
    creds carry a session token) rather than explicit static keys.
