@@ -80,6 +80,32 @@ export async function publishOrderRefunded(orderId: string, locale = "en"): Prom
   );
 }
 
+/**
+ * A manual (Stripe dashboard) refund that didn't cover the whole order. Keyed
+ * by the underlying Stripe refund id (via reconcileStripeRefund's `amount`,
+ * one call per new external refund) so a second, later partial refund on the
+ * same order gets its own eventId instead of being deduped as a repeat.
+ */
+export async function publishOrderPartiallyRefunded(
+  orderId: string,
+  amount: number,
+  locale = "en"
+): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "order.partially_refunded",
+        orderId,
+        amount,
+        locale,
+        eventId: `${orderId}:order.partially_refunded:${amount}:${Date.now()}`,
+      }),
+    })
+  );
+}
+
 export async function publishCodOrderFulfilled(orderId: string, locale = "en"): Promise<void> {
   const topicArn = await getTopicArn();
   await sns.send(
@@ -169,6 +195,68 @@ export async function publishUserRoleChanged(params: {
         userName: params.userName,
         oldRole: params.oldRole,
         newRole: params.newRole,
+        locale: params.locale,
+      }),
+    })
+  );
+}
+
+/**
+ * A sole owner's Clerk account was deleted and this member was auto-promoted
+ * to OWNER so the org keeps running (see deleteUser) - distinct from a plain
+ * role change (member.role_changed) because the reason ("the previous owner
+ * left") is the whole point of the email, not incidental.
+ */
+export async function publishOwnerAutoPromoted(params: {
+  userEmail: string;
+  userName: string | null;
+  organizationName: string;
+  locale: string;
+}): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "organization.owner_auto_promoted",
+        eventId: `owner-promoted:${params.userEmail}:${params.organizationName}:${Date.now()}`,
+        userEmail: params.userEmail,
+        userName: params.userName,
+        organizationName: params.organizationName,
+        locale: params.locale,
+      }),
+    })
+  );
+}
+
+/**
+ * A team member's account was closed (Clerk deletion) and removed from an
+ * org - notifies the org's remaining OWNER(s)/ADMIN(s) (see deleteUser).
+ * Covers both a departing co-owner and a departing ADMIN/MEMBER; plain
+ * MEMBERs aren't recipients, matching who can see the member-management UI.
+ */
+export async function publishMemberRemoved(params: {
+  recipientEmail: string;
+  recipientName: string | null;
+  organizationName: string;
+  removedUserName: string | null;
+  removedUserEmail: string;
+  removedRole: string;
+  locale: string;
+}): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "member.removed",
+        eventId: `member-removed:${params.recipientEmail}:${params.removedUserEmail}:${Date.now()}`,
+        recipientEmail: params.recipientEmail,
+        recipientName: params.recipientName,
+        organizationName: params.organizationName,
+        removedUserName: params.removedUserName,
+        removedUserEmail: params.removedUserEmail,
+        removedRole: params.removedRole,
         locale: params.locale,
       }),
     })

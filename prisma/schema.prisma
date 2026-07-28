@@ -114,6 +114,11 @@ model Membership {
 
   role MembershipRole
 
+  // Backfilled to the migration's run time for pre-existing rows (the true
+  // join date was never recorded) - accurate going forward. Used to break
+  // ties by seniority when auto-promoting a replacement owner (deleteUser).
+  createdAt DateTime @default(now())
+
   user         User         @relation(fields: [userId], references: [id])
   organization Organization @relation(fields: [orgId], references: [id])
 

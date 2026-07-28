@@ -1682,6 +1682,7 @@
     "bulkCategoryLimit": "Izabrani filter obuhvata {count} proizvoda, a masovna izmena kategorija je ograničena na {limit} odjednom. Suzite filter i pokušajte ponovo.",
     "internalError": "Nešto je pošlo po zlu. Pokušajte ponovo.",
     "returnNotEligible": "Ova porudžbina ne ispunjava uslove za povraćaj.",
+    "returnBlockedExternalRefund": "Ova porudžbina već ima ručni povraćaj novca izvan aplikacije - obratite se podršci za dalji povraćaj.",
     "returnNotShipped": "Povraćaj možete zatražiti kada prodavac isporuči vaše artikle.",
     "returnAlreadyOpen": "Već postoji otvoren povraćaj za ovog prodavca u ovoj porudžbini.",
     "returnInvalidTransition": "Ta akcija povraćaja trenutno nije dozvoljena.",

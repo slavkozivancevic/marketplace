@@ -21,6 +21,7 @@ import { revalidateOrderCache } from "./cache";
 import { revalidateProductCache } from "@/features/products/db/cache";
 import { recordPurchaseEvents } from "@/features/interactions/db/interactions";
 import { InsufficientStockError } from "@/features/common/errors/domainErrors";
+import { reverseSellerPayoutsForOrder } from "@/features/payments/db/payouts";
 
 export async function getUserOrders(userId: string) {
   "use cache";
@@ -327,6 +328,26 @@ export async function getOrderById(id: string, userId: string) {
       price: Number(item.price),
     })),
   };
+}
+
+/**
+ * Sum of external (Stripe dashboard) refunds on this order - the buyer-facing
+ * amount, straight from Stripe, recorded by reconcileStripeRefund with
+ * `organizationId: null`. Kept separate from Return.refundAmount (the app's
+ * own return flow), which is already coupon-adjusted and summed elsewhere -
+ * the two are additive, not alternatives.
+ */
+export async function getExternalRefundedTotal(orderId: string): Promise<number> {
+  const agg = await prisma.paymentTransaction.aggregate({
+    where: {
+      orderId,
+      type: PaymentTransactionType.REFUND,
+      status: PaymentTransactionStatus.SUCCEEDED,
+      organizationId: null,
+    },
+    _sum: { amount: true },
+  });
+  return agg._sum.amount ?? 0;
 }
 
 export type FulfillOrderItem = {
@@ -711,8 +732,11 @@ export async function createCodOrder({
  * marked REFUNDED; stock is restocked only when no app return already did so
  * (a return restocks the specific items it returned).
  *
- * Returns the order when it just became REFUNDED (so the caller emails the
- * buyer), otherwise null.
+ * Returns the order plus what happened so the caller can email the right
+ * party: `kind: "full"` once cumulative refunds cover the order total,
+ * `kind: "partial"` for a partial external refund (amount is this call's new
+ * external total, not the cumulative one), or null when there was nothing new
+ * to reconcile.
  */
 export async function reconcileStripeRefund(
   stripeSessionId: string,
@@ -843,5 +867,25 @@ export async function reconcileStripeRefund(
     actor: SYSTEM_ACTOR,
   });
 
-  return becameRefunded ? order : null;
+  // The whole order was refunded outside the app - any seller already paid out
+  // on it needs their transfer clawed back too, or they simply keep money for a
+  // refunded order. Best-effort and after the ledger/audit writes above so a
+  // Stripe hiccup here never blocks the refund itself from being recorded.
+  if (becameRefunded) {
+    await reverseSellerPayoutsForOrder(order.id).catch((err) =>
+      logger.error("[reconcileStripeRefund] reverseSellerPayoutsForOrder failed", err),
+    );
+  }
+
+  if (becameRefunded) {
+    return { order, kind: "full" as const, amount: externalTotal };
+  }
+  // A second (or later) manual refund on an already-PARTIALLY_REFUNDED order
+  // skips the status transition above (it's idempotent, one-time), but the
+  // buyer still needs telling about THIS increment - so "partial" is keyed off
+  // externalTotal, not the status transition.
+  if (externalTotal > 0) {
+    return { order, kind: "partial" as const, amount: externalTotal };
+  }
+  return null;
 }

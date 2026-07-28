@@ -4,7 +4,11 @@ import { stripe } from "@/services/stripe";
 import { env } from "@/env/server";
 import { fulfillOrder, reconcileStripeRefund } from "@/features/orders/db/orders";
 import { InsufficientStockError } from "@/features/common/errors/domainErrors";
-import { publishOrderCompleted, publishOrderRefunded } from "@/services/notifications";
+import {
+  publishOrderCompleted,
+  publishOrderRefunded,
+  publishOrderPartiallyRefunded,
+} from "@/services/notifications";
 import {
   isWebhookProcessed,
   markWebhookProcessed,
@@ -184,11 +188,20 @@ export async function POST(req: Request) {
           id: r.id,
           amount: r.amount,
         }));
-        const refunded = await reconcileStripeRefund(sessionId, refunds);
-        if (refunded) {
+        const result = await reconcileStripeRefund(sessionId, refunds);
+        if (result?.kind === "full") {
           logger.info("Order fully refunded (external) for session:", sessionId);
-          publishOrderRefunded(refunded.id, refunded.locale ?? "en").catch((err) =>
+          publishOrderRefunded(result.order.id, result.order.locale ?? "en").catch((err) =>
             logger.error("[notifications] publishOrderRefunded failed", err)
+          );
+        } else if (result?.kind === "partial") {
+          logger.info("Order partially refunded (external) for session:", sessionId);
+          publishOrderPartiallyRefunded(
+            result.order.id,
+            result.amount,
+            result.order.locale ?? "en"
+          ).catch((err) =>
+            logger.error("[notifications] publishOrderPartiallyRefunded failed", err)
           );
         }
         break;

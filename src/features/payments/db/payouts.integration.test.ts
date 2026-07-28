@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { randomUUID } from "node:crypto";
-import { releaseSellerPayout } from "./payouts";
+import { releaseSellerPayout, getOrgPayoutsPage } from "./payouts";
 import { fulfillOrder } from "@/features/orders/db/orders";
 import {
   prisma,
@@ -103,5 +103,77 @@ describe("releaseSellerPayout", () => {
     expect(payout).toMatchObject({ status: "PENDING", amount: 1800 });
     expect(payout?.note).toBe("Seller not connected");
     expect(payout?.providerId).toBeNull();
+  });
+});
+
+// Regression: a manual (Stripe dashboard) refund that covers only PART of the
+// order used to make getOrgPayoutsPage show the seller's ENTIRE payout as
+// refunded (struck through, "full" badge) just because an order-level refund
+// row existed at all - it never checked how much was actually refunded.
+// (35.000 RSD order, 15.000 RSD manual refund, but the whole 35.000 RSD
+// payout showed as reversed.) computeReversedNet now nets/caps the partial
+// case and only trusts "full" once Order.paymentStatus is actually REFUNDED.
+describe("getOrgPayoutsPage - external refund reversal display", () => {
+  it("shows PARTIAL (netted, capped) - not FULL - for a partial external refund", async () => {
+    // subtotal 35000 -> seller payout net of 10% fee = 31500.
+    const { order, org } = await paidOrderForSeller({ qty: 2, orgShipping: 0 });
+    await createConnectedAccount({ organizationId: org.id, payoutsEnabled: true });
+    await releaseSellerPayout({ orderId: order.id, organizationId: org.id });
+
+    // Simulate reconcileStripeRefund's ledger write for a manual PARTIAL
+    // refund, without going through the whole webhook/order flow.
+    await prisma.paymentTransaction.create({
+      data: {
+        orderId: order.id,
+        organizationId: null,
+        type: "REFUND",
+        status: "SUCCEEDED",
+        provider: "STRIPE",
+        providerId: "re_manual_partial",
+        amount: 1000, // 500 (half of qty=2 x price=1000) refunded gross
+        currency: "usd",
+      },
+    });
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { paymentStatus: "PARTIALLY_REFUNDED" },
+    });
+
+    const page = await getOrgPayoutsPage({ organizationId: org.id, take: 10 });
+    const row = page.items.find((i) => i.orderId === order.id);
+
+    expect(row?.refundState).toBe("partial");
+    // netted: sellerNetAmount(1000) = 900, well under the 1800 payout.
+    expect(row?.reversedNet).toBe(900);
+    expect(row?.reversedNet).toBeLessThan(row?.amount ?? 0);
+  });
+
+  it("shows FULL only once the order is actually fully refunded", async () => {
+    const { order, org } = await paidOrderForSeller({ qty: 2, orgShipping: 0 });
+    await createConnectedAccount({ organizationId: org.id, payoutsEnabled: true });
+    await releaseSellerPayout({ orderId: order.id, organizationId: org.id });
+
+    await prisma.paymentTransaction.create({
+      data: {
+        orderId: order.id,
+        organizationId: null,
+        type: "REFUND",
+        status: "SUCCEEDED",
+        provider: "STRIPE",
+        providerId: "re_manual_full",
+        amount: 2000,
+        currency: "usd",
+      },
+    });
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { paymentStatus: "REFUNDED" },
+    });
+
+    const page = await getOrgPayoutsPage({ organizationId: org.id, take: 10 });
+    const row = page.items.find((i) => i.orderId === order.id);
+
+    expect(row?.refundState).toBe("full");
+    expect(row?.reversedNet).toBe(row?.amount);
   });
 });

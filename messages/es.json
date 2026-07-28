@@ -1682,6 +1682,7 @@
     "bulkCategoryLimit": "El filtro seleccionado coincide con {count} productos, pero los cambios masivos de categorías están limitados a {limit} a la vez. Acota el filtro e inténtalo de nuevo.",
     "internalError": "Algo salió mal. Inténtalo de nuevo.",
     "returnNotEligible": "Este pedido no es elegible para una devolución.",
+    "returnBlockedExternalRefund": "Este pedido ya tiene un reembolso manual emitido fuera de la aplicación - contacta con soporte para continuar.",
     "returnNotShipped": "Puedes solicitar una devolución una vez que este vendedor entregue tus artículos.",
     "returnAlreadyOpen": "Ya hay una devolución abierta para este vendedor en este pedido.",
     "returnInvalidTransition": "Esa acción de devolución no está permitida ahora mismo.",

@@ -1682,6 +1682,7 @@
     "bulkCategoryLimit": "The selected filter matches {count} products, but bulk category changes are limited to {limit} at a time. Narrow the filter and try again.",
     "internalError": "Something went wrong. Please try again.",
     "returnNotEligible": "This order is not eligible for a return.",
+    "returnBlockedExternalRefund": "This order already has a manual refund issued outside the app - contact support to proceed.",
     "returnNotShipped": "You can request a return once this seller's items are delivered.",
     "returnAlreadyOpen": "There is already an open return for this seller in this order.",
     "returnInvalidTransition": "That return action is not allowed right now.",

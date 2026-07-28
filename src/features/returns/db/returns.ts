@@ -173,6 +173,23 @@ export async function createReturn({
   ) {
     throw new ForbiddenError({ key: "returnNotEligible" });
   }
+  // An external (Stripe dashboard) refund isn't scoped to specific order items -
+  // reconcileStripeRefund records it as a plain order-level REFUND, not a
+  // ReturnItem. getReturnedQuantities below can't see it, so without this guard
+  // a buyer could open an app return for units already refunded manually and
+  // get paid twice (plus a second, unwarranted payout clawback on the seller).
+  // Conservative: block all new returns on this order once any external refund
+  // exists, since we can't tell which units it covered.
+  const hasExternalRefund = await prisma.paymentTransaction.count({
+    where: {
+      orderId,
+      type: PaymentTransactionType.REFUND,
+      organizationId: null,
+    },
+  });
+  if (hasExternalRefund > 0) {
+    throw new ForbiddenError({ key: "returnBlockedExternalRefund" });
+  }
   // ...and the buyer can only return goods they have actually received. So this
   // seller's shipment must be marked DELIVERED - shipped-but-in-transit is not
   // yet returnable (the buyer doesn't have the items).

@@ -108,18 +108,19 @@ export default async function OrgOrderDetailPage({ params }: Props) {
     ctx.membershipRole === MembershipRole.OWNER ||
     ctx.membershipRole === MembershipRole.ADMIN;
 
-  // Refund-aware payout: a return reverses sellerNetAmount(refundedGross) from
-  // this org's payout. Sum this org's REFUND ledger rows (gross) to show the
-  // clawback and the resulting net, so the breakdown matches the payment history.
-  const orgRefundGross = order.paymentTransactions
-    .filter((tx) => tx.type === PaymentTransactionType.REFUND && tx.organizationId === ctx.organizationId)
-    .reduce((sum, tx) => sum + tx.amount, 0);
   // Delivery this seller charged goes to them in full (no platform fee), on top
   // of their net items share.
   const orgShipping =
     (order.shippingByOrg as Record<string, number> | null)?.[ctx.organizationId] ?? 0;
   const orgPayout = sellerNetAmount(order.orgSubtotal) + orgShipping;
-  const payoutReversed = sellerNetAmount(orgRefundGross);
+  // Refund-aware payout: reuse the PAYOUT row's own reversedNet (computed in
+  // getOrgOrderById, which accounts for BOTH this org's app-return refunds
+  // AND external/Stripe-dashboard refunds) instead of re-deriving it here from
+  // only the org-scoped ledger rows - that would silently miss external refunds.
+  const orgPayoutTx = order.paymentTransactions.find(
+    (tx) => tx.type === PaymentTransactionType.PAYOUT && tx.organizationId === ctx.organizationId,
+  );
+  const payoutReversed = orgPayoutTx?.reversedNet ?? 0;
   const netPayoutAfterRefunds = orgPayout - payoutReversed;
 
   const shortId = `#${order.id.slice(-8).toUpperCase()}`;
@@ -433,7 +434,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                     </span>
                   </div>
                 )}
-                <div className={`flex justify-between ${orgRefundGross > 0 ? "text-muted-foreground" : "font-semibold"}`}>
+                <div className={`flex justify-between ${payoutReversed > 0 ? "text-muted-foreground" : "font-semibold"}`}>
                   <span>{t("yourPayout")}</span>
                   <span className="tabular-nums">
                     {formatPrice(orgPayout, order.currency as Currency)}
@@ -441,7 +442,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                 </div>
                 {/* If items were refunded, show the payout clawback and the net
                     actually kept - matching the PAYOUT row in the ledger above. */}
-                {orgRefundGross > 0 && (
+                {payoutReversed > 0 && (
                   <>
                     <div className="flex justify-between text-destructive">
                       <span>{t("payoutReversed")}</span>

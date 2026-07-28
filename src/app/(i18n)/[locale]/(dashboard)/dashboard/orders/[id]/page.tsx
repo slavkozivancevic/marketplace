@@ -6,7 +6,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 import { RetryImage } from "@/components/RetryImage";
 import { MapPin, Truck, CreditCard, RotateCcw, FileText } from "lucide-react";
 import { prisma } from "@/core/db/prisma";
-import { getOrderById } from "@/features/orders/db/orders";
+import { getOrderById, getExternalRefundedTotal } from "@/features/orders/db/orders";
 import { getReturnedQuantities, getOrderReturns } from "@/features/returns/db/returns";
 import { BuyerReturns } from "@/features/returns/components/BuyerReturns";
 import { getOrderShipments } from "@/features/shipments/db/shipments";
@@ -60,20 +60,24 @@ export default async function OrderDetailPage({
   const returnEligible =
     order.paymentStatus === "PAID" || order.paymentStatus === "PARTIALLY_REFUNDED";
   const invoiceable = order.paymentStatus !== "UNPAID";
-  const [returnedQty, orderReturns, orderShipments] = await Promise.all([
+  const [returnedQty, orderReturns, orderShipments, externalRefunded] = await Promise.all([
     getReturnedQuantities(order.id),
     getOrderReturns(order.id),
     getOrderShipments(order.id),
+    getExternalRefundedTotal(order.id),
   ]);
   const shipmentByOrg = new Map(orderShipments.map((s) => [s.organizationId, s]));
   const hasActiveReturn = orderReturns.some((r) =>
     ["REQUESTED", "APPROVED", "SHIPPED"].includes(r.status),
   );
-  // Total refunded to the buyer (each return's refundAmount is the discounted
-  // amount they actually got back), and what remains paid after refunds.
-  const buyerRefunded = orderReturns
-    .filter((r) => r.status === "REFUNDED")
-    .reduce((sum, r) => sum + (r.refundAmount ?? 0), 0);
+  // Total refunded to the buyer: app returns (each return's refundAmount is
+  // the discounted amount they actually got back) plus any external (Stripe
+  // dashboard) refund - additive, not alternatives, since a buyer can get
+  // both a return refund and a separate manual refund on the same order.
+  const buyerRefunded =
+    orderReturns
+      .filter((r) => r.status === "REFUNDED")
+      .reduce((sum, r) => sum + (r.refundAmount ?? 0), 0) + externalRefunded;
   const netPaid = order.total - buyerRefunded;
 
   // Per order item: localized title, variant label, owning seller.

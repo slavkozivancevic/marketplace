@@ -2,6 +2,7 @@ import { prisma } from "@/core/db/prisma";
 import {
   Prisma,
   OrderStatus,
+  PaymentStatus,
   ReturnStatus,
   PaymentTransactionType,
 } from "@/generated/prisma/client";
@@ -247,17 +248,28 @@ export async function getOrgOrderById(orderId: string, organizationId: string) {
 
   if (!order) return null;
 
-  // Annotate this org's PAYOUT row(s) with how much was clawed back by refunds,
-  // mirroring the payouts table: the payout is the seller's NET share, and a
-  // return reverses sellerNetAmount(refundedGross). Order-level (manual/external)
-  // refunds claw back the whole payout.
+  // Annotate this org's PAYOUT/FEE row(s) with how much was clawed back by
+  // refunds, mirroring the payouts table (see getPayoutRefundContext in
+  // payments/db/payouts.ts - same math, kept in sync by hand since this query
+  // already has the transactions loaded).
+  //
+  // Two very different signals feed this: org-scoped (app Return flow)
+  // refunds are exact - we know these are this seller's items. Order-level
+  // (manual/external Stripe dashboard) refunds are NOT scoped to a seller, so
+  // only trust "the whole payout is gone" once the order is actually fully
+  // refunded (order.paymentStatus REFUNDED - exactly when
+  // reverseSellerPayoutsForOrder runs). A partial external refund is netted
+  // through sellerNetAmount/platformFeeAmount and capped at this row's own
+  // amount - an honest upper-bound estimate, never claiming money is gone
+  // that wasn't.
   const txns = order.paymentTransactions;
   const orgRefundGross = txns
     .filter((t) => t.type === PaymentTransactionType.REFUND && t.organizationId === organizationId)
     .reduce((sum, t) => sum + t.amount, 0);
-  const orderLevelRefunded = txns.some(
-    (t) => t.type === PaymentTransactionType.REFUND && t.organizationId === null,
-  );
+  const externalRefundGross = txns
+    .filter((t) => t.type === PaymentTransactionType.REFUND && t.organizationId === null)
+    .reduce((sum, t) => sum + t.amount, 0);
+  const isFullyRefunded = order.paymentStatus === PaymentStatus.REFUNDED;
 
   const paymentTransactions = txns.map((t) => {
     // PAYOUT (seller net) and FEE (platform commission) are both clawed back /
@@ -268,8 +280,9 @@ export async function getOrgOrderById(orderId: string, organizationId: string) {
     if (!isPayout && !isFee) {
       return { ...t, refundState: "none" as const, reversedNet: 0 };
     }
-    const grossBack = isPayout ? sellerNetAmount(orgRefundGross) : platformFeeAmount(orgRefundGross);
-    const reversedNet = orderLevelRefunded ? t.amount : Math.min(t.amount, grossBack);
+    const netFn = isPayout ? sellerNetAmount : platformFeeAmount;
+    const grossBack = netFn(orgRefundGross) + netFn(externalRefundGross);
+    const reversedNet = isFullyRefunded ? t.amount : Math.min(t.amount, grossBack);
     const refundState =
       reversedNet <= 0 ? ("none" as const) : reversedNet >= t.amount ? ("full" as const) : ("partial" as const);
     return { ...t, refundState, reversedNet };

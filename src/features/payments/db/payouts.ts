@@ -3,13 +3,14 @@ import { prisma } from "@/core/db/prisma";
 import { stripe } from "@/services/stripe";
 import {
   PaymentMethod,
+  PaymentStatus,
   PaymentTransactionType,
   PaymentTransactionStatus,
 } from "@/generated/prisma/client";
 import { sellerNetAmount } from "../config";
 import { MOCK_CONNECT, isMockAccount } from "../mock";
 import { publishPayoutReleased } from "@/services/notifications";
-import { recordAudit } from "@/features/audit/db/audit";
+import { recordAudit, SYSTEM_ACTOR } from "@/features/audit/db/audit";
 
 /**
  * Cursor-paginated payout ledger for a seller org, newest first. Each row carries
@@ -20,6 +21,76 @@ import { recordAudit } from "@/features/audit/db/audit";
  * Standard list pattern (see getOrgOrdersPage): fetch take+1, pop the extra into
  * `nextCursor`, stable `[createdAt desc, id asc]` ordering for keyset paging.
  */
+/**
+ * Per-order refund context used to estimate how much of a seller's payout was
+ * clawed back. Two very different signals feed it:
+ *  - Org-scoped (app Return flow) refunds: exact - we know these are this
+ *    seller's items, and settleReturnRefund already reversed the transfer.
+ *  - Order-level (external/Stripe dashboard) refunds: NOT scoped to a seller.
+ *    `fullyRefundedOrderIds` is populated from Order.paymentStatus, i.e. only
+ *    once the refund covers the WHOLE order - that's the one case we know for
+ *    certain every seller's payout was reversed (reverseSellerPayoutsForOrder
+ *    runs exactly then). A partial external refund is netted through
+ *    sellerNetAmount and capped at this seller's own payout, same as a return
+ *    - an honest upper-bound estimate, never claiming money is gone that
+ *    wasn't (see the 15.000/35.000 RSD case that motivated this).
+ */
+async function getPayoutRefundContext(
+  organizationId: string,
+  orderIds: string[],
+): Promise<{
+  orgRefundGross: Map<string, number>;
+  externalRefundGross: Map<string, number>;
+  fullyRefundedOrderIds: Set<string>;
+}> {
+  if (orderIds.length === 0) {
+    return { orgRefundGross: new Map(), externalRefundGross: new Map(), fullyRefundedOrderIds: new Set() };
+  }
+
+  const [refunds, fullyRefundedOrders] = await Promise.all([
+    prisma.paymentTransaction.findMany({
+      where: {
+        orderId: { in: orderIds },
+        type: PaymentTransactionType.REFUND,
+        status: PaymentTransactionStatus.SUCCEEDED,
+      },
+      select: { orderId: true, organizationId: true, amount: true },
+    }),
+    prisma.order.findMany({
+      where: { id: { in: orderIds }, paymentStatus: PaymentStatus.REFUNDED },
+      select: { id: true },
+    }),
+  ]);
+
+  const orgRefundGross = new Map<string, number>();
+  const externalRefundGross = new Map<string, number>();
+  for (const r of refunds) {
+    if (r.organizationId === organizationId) {
+      orgRefundGross.set(r.orderId, (orgRefundGross.get(r.orderId) ?? 0) + r.amount);
+    } else if (r.organizationId === null) {
+      externalRefundGross.set(r.orderId, (externalRefundGross.get(r.orderId) ?? 0) + r.amount);
+    }
+  }
+
+  return {
+    orgRefundGross,
+    externalRefundGross,
+    fullyRefundedOrderIds: new Set(fullyRefundedOrders.map((o) => o.id)),
+  };
+}
+
+function computeReversedNet(
+  orderId: string,
+  payoutAmount: number,
+  ctx: Awaited<ReturnType<typeof getPayoutRefundContext>>,
+): number {
+  if (ctx.fullyRefundedOrderIds.has(orderId)) return payoutAmount;
+  const netted =
+    sellerNetAmount(ctx.orgRefundGross.get(orderId) ?? 0) +
+    sellerNetAmount(ctx.externalRefundGross.get(orderId) ?? 0);
+  return Math.min(payoutAmount, netted);
+}
+
 /**
  * Classifies every payout-bearing order for an org by how much of THIS org's
  * payout was clawed back: `full` (entire payout reversed) vs `partial` (some,
@@ -45,34 +116,12 @@ async function getOrgPayoutRefundStates(
     payoutAmount.set(p.orderId, (payoutAmount.get(p.orderId) ?? 0) + p.amount);
   }
 
-  const orderIds = [...payoutAmount.keys()];
-  const refunds = await prisma.paymentTransaction.findMany({
-    where: {
-      orderId: { in: orderIds },
-      type: PaymentTransactionType.REFUND,
-      status: PaymentTransactionStatus.SUCCEEDED,
-    },
-    select: { orderId: true, organizationId: true, amount: true },
-  });
-
-  // org-scoped (return) refund gross per order, and whether an order-level
-  // (manual/external) refund exists - the latter claws back the whole payout.
-  const orgRefundGross = new Map<string, number>();
-  const orderLevelRefunded = new Set<string>();
-  for (const r of refunds) {
-    if (r.organizationId === organizationId) {
-      orgRefundGross.set(r.orderId, (orgRefundGross.get(r.orderId) ?? 0) + r.amount);
-    } else if (r.organizationId === null) {
-      orderLevelRefunded.add(r.orderId);
-    }
-  }
+  const ctx = await getPayoutRefundContext(organizationId, [...payoutAmount.keys()]);
 
   const full: string[] = [];
   const partial: string[] = [];
   for (const [orderId, amount] of payoutAmount) {
-    const reversedNet = orderLevelRefunded.has(orderId)
-      ? amount
-      : Math.min(amount, sellerNetAmount(orgRefundGross.get(orderId) ?? 0));
+    const reversedNet = computeReversedNet(orderId, amount, ctx);
     if (reversedNet <= 0) continue;
     (reversedNet >= amount ? full : partial).push(orderId);
   }
@@ -157,38 +206,14 @@ export async function getOrgPayoutsPage({
     nextCursor = rows.pop()!.id;
   }
 
-  // Per row, work out how much of the payout was clawed back so the UI can tell
-  // a full reversal from a partial one. The payout is the seller's NET share, and
-  // a return reverses sellerNetAmount(refundedGross) - so we net the gross too.
+  // Per row, work out how much of the payout was clawed back so the UI can
+  // tell a full reversal from a partial one - see getPayoutRefundContext.
   const orderIds = [...new Set(rows.map((r) => r.orderId))];
-  const refunds = orderIds.length
-    ? await prisma.paymentTransaction.findMany({
-        where: {
-          orderId: { in: orderIds },
-          type: PaymentTransactionType.REFUND,
-          status: PaymentTransactionStatus.SUCCEEDED,
-        },
-        select: { orderId: true, organizationId: true, amount: true },
-      })
-    : [];
-
-  // org-scoped (return) refund gross per order, and whether an order-level
-  // (manual/external) refund exists - the latter claws back the whole payout.
-  const orgRefundGross = new Map<string, number>();
-  const orderLevelRefunded = new Set<string>();
-  for (const r of refunds) {
-    if (r.organizationId === organizationId) {
-      orgRefundGross.set(r.orderId, (orgRefundGross.get(r.orderId) ?? 0) + r.amount);
-    } else if (r.organizationId === null) {
-      orderLevelRefunded.add(r.orderId);
-    }
-  }
+  const ctx = await getPayoutRefundContext(organizationId, orderIds);
 
   return {
     items: rows.map((p) => {
-      const reversedNet = orderLevelRefunded.has(p.orderId)
-        ? p.amount
-        : Math.min(p.amount, sellerNetAmount(orgRefundGross.get(p.orderId) ?? 0));
+      const reversedNet = computeReversedNet(p.orderId, p.amount, ctx);
       const refundState =
         reversedNet <= 0 ? "none" : reversedNet >= p.amount ? "full" : "partial";
       return { ...p, refundState, reversedNet };
@@ -390,5 +415,59 @@ export async function releaseSellerPayout({
         note: err instanceof Error ? err.message.slice(0, 500) : "transfer failed",
       },
     });
+  }
+}
+
+/**
+ * Claws back every seller's payout on an order once the WHOLE order is refunded
+ * externally (a manual refund from the Stripe dashboard, via reconcileStripeRefund).
+ * The buyer side of that refund is already recorded; without this the seller
+ * simply keeps the money for an order the platform just refunded in full. Mirrors
+ * the per-item reversal settleReturnRefund does for app-initiated returns, but
+ * reverses the whole transfer since the whole order (not one seller's slice) was
+ * refunded. Best-effort per seller - one failed reversal must not block the rest,
+ * and is logged + audited so it can be chased manually.
+ */
+export async function reverseSellerPayoutsForOrder(orderId: string): Promise<void> {
+  const payouts = await prisma.paymentTransaction.findMany({
+    where: {
+      orderId,
+      type: PaymentTransactionType.PAYOUT,
+      status: PaymentTransactionStatus.SUCCEEDED,
+    },
+    select: { organizationId: true, amount: true, providerId: true },
+  });
+
+  for (const payout of payouts) {
+    if (!payout.providerId || MOCK_CONNECT || payout.providerId.startsWith("tr_mock_")) {
+      continue;
+    }
+    try {
+      await stripe.transfers.createReversal(payout.providerId, { amount: payout.amount });
+      await recordAudit({
+        action: "payout.reversed",
+        entityType: "Order",
+        entityId: orderId,
+        diff: { seller: payout.organizationId, amount: payout.amount, reason: "external_refund" },
+        actor: SYSTEM_ACTOR,
+      });
+    } catch (err) {
+      logger.error(
+        "[reverseSellerPayoutsForOrder] transfer reversal failed",
+        payout.organizationId,
+        err,
+      );
+      await recordAudit({
+        action: "payout.reversal_failed",
+        entityType: "Order",
+        entityId: orderId,
+        diff: {
+          seller: payout.organizationId,
+          amount: payout.amount,
+          error: err instanceof Error ? err.message.slice(0, 500) : "transfer reversal failed",
+        },
+        actor: SYSTEM_ACTOR,
+      });
+    }
   }
 }

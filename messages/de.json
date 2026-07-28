@@ -1682,6 +1682,7 @@
     "bulkCategoryLimit": "Der gewählte Filter umfasst {count} Produkte, aber Massenänderungen von Kategorien sind auf {limit} gleichzeitig begrenzt. Grenzen Sie den Filter ein und versuchen Sie es erneut.",
     "internalError": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
     "returnNotEligible": "Diese Bestellung ist nicht für eine Rückgabe berechtigt.",
+    "returnBlockedExternalRefund": "Für diese Bestellung wurde bereits außerhalb der App eine manuelle Rückerstattung ausgestellt - wenden Sie sich an den Support, um fortzufahren.",
     "returnNotShipped": "Sie können eine Rückgabe anfragen, sobald dieser Verkäufer Ihre Artikel geliefert hat.",
     "returnAlreadyOpen": "Für diesen Verkäufer in dieser Bestellung gibt es bereits eine offene Rückgabe.",
     "returnInvalidTransition": "Diese Rückgabeaktion ist derzeit nicht zulässig.",

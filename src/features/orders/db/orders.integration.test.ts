@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { createCodOrder, fulfillOrder, reconcileStripeRefund } from "./orders";
 import { InsufficientStockError } from "@/features/common/errors/domainErrors";
@@ -9,7 +9,26 @@ import {
   createOrganization,
   createProduct,
   createVariant,
+  createConnectedAccount,
 } from "../../../../test/integration/helpers";
+
+// reconcileStripeRefund now pulls in payments/db/payouts.ts (to claw back seller
+// payouts on a full external refund), which constructs a real Stripe client at
+// import time - stub it so the (empty in test) API key doesn't throw.
+const { createReversal } = vi.hoisted(() => ({
+  createReversal: vi.fn().mockResolvedValue({}),
+}));
+vi.mock("@/services/stripe", () => ({
+  stripe: { transfers: { create: vi.fn(), createReversal } },
+}));
+// MOCK_CONNECT is on by default outside production (see features/payments/mock.ts),
+// which would make reverseSellerPayoutsForOrder skip every reversal regardless of
+// provider id. Force it off here so the "real transfer" test path is exercised;
+// the mock-provider-id test below still verifies the tr_mock_ skip independently.
+vi.mock("@/features/payments/mock", () => ({
+  MOCK_CONNECT: false,
+  isMockAccount: (id: string) => id.startsWith("acct_mock_"),
+}));
 
 const SHIPPING = {
   name: "Test Buyer",
@@ -224,7 +243,8 @@ describe("reconcileStripeRefund - external (dashboard) refunds", () => {
 
     const result = await reconcileStripeRefund(sessionId, [{ id: "re_full", amount: 2000 }]);
 
-    expect(result?.id).toBe(order.id);
+    expect(result).toMatchObject({ kind: "full", amount: 2000 });
+    expect(result?.order.id).toBe(order.id);
     const refreshed = await prisma.order.findUnique({ where: { id: order.id } });
     expect(refreshed?.paymentStatus).toBe("REFUNDED");
     expect(refreshed?.status).toBe("REFUNDED");
@@ -242,13 +262,31 @@ describe("reconcileStripeRefund - external (dashboard) refunds", () => {
 
     const result = await reconcileStripeRefund(sessionId, [{ id: "re_part", amount: 500 }]);
 
-    // Not fully refunded -> no order returned for the buyer email.
-    expect(result).toBeNull();
+    // Not fully refunded -> "partial" so the caller emails the buyer for this increment.
+    expect(result).toMatchObject({ kind: "partial", amount: 500 });
+    expect(result?.order.id).toBe(order.id);
     const refreshed = await prisma.order.findUnique({ where: { id: order.id } });
     expect(refreshed?.paymentStatus).toBe("PARTIALLY_REFUNDED");
     // We don't know which lines a manual partial refund covered -> no restock.
     const after = await prisma.product.findUnique({ where: { id: product.id } });
     expect(after?.stock).toBe(3);
+  });
+
+  it("still reports \"partial\" on a second partial refund of an already-partially-refunded order", async () => {
+    const { order, sessionId } = await cardOrder(5, 2); // total 2000
+
+    const first = await reconcileStripeRefund(sessionId, [{ id: "re_part_1", amount: 500 }]);
+    expect(first).toMatchObject({ kind: "partial", amount: 500 });
+
+    // The order's paymentStatus is already PARTIALLY_REFUNDED going into this
+    // second call - the DB transition is skipped (idempotent), but the buyer
+    // still needs an email for this new increment.
+    const second = await reconcileStripeRefund(sessionId, [{ id: "re_part_2", amount: 300 }]);
+    expect(second).toMatchObject({ kind: "partial", amount: 300 });
+
+    const refreshed = await prisma.order.findUnique({ where: { id: order.id } });
+    expect(refreshed?.paymentStatus).toBe("PARTIALLY_REFUNDED");
+    expect(await prisma.paymentTransaction.count({ where: { orderId: order.id, type: "REFUND" } })).toBe(2);
   });
 
   it("skips refunds already recorded by the app (no double count)", async () => {
@@ -273,5 +311,62 @@ describe("reconcileStripeRefund - external (dashboard) refunds", () => {
     const refreshed = await prisma.order.findUnique({ where: { id: order.id } });
     expect(refreshed?.paymentStatus).toBe("PAID");
     expect(await prisma.paymentTransaction.count({ where: { orderId: order.id, type: "REFUND" } })).toBe(1);
+  });
+
+  it("claws back an already-released seller payout on a full external refund", async () => {
+    const { order, sessionId, product } = await cardOrder(5, 2); // total 2000
+    const org = (await prisma.product.findUniqueOrThrow({
+      where: { id: product.id },
+      select: { organizationId: true },
+    })).organizationId;
+    await createConnectedAccount({ organizationId: org, stripeAccountId: "acct_real_seller" });
+    // Simulate the seller already having been paid out (real, non-mock transfer id).
+    await prisma.paymentTransaction.create({
+      data: {
+        orderId: order.id,
+        organizationId: org,
+        type: "PAYOUT",
+        status: "SUCCEEDED",
+        provider: "STRIPE",
+        providerId: "tr_real_123",
+        amount: 1800,
+        currency: "usd",
+      },
+    });
+    createReversal.mockClear();
+
+    await reconcileStripeRefund(sessionId, [{ id: "re_full", amount: 2000 }]);
+
+    expect(createReversal).toHaveBeenCalledWith("tr_real_123", { amount: 1800 });
+    const auditRow = await prisma.auditLog.findFirst({
+      where: { action: "payout.reversed", entityId: order.id },
+    });
+    expect(auditRow).not.toBeNull();
+  });
+
+  it("does not attempt to reverse a mock payout transfer", async () => {
+    const { order, sessionId, product } = await cardOrder(5, 2);
+    const org = (await prisma.product.findUniqueOrThrow({
+      where: { id: product.id },
+      select: { organizationId: true },
+    })).organizationId;
+    await createConnectedAccount({ organizationId: org });
+    await prisma.paymentTransaction.create({
+      data: {
+        orderId: order.id,
+        organizationId: org,
+        type: "PAYOUT",
+        status: "SUCCEEDED",
+        provider: "STRIPE",
+        providerId: `tr_mock_${order.id}_${org}`,
+        amount: 1800,
+        currency: "usd",
+      },
+    });
+    createReversal.mockClear();
+
+    await reconcileStripeRefund(sessionId, [{ id: "re_full_2", amount: 2000 }]);
+
+    expect(createReversal).not.toHaveBeenCalled();
   });
 });
