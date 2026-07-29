@@ -60,7 +60,8 @@
     "newCoupon": "New Coupon",
     "editCoupon": "Edit Coupon",
     "bulkOperations": "Bulk Operations",
-    "history": "History"
+    "history": "History",
+    "codBalances": "COD Balances"
   },
   "auth": {
     "signIn": "Sign In",
@@ -90,7 +91,8 @@
     "reviews": "Reviews",
     "audit": "Audit Log",
     "dashboard": "Dashboard",
-    "quickLinks": "Quick Links"
+    "quickLinks": "Quick Links",
+    "codBalances": "COD Balances"
   },
   "footer": {
     "tagline": "The enterprise-grade commerce platform built for modern sellers and buyers.",
@@ -1441,7 +1443,9 @@
     "yourPayout": "Your payout",
     "payoutReversed": "Refund reversal",
     "payoutAfterRefunds": "Net payout after refunds",
-    "shippingCollected": "Shipping (collected)"
+    "shippingCollected": "Shipping (collected)",
+    "codBalanceNettedLabel": "Withheld for COD commission owed",
+    "codBalanceNettedNote": "Part of this payout was withheld to settle commission your organization owed from past cash-on-delivery orders. Check the payouts page for your remaining balance."
   },
   "relatedProducts": {
     "discoverMore": "Discover More",
@@ -1529,7 +1533,8 @@
       "none": "None",
       "save": "Save changes",
       "create": "Create coupon",
-      "activeDesc": "Inactive coupons can't be redeemed at checkout."
+      "activeDesc": "Inactive coupons can't be redeemed at checkout.",
+      "creating": "Creating..."
     },
     "table": {
       "code": "Code",
@@ -1665,7 +1670,13 @@
     "tryAdjusting": "Try adjusting your search or filters.",
     "continueOnboarding": "Continue onboarding",
     "verifyFirstTitle": "Organization not verified",
-    "verifyFirstDesc": "Your organization must be verified before you can set up payouts."
+    "verifyFirstDesc": "Your organization must be verified before you can set up payouts.",
+    "codBalanceTitle": "Outstanding COD commission",
+    "codBalanceDesc": "Owed from cash-on-delivery orders. Automatically deducted from your next Stripe payout in the same currency.",
+    "codBalanceNettedShort": "COD debt",
+    "codBalanceNettedPill": "COD debt withheld",
+    "codBalanceNettedNote": "Part of this payout was withheld to settle COD commission your organization owed.",
+    "connecting": "Redirecting to Stripe..."
   },
   "actionErrors": {
     "forbidden": "Forbidden",
@@ -1744,5 +1755,24 @@
     "productPriceRequiredBeforePublish": "Product price must be greater than 0 before publishing",
     "productMediaRequiredBeforePublish": "At least one product image or video is required before publishing",
     "invalidStatusTransition": "Invalid status transition from {from} to {to}"
+  },
+  "adminCodBalances": {
+    "title": "COD Balances",
+    "description": "Commission organizations owe the platform from cash-on-delivery orders, pending settlement.",
+    "organization": "Organization",
+    "currency": "Currency",
+    "owed": "Owed",
+    "actions": "Actions",
+    "settle": "Settle",
+    "empty": "No outstanding COD balances",
+    "emptyDesc": "Every organization is currently settled - nothing owed from cash-on-delivery commission.",
+    "settleTitle": "Settle balance for {org}",
+    "settleDesc": "Record commission collected outside the app (bank transfer, cash). This reduces the balance immediately and is logged to the audit trail.",
+    "amountLabel": "Amount settled",
+    "owedNow": "Currently owed: {amount}",
+    "confirmSettle": "Confirm",
+    "settled": "Settled {amount}",
+    "amountTooHigh": "Amount cannot exceed the current balance owed.",
+    "settling": "Settling..."
   }
 }

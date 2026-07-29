@@ -128,6 +128,15 @@ export async function markCodPaymentReceived(
           currency: order.currency,
         },
       });
+      // Track this owed fee in the org's running balance so it can later be
+      // netted against a same-currency Stripe payout (releaseSellerPayout) or
+      // settled manually - individual FEE rows are per-order and never summed
+      // on their own.
+      await tx.orgBalance.upsert({
+        where: { organizationId_currency: { organizationId, currency: order.currency } },
+        create: { organizationId, currency: order.currency, owedAmount: fee },
+        update: { owedAmount: { increment: fee } },
+      });
     }
   });
 

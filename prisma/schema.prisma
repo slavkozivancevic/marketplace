@@ -77,6 +77,7 @@ model Organization {
   payoutTransactions PaymentTransaction[]
   returns          Return[]
   shipments        Shipment[]
+  balances         OrgBalance[]
 }
 
 // A seller organization's Stripe Connect (Express) account. Created during
@@ -98,6 +99,28 @@ model ConnectedAccount {
   updatedAt DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+// Running per-currency COD commission balance owed by a seller org. The
+// platform never holds COD cash (unlike card orders, where the fee is simply
+// withheld from the Connect transfer), so this is the only aggregate view of
+// what an org currently owes - individual FEE PaymentTransaction rows are
+// per-order and never summed on their own. Scoped by currency (not just org)
+// because an org can accrue COD fees in more than one order currency; netting
+// against a Stripe payout (releaseSellerPayout) only ever nets same-currency
+// amounts, so no conversion is needed or attempted.
+model OrgBalance {
+  id             String   @id @default(uuid())
+  organizationId String
+  currency       String
+  // Smallest unit of `currency`. Never negative - accrued by COD FEE rows,
+  // reduced by COD refunds and by netting against a same-currency payout.
+  owedAmount     Int      @default(0)
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, currency])
 }
 
 enum MembershipRole {

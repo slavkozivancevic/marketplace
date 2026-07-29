@@ -354,7 +354,7 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
       ) : (
         <Button type="submit" disabled={isPending || hasErrors}>
           {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          {t("form.create")}
+          {isPending ? t("form.creating") : t("form.create")}
         </Button>
       )}
     </form>

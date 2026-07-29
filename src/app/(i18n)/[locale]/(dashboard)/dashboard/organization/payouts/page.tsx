@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations, getLocale } from "next-intl/server";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Wallet } from "lucide-react";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { canManageOrgPayouts } from "@/lib/auth/permissions";
 import { getPathname } from "@/i18n/navigation";
@@ -14,6 +14,9 @@ import {
 } from "@/features/payments/actions/connect";
 import { ConnectPayouts } from "@/features/payments/components/ConnectPayouts";
 import { OrgPayoutsPage } from "@/features/payments/components/OrgPayoutsPage";
+import { getOrgCodBalances } from "@/features/payments/db/payouts";
+import { formatPrice } from "@/lib/currency";
+import type { Currency } from "@/lib/currency-config";
 
 const DISCONNECTED: ConnectStatus = {
   connected: false,
@@ -50,9 +53,11 @@ export default async function PayoutsRoute() {
   // that avoids a double skeleton (a blocking prefetch would flash a loading.tsx
   // while the client re-fetches and shows its own skeleton anyway).
   let status: ConnectStatus | null = null;
+  let codBalances: { currency: string; owedAmount: number }[] = [];
   if (ctx.organizationVerified) {
     const res = await syncConnectStatus();
     status = "error" in res ? DISCONNECTED : res;
+    codBalances = await getOrgCodBalances(ctx.organizationId);
   }
 
   return (
@@ -68,6 +73,22 @@ export default async function PayoutsRoute() {
             <div className="shrink-0">
               <ConnectPayouts status={status ?? DISCONNECTED} />
             </div>
+            {codBalances.length > 0 && (
+              <Alert className="shrink-0">
+                <Wallet className="h-4 w-4" />
+                <AlertTitle>{t("codBalanceTitle")}</AlertTitle>
+                <AlertDescription>
+                  <div className="space-y-1">
+                    {codBalances.map((b) => (
+                      <div key={b.currency} className="font-semibold">
+                        {formatPrice(b.owedAmount, b.currency as Currency)}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-1">{t("codBalanceDesc")}</p>
+                </AlertDescription>
+              </Alert>
+            )}
             <OrgPayoutsPage />
           </>
         ) : (

@@ -128,6 +128,119 @@ async function getOrgPayoutRefundStates(
   return { full, partial };
 }
 
+/**
+ * Current COD commission balance an org owes the platform, one row per
+ * currency it has accrued in (see OrgBalance). Zero-balance currencies are
+ * omitted. Surfaced on the payouts page so the seller isn't surprised when a
+ * future Stripe payout comes in lower than expected (see releaseSellerPayout).
+ */
+export async function getOrgCodBalances(
+  organizationId: string,
+): Promise<{ currency: string; owedAmount: number }[]> {
+  const rows = await prisma.orgBalance.findMany({
+    where: { organizationId, owedAmount: { gt: 0 } },
+    select: { currency: true, owedAmount: true },
+  });
+  return rows;
+}
+
+export type AdminCodBalanceItem = {
+  organizationId: string;
+  organizationName: string;
+  currency: string;
+  owedAmount: number;
+};
+
+/**
+ * Every organization with an outstanding COD commission balance, across all
+ * currencies - the platform admin's settlement view. Expected to stay a small
+ * list (debt only sits here between accrual and either a same-currency payout
+ * netting it away or a manual settlement below), so no pagination.
+ */
+export async function getAllCodBalances(): Promise<AdminCodBalanceItem[]> {
+  const rows = await prisma.orgBalance.findMany({
+    where: { owedAmount: { gt: 0 } },
+    orderBy: { owedAmount: "desc" },
+    select: {
+      organizationId: true,
+      currency: true,
+      owedAmount: true,
+      organization: { select: { name: true } },
+    },
+  });
+  return rows.map((r) => ({
+    organizationId: r.organizationId,
+    organizationName: r.organization.name,
+    currency: r.currency,
+    owedAmount: r.owedAmount,
+  }));
+}
+
+/**
+ * Manually settles (part of) an org's COD balance - for commission collected
+ * outside the app (bank transfer, cash) that will never pass through a
+ * same-currency Stripe payout to net against automatically (releaseSellerPayout).
+ * Clamped to the current balance so an admin entering too high an amount
+ * can't push it negative; returns the amount actually settled.
+ */
+export async function settleCodBalance({
+  organizationId,
+  currency,
+  amount,
+}: {
+  organizationId: string;
+  currency: string;
+  amount: number;
+}): Promise<number> {
+  const balance = await prisma.orgBalance.findUnique({
+    where: { organizationId_currency: { organizationId, currency } },
+  });
+  const settled = Math.max(0, Math.min(amount, balance?.owedAmount ?? 0));
+  if (settled > 0) {
+    await prisma.orgBalance.update({
+      where: { organizationId_currency: { organizationId, currency } },
+      data: { owedAmount: { decrement: settled } },
+    });
+  }
+  return settled;
+}
+
+/**
+ * This org's theoretical net payout per order (subtotal-based, pre-COD-
+ * netting) - the same formula releaseSellerPayout uses to compute `net`
+ * before withholding any COD commission owed. Comparing it against the
+ * actual PAYOUT amount (see getOrgPayoutsPage) is how the list surfaces a
+ * "withheld for COD debt" row without a dedicated ledger column.
+ */
+async function getTheoreticalNetByOrder(
+  organizationId: string,
+  orderIds: string[],
+): Promise<Map<string, number>> {
+  if (orderIds.length === 0) return new Map();
+  const [items, orders] = await Promise.all([
+    prisma.orderItem.findMany({
+      where: { orderId: { in: orderIds }, product: { organizationId } },
+      select: { orderId: true, price: true, quantity: true },
+    }),
+    prisma.order.findMany({
+      where: { id: { in: orderIds } },
+      select: { id: true, shippingByOrg: true },
+    }),
+  ]);
+  const subtotalByOrder = new Map<string, number>();
+  for (const it of items) {
+    subtotalByOrder.set(it.orderId, (subtotalByOrder.get(it.orderId) ?? 0) + it.price * it.quantity);
+  }
+  const netByOrder = new Map<string, number>();
+  for (const o of orders) {
+    const subtotal = subtotalByOrder.get(o.id) ?? 0;
+    const shippingByOrg = (o.shippingByOrg as Record<string, number> | null) ?? {};
+    const shipping = shippingByOrg[organizationId] ?? 0;
+    netByOrder.set(o.id, sellerNetAmount(subtotal) + shipping);
+  }
+  return netByOrder;
+}
+
 export async function getOrgPayoutsPage({
   organizationId,
   take,
@@ -209,14 +322,22 @@ export async function getOrgPayoutsPage({
   // Per row, work out how much of the payout was clawed back so the UI can
   // tell a full reversal from a partial one - see getPayoutRefundContext.
   const orderIds = [...new Set(rows.map((r) => r.orderId))];
-  const ctx = await getPayoutRefundContext(organizationId, orderIds);
+  const [ctx, theoreticalNetByOrder] = await Promise.all([
+    getPayoutRefundContext(organizationId, orderIds),
+    getTheoreticalNetByOrder(organizationId, orderIds),
+  ]);
 
   return {
     items: rows.map((p) => {
       const reversedNet = computeReversedNet(p.orderId, p.amount, ctx);
       const refundState =
         reversedNet <= 0 ? "none" : reversedNet >= p.amount ? "full" : "partial";
-      return { ...p, refundState, reversedNet };
+      // Independent of refundState/reversedNet: netting happens once at ship
+      // time (against COD debt), refunds happen later against whatever was
+      // actually transferred - the two never overlap in what they explain.
+      const theoreticalNet = theoreticalNetByOrder.get(p.orderId) ?? p.amount;
+      const codNetted = Math.max(0, theoreticalNet - p.amount);
+      return { ...p, refundState, reversedNet, codNetted };
     }),
     nextCursor,
   };
@@ -298,6 +419,10 @@ export async function getOrgPayoutFacetCounts({
  * seller) so re-marking shipped / updating tracking never pays twice. COD orders
  * have no platform-held funds (cash is collected on delivery) and are skipped.
  *
+ * Before transferring, nets any same-currency COD commission this org owes
+ * (OrgBalance) against the transfer amount - the withheld slice just stays on
+ * the platform's Stripe balance, settling the debt without a separate charge.
+ *
  * Best-effort: a missing account or a failed transfer is recorded (PENDING /
  * FAILED) and never thrown, so it can't undo an already-shipped order.
  */
@@ -358,51 +483,84 @@ export async function releaseSellerPayout({
     return;
   }
 
-  try {
-    let providerId: string;
-    if (MOCK_CONNECT || isMockAccount(account.stripeAccountId)) {
-      providerId = `tr_mock_${orderId}_${organizationId}`;
-    } else {
-      const transfer = await stripe.transfers.create({
-        amount: net,
-        currency,
-        destination: account.stripeAccountId,
-        transfer_group: orderId,
-        metadata: { orderId, organizationId },
-      });
-      providerId = transfer.id;
-    }
+  // Net any COD commission this org currently owes (same currency only - see
+  // OrgBalance) against the real transfer about to happen. The netted slice
+  // simply never leaves the platform's Stripe balance, which IS the
+  // collection: no separate charge or transfer-back is needed. Only applied
+  // here (not in the PENDING/not-onboarded branch above) since it must track
+  // an actual transfer, never a marker for money that hasn't moved yet.
+  const balance = await prisma.orgBalance.findUnique({
+    where: { organizationId_currency: { organizationId, currency } },
+  });
+  const codNetted = Math.min(balance?.owedAmount ?? 0, net);
+  const netAfterCod = net - codNetted;
 
-    await prisma.paymentTransaction.create({
-      data: {
-        orderId,
-        organizationId,
-        type: PaymentTransactionType.PAYOUT,
-        status: PaymentTransactionStatus.SUCCEEDED,
-        provider: PaymentMethod.STRIPE,
-        providerId,
-        amount: net,
-        currency,
-      },
+  try {
+    let providerId: string | null = null;
+    if (netAfterCod > 0) {
+      if (MOCK_CONNECT || isMockAccount(account.stripeAccountId)) {
+        providerId = `tr_mock_${orderId}_${organizationId}`;
+      } else {
+        const transfer = await stripe.transfers.create({
+          amount: netAfterCod,
+          currency,
+          destination: account.stripeAccountId,
+          transfer_group: orderId,
+          metadata: { orderId, organizationId },
+        });
+        providerId = transfer.id;
+      }
+    }
+    // netAfterCod === 0 means the whole payout was absorbed by COD commission
+    // owed - no transfer to make, but the ledger row + balance decrement below
+    // still need to happen (once) so the debt is actually marked settled.
+
+    await prisma.$transaction(async (tx) => {
+      await tx.paymentTransaction.create({
+        data: {
+          orderId,
+          organizationId,
+          type: PaymentTransactionType.PAYOUT,
+          status: PaymentTransactionStatus.SUCCEEDED,
+          provider: PaymentMethod.STRIPE,
+          providerId,
+          amount: netAfterCod,
+          currency,
+          note:
+            codNetted > 0
+              ? `Netted ${codNetted} ${currency} against COD commission owed`
+              : undefined,
+        },
+      });
+      if (codNetted > 0) {
+        await tx.orgBalance.update({
+          where: { organizationId_currency: { organizationId, currency } },
+          data: { owedAmount: { decrement: codNetted } },
+        });
+      }
     });
 
     // Tell the seller they've been paid (best-effort - must not fail the payout).
     publishPayoutReleased({
       orderId,
       organizationId,
-      amount: net,
+      amount: netAfterCod,
       currency,
       locale: order.locale ?? "en",
+      codNetted: codNetted > 0 ? codNetted : undefined,
     }).catch((e) => logger.error("[releaseSellerPayout] publishPayoutReleased failed", e));
 
     await recordAudit({
       action: "payout.released",
       entityType: "Order",
       entityId: orderId,
-      diff: { seller: organizationId, amount: net, currency },
+      diff: { seller: organizationId, amount: netAfterCod, currency, codNetted },
     });
   } catch (err) {
     logger.error("[releaseSellerPayout] transfer failed", organizationId, err);
+    // Transfer failed before any netting was applied - the COD balance was
+    // never touched, so the debt stays intact for the next attempt. Record
+    // the amount actually attempted (post-netting), not the pre-netting net.
     await prisma.paymentTransaction.create({
       data: {
         orderId,
@@ -410,7 +568,7 @@ export async function releaseSellerPayout({
         type: PaymentTransactionType.PAYOUT,
         status: PaymentTransactionStatus.FAILED,
         provider: PaymentMethod.STRIPE,
-        amount: net,
+        amount: netAfterCod,
         currency,
         note: err instanceof Error ? err.message.slice(0, 500) : "transfer failed",
       },

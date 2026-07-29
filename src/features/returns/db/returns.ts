@@ -10,7 +10,7 @@ import {
 } from "@/generated/prisma/client";
 import { NotFoundError, ForbiddenError } from "@/features/common/errors/domainErrors";
 import { MOCK_CONNECT } from "@/features/payments/mock";
-import { sellerNetAmount } from "@/features/payments/config";
+import { sellerNetAmount, platformFeeAmount } from "@/features/payments/config";
 import { deriveOrderStatus } from "@/features/orders/status";
 import { recordAudit } from "@/features/audit/db/audit";
 import { revalidateOrderCache } from "@/features/orders/db/cache";
@@ -345,6 +345,10 @@ async function settleReturnRefund(
   // Stripe; COD "refunds" are cash returned out of band, recorded for audit.
   let refundProvider: PaymentMethod = PaymentMethod.COD;
   let refundProviderId: string | null = null;
+  // Stripe-only: set below when this org's payout couldn't fully absorb the
+  // reversal because it had already been reduced by COD-debt netting - see
+  // the `payout` block. Re-credited to OrgBalance in the transaction below.
+  let codDebtShortfall = 0;
 
   if (isStripe) {
     refundProvider = PaymentMethod.STRIPE;
@@ -360,7 +364,7 @@ async function settleReturnRefund(
         type: PaymentTransactionType.PAYOUT,
         status: PaymentTransactionStatus.SUCCEEDED,
       },
-      select: { providerId: true },
+      select: { providerId: true, amount: true },
     });
 
     const mock = MOCK_CONNECT || !charge?.providerId || charge.providerId.startsWith("seed_pi_");
@@ -378,16 +382,43 @@ async function settleReturnRefund(
     }
 
     // Reverse the seller's NET share of the refunded amount (they only ever
-    // received subtotal minus the platform fee). Skip for mock transfers.
-    const realTransfer =
-      payout?.providerId && !MOCK_CONNECT && !payout.providerId.startsWith("tr_mock_");
-    if (realTransfer && payout?.providerId) {
-      try {
-        await stripe.transfers.createReversal(payout.providerId, {
-          amount: sellerNetAmount(refundAmount),
-        });
-      } catch (err) {
-        logger.error("[settleReturnRefund] transfer reversal failed", err);
+    // received subtotal minus the platform fee) - but never more than what
+    // this org's payout actually transferred. `payout.amount` can be smaller
+    // than the theoretical net when it was reduced to net a COD commission
+    // balance against it (see releaseSellerPayout) - Stripe hard-rejects a
+    // reversal larger than the original transfer, so reversalAmount must be
+    // capped at whatever of that transfer hasn't already been reversed by an
+    // earlier return on this same order.
+    if (payout) {
+      const priorOrgRefundAgg = await prisma.paymentTransaction.aggregate({
+        where: { orderId, organizationId, type: PaymentTransactionType.REFUND },
+        _sum: { amount: true },
+      });
+      const priorOrgRefundGross = priorOrgRefundAgg._sum.amount ?? 0;
+      const priorClawback = sellerNetAmount(priorOrgRefundGross);
+      const thisClawback = sellerNetAmount(refundAmount);
+      const alreadyReversed = Math.min(priorClawback, payout.amount);
+      const remainingReversible = Math.max(0, payout.amount - alreadyReversed);
+      const reversalAmount = Math.min(thisClawback, remainingReversible);
+      // The part of this org's owed clawback that the (COD-netted) transfer
+      // can't cover was never actually cash in the seller's hands - it was
+      // credited earlier as debt relief when the payout was netted. Refunding
+      // this order undoes that credit, so it goes right back on the balance
+      // as debt owed, same as if it had never been netted. Recorded in the
+      // transaction below (needs order.currency, out of this Stripe-only
+      // block's scope).
+      codDebtShortfall = thisClawback - reversalAmount;
+
+      const realTransfer =
+        payout.providerId && !MOCK_CONNECT && !payout.providerId.startsWith("tr_mock_");
+      if (realTransfer && payout.providerId && reversalAmount > 0) {
+        try {
+          await stripe.transfers.createReversal(payout.providerId, {
+            amount: reversalAmount,
+          });
+        } catch (err) {
+          logger.error("[settleReturnRefund] transfer reversal failed", err);
+        }
       }
     }
   }
@@ -434,6 +465,42 @@ async function settleReturnRefund(
       // order page / email match the money returned, not the gross.
       data: { status: ReturnStatus.REFUNDED, refundAmount: buyerRefund },
     });
+
+    // Stripe only: the payout couldn't fully cover the clawback because part
+    // of it had already been withheld to net an old COD debt (see the
+    // `payout` block above) - that withheld slice was never real cash in the
+    // seller's hands, it was credited as debt relief. Refunding this order
+    // undoes that credit, so it comes back as owed debt.
+    if (codDebtShortfall > 0) {
+      await tx.orgBalance.upsert({
+        where: { organizationId_currency: { organizationId, currency: order.currency } },
+        create: { organizationId, currency: order.currency, owedAmount: codDebtShortfall },
+        update: { owedAmount: { increment: codDebtShortfall } },
+      });
+    }
+
+    // COD only: the seller collected the cash directly and owes the platform's
+    // commission share of the refunded gross back through the running balance
+    // (see markCodPaymentReceived, where it was accrued). Stripe orders never
+    // touch this - their fee is simply withheld from the transfer, so nothing
+    // was ever accrued to reverse. Floor at 0 / cap at the current balance:
+    // it should always cover this (the full order's fee was accrued up front),
+    // but never let a rounding edge case push the balance negative.
+    if (!isStripe) {
+      const feeBack = platformFeeAmount(refundAmount);
+      if (feeBack > 0) {
+        const balance = await tx.orgBalance.findUnique({
+          where: { organizationId_currency: { organizationId, currency: order.currency } },
+        });
+        const decrement = Math.min(feeBack, balance?.owedAmount ?? 0);
+        if (decrement > 0) {
+          await tx.orgBalance.update({
+            where: { organizationId_currency: { organizationId, currency: order.currency } },
+            data: { owedAmount: { decrement } },
+          });
+        }
+      }
+    }
 
     // Move the payment axis: fully REFUNDED once cumulative refunds cover the
     // order's gross subtotal (the ledger rows are gross), otherwise

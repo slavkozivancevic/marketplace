@@ -19,6 +19,7 @@ import {
   ScrollText,
   Ticket,
   Star,
+  Wallet,
   ArrowRight,
 } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -82,6 +83,12 @@ export default async function AdminPage() {
       title: t("coupons.title"),
       description: t("coupons.description"),
       icon: Ticket,
+    },
+    {
+      href: "/admin/cod-balances",
+      title: t("adminCodBalances.title"),
+      description: t("adminCodBalances.description"),
+      icon: Wallet,
     },
     {
       href: "/admin/reviews",

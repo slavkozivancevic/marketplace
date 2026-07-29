@@ -21,7 +21,7 @@ import { getOrgShipment } from "@/features/shipments/db/shipments";
 import { ShipmentManager } from "@/features/shipments/components/ShipmentManager";
 import { deriveOrderStatus } from "@/features/orders/status";
 import { orderStatusKey, orderStatusVariant } from "@/features/orders/statusBadge";
-import { MembershipRole, PaymentTransactionType } from "@/generated/prisma/client";
+import { MembershipRole } from "@/generated/prisma/client";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { formatPrice } from "@/lib/currency";
 import { sellerNetAmount, platformFeeAmount, PLATFORM_FEE_PERCENT } from "@/features/payments/config";
@@ -113,15 +113,31 @@ export default async function OrgOrderDetailPage({ params }: Props) {
   const orgShipping =
     (order.shippingByOrg as Record<string, number> | null)?.[ctx.organizationId] ?? 0;
   const orgPayout = sellerNetAmount(order.orgSubtotal) + orgShipping;
-  // Refund-aware payout: reuse the PAYOUT row's own reversedNet (computed in
-  // getOrgOrderById, which accounts for BOTH this org's app-return refunds
-  // AND external/Stripe-dashboard refunds) instead of re-deriving it here from
-  // only the org-scoped ledger rows - that would silently miss external refunds.
-  const orgPayoutTx = order.paymentTransactions.find(
-    (tx) => tx.type === PaymentTransactionType.PAYOUT && tx.organizationId === ctx.organizationId,
-  );
-  const payoutReversed = orgPayoutTx?.reversedNet ?? 0;
+  // Refund-aware payout, computed the same way for Stripe and COD alike. COD
+  // orders never get a PAYOUT ledger row (no platform-held funds to reverse -
+  // see releaseSellerPayout), so this can't be read off a PAYOUT tx's own
+  // reversedNet the way the ledger display does; it's re-derived here from the
+  // same refund-gross figures (org-scoped app returns + external/Stripe-
+  // dashboard refunds) that getOrgOrderById already computed for the FEE row.
+  const grossPayoutBack =
+    sellerNetAmount(order.orgRefundGross) + sellerNetAmount(order.externalRefundGross);
+  const payoutReversed = order.isFullyRefunded ? orgPayout : Math.min(orgPayout, grossPayoutBack);
   const netPayoutAfterRefunds = orgPayout - payoutReversed;
+
+  // A succeeded Stripe transfer for this order may have been reduced below
+  // orgPayout to net this org's COD commission balance against it (see
+  // releaseSellerPayout) - the withheld slice never reaches the seller's
+  // connected account. Compared against orgPayout (not netPayoutAfterRefunds):
+  // the netting happens once at ship time, before any later refund, so it's
+  // independent of payoutReversed - mixing the two would misattribute the gap
+  // between them when an order has both. The two effects instead stack in
+  // finalTransferred: what was actually transferred, minus any subsequent
+  // refund clawback.
+  const orgPayoutTx = order.paymentTransactions.find(
+    (tx) => tx.type === "PAYOUT" && tx.organizationId === ctx.organizationId && tx.status === "SUCCEEDED",
+  );
+  const codNetted = orgPayoutTx ? Math.max(0, orgPayout - orgPayoutTx.amount) : 0;
+  const finalTransferred = orgPayoutTx ? orgPayoutTx.amount - payoutReversed : netPayoutAfterRefunds;
 
   const shortId = `#${order.id.slice(-8).toUpperCase()}`;
   const breadcrumbItems = [
@@ -434,7 +450,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                     </span>
                   </div>
                 )}
-                <div className={`flex justify-between ${payoutReversed > 0 ? "text-muted-foreground" : "font-semibold"}`}>
+                <div className={`flex justify-between ${payoutReversed > 0 || codNetted > 0 ? "text-muted-foreground" : "font-semibold"}`}>
                   <span>{t("yourPayout")}</span>
                   <span className="tabular-nums">
                     {formatPrice(orgPayout, order.currency as Currency)}
@@ -443,22 +459,39 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                 {/* If items were refunded, show the payout clawback and the net
                     actually kept - matching the PAYOUT row in the ledger above. */}
                 {payoutReversed > 0 && (
-                  <>
-                    <div className="flex justify-between text-destructive">
-                      <span>{t("payoutReversed")}</span>
-                      <span className="tabular-nums">
-                        -{formatPrice(payoutReversed, order.currency as Currency)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between font-semibold">
-                      <span>{t("payoutAfterRefunds")}</span>
-                      <span className="tabular-nums">
-                        {formatPrice(netPayoutAfterRefunds, order.currency as Currency)}
-                      </span>
-                    </div>
-                  </>
+                  <div className="flex justify-between text-destructive">
+                    <span>{t("payoutReversed")}</span>
+                    <span className="tabular-nums">
+                      -{formatPrice(payoutReversed, order.currency as Currency)}
+                    </span>
+                  </div>
+                )}
+                {/* Some of this transfer was withheld to settle COD commission
+                    this org owed from other orders (see releaseSellerPayout) -
+                    without this line the ledger's PAYOUT amount below would
+                    look unexplained lower than the math above it. */}
+                {codNetted > 0 && (
+                  <div className="flex justify-between text-destructive">
+                    <span>{t("codBalanceNettedLabel")}</span>
+                    <span className="tabular-nums">
+                      -{formatPrice(codNetted, order.currency as Currency)}
+                    </span>
+                  </div>
+                )}
+                {(payoutReversed > 0 || codNetted > 0) && (
+                  <div className="flex justify-between font-semibold">
+                    <span>{t("payoutAfterRefunds")}</span>
+                    <span className="tabular-nums">
+                      {formatPrice(finalTransferred, order.currency as Currency)}
+                    </span>
+                  </div>
                 )}
               </div>
+              {codNetted > 0 && (
+                <p className="mt-3 text-[11px] text-muted-foreground/80">
+                  {t("codBalanceNettedNote")}
+                </p>
+              )}
               {/* Buyer used a platform-funded coupon: the seller is still paid on
                   the full gross subtotal above, so make clear the coupon never
                   touches this breakdown. */}

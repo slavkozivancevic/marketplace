@@ -60,7 +60,8 @@
     "newCoupon": "Novi kupon",
     "editCoupon": "Izmena kupona",
     "bulkOperations": "Masovne operacije",
-    "history": "Istorija"
+    "history": "Istorija",
+    "codBalances": "COD dugovi"
   },
   "auth": {
     "signIn": "Prijavi se",
@@ -90,7 +91,8 @@
     "audit": "Dnevnik izmena",
     "dashboard": "Kontrolna tabla",
     "quickLinks": "Brzi linkovi",
-    "receivedOrders": "Primljene narudžbine"
+    "receivedOrders": "Primljene narudžbine",
+    "codBalances": "COD dugovi"
   },
   "footer": {
     "tagline": "Enterprise platforma za modernu trgovinu, za prodavce i kupce.",
@@ -1441,7 +1443,9 @@
     "yourPayout": "Vaša isplata",
     "payoutReversed": "Storno isplate (povraćaji)",
     "payoutAfterRefunds": "Konačna isplata",
-    "shippingCollected": "Dostava (naplaćena)"
+    "shippingCollected": "Dostava (naplaćena)",
+    "codBalanceNettedLabel": "Zadržano za dug od pouzeća",
+    "codBalanceNettedNote": "Deo ove isplate je zadržan da izmiri proviziju koju vaša organizacija duguje od prethodnih narudžbina plaćenih pouzećem. Preostali dug pogledajte na stranici isplata."
   },
   "interactions": {
     "frequentlyBoughtTogetherEyebrow": "Kupljeno zajedno",
@@ -1529,7 +1533,8 @@
       "none": "Nema",
       "save": "Sačuvaj izmene",
       "create": "Kreiraj kupon",
-      "activeDesc": "Neaktivni kuponi se ne mogu iskoristiti pri plaćanju."
+      "activeDesc": "Neaktivni kuponi se ne mogu iskoristiti pri plaćanju.",
+      "creating": "Kreiranje..."
     },
     "table": {
       "code": "Kod",
@@ -1665,7 +1670,13 @@
     "tryAdjusting": "Pokušajte da promenite pretragu ili filtere.",
     "continueOnboarding": "Nastavi podešavanje",
     "verifyFirstTitle": "Organizacija nije verifikovana",
-    "verifyFirstDesc": "Vaša organizacija mora biti verifikovana pre podešavanja isplata."
+    "verifyFirstDesc": "Vaša organizacija mora biti verifikovana pre podešavanja isplata.",
+    "codBalanceTitle": "Nenaplaćena provizija (pouzeće)",
+    "codBalanceDesc": "Dugujete od narudžbina plaćenih pouzećem. Automatski se oduzima od vaše sledeće Stripe isplate u istoj valuti.",
+    "codBalanceNettedShort": "COD dug",
+    "codBalanceNettedPill": "Zadržano za COD dug",
+    "codBalanceNettedNote": "Deo ove isplate je zadržan da izmiri proviziju od pouzeća koju vaša organizacija duguje.",
+    "connecting": "Preusmeravanje na Stripe..."
   },
   "actionErrors": {
     "forbidden": "Nije dozvoljeno",
@@ -1744,5 +1755,24 @@
     "productPriceRequiredBeforePublish": "Cena proizvoda mora biti veća od 0 pre objavljivanja",
     "productMediaRequiredBeforePublish": "Pre objavljivanja je potrebna bar jedna slika ili video proizvoda",
     "invalidStatusTransition": "Neispravna promena statusa iz {from} u {to}"
+  },
+  "adminCodBalances": {
+    "title": "COD dugovi",
+    "description": "Provizija koju organizacije duguju platformi od narudžbina plaćenih pouzećem, na čekanju naplate.",
+    "organization": "Organizacija",
+    "currency": "Valuta",
+    "owed": "Duguje",
+    "actions": "Akcije",
+    "settle": "Naplati",
+    "empty": "Nema nenaplaćenih COD dugova",
+    "emptyDesc": "Sve organizacije su trenutno izmirene - ništa se ne duguje od COD provizije.",
+    "settleTitle": "Naplata duga za {org}",
+    "settleDesc": "Zabeleži proviziju naplaćenu van aplikacije (bankovni prenos, keš). Ovo odmah umanjuje dug i beleži se u audit log.",
+    "amountLabel": "Naplaćen iznos",
+    "owedNow": "Trenutno duguje: {amount}",
+    "confirmSettle": "Potvrdi",
+    "settled": "Naplaćeno {amount}",
+    "amountTooHigh": "Iznos ne može biti veći od trenutnog duga.",
+    "settling": "Naplaćivanje..."
   }
 }

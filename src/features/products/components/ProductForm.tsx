@@ -967,9 +967,9 @@ export function ProductForm({
   const seoHasChanges =
     showChanges &&
     !!(dirty.metaTitle || dirty.metaDescription || translationsDirty(["metaTitle", "metaDescription"]));
-  // Compared by content against a baseline that only depends on `product` (not
-  // `liveStock`), and excludes `stock` (which has its own live-sync path that's
-  // explicitly designed not to dirty the form - see the live-stock effect above).
+  // Compared by content against a baseline that mirrors `derivedValues`' live-stock
+  // preference (see `savedVariantsBaseline` below), so an async stock refresh
+  // doesn't falsely diverge from the baseline while a real user edit still does.
   // RHF's own `dirty.variants` is NOT used here: the live-stock refresh feeds a
   // new `derivedValues` into the form's `values` prop, and that reset - combined
   // with an unrelated field (e.g. media) being set dirty in the same tick - can
@@ -985,6 +985,9 @@ export function ProductForm({
       price: v.price / 100,
       compareAtPrice: v.compareAtPrice != null ? v.compareAtPrice / 100 : null,
       costPrice: v.costPrice != null ? v.costPrice / 100 : null,
+      // Mirrors `derivedValues`' live-stock preference so this only diverges
+      // from `watchedVariants` on a real user edit, not on the async refresh.
+      stock: liveStock?.variants[v.id] ?? v.stock,
       barcode: v.barcode ?? "",
       weight: v.weight ?? null,
       weightUnit: (v.weightUnit ?? null) as ProductFormData["weightUnit"],
@@ -996,18 +999,12 @@ export function ProductForm({
         optionId: av.optionId,
       })),
     }));
-  }, [product]);
+  }, [product, liveStock]);
   const variantsHasChanges = useMemo(() => {
     if (!showChanges) return false;
-    const strip = (rows: typeof watchedVariants) =>
-      (rows ?? []).map((row) => {
-        const rest = { ...row };
-        delete (rest as { stock?: number }).stock;
-        return rest;
-      });
     return (
-      JSON.stringify(strip(watchedVariants)) !==
-      JSON.stringify(strip(savedVariantsBaseline as typeof watchedVariants))
+      JSON.stringify(watchedVariants) !==
+      JSON.stringify(savedVariantsBaseline as typeof watchedVariants)
     );
   }, [showChanges, watchedVariants, savedVariantsBaseline]);
 

@@ -291,6 +291,13 @@ export async function getOrgOrderById(orderId: string, organizationId: string) {
   return {
     ...order,
     paymentTransactions,
+    // Raw refund gross feeding the payout breakdown below - exposed separately
+    // from paymentTransactions because COD orders never get a PAYOUT row (no
+    // platform-held funds to reverse), so the page can't derive this from a
+    // per-transaction reversedNet the way it does for the ledger display.
+    orgRefundGross,
+    externalRefundGross,
+    isFullyRefunded,
     total: Number(order.total),
     exchangeRate: order.exchangeRate != null ? Number(order.exchangeRate) : null,
     orgSubtotal: order.items.reduce(

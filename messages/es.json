@@ -60,7 +60,8 @@
     "newCoupon": "Nuevo cupón",
     "editCoupon": "Editar cupón",
     "bulkOperations": "Operaciones masivas",
-    "history": "Historial"
+    "history": "Historial",
+    "codBalances": "Saldos COD"
   },
   "auth": {
     "signIn": "Iniciar sesión",
@@ -90,7 +91,8 @@
     "reviews": "Reseñas",
     "audit": "Registro de auditoría",
     "dashboard": "Panel",
-    "quickLinks": "Enlaces rápidos"
+    "quickLinks": "Enlaces rápidos",
+    "codBalances": "Saldos COD"
   },
   "footer": {
     "tagline": "La plataforma de comercio empresarial creada para vendedores y compradores modernos.",
@@ -1441,7 +1443,9 @@
     "yourPayout": "Tu pago",
     "payoutReversed": "Reverso del pago (reembolsos)",
     "payoutAfterRefunds": "Pago neto tras reembolsos",
-    "shippingCollected": "Envío (cobrado)"
+    "shippingCollected": "Envío (cobrado)",
+    "codBalanceNettedLabel": "Retenido por comisión adeudada (contra reembolso)",
+    "codBalanceNettedNote": "Parte de este pago se retuvo para saldar la comisión que tu organización adeuda de pedidos anteriores pagados contra reembolso. Consulta el saldo restante en la página de pagos."
   },
   "interactions": {
     "frequentlyBoughtTogetherEyebrow": "Comprados juntos",
@@ -1529,7 +1533,8 @@
       "none": "Ninguno",
       "save": "Guardar cambios",
       "create": "Crear cupón",
-      "activeDesc": "Los cupones inactivos no se pueden canjear al pagar."
+      "activeDesc": "Los cupones inactivos no se pueden canjear al pagar.",
+      "creating": "Creando..."
     },
     "table": {
       "code": "Código",
@@ -1665,7 +1670,13 @@
     "tryAdjusting": "Prueba a ajustar la búsqueda o los filtros.",
     "continueOnboarding": "Continuar configuración",
     "verifyFirstTitle": "Organización no verificada",
-    "verifyFirstDesc": "Tu organización debe estar verificada antes de configurar los pagos."
+    "verifyFirstDesc": "Tu organización debe estar verificada antes de configurar los pagos.",
+    "codBalanceTitle": "Comisión pendiente (contra reembolso)",
+    "codBalanceDesc": "Adeudada por pedidos pagados contra reembolso. Se deduce automáticamente de tu próximo pago de Stripe en la misma moneda.",
+    "codBalanceNettedShort": "Deuda COD",
+    "codBalanceNettedPill": "Retenido por deuda COD",
+    "codBalanceNettedNote": "Parte de este pago se retuvo para saldar la comisión contra reembolso que adeuda tu organización.",
+    "connecting": "Redirigiendo a Stripe..."
   },
   "actionErrors": {
     "forbidden": "No permitido",
@@ -1744,5 +1755,24 @@
     "productPriceRequiredBeforePublish": "El precio del producto debe ser mayor que 0 antes de publicar",
     "productMediaRequiredBeforePublish": "Se requiere al menos una imagen o video del producto antes de publicar",
     "invalidStatusTransition": "Transición de estado no válida de {from} a {to}"
+  },
+  "adminCodBalances": {
+    "title": "Saldos COD",
+    "description": "Comisión que las organizaciones adeudan a la plataforma por pedidos contra reembolso, pendiente de liquidar.",
+    "organization": "Organización",
+    "currency": "Moneda",
+    "owed": "Adeudado",
+    "actions": "Acciones",
+    "settle": "Liquidar",
+    "empty": "No hay saldos COD pendientes",
+    "emptyDesc": "Todas las organizaciones están al día - no se adeuda comisión contra reembolso.",
+    "settleTitle": "Liquidar saldo de {org}",
+    "settleDesc": "Registra la comisión cobrada fuera de la app (transferencia bancaria, efectivo). Esto reduce el saldo de inmediato y queda registrado en el audit log.",
+    "amountLabel": "Importe liquidado",
+    "owedNow": "Adeudado actualmente: {amount}",
+    "confirmSettle": "Confirmar",
+    "settled": "Liquidado {amount}",
+    "amountTooHigh": "El importe no puede superar el saldo adeudado actual.",
+    "settling": "Liquidando..."
   }
 }

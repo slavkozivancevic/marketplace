@@ -130,6 +130,7 @@ export const routing = defineRouting({
     "/admin/coupons": "/admin/coupons",
     "/admin/coupons/new": "/admin/coupons/new",
     "/admin/coupons/[id]/edit": "/admin/coupons/[id]/edit",
+    "/admin/cod-balances": "/admin/cod-balances",
 
     "/invite/[token]": "/invite/[token]",
   },

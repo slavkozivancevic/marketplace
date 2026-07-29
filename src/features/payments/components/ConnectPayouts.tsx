@@ -91,7 +91,11 @@ export function ConnectPayouts({ status }: { status: ConnectStatus }) {
         {!fullyEnabled && (
           <Button onClick={onConnect} disabled={busy} className="gap-2">
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-            {incomplete || pendingReview ? t("continueOnboarding") : t("connectStripe")}
+            {busy
+              ? t("connecting")
+              : incomplete || pendingReview
+                ? t("continueOnboarding")
+                : t("connectStripe")}
           </Button>
         )}
       </CardContent>

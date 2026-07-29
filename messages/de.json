@@ -60,7 +60,8 @@
     "newCoupon": "Neuer Gutschein",
     "editCoupon": "Gutschein bearbeiten",
     "bulkOperations": "Massenoperationen",
-    "history": "Verlauf"
+    "history": "Verlauf",
+    "codBalances": "Nachnahme-Salden"
   },
   "auth": {
     "signIn": "Anmelden",
@@ -90,7 +91,8 @@
     "reviews": "Bewertungen",
     "audit": "Audit-Protokoll",
     "dashboard": "Dashboard",
-    "quickLinks": "Schnellzugriff"
+    "quickLinks": "Schnellzugriff",
+    "codBalances": "Nachnahme-Salden"
   },
   "footer": {
     "tagline": "Die Enterprise-Commerce-Plattform für moderne Verkäufer und Käufer.",
@@ -1441,7 +1443,9 @@
     "yourPayout": "Ihre Auszahlung",
     "payoutReversed": "Auszahlungsstorno (Rückerstattungen)",
     "payoutAfterRefunds": "Auszahlung nach Rückerstattungen",
-    "shippingCollected": "Versand (eingezogen)"
+    "shippingCollected": "Versand (eingezogen)",
+    "codBalanceNettedLabel": "Einbehalten für geschuldete Nachnahme-Provision",
+    "codBalanceNettedNote": "Ein Teil dieser Auszahlung wurde einbehalten, um die Provision zu begleichen, die Ihre Organisation aus früheren Nachnahme-Bestellungen schuldet. Den verbleibenden Saldo finden Sie auf der Auszahlungsseite."
   },
   "interactions": {
     "frequentlyBoughtTogetherEyebrow": "Zusammen gekauft",
@@ -1529,7 +1533,8 @@
       "none": "Keine",
       "save": "Änderungen speichern",
       "create": "Gutschein erstellen",
-      "activeDesc": "Inaktive Gutscheine können beim Checkout nicht eingelöst werden."
+      "activeDesc": "Inaktive Gutscheine können beim Checkout nicht eingelöst werden.",
+      "creating": "Wird erstellt..."
     },
     "table": {
       "code": "Code",
@@ -1665,7 +1670,13 @@
     "tryAdjusting": "Passen Sie Suche oder Filter an.",
     "continueOnboarding": "Einrichtung fortsetzen",
     "verifyFirstTitle": "Organisation nicht verifiziert",
-    "verifyFirstDesc": "Ihre Organisation muss verifiziert sein, bevor Sie Auszahlungen einrichten können."
+    "verifyFirstDesc": "Ihre Organisation muss verifiziert sein, bevor Sie Auszahlungen einrichten können.",
+    "codBalanceTitle": "Ausstehende Nachnahme-Provision",
+    "codBalanceDesc": "Geschuldet aus Nachnahme-Bestellungen. Wird automatisch von Ihrer nächsten Stripe-Auszahlung in derselben Währung abgezogen.",
+    "codBalanceNettedShort": "Nachnahme-Schuld",
+    "codBalanceNettedPill": "Nachnahme-Schuld",
+    "codBalanceNettedNote": "Ein Teil dieser Auszahlung wurde einbehalten, um die geschuldete Nachnahme-Provision Ihrer Organisation zu begleichen.",
+    "connecting": "Weiterleitung zu Stripe..."
   },
   "actionErrors": {
     "forbidden": "Nicht erlaubt",
@@ -1744,5 +1755,24 @@
     "productPriceRequiredBeforePublish": "Produktpreis muss vor der Veröffentlichung größer als 0 sein",
     "productMediaRequiredBeforePublish": "Vor der Veröffentlichung ist mindestens ein Produktbild oder -video erforderlich",
     "invalidStatusTransition": "Ungültiger Statusübergang von {from} zu {to}"
+  },
+  "adminCodBalances": {
+    "title": "Nachnahme-Salden",
+    "description": "Provision, die Organisationen der Plattform aus Nachnahme-Bestellungen schulden, noch nicht beglichen.",
+    "organization": "Organisation",
+    "currency": "Währung",
+    "owed": "Geschuldet",
+    "actions": "Aktionen",
+    "settle": "Begleichen",
+    "empty": "Keine offenen Nachnahme-Salden",
+    "emptyDesc": "Alle Organisationen sind derzeit ausgeglichen - keine Nachnahme-Provision offen.",
+    "settleTitle": "Saldo für {org} begleichen",
+    "settleDesc": "Außerhalb der App eingezogene Provision erfassen (Überweisung, Bar). Dies verringert den Saldo sofort und wird im Audit-Log protokolliert.",
+    "amountLabel": "Beglichener Betrag",
+    "owedNow": "Derzeit geschuldet: {amount}",
+    "confirmSettle": "Bestätigen",
+    "settled": "{amount} beglichen",
+    "amountTooHigh": "Der Betrag darf den aktuell geschuldeten Saldo nicht überschreiten.",
+    "settling": "Wird beglichen..."
   }
 }

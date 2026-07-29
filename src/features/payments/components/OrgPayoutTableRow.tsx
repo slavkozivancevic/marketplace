@@ -8,8 +8,13 @@ import { formatPrice } from "@/lib/currency";
 import type { Currency } from "@/lib/currency-config";
 import type { OrgPayoutListItem } from "../db/payouts";
 
+// Status column widened (400px, was 180px) to fit up to three text pills on
+// one line - refund state + COD-debt marker + paid/pending/failed - without
+// bleeding into the Amount column. Verified against real data where all
+// three can appear together (a Stripe payout netted against COD debt, later
+// partially refunded). See OrgPayoutTableRow's Status cell.
 export const PAYOUT_COL =
-  "grid-cols-[minmax(120px,1fr)_120px_90px_150px_180px]";
+  "grid-cols-[minmax(120px,1fr)_120px_90px_150px_400px]";
 
 function statusVariant(status: string) {
   return status === "SUCCEEDED"
@@ -58,7 +63,9 @@ export function OrgPayoutTableRow({ payout }: { payout: OrgPayoutListItem }) {
       </div>
 
       {/* Amount - struck through only on a full reversal; a partial reversal
-          keeps the real transfer amount and shows the clawed-back part below. */}
+          keeps the real transfer amount and shows the clawed-back part below.
+          codNetted is a separate, earlier reduction (COD debt withheld at
+          transfer time) - shown the same way so both are visible at a glance. */}
       <div role="cell" className="flex flex-col items-end gap-0.5">
         <span
           className={cn(
@@ -73,6 +80,11 @@ export function OrgPayoutTableRow({ payout }: { payout: OrgPayoutListItem }) {
             -{formatPrice(payout.reversedNet, payout.currency as Currency)}
           </span>
         )}
+        {payout.codNetted > 0 && (
+          <span className="text-[11px] text-steel tabular-nums">
+            -{formatPrice(payout.codNetted, payout.currency as Currency)} {t("codBalanceNettedShort")}
+          </span>
+        )}
       </div>
 
       {/* Status */}
@@ -85,6 +97,15 @@ export function OrgPayoutTableRow({ payout }: { payout: OrgPayoutListItem }) {
         {payout.refundState === "partial" && (
           <Badge variant="outline" className="text-[10px] text-steel border-steel/40">
             {t("partiallyRefunded")}
+          </Badge>
+        )}
+        {payout.codNetted > 0 && (
+          <Badge
+            variant="outline"
+            className="text-[10px] text-steel border-steel/40"
+            title={t("codBalanceNettedNote")}
+          >
+            {t("codBalanceNettedPill")}
           </Badge>
         )}
         <Badge variant={statusVariant(payout.status)}>
