@@ -1437,6 +1437,7 @@ export function productRepository(
 
       for (const product of updatedProducts) {
         revalidateProductCache(ctx.organizationId, product.id);
+        revalidateProductHistoryCache(ctx.organizationId, product.id);
       }
 
       return updatedProducts;
@@ -1882,8 +1883,10 @@ export function productRepository(
         }
       });
 
+      const historyWritten = status !== undefined || price !== undefined;
       for (const p of products) {
         revalidateProductCache(ctx.organizationId, p.id);
+        if (historyWritten) revalidateProductHistoryCache(ctx.organizationId, p.id);
       }
 
       const writtenCount = onlyStockChange ? stockIds.length : products.length;
