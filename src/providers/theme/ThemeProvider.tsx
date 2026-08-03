@@ -61,6 +61,32 @@ function applyThemeToHtml(resolved: ResolvedTheme) {
 }
 
 /**
+ * Swapping the theme class flips dozens of CSS variables at once, and every
+ * element with a `transition-colors` utility (buttons, text, borders, cards)
+ * animates from the old color to the new one - a visible rainbow "flash"
+ * across the whole page, worst between very different themes like
+ * light -> cosmos. Browsers only animate a property if it already had a
+ * frame painted with the old value, so momentarily killing all transitions
+ * while the class swap happens means the new theme just appears, instantly,
+ * with nothing to animate from. Same trick `next-themes` uses internally.
+ */
+function disableTransitionsDuringSwap(): () => void {
+  if (typeof document === "undefined") return () => {};
+  const css = document.createElement("style");
+  css.textContent =
+    "*,*::before,*::after{transition:none!important;animation:none!important;}";
+  document.head.appendChild(css);
+  return () => {
+    // Force a style recalculation so the theme change is committed under the
+    // override before we lift it.
+    void window.getComputedStyle(document.body).colorScheme;
+    setTimeout(() => {
+      document.head.removeChild(css);
+    }, 1);
+  };
+}
+
+/**
  * Theme provider with no inline FOUC script. The user's saved preference
  * lives in the `theme` cookie (also mirrored into the React context here).
  * Initial theme is read from `document.cookie` during the first render and
@@ -111,8 +137,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const mq = window.matchMedia(SYSTEM_DARK_QUERY);
     const onChange = (e: MediaQueryListEvent) => {
       const next: ResolvedTheme = e.matches ? "dark" : "light";
+      const restore = disableTransitionsDuringSwap();
       setResolvedTheme(next);
       applyThemeToHtml(next);
+      restore();
     };
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
@@ -120,11 +148,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setTheme = useCallback((next: ThemeName) => {
     const safe = asThemeName(next);
+    const restore = disableTransitionsDuringSwap();
     setThemeState(safe);
     writeCookieTheme(safe);
     const resolved = resolveTheme(safe, getSystemPrefersDark());
     setResolvedTheme(resolved);
     applyThemeToHtml(resolved);
+    restore();
   }, []);
 
   const value = useMemo<ThemeContextValue>(
