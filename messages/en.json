@@ -458,6 +458,7 @@
       "reset": "Reset",
       "noLogs": "No audit entries match your filters.",
       "noEntries": "No audit entries yet.",
+      "colDate": "Date",
       "colTime": "Time",
       "colActor": "Actor",
       "colAction": "Action",
@@ -497,7 +498,14 @@
         "totalRows": "Total rows",
         "errors": "Errors",
         "external": "External",
-        "from": "Copied from"
+        "from": "Copied from",
+        "settled": "Settled",
+        "reason": "Reason",
+        "error": "Error",
+        "orgName": "Organization",
+        "deletedClerkUserId": "Deleted user",
+        "promotedUserId": "Promoted user",
+        "productCount": "Product count"
       },
       "values": {
         "USER": "User",
@@ -526,7 +534,12 @@
           "partially_refunded": "Order partially refunded"
         },
         "payout": {
-          "released": "Payout released"
+          "released": "Payout released",
+          "reversed": "Payout reversed",
+          "reversal_failed": "Payout reversal failed"
+        },
+        "cod_balance": {
+          "settled": "COD balance settled"
         },
         "return": {
           "requested": "Return requested",
@@ -545,7 +558,10 @@
           "invite_declined": "Invite declined"
         },
         "organization": {
-          "verified_changed": "Organization verification changed"
+          "verified_changed": "Organization verification changed",
+          "member_removed": "Member removed (account deleted)",
+          "owner_promoted": "New owner promoted",
+          "catalog_deactivated": "Catalog deactivated"
         },
         "product": {
           "created": "Product created",
@@ -1248,7 +1264,11 @@
     "deleteConversationDesc": "This will permanently delete the conversation and all messages for all participants. This cannot be undone.",
     "deleting": "Deleting...",
     "delete": "Delete",
-    "searchPlaceholder": "Search conversations..."
+    "searchPlaceholder": "Search conversations...",
+    "messageSeller": "Message seller",
+    "openingConversation": "Opening...",
+    "ownProduct": "Your product",
+    "ownProductTooltip": "You can't message yourself as the seller."
   },
   "mediaUpload": {
     "title": "Upload Product Media",

@@ -458,6 +458,7 @@
       "reset": "Zurücksetzen",
       "noLogs": "Keine Einträge entsprechen Ihren Filtern.",
       "noEntries": "Noch keine Einträge.",
+      "colDate": "Datum",
       "colTime": "Zeit",
       "colActor": "Akteur",
       "colAction": "Aktion",
@@ -497,7 +498,14 @@
         "totalRows": "Zeilen gesamt",
         "errors": "Fehler",
         "external": "Extern",
-        "from": "Kopiert von"
+        "from": "Kopiert von",
+        "settled": "Beglichen",
+        "reason": "Grund",
+        "error": "Fehler",
+        "orgName": "Organisation",
+        "deletedClerkUserId": "Gelöschter Benutzer",
+        "promotedUserId": "Beförderter Benutzer",
+        "productCount": "Anzahl Produkte"
       },
       "values": {
         "USER": "Benutzer",
@@ -526,7 +534,12 @@
           "partially_refunded": "Bestellung teilweise erstattet"
         },
         "payout": {
-          "released": "Auszahlung veranlasst"
+          "released": "Auszahlung veranlasst",
+          "reversed": "Auszahlung storniert",
+          "reversal_failed": "Stornierung der Auszahlung fehlgeschlagen"
+        },
+        "cod_balance": {
+          "settled": "Nachnahme-Guthaben beglichen"
         },
         "return": {
           "requested": "Rücksendung angefragt",
@@ -545,7 +558,10 @@
           "invite_declined": "Einladung abgelehnt"
         },
         "organization": {
-          "verified_changed": "Organisationsverifizierung geändert"
+          "verified_changed": "Organisationsverifizierung geändert",
+          "member_removed": "Mitglied entfernt (Konto gelöscht)",
+          "owner_promoted": "Neuer Eigentümer befördert",
+          "catalog_deactivated": "Katalog deaktiviert"
         },
         "product": {
           "created": "Produkt erstellt",
@@ -1248,7 +1264,11 @@
     "deleteConversationDesc": "Dies löscht die Konversation und alle Nachrichten für alle Teilnehmer dauerhaft. Dies kann nicht rückgängig gemacht werden.",
     "deleting": "Lösche...",
     "delete": "Löschen",
-    "searchPlaceholder": "Konversationen suchen..."
+    "searchPlaceholder": "Konversationen suchen...",
+    "messageSeller": "Nachricht an Verkäufer",
+    "openingConversation": "Wird geöffnet...",
+    "ownProduct": "Ihr Produkt",
+    "ownProductTooltip": "Sie können sich nicht selbst als Verkäufer eine Nachricht senden."
   },
   "mediaUpload": {
     "title": "Produktmedien hochladen",

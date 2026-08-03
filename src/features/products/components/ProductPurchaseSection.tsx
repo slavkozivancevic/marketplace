@@ -20,6 +20,7 @@ interface ProductPurchaseSectionProps {
   product: SerializedPublicProduct;
   activeVariantId: string | null;
   onActiveVariantChange: (variantId: string | null) => void;
+  isOwnProduct: boolean;
 }
 
 function discountPct(price: number, compareAtPrice: number): number {
@@ -30,6 +31,7 @@ export function ProductPurchaseSection({
   product,
   activeVariantId,
   onActiveVariantChange,
+  isOwnProduct,
 }: ProductPurchaseSectionProps) {
   const t = useTranslations("products");
   const tCart = useTranslations("cart");
@@ -98,7 +100,11 @@ export function ProductPurchaseSection({
             product={product}
             onActiveVariantChange={onActiveVariantChange}
           />
-          <MessageSellerButton productId={product.id} className="w-full" />
+          <MessageSellerButton
+            productId={product.id}
+            className="w-full"
+            isOwnProduct={isOwnProduct}
+          />
         </CardContent>
       </Card>
 

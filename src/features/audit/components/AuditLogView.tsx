@@ -27,7 +27,7 @@ import type { AuditLogItem } from "../db/queries";
 
 // Radix Select can't use an empty-string item value, so "all" is the sentinel.
 const ALL = "__all__";
-const GRID = "grid grid-cols-[155px_minmax(160px,1.2fr)_minmax(230px,1.3fr)_minmax(150px,1fr)_minmax(180px,2fr)] gap-4";
+const GRID = "grid grid-cols-[100px_80px_minmax(160px,1.2fr)_minmax(230px,1.3fr)_minmax(150px,1fr)_minmax(180px,2fr)] gap-4";
 
 // Action keys we emit and have localized labels for. Unknown (future) keys fall
 // back to the raw identifier so the table never breaks on a missing translation.
@@ -46,6 +46,8 @@ const KNOWN_ACTIONS = new Set([
   "attribute.created", "attribute.updated", "attribute.deleted", "attribute.duplicated",
   "coupon.created", "coupon.updated", "coupon.deleted",
   "review.approved", "review.rejected",
+  "cod_balance.settled", "payout.reversed", "payout.reversal_failed",
+  "organization.member_removed", "organization.owner_promoted", "organization.catalog_deactivated",
 ]);
 
 type Labels = {
@@ -89,7 +91,10 @@ function humanizeValue(s: string): string {
  *  "from → to" pairs, and the internal `byFilter` flag dropped. */
 function renderDiff(diff: AuditLogItem["diff"], labels: Labels): string | null {
   if (!diff || typeof diff !== "object") return null;
-  const entries = Object.entries(diff as Record<string, unknown>).filter(([k]) => k !== "byFilter");
+  // "byFilter" is an internal flag; "kind"/"orgId" on organization.* outcomes
+  // just restate the action name and entityId, so they'd be pure noise here.
+  const INTERNAL_KEYS = new Set(["byFilter", "kind", "orgId"]);
+  const entries = Object.entries(diff as Record<string, unknown>).filter(([k]) => !INTERNAL_KEYS.has(k));
   if (entries.length === 0) return null;
   return entries
     .map(([k, v]) => {
@@ -105,7 +110,8 @@ function renderDiff(diff: AuditLogItem["diff"], labels: Labels): string | null {
 function SkeletonRow() {
   return (
     <div role="row" className={cn(GRID, "items-center border-b px-3 py-2.5 min-w-fit")}>
-      <Skeleton className="h-3 w-28" />
+      <Skeleton className="h-3 w-20" />
+      <Skeleton className="h-3 w-14" />
       <Skeleton className="h-3 w-36" />
       <Skeleton className="h-5 w-32 rounded-full" />
       <Skeleton className="h-3 w-24" />
@@ -120,8 +126,13 @@ function Row({ row, dl, labels }: { row: AuditLogItem; dl: string; labels: Label
   return (
     <div role="row" className={cn(GRID, "items-start border-b px-3 py-2.5 text-sm min-w-fit")}>
       <div className="text-muted-foreground text-xs whitespace-nowrap">
-        {new Date(row.createdAt).toLocaleString(dl, {
-          year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+        {new Date(row.createdAt).toLocaleDateString(dl, {
+          year: "numeric", month: "short", day: "numeric",
+        })}
+      </div>
+      <div className="text-muted-foreground text-xs whitespace-nowrap">
+        {new Date(row.createdAt).toLocaleTimeString(dl, {
+          hour: "2-digit", minute: "2-digit",
         })}
       </div>
       <div className="truncate">
@@ -187,6 +198,13 @@ export function AuditLogView({
     totalRows: t("fields.totalRows"),
     errors: t("fields.errors"),
     external: t("fields.external"),
+    settled: t("fields.settled"),
+    reason: t("fields.reason"),
+    error: t("fields.error"),
+    orgName: t("fields.orgName"),
+    deletedClerkUserId: t("fields.deletedClerkUserId"),
+    promotedUserId: t("fields.promotedUserId"),
+    productCount: t("fields.productCount"),
   };
   // Enum-like values (roles, statuses, booleans) are translated; identifiers
   // (UUIDs, field names, currency codes, numbers) fall through unchanged.
@@ -257,6 +275,7 @@ export function AuditLogView({
 
   const Header = (
     <div role="row" className={cn(GRID, "items-center border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit")}>
+      <div role="columnheader">{t("colDate")}</div>
       <div role="columnheader">{t("colTime")}</div>
       <div role="columnheader">{t("colActor")}</div>
       <div role="columnheader">{t("colAction")}</div>

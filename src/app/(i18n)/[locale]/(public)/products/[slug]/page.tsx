@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { cacheTag } from "next/cache";
 import { notFound, permanentRedirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
+import { auth } from "@clerk/nextjs/server";
 
 import { prisma } from "@/core/db/prisma";
 import { Link, getPathname } from "@/i18n/navigation";
@@ -200,11 +201,12 @@ export default async function PublicProductPage({
     );
   }
 
-  const [relatedProducts, frequentlyBoughtTogether, sellerShipping] =
+  const [relatedProducts, frequentlyBoughtTogether, sellerShipping, isOwnProduct] =
     await Promise.all([
       fetchRelatedProducts(product.id),
       getFrequentlyBoughtTogether(product.id),
       fetchSellerShipping(product.id),
+      isOrgOwner(product.organizationId),
     ]);
 
   const localTitle = getProductTitle(product, locale);
@@ -302,7 +304,7 @@ export default async function PublicProductPage({
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
         <div className="flex-1 px-6 pb-6">
-          <ProductDetailLayout product={product} />
+          <ProductDetailLayout product={product} isOwnProduct={isOwnProduct} />
 
           <div className="mt-12">
             <ProductReviewsSection
@@ -394,6 +396,23 @@ async function fetchSellerShipping(
     select: { organization: { select: { shippingFlatRate: true } } },
   });
   return { shippingFlatRate: row?.organization?.shippingFlatRate ?? 0 };
+}
+
+/**
+ * Whether the signed-in visitor is the OWNER of the org selling this product -
+ * mirrors the check in /api/chat/start-with-seller so the "Message seller"
+ * button can be disabled up front instead of round-tripping a 400. Deliberately
+ * NOT `"use cache"`: it's per-visitor, unlike the rest of this page's data.
+ */
+async function isOrgOwner(organizationId: string): Promise<boolean> {
+  const { userId: clerkUserId } = await auth();
+  if (!clerkUserId) return false;
+
+  const ownerMembership = await prisma.membership.findFirst({
+    where: { orgId: organizationId, role: "OWNER", user: { clerkUserId } },
+    select: { id: true },
+  });
+  return !!ownerMembership;
 }
 
 async function fetchRelatedProducts(

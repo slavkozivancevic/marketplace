@@ -9,9 +9,10 @@ import { getProductTitle } from "@/features/products/utils/translations";
 
 interface ProductDetailLayoutProps {
   product: SerializedPublicProduct;
+  isOwnProduct: boolean;
 }
 
-export function ProductDetailLayout({ product }: ProductDetailLayoutProps) {
+export function ProductDetailLayout({ product, isOwnProduct }: ProductDetailLayoutProps) {
   const locale = useLocale();
   const localTitle = getProductTitle(product, locale);
   // Match AddToCart's initial-variant logic so the variant list is already
@@ -59,6 +60,7 @@ export function ProductDetailLayout({ product }: ProductDetailLayoutProps) {
         product={product}
         activeVariantId={activeVariantId}
         onActiveVariantChange={handleActiveVariantChange}
+        isOwnProduct={isOwnProduct}
       />
     </div>
   );

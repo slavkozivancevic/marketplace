@@ -2,21 +2,27 @@
 import { logger } from "@/lib/logger";
 
 import { useState } from "react";
-import { MessageCircle } from "lucide-react";
+import { Loader2, MessageCircle } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import axios from "axios";
 import { useChatStore } from "../store/chatStore";
 
 interface Props {
   productId: string;
   className?: string;
+  /** Current visitor is the OWNER of the org selling this product - the API
+   *  rejects that combination (can't message yourself as the seller), so the
+   *  button is disabled up front instead of round-tripping a 400. */
+  isOwnProduct?: boolean;
 }
 
-export function MessageSellerButton({ productId, className }: Props) {
+export function MessageSellerButton({ productId, className, isOwnProduct = false }: Props) {
   const { isSignedIn } = useUser();
   const locale = useLocale();
+  const t = useTranslations("chat");
   const openConversation = useChatStore((s) => s.openConversation);
   const [loading, setLoading] = useState(false);
 
@@ -49,6 +55,24 @@ export function MessageSellerButton({ productId, className }: Props) {
     }
   };
 
+  if (isOwnProduct) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {/* Wrap so the tooltip still fires on a disabled button (which
+              swallows pointer events on its own). */}
+          <span className={className}>
+            <Button variant="outline" className="w-full" disabled>
+              <MessageCircle className="size-4" />
+              {t("ownProduct")}
+            </Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>{t("ownProductTooltip")}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
   return (
     <Button
       variant="outline"
@@ -56,8 +80,12 @@ export function MessageSellerButton({ productId, className }: Props) {
       onClick={() => void handleClick()}
       disabled={loading}
     >
-      <MessageCircle className="size-4" />
-      {loading ? "Opening…" : "Message seller"}
+      {loading ? (
+        <Loader2 className="size-4 animate-spin" />
+      ) : (
+        <MessageCircle className="size-4" />
+      )}
+      {loading ? t("openingConversation") : t("messageSeller")}
     </Button>
   );
 }

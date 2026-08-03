@@ -458,6 +458,7 @@
       "reset": "Restablecer",
       "noLogs": "Ningún registro coincide con tus filtros.",
       "noEntries": "Aún no hay registros.",
+      "colDate": "Fecha",
       "colTime": "Hora",
       "colActor": "Actor",
       "colAction": "Acción",
@@ -497,7 +498,14 @@
         "totalRows": "Filas totales",
         "errors": "Errores",
         "external": "Externo",
-        "from": "Copiado de"
+        "from": "Copiado de",
+        "settled": "Liquidado",
+        "reason": "Motivo",
+        "error": "Error",
+        "orgName": "Organización",
+        "deletedClerkUserId": "Usuario eliminado",
+        "promotedUserId": "Usuario ascendido",
+        "productCount": "Cantidad de productos"
       },
       "values": {
         "USER": "Usuario",
@@ -526,7 +534,12 @@
           "partially_refunded": "Pedido parcialmente reembolsado"
         },
         "payout": {
-          "released": "Pago liberado"
+          "released": "Pago liberado",
+          "reversed": "Pago revertido",
+          "reversal_failed": "Reversión de pago fallida"
+        },
+        "cod_balance": {
+          "settled": "Saldo de contra reembolso liquidado"
         },
         "return": {
           "requested": "Devolución solicitada",
@@ -545,7 +558,10 @@
           "invite_declined": "Invitación rechazada"
         },
         "organization": {
-          "verified_changed": "Verificación de organización cambiada"
+          "verified_changed": "Verificación de organización cambiada",
+          "member_removed": "Miembro eliminado (cuenta borrada)",
+          "owner_promoted": "Nuevo propietario promovido",
+          "catalog_deactivated": "Catálogo desactivado"
         },
         "product": {
           "created": "Producto creado",
@@ -1248,7 +1264,11 @@
     "deleteConversationDesc": "Esto eliminará permanentemente la conversación y todos los mensajes para todos los participantes. Esto no se puede deshacer.",
     "deleting": "Eliminando...",
     "delete": "Eliminar",
-    "searchPlaceholder": "Buscar conversaciones..."
+    "searchPlaceholder": "Buscar conversaciones...",
+    "messageSeller": "Mensaje al vendedor",
+    "openingConversation": "Abriendo...",
+    "ownProduct": "Tu producto",
+    "ownProductTooltip": "No puedes enviarte un mensaje a ti mismo como vendedor."
   },
   "mediaUpload": {
     "title": "Subir multimedia del producto",

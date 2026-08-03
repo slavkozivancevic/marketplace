@@ -458,6 +458,7 @@
       "reset": "Poništi",
       "noLogs": "Nema zapisa koji odgovaraju filterima.",
       "noEntries": "Još nema zapisa.",
+      "colDate": "Datum",
       "colTime": "Vreme",
       "colActor": "Akter",
       "colAction": "Akcija",
@@ -497,7 +498,14 @@
         "totalRows": "Ukupno redova",
         "errors": "Greške",
         "external": "Eksterno",
-        "from": "Kopirano iz"
+        "from": "Kopirano iz",
+        "settled": "Namireno",
+        "reason": "Razlog",
+        "error": "Greška",
+        "orgName": "Organizacija",
+        "deletedClerkUserId": "Obrisani korisnik",
+        "promotedUserId": "Unapređeni korisnik",
+        "productCount": "Broj proizvoda"
       },
       "values": {
         "USER": "Korisnik",
@@ -526,7 +534,12 @@
           "partially_refunded": "Porudžbina delimično refundirana"
         },
         "payout": {
-          "released": "Isplata poslata"
+          "released": "Isplata poslata",
+          "reversed": "Isplata stornirana",
+          "reversal_failed": "Storniranje isplate neuspešno"
+        },
+        "cod_balance": {
+          "settled": "Provizija za pouzeće namirena"
         },
         "return": {
           "requested": "Povraćaj zatražen",
@@ -545,7 +558,10 @@
           "invite_declined": "Pozivnica odbijena"
         },
         "organization": {
-          "verified_changed": "Promenjena verifikacija organizacije"
+          "verified_changed": "Promenjena verifikacija organizacije",
+          "member_removed": "Član uklonjen (brisanje naloga)",
+          "owner_promoted": "Novi vlasnik organizacije",
+          "catalog_deactivated": "Katalog organizacije deaktiviran"
         },
         "product": {
           "created": "Proizvod kreiran",
@@ -1248,7 +1264,11 @@
     "deleteConversationDesc": "Ovo će trajno obrisati razgovor i sve poruke za sve učesnike. Ovo se ne može poništiti.",
     "deleting": "Brisanje...",
     "delete": "Obriši",
-    "searchPlaceholder": "Pretraži razgovore..."
+    "searchPlaceholder": "Pretraži razgovore...",
+    "messageSeller": "Poruka prodavcu",
+    "openingConversation": "Otvaranje...",
+    "ownProduct": "Vaš proizvod",
+    "ownProductTooltip": "Ne možete poslati poruku sami sebi kao prodavcu."
   },
   "mediaUpload": {
     "title": "Otpremanje slika i videa proizvoda",
