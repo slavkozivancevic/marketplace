@@ -3,7 +3,7 @@
 import { useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import axios from "axios";
 import { getBrandName } from "@/features/brands/utils/translations";
 import { getLabel } from "@/features/attributes/utils/translations";
@@ -126,8 +126,14 @@ export function PublicProductsPage({
     { value: "avgRating", label: t("products.rating") },
   ];
 
+  // shallow: all data here is client-fetched (react-query -> /api/products,
+  // /api/facets) off the committed URL below, not re-rendered server-side per
+  // filter click. shallow:false would force a full Next.js router navigation
+  // (RSC round-trip) on every checkbox click, which is what made checkboxes
+  // feel laggy - the `checked` state below can't flip until that navigation
+  // resolves. shallow:true updates the URL (and useSearchParams) immediately.
   const [, setParams] = useQueryStates(productSearchParams, {
-    shallow: false,
+    shallow: true,
     throttleMs: 300,
   });
 
@@ -195,6 +201,12 @@ export function PublicProductsPage({
       const { data } = await axios.get(`/api/facets?${sp.toString()}`);
       return data as CategoryFacetsResult;
     },
+    // Keep the previous facets (and their counts) visible while a new filter
+    // combination refetches, instead of the query key change resetting data
+    // to undefined mid-flight - that gap was flipping `countsReady` false for
+    // a moment, briefly reverting to the unfiltered/count-less option list
+    // (a flash of options with no products popping in and back out).
+    placeholderData: keepPreviousData,
   });
   const facets = useMemo(() => facetsQuery.data?.facets ?? [], [facetsQuery.data]);
   const brandCounts = useMemo(
