@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { safeAuth } from "@/lib/auth/safeAuth";
 import { prisma } from "@/core/db/prisma";
 import { PublicHeader } from "@/components/layout/public-header";
 
@@ -7,7 +7,7 @@ export default async function PublicLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { userId } = await auth();
+  const { userId } = await safeAuth();
 
   let isAdmin = false;
 

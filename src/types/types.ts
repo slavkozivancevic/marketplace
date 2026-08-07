@@ -222,8 +222,43 @@ export type ProductListItem = Prisma.ProductGetPayload<{
   };
 }>;
 
+/**
+ * Admin/seller product list row - same shape as the public-facing
+ * `ProductListItem`, plus the creator. Kept as a separate type (rather than
+ * adding `createdBy` to `ProductListItem` itself) because that type is also
+ * used by the public storefront's product queries (search, wishlist, related
+ * products), which have no business exposing who on the seller's team
+ * created a listing.
+ */
+export type AdminProductListItem = Prisma.ProductGetPayload<{
+  include: {
+    translations: true;
+    media: true;
+    brand: {
+      select: {
+        id: true;
+        logoUrl: true;
+        logoUrlDark: true;
+        logoBackdrop: true;
+        logoBackdropDark: true;
+        translations: true;
+      };
+    };
+    createdBy: {
+      select: {
+        id: true;
+        name: true;
+        email: true;
+      };
+    };
+  };
+}>;
+
 export const INVITABLE_ROLES = ["ADMIN", "MEMBER"] as const;
 export type InvitableRole = (typeof INVITABLE_ROLES)[number];
+
+/** Option shape for org-member pickers (e.g. the "Created by" product filter). */
+export type MemberOption = { id: string; name: string | null; email: string };
 
 export type SerializedProductWithRelations = Omit<
   ProductWithRelations,
@@ -240,6 +275,12 @@ export type SerializedProductWithRelations = Omit<
 };
 
 export type SerializedProductListItem = Omit<ProductListItem, "price" | "compareAtPrice" | "costPrice"> & {
+  price: number;
+  compareAtPrice: number | null;
+  costPrice: number | null;
+};
+
+export type SerializedAdminProductListItem = Omit<AdminProductListItem, "price" | "compareAtPrice" | "costPrice"> & {
   price: number;
   compareAtPrice: number | null;
   costPrice: number | null;

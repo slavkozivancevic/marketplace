@@ -9,7 +9,7 @@ import { useInfiniteVirtualList } from "@/components/infinite/useInfiniteVirtual
 import { ProductTableHeader, ProductTableRow } from "./ProductTable";
 import { SkeletonProductTableRow } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { SerializedProductListItem } from "@/types/types";
+import { SerializedAdminProductListItem } from "@/types/types";
 import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
 import type { MyProductFilters } from "@/lib/query/searchParams";
@@ -21,7 +21,7 @@ function buildFetcher(filters: MyProductFilters) {
     pageParam,
   }: {
     pageParam: string | undefined;
-  }): Promise<InfinitePage<SerializedProductListItem>> => {
+  }): Promise<InfinitePage<SerializedAdminProductListItem>> => {
     const rate = getCurrentRate();
     const params = new URLSearchParams();
     params.set("take", String(LIST_PAGE_SIZE));
@@ -33,6 +33,7 @@ function buildFetcher(filters: MyProductFilters) {
     if (filters.minPrice != null) params.set("minPrice", String(filters.minPrice / rate));
     if (filters.maxPrice != null) params.set("maxPrice", String(filters.maxPrice / rate));
     for (const id of filters.brandId) params.append("brandId", id);
+    for (const id of filters.createdBy) params.append("createdBy", id);
 
     const { data } = await axios.get(`/api/dashboard/my-products?${params.toString()}`);
     return data;
@@ -55,13 +56,14 @@ export function MyProductsList({
     minPrice: null,
     maxPrice: null,
     brandId: [],
+    createdBy: [],
   };
   const f = filters ?? defaultFilters;
   const { currency } = useCurrencyStore();
   const orgId = useActiveOrgId();
 
   const { parentRef, virtualizer, items, query, isSentinelIndex, isPlaceholderData } =
-    useInfiniteVirtualList<SerializedProductListItem>({
+    useInfiniteVirtualList<SerializedAdminProductListItem>({
       queryKey: ["products", "my-products", orgId, f, currency],
       queryFn: buildFetcher(f),
       estimateSize: 73,
@@ -108,7 +110,7 @@ export function MyProductsList({
   }
 
   if (items.length === 0) {
-    const hasFilters = f.search || f.status.length > 0;
+    const hasFilters = f.search || f.status.length > 0 || f.brandId.length > 0 || f.createdBy.length > 0;
     return (
       <Alert>
         <AlertTitle>

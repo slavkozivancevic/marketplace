@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { safeAuth } from "@/lib/auth/safeAuth";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/core/db/prisma";
 import {
@@ -24,7 +24,7 @@ export async function ProductReviewsSection({
   const t = await getTranslations("reviews");
   const reviews = await getProductReviews(productId);
 
-  const { userId: clerkUserId } = await auth();
+  const { userId: clerkUserId } = await safeAuth();
 
   let dbUserId: string | undefined;
   let canReview = false;

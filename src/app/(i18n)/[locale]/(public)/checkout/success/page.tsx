@@ -3,7 +3,7 @@ import { RetryImage } from "@/components/RetryImage";
 import { Link, getPathname } from "@/i18n/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
-import { auth } from "@clerk/nextjs/server";
+import { safeAuth } from "@/lib/auth/safeAuth";
 import { AlertCircle, CheckCircle, Clock, MapPin, Package, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PendingLinkButton } from "@/components/ui/pending-link-button";
@@ -39,7 +39,7 @@ export default async function CheckoutSuccessPage({
 
   // ── COD success path ──────────────────────────────────────────────────────
   if (order_id && !session_id) {
-    const { userId: clerkUserId } = await auth();
+    const { userId: clerkUserId } = await safeAuth();
     const dbUser = clerkUserId
       ? await prisma.user.findUnique({ where: { clerkUserId }, select: { id: true } })
       : null;

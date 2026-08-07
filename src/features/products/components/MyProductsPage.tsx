@@ -26,13 +26,16 @@ import {
 import { ActiveFilters } from "@/components/search/ActiveFilters";
 import { MyProductsList } from "./MyProductsList";
 import type { BrandOption } from "@/features/brands/components/BrandSelect";
+import type { MemberOption } from "@/types/types";
 
 export function MyProductsPage({
   canWrite,
   brands = [],
+  members = [],
 }: {
   canWrite: boolean;
   brands?: BrandOption[];
+  members?: MemberOption[];
 }) {
   const t = useTranslations();
   const locale = useLocale();
@@ -58,12 +61,13 @@ export function MyProductsPage({
   const urlSearchParams = useSearchParams();
   const search = urlSearchParams.get("search") ?? "";
 
-  // Disjunctive facet counts (status + brand) for the sidebar - same treatment
-  // as the admin product list: each facet ignores its own selection so it stays
-  // countable while checked.
+  // Disjunctive facet counts (status + brand + createdBy) for the sidebar -
+  // same treatment as the admin product list: each facet ignores its own
+  // selection so it stays countable while checked.
   const countsQuery = useQuery<{
     status: Record<string, number>;
     brand: Record<string, number>;
+    createdBy: Record<string, number>;
   }>({
     queryKey: [
       "my-products",
@@ -72,6 +76,7 @@ export function MyProductsPage({
       search,
       params.status.join(","),
       params.brandId.join(","),
+      params.createdBy.join(","),
       params.minPrice,
       params.maxPrice,
       currency,
@@ -82,15 +87,17 @@ export function MyProductsPage({
       if (search) sp.set("search", search);
       for (const s of params.status) sp.append("status", s);
       for (const id of params.brandId) sp.append("brandId", id);
+      for (const id of params.createdBy) sp.append("createdBy", id);
       if (params.minPrice != null) sp.set("minPrice", String(params.minPrice / rate));
       if (params.maxPrice != null) sp.set("maxPrice", String(params.maxPrice / rate));
       const { data } = await axios.get(`/api/dashboard/my-products/counts?${sp.toString()}`);
-      return data as { status: Record<string, number>; brand: Record<string, number> };
+      return data as { status: Record<string, number>; brand: Record<string, number>; createdBy: Record<string, number> };
     },
   });
   const countsReady = countsQuery.isSuccess;
   const statusCounts = useMemo(() => countsQuery.data?.status ?? {}, [countsQuery.data]);
   const brandCounts = useMemo(() => countsQuery.data?.brand ?? {}, [countsQuery.data]);
+  const createdByCounts = useMemo(() => countsQuery.data?.createdBy ?? {}, [countsQuery.data]);
 
   const filterGroups: FilterGroup[] = useMemo(() => {
     // Status: small fixed enum, always shown (with counts, including 0).
@@ -117,39 +124,70 @@ export function MyProductsPage({
         step: 1,
       },
     ];
-    if (brands.length === 0) return base;
-    // Brand: long list, show counts and hide brands with no products in the
-    // current result set (selected brand stays visible so it can be cleared).
-    const selectedBrands = new Set(params.brandId);
-    const brandOptions = countsReady
-      ? brands
-          .map((b) => ({
-            value: b.id,
-            label: getBrandName(b, locale),
-            count: brandCounts[b.id] ?? 0,
-          }))
-          .filter((b) => b.count > 0 || selectedBrands.has(b.value))
-      : brands.map((b) => ({ value: b.id, label: getBrandName(b, locale) }));
-    if (brandOptions.length === 0) return base;
-    return [
-      ...base,
-      {
-        type: "checkbox" as const,
-        key: "brandId",
-        label: t("products.brand"),
-        options: brandOptions,
-        maxVisible: FILTER_OPTIONS_VISIBLE_LIMIT,
-      },
-    ];
+    const groups = [...base];
+
+    if (brands.length > 0) {
+      // Brand: long list, show counts and hide brands with no products in the
+      // current result set (selected brand stays visible so it can be cleared).
+      const selectedBrands = new Set(params.brandId);
+      const brandOptions = countsReady
+        ? brands
+            .map((b) => ({
+              value: b.id,
+              label: getBrandName(b, locale),
+              count: brandCounts[b.id] ?? 0,
+            }))
+            .filter((b) => b.count > 0 || selectedBrands.has(b.value))
+        : brands.map((b) => ({ value: b.id, label: getBrandName(b, locale) }));
+      if (brandOptions.length > 0) {
+        groups.push({
+          type: "checkbox",
+          key: "brandId",
+          label: t("products.brand"),
+          options: brandOptions,
+          maxVisible: FILTER_OPTIONS_VISIBLE_LIMIT,
+        });
+      }
+    }
+
+    if (members.length > 0) {
+      // Same treatment as brand: counts + hide members with nothing in the
+      // current result set, keeping a selected member visible so it can be
+      // cleared.
+      const selectedMembers = new Set(params.createdBy);
+      const memberOptions = countsReady
+        ? members
+            .map((m) => ({
+              value: m.id,
+              label: m.name || m.email,
+              count: createdByCounts[m.id] ?? 0,
+            }))
+            .filter((m) => m.count > 0 || selectedMembers.has(m.value))
+        : members.map((m) => ({ value: m.id, label: m.name || m.email }));
+      if (memberOptions.length > 0) {
+        groups.push({
+          type: "checkbox",
+          key: "createdBy",
+          label: t("products.createdBy"),
+          options: memberOptions,
+          maxVisible: FILTER_OPTIONS_VISIBLE_LIMIT,
+        });
+      }
+    }
+
+    return groups;
   }, [
     brands,
+    members,
     t,
     currencySymbol,
     locale,
     countsReady,
     statusCounts,
     brandCounts,
+    createdByCounts,
     params.brandId,
+    params.createdBy,
   ]);
 
   const filters: MyProductFilters = {
@@ -160,12 +198,14 @@ export function MyProductsPage({
     minPrice: params.minPrice,
     maxPrice: params.maxPrice,
     brandId: params.brandId,
+    createdBy: params.createdBy,
   };
 
   const filterValues: FilterValues = {
     status: params.status,
     price: [params.minPrice ?? undefined, params.maxPrice ?? undefined],
     brandId: params.brandId,
+    createdBy: params.createdBy,
   };
 
   const handleFilterChange = (
@@ -179,11 +219,13 @@ export function MyProductsPage({
       setParams({ minPrice: min ?? null, maxPrice: max ?? null });
     } else if (key === "brandId") {
       setParams({ brandId: value as string[] });
+    } else if (key === "createdBy") {
+      setParams({ createdBy: value as string[] });
     }
   };
 
   const handleFilterClear = () => {
-    setParams({ status: [], minPrice: null, maxPrice: null, brandId: [] });
+    setParams({ status: [], minPrice: null, maxPrice: null, brandId: [], createdBy: [] });
   };
 
   const handleFilterRemove = (key: string, value?: string) => {
@@ -193,6 +235,8 @@ export function MyProductsPage({
       setParams({ minPrice: null, maxPrice: null });
     } else if (key === "brandId") {
       setParams({ brandId: [] });
+    } else if (key === "createdBy") {
+      setParams({ createdBy: [] });
     }
   };
 

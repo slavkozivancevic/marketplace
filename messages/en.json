@@ -208,6 +208,7 @@
     "image": "Image",
     "titleHeader": "Title",
     "descriptionHeader": "Description",
+    "createdBy": "Created by",
     "actions": "Actions",
     "noImage": "No image",
     "deleteConfirm": "Delete \"{title}\"?",
@@ -1268,7 +1269,7 @@
     "messageSeller": "Message seller",
     "openingConversation": "Opening...",
     "ownProduct": "Your product",
-    "ownProductTooltip": "You can't message yourself as the seller."
+    "ownProductTooltip": "This is your organization's product - you can't message it."
   },
   "mediaUpload": {
     "title": "Upload Product Media",
@@ -1385,7 +1386,9 @@
     "edit": "Edit",
     "create": "Create",
     "search": "Search",
-    "loadingDetails": "Loading product details..."
+    "loadingDetails": "Loading product details...",
+    "stuckMessage": "This is taking longer than usual.",
+    "reloadPage": "Reload page"
   },
   "orgOrders": {
     "readOnly": "Read-only access",

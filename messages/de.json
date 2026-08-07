@@ -208,6 +208,7 @@
     "image": "Bild",
     "titleHeader": "Titel",
     "descriptionHeader": "Beschreibung",
+    "createdBy": "Erstellt von",
     "actions": "Aktionen",
     "noImage": "Kein Bild",
     "deleteConfirm": "\"{title}\" löschen?",
@@ -1268,7 +1269,7 @@
     "messageSeller": "Nachricht an Verkäufer",
     "openingConversation": "Wird geöffnet...",
     "ownProduct": "Ihr Produkt",
-    "ownProductTooltip": "Sie können sich nicht selbst als Verkäufer eine Nachricht senden."
+    "ownProductTooltip": "Dies ist ein Produkt Ihrer Organisation - Sie können ihr keine Nachricht senden."
   },
   "mediaUpload": {
     "title": "Produktmedien hochladen",
@@ -1385,7 +1386,9 @@
     "edit": "Bearbeiten",
     "create": "Erstellen",
     "search": "Suchen",
-    "loadingDetails": "Produktdetails werden geladen..."
+    "loadingDetails": "Produktdetails werden geladen...",
+    "stuckMessage": "Das dauert länger als gewöhnlich.",
+    "reloadPage": "Seite neu laden"
   },
   "orgOrders": {
     "readOnly": "Schreibgeschützter Zugriff",

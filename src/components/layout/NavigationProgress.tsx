@@ -2,6 +2,8 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useUnsavedGuardStore } from "@/lib/forms/unsavedGuard";
+import { onNavigationStart } from "@/lib/navigation/navigationProgressSignal";
 
 /**
  * Global top progress bar - the universal "something is happening" affordance
@@ -18,7 +20,14 @@ import { useEffect, useRef, useState } from "react";
  *   - START: a capture-phase document click listener spots a left-click on an
  *     internal `<a>` whose pathname differs from the current one. Capture phase
  *     runs before React's delegated handler calls `preventDefault()` for the
- *     client navigation, so the click is still inspectable.
+ *     client navigation, so the click is still inspectable. Skipped when the
+ *     unsaved-changes guard is armed - that click won't navigate yet (a
+ *     confirm dialog decides), so starting here would be premature.
+ *   - START (deferred navigations): the unsaved-changes guard (and anything
+ *     else that navigates programmatically after its own gate) calls
+ *     `emitNavigationStart()` right before the real `router.push`, so the bar
+ *     still appears - just from the moment navigation actually begins instead
+ *     of the original click.
  *   - FINISH: `usePathname()` changing means the navigation resolved.
  *   - SAFETY: if a start never resolves (full reload, aborted nav), a timeout
  *     retracts the bar so it can never get stuck.
@@ -99,6 +108,13 @@ export function NavigationProgress() {
       }
       if (url.origin !== window.location.origin) return; // external
       if (url.pathname === window.location.pathname) return; // query/hash-only
+      // The unsaved-changes guard mounts deeper in the tree, so its own
+      // capture-phase listener registers - and therefore runs - after this
+      // one; this component would otherwise always start the bar before the
+      // guard gets a chance to preventDefault() and show its dialog. Defer to
+      // it here; emitNavigationStart() (below) covers the "user confirmed
+      // leaving" case.
+      if (useUnsavedGuardStore.getState().hasUnsaved()) return;
 
       start();
     };
@@ -108,6 +124,14 @@ export function NavigationProgress() {
       document.removeEventListener("click", onClick, { capture: true });
       clearTimers();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Lets a deferred/programmatic navigation (see the unsaved-changes guard)
+  // start the bar once it actually proceeds, instead of on the original click.
+  useEffect(() => {
+    onNavigationStart(start);
+    return () => onNavigationStart(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

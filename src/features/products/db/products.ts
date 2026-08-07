@@ -4,8 +4,8 @@ import { revalidateProductCache, revalidateProductHistoryCache } from "./cache";
 import type { BulkFilter, BulkUpdateFields } from "../types/bulk";
 import { BULK_CATEGORY_MUTATION_LIMIT } from "../types/bulk";
 import {
+  AdminProductListItem,
   MediaInput,
-  ProductListItem,
   ProductTranslationsInput,
   ProductVariantInput,
   ProductWithRelations,
@@ -615,7 +615,7 @@ type AdminProductFilterParams = {
   status?: ProductStatus[];
   minPrice?: number;
   maxPrice?: number;
-  createdBy?: string;
+  createdBy?: string[];
   updatedBy?: string;
   brandId?: string[];
   search?: string;
@@ -625,7 +625,7 @@ type AdminProductFilterParams = {
 function buildAdminProductWhere(
   organizationId: string,
   params: AdminProductFilterParams,
-  omit?: "status" | "brand",
+  omit?: "status" | "brand" | "createdBy",
 ): Prisma.ProductWhereInput {
   const where: Prisma.ProductWhereInput = {
     organizationId,
@@ -640,7 +640,7 @@ function buildAdminProductWhere(
     if (params.maxPrice != null) where.price.lte = params.maxPrice;
   }
 
-  if (params.createdBy) where.createdById = params.createdBy;
+  if (omit !== "createdBy" && params.createdBy?.length) where.createdById = { in: params.createdBy };
   if (params.updatedBy) where.updatedById = params.updatedBy;
   if (omit !== "brand" && params.brandId?.length) where.brandId = { in: params.brandId };
 
@@ -799,7 +799,7 @@ export function productRepository(
       status?: ProductStatus[];
       minPrice?: number;
       maxPrice?: number;
-      createdBy?: string;
+      createdBy?: string[];
       updatedBy?: string;
       search?: string;
       /** Locale to scope search against. Defaults to all locales (admin-wide). */
@@ -808,7 +808,7 @@ export function productRepository(
       sortOrder?: SortOrder;
       brandId?: string[];
     }): Promise<{
-      products: ProductListItem[];
+      products: AdminProductListItem[];
       nextCursor?: string;
     }> {
       const take = params?.take ?? 20;
@@ -835,6 +835,9 @@ export function productRepository(
           brand: {
             select: { id: true, logoUrl: true, logoUrlDark: true, logoBackdrop: true, logoBackdropDark: true, translations: true },
           },
+          createdBy: {
+            select: { id: true, name: true, email: true },
+          },
         },
       });
 
@@ -853,15 +856,17 @@ export function productRepository(
     /**
      * Disjunctive facet counts for the product list sidebar. Status counts
      * ignore the active status selection (every status stays countable while
-     * one is checked); brand counts ignore the active brand selection. All
-     * other filters (search, price, the *other* dimension) still apply, so the
-     * numbers track the current result set the way Amazon/GitHub facets do.
+     * one is checked); brand/createdBy counts likewise ignore their own
+     * selection. All other filters (search, price, the *other* dimensions)
+     * still apply, so the numbers track the current result set the way
+     * Amazon/GitHub facets do.
      */
     async getFilterCounts(params: AdminProductFilterParams): Promise<{
       status: Record<string, number>;
       brand: Record<string, number>;
+      createdBy: Record<string, number>;
     }> {
-      const [statusGroups, brandGroups] = await Promise.all([
+      const [statusGroups, brandGroups, createdByGroups] = await Promise.all([
         db.prisma.product.groupBy({
           by: ["status"],
           where: buildAdminProductWhere(ctx.organizationId, params, "status"),
@@ -877,13 +882,25 @@ export function productRepository(
           },
           _count: { _all: true },
         }),
+        db.prisma.product.groupBy({
+          by: ["createdById"],
+          where: {
+            AND: [
+              buildAdminProductWhere(ctx.organizationId, params, "createdBy"),
+              { createdById: { not: null } },
+            ],
+          },
+          _count: { _all: true },
+        }),
       ]);
 
       const status: Record<string, number> = {};
       for (const g of statusGroups) status[g.status] = g._count._all;
       const brand: Record<string, number> = {};
       for (const g of brandGroups) if (g.brandId) brand[g.brandId] = g._count._all;
-      return { status, brand };
+      const createdBy: Record<string, number> = {};
+      for (const g of createdByGroups) if (g.createdById) createdBy[g.createdById] = g._count._all;
+      return { status, brand, createdBy };
     },
 
     async getHistory(productId: string) {

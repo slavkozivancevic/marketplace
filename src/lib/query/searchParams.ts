@@ -56,6 +56,7 @@ export const adminProductSearchParams = {
   minPrice: parseAsFloat,
   maxPrice: parseAsFloat,
   brandId: parseAsArrayOf(parseAsString).withDefault([]),
+  createdBy: parseAsArrayOf(parseAsString).withDefault([]),
 };
 
 export type AdminProductFilters = {
@@ -66,6 +67,7 @@ export type AdminProductFilters = {
   minPrice: number | null;
   maxPrice: number | null;
   brandId: string[];
+  createdBy: string[];
 };
 
 // ---------- My products (seller dashboard) ----------
@@ -78,6 +80,7 @@ export const myProductSearchParams = {
   minPrice: parseAsFloat,
   maxPrice: parseAsFloat,
   brandId: parseAsArrayOf(parseAsString).withDefault([]),
+  createdBy: parseAsArrayOf(parseAsString).withDefault([]),
 };
 
 export type MyProductFilters = {
@@ -88,6 +91,7 @@ export type MyProductFilters = {
   minPrice: number | null;
   maxPrice: number | null;
   brandId: string[];
+  createdBy: string[];
 };
 
 // ---------- Orders ----------

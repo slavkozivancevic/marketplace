@@ -12,6 +12,7 @@ import { AdminProductsPage } from "@/features/products/components/AdminProductsP
 import { Button } from "@/components/ui/button";
 import { CacheTags } from "@/lib/cache/tags";
 import { getAllBrands } from "@/features/brands/db/brands";
+import { prisma } from "@/core/db/prisma";
 
 export default async function AdminProductsRoute() {
   await connection();
@@ -30,7 +31,10 @@ export default async function AdminProductsRoute() {
   // server render behind a loading.tsx while the client re-fetched anyway. We
   // drop it: the server renders instantly and the list's own skeleton is the
   // single loading state (no double skeleton).
-  const brands = await fetchBrands();
+  const [brands, members] = await Promise.all([
+    fetchBrands(),
+    fetchOrgMembers(ctx.organizationId),
+  ]);
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
@@ -52,7 +56,7 @@ export default async function AdminProductsRoute() {
         </PageHeader>
       </div>
       <div className="flex-1 flex flex-col min-h-0 px-6 pb-6">
-        <AdminProductsPage brands={brands} />
+        <AdminProductsPage brands={brands} members={members} />
       </div>
     </div>
   );
@@ -62,4 +66,19 @@ async function fetchBrands() {
   "use cache";
   cacheTag(CacheTags.brands.all());
   return getAllBrands();
+}
+
+/**
+ * Org members for the "Created by" filter's option labels - not `"use cache"`,
+ * since membership changes (removals, role swaps) should show up immediately
+ * rather than sit behind a cache tag nothing currently invalidates for this
+ * specific list shape.
+ */
+async function fetchOrgMembers(organizationId: string) {
+  const memberships = await prisma.membership.findMany({
+    where: { orgId: organizationId },
+    select: { user: { select: { id: true, name: true, email: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+  return memberships.map((m) => m.user);
 }

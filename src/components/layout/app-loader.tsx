@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { LoaderVisual } from "./loader-visual";
+
+const STUCK_MS = 10_000;
 
 /**
  * Gates the whole app behind a full-page boot loader until Clerk has resolved
@@ -44,6 +47,7 @@ export function AppLoader({ hidden }: { hidden: boolean }) {
   // Keep the overlay mounted through the fade-out, then remove it so the
   // spinner stops animating off-screen.
   const [gone, setGone] = useState(false);
+  const t = useTranslations("common");
 
   useEffect(() => {
     if (!hidden) {
@@ -54,6 +58,23 @@ export function AppLoader({ hidden }: { hidden: boolean }) {
       return;
     }
     const id = setTimeout(() => setGone(true), 600);
+    return () => clearTimeout(id);
+  }, [hidden]);
+
+  // Safety net: normally this overlay lifts within a second or two (Clerk
+  // boot, org switch). If it's still up after STUCK_MS, something hung
+  // upstream (a Clerk handshake hiccup, a stuck navigation, ...) - offer a
+  // manual reload instead of leaving the user stuck forever. See the
+  // 2026-08-06 staging incident: a post-2FA sign-in never lifted this loader
+  // and only a hard reload recovered.
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    if (hidden) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setStuck(false);
+      return;
+    }
+    const id = setTimeout(() => setStuck(true), STUCK_MS);
     return () => clearTimeout(id);
   }, [hidden]);
 
@@ -69,6 +90,18 @@ export function AppLoader({ hidden }: { hidden: boolean }) {
       )}
     >
       <LoaderVisual />
+      {stuck && (
+        <div className="absolute inset-x-0 bottom-16 flex flex-col items-center gap-2 px-4 text-center">
+          <p className="text-sm text-muted-foreground">{t("stuckMessage")}</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="cursor-pointer text-sm font-medium text-primary underline underline-offset-4"
+          >
+            {t("reloadPage")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

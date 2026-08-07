@@ -24,7 +24,7 @@ import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 import { BrandLogo } from "@/features/brands/components/BrandLogo";
 import { RetryImage } from "@/components/RetryImage";
 import { deleteProduct, duplicateProduct } from "@/features/products/actions/products";
-import { SerializedProductListItem } from "@/types/types";
+import { SerializedAdminProductListItem } from "@/types/types";
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
 import {
@@ -45,18 +45,25 @@ function getStatusVariant(status: string) {
 }
 
 const COLS_BASE = "64px minmax(100px,1fr) 120px minmax(150px,2fr) 120px 100px";
-const COLS_ACTIONS = COLS_BASE + " 116px";
+const COLS_CREATED_BY = " 140px";
+const COLS_ACTIONS = " 116px";
+
+function buildProductTableCols(showCreatedBy: boolean, showActions: boolean): string {
+  return COLS_BASE + (showCreatedBy ? COLS_CREATED_BY : "") + (showActions ? COLS_ACTIONS : "");
+}
 
 /**
  * Product table header (rendered outside the virtualizer scroll container).
  */
 export function ProductTableHeader({
   showActions = false,
+  showCreatedBy = false,
 }: {
   showActions?: boolean;
+  showCreatedBy?: boolean;
 }) {
   const t = useTranslations("products");
-  const cols = showActions ? COLS_ACTIONS : COLS_BASE;
+  const cols = buildProductTableCols(showCreatedBy, showActions);
 
   return (
     <div
@@ -70,6 +77,9 @@ export function ProductTableHeader({
       <div role="columnheader" className="truncate">{t("descriptionHeader")}</div>
       <div role="columnheader" className="truncate text-right">{t("price")}</div>
       <div role="columnheader" className="truncate text-center">{t("status")}</div>
+      {showCreatedBy && (
+        <div role="columnheader" className="truncate">{t("createdBy")}</div>
+      )}
       {showActions && (
         // pr-2.5 (10px) compensates for the icon Button's internal padding:
         // a 16x16 icon inside a 36x36 ghost button leaves ~10px of empty
@@ -87,11 +97,13 @@ export function ProductTableHeader({
 export function ProductTableRow({
   product,
   showActions = false,
+  showCreatedBy = false,
   basePath = "/admin/products",
   onBusyChange,
 }: {
-  product: SerializedProductListItem;
+  product: SerializedAdminProductListItem;
   showActions?: boolean;
+  showCreatedBy?: boolean;
   basePath?: string;
   onBusyChange?: (id: string, busy: boolean) => void;
 }) {
@@ -151,7 +163,7 @@ export function ProductTableRow({
   // poster), falling back to the original URL for legacy rows.
   const firstMedia = product.media?.[0];
   const thumbnailUrl = firstMedia?.thumbUrl ?? firstMedia?.url;
-  const cols = showActions ? COLS_ACTIONS : COLS_BASE;
+  const cols = buildProductTableCols(showCreatedBy, showActions);
   const isBusy = isDeleting || isDuplicating || isNavigating;
 
   // Report busy state up so the list can lock the whole table while any
@@ -227,6 +239,13 @@ export function ProductTableRow({
           {product.status === "PUBLISHED" ? t("published") : product.status === "DRAFT" ? t("draft") : t("archived")}
         </Badge>
       </div>
+      {showCreatedBy && (
+        <TruncatedTooltip content={product.createdBy ? (product.createdBy.name || product.createdBy.email) : "-"}>
+          <div role="cell" className="truncate text-sm text-muted-foreground">
+            {product.createdBy ? (product.createdBy.name || product.createdBy.email) : "-"}
+          </div>
+        </TruncatedTooltip>
+      )}
       {showActions && (
         <div role="cell" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-end gap-1">

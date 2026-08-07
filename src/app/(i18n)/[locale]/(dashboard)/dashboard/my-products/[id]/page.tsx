@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
 import { Link, getPathname } from "@/i18n/navigation";
-import { auth } from "@clerk/nextjs/server";
+import { safeAuth } from "@/lib/auth/safeAuth";
 import { getLocale, getTranslations } from "next-intl/server";
 import { prisma } from "@/core/db/prisma";
 
@@ -86,7 +86,7 @@ async function MyProductContent({ id }: { id: string }) {
     locale,
   });
 
-  const { userId: clerkUserId } = await auth();
+  const { userId: clerkUserId } = await safeAuth();
   if (!clerkUserId) notFound();
 
   const product = await prisma.product.findFirst({

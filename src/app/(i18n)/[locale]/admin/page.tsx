@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { safeAuth } from "@/lib/auth/safeAuth";
 import { connection } from "next/server";
 import { prisma } from "@/core/db/prisma";
 import {
@@ -27,7 +27,7 @@ import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 
 export default async function AdminPage() {
   await connection();
-  const { userId } = await auth();
+  const { userId } = await safeAuth();
   const t = await getTranslations();
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();

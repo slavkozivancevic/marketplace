@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { emitNavigationStart } from "@/lib/navigation/navigationProgressSignal";
 
 /**
  * Global "unsaved changes" guard. Forms register their dirty state here (via
@@ -48,6 +49,10 @@ export const useUnsavedGuardStore = create<UnsavedGuardStore>((set, get) => ({
     const { pending } = get();
     // Clear dirty state first so the queued navigation isn't re-blocked.
     set({ dirtyForms: new Set(), pending: null });
+    // The original click was suppressed while the dialog was up, so
+    // NavigationProgress never started - kick it off now that the
+    // navigation is actually about to run.
+    emitNavigationStart();
     pending?.();
   },
   stay: () => set({ pending: null }),

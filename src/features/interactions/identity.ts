@@ -1,5 +1,5 @@
 import "server-only";
-import { auth } from "@clerk/nextjs/server";
+import { safeAuth } from "@/lib/auth/safeAuth";
 import { cookies } from "next/headers";
 import { prisma } from "@/core/db/prisma";
 import type { InteractionIdentity } from "./db/interactions";
@@ -20,7 +20,7 @@ export async function resolveInteractionIdentity({
   allowSet: boolean;
 }): Promise<InteractionIdentity> {
   let userId: string | undefined;
-  const { userId: clerkId } = await auth();
+  const { userId: clerkId } = await safeAuth();
   if (clerkId) {
     const user = await prisma.user.findUnique({
       where: { clerkUserId: clerkId },

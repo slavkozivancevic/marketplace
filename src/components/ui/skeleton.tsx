@@ -223,20 +223,27 @@ export function SkeletonProductGridCard({
 
 export function SkeletonProductTableRow({
   showActions = false,
+  showCreatedBy = false,
 }: {
   showActions?: boolean;
+  showCreatedBy?: boolean;
 }) {
-  // Columns mirror ProductTable's COLS_BASE / COLS_ACTIONS so the skeleton lines
-  // up under <ProductTableHeader>. Height is driven by the 48px thumbnail.
+  // Columns mirror ProductTable's COLS_BASE / COLS_CREATED_BY / COLS_ACTIONS so
+  // the skeleton lines up under <ProductTableHeader>. Every combination is
+  // spelled out as a literal class so Tailwind's JIT scanner picks it up -
+  // string-concatenating an arbitrary-value class doesn't work.
+  // Height is driven by the 48px thumbnail.
+  const cols = showCreatedBy
+    ? showActions
+      ? "grid-cols-[64px_minmax(100px,1fr)_120px_minmax(150px,2fr)_120px_100px_140px_116px]"
+      : "grid-cols-[64px_minmax(100px,1fr)_120px_minmax(150px,2fr)_120px_100px_140px]"
+    : showActions
+      ? "grid-cols-[64px_minmax(100px,1fr)_120px_minmax(150px,2fr)_120px_100px_116px]"
+      : "grid-cols-[64px_minmax(100px,1fr)_120px_minmax(150px,2fr)_120px_100px]";
   return (
     <div
       role="row"
-      className={cn(
-        "grid items-center gap-4 border-b p-3 min-w-fit",
-        showActions
-          ? "grid-cols-[64px_minmax(100px,1fr)_120px_minmax(150px,2fr)_120px_100px_116px]"
-          : "grid-cols-[64px_minmax(100px,1fr)_120px_minmax(150px,2fr)_120px_100px]",
-      )}
+      className={cn("grid items-center gap-4 border-b p-3 min-w-fit", cols)}
     >
       <Skeleton className="h-12 w-12 rounded border" />
       <SkeletonText rows={1} size="md" className="w-3/4" />
@@ -247,6 +254,7 @@ export function SkeletonProductTableRow({
       <SkeletonText rows={1} size="md" className="w-full" />
       <Skeleton className="h-3.5 w-16 ml-auto" />
       <Skeleton className="h-5 w-16 rounded-full mx-auto" />
+      {showCreatedBy && <Skeleton className="h-3.5 w-20" />}
       {showActions && (
         <div className="flex items-center justify-end gap-1">
           <Skeleton className="h-8 w-8 rounded-md" />

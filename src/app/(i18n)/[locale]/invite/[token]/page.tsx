@@ -2,7 +2,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { connection } from "next/server";
 import { notFound, redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
+import { safeAuth } from "@/lib/auth/safeAuth";
 import { getInviteByToken } from "@/features/organizations/db/invites";
 import { getUserByClerkId } from "@/features/users/db/users";
 import { PageHeader } from "@/components/PageHeader";
@@ -21,7 +21,7 @@ interface InvitePageProps {
 export default async function InvitePage({ params }: InvitePageProps) {
   await connection();
   const { token } = await params;
-  const { userId } = await auth();
+  const { userId } = await safeAuth();
 
   const locale = await getLocale();
   const t = await getTranslations("invite");

@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { auth } from "@clerk/nextjs/server";
+import { safeAuth } from "./safeAuth";
 import { validateAuthSync } from "./validateAuthSync";
 import { prisma } from "@/core/db/prisma";
 import { RequestContext } from "../../types/types";
@@ -13,7 +13,7 @@ import {
 // result instead of each re-running auth(), DB lookups and the Clerk sync.
 export const resolveRequestContext = cache(
   async (): Promise<RequestContext> => {
-  const { userId, sessionClaims } = await auth();
+  const { userId, sessionClaims } = await safeAuth();
 
   if (!userId) {
     throw new UnauthenticatedError();

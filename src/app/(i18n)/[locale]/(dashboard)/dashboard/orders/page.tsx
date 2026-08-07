@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { safeAuth } from "@/lib/auth/safeAuth";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -17,7 +17,7 @@ export default async function OrdersRoute() {
     { name: tCrumbs("dashboard"), href: getPathname({ href: "/dashboard", locale }) },
     { name: tCrumbs("myOrders"), href: getPathname({ href: "/dashboard/orders", locale }) },
   ];
-  const { userId: clerkUserId } = await auth();
+  const { userId: clerkUserId } = await safeAuth();
   if (!clerkUserId) notFound();
 
   const user = await prisma.user.findUnique({

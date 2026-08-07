@@ -9,7 +9,7 @@ import { useInfiniteVirtualList } from "@/components/infinite/useInfiniteVirtual
 import { ProductTableHeader, ProductTableRow } from "./ProductTable";
 import { SkeletonProductTableRow } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { SerializedProductListItem } from "@/types/types";
+import { SerializedAdminProductListItem } from "@/types/types";
 import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
 import type { AdminProductFilters } from "@/lib/query/searchParams";
@@ -20,7 +20,7 @@ function buildFetcher(filters: AdminProductFilters) {
     pageParam,
   }: {
     pageParam: string | undefined;
-  }): Promise<InfinitePage<SerializedProductListItem>> => {
+  }): Promise<InfinitePage<SerializedAdminProductListItem>> => {
     const rate = getCurrentRate();
     const params = new URLSearchParams();
     params.set("take", String(LIST_PAGE_SIZE));
@@ -32,6 +32,7 @@ function buildFetcher(filters: AdminProductFilters) {
     if (filters.minPrice != null) params.set("minPrice", String(filters.minPrice / rate));
     if (filters.maxPrice != null) params.set("maxPrice", String(filters.maxPrice / rate));
     for (const id of filters.brandId) params.append("brandId", id);
+    for (const id of filters.createdBy) params.append("createdBy", id);
 
     const { data } = await axios.get(`/api/admin/products?${params.toString()}`);
     return data;
@@ -52,12 +53,13 @@ export function AdminProductsList({
     minPrice: null,
     maxPrice: null,
     brandId: [],
+    createdBy: [],
   };
   const f = filters ?? defaultFilters;
   const { currency } = useCurrencyStore();
 
   const { parentRef, virtualizer, items, query, isSentinelIndex, isPlaceholderData } =
-    useInfiniteVirtualList<SerializedProductListItem>({
+    useInfiniteVirtualList<SerializedAdminProductListItem>({
       queryKey: ["products", "admin", f, currency],
       queryFn: buildFetcher(f),
       estimateSize: 73,
@@ -86,9 +88,9 @@ export function AdminProductsList({
   if (query.status === "pending") {
     return (
       <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
-        <ProductTableHeader showActions />
+        <ProductTableHeader showActions showCreatedBy />
         {Array.from({ length: 8 }).map((_, i) => (
-          <SkeletonProductTableRow key={i} showActions />
+          <SkeletonProductTableRow key={i} showActions showCreatedBy />
         ))}
       </div>
     );
@@ -105,7 +107,7 @@ export function AdminProductsList({
 
   if (items.length === 0) {
     const hasFilters =
-      f.search || f.status.length > 0 || f.minPrice != null || f.maxPrice != null || f.brandId != null;
+      f.search || f.status.length > 0 || f.minPrice != null || f.maxPrice != null || f.brandId.length > 0 || f.createdBy.length > 0;
     return (
       <Alert>
         <AlertTitle>
@@ -127,9 +129,9 @@ export function AdminProductsList({
         role="table"
         className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", tableLocked && "opacity-60 pointer-events-none transition-opacity duration-150")}
       >
-        <ProductTableHeader showActions />
+        <ProductTableHeader showActions showCreatedBy />
         {items.map((product) => (
-          <ProductTableRow key={product.id} product={product} showActions onBusyChange={handleBusyChange} />
+          <ProductTableRow key={product.id} product={product} showActions showCreatedBy onBusyChange={handleBusyChange} />
         ))}
       </div>
     );
@@ -142,7 +144,7 @@ export function AdminProductsList({
       className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", tableLocked && "opacity-60 pointer-events-none transition-opacity duration-150")}
       ref={parentRef}
     >
-      <ProductTableHeader showActions />
+      <ProductTableHeader showActions showCreatedBy />
       <div
         style={{
           height: virtualizer.getTotalSize(),
@@ -165,7 +167,7 @@ export function AdminProductsList({
                   transform: `translateY(${vRow.start}px)`,
                 }}
               >
-                <SkeletonProductTableRow showActions />
+                <SkeletonProductTableRow showActions showCreatedBy />
               </div>
             );
           }
@@ -184,7 +186,7 @@ export function AdminProductsList({
                 transform: `translateY(${vRow.start}px)`,
               }}
             >
-              <ProductTableRow product={product} showActions onBusyChange={handleBusyChange} />
+              <ProductTableRow product={product} showActions showCreatedBy onBusyChange={handleBusyChange} />
             </div>
           );
         })}

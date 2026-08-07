@@ -82,6 +82,7 @@ export function MyProductsGrid({
     minPrice: null,
     maxPrice: null,
     brandId: [],
+    createdBy: [],
   };
   const f = filters ?? defaultFilters;
 

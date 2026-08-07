@@ -23,8 +23,15 @@ import { ActiveFilters } from "@/components/search/ActiveFilters";
 import { AdminProductsList } from "./AdminProductsList";
 import type { BrandOption } from "@/features/brands/components/BrandSelect";
 import { getBrandName } from "@/features/brands/utils/translations";
+import type { MemberOption } from "@/types/types";
 
-export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
+export function AdminProductsPage({
+  brands = [],
+  members = [],
+}: {
+  brands?: BrandOption[];
+  members?: MemberOption[];
+}) {
   const t = useTranslations();
   const locale = useLocale();
   const currency = useCurrencyStore((s) => s.currency);
@@ -59,14 +66,17 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
     minPrice: urlSearchParams.get("minPrice") ? Number(urlSearchParams.get("minPrice")) : null,
     maxPrice: urlSearchParams.get("maxPrice") ? Number(urlSearchParams.get("maxPrice")) : null,
     brandId: urlSearchParams.get("brandId")?.split(",").filter(Boolean) ?? [],
+    createdBy: urlSearchParams.get("createdBy")?.split(",").filter(Boolean) ?? [],
   }), [urlSearchParams]);
 
-  // Disjunctive facet counts (status + brand) for the sidebar. Mirrors the
-  // list's filters so the numbers track the visible result set; each facet's
-  // own selection is ignored server-side so it stays countable while checked.
+  // Disjunctive facet counts (status + brand + createdBy) for the sidebar.
+  // Mirrors the list's filters so the numbers track the visible result set;
+  // each facet's own selection is ignored server-side so it stays countable
+  // while checked.
   const countsQuery = useQuery<{
     status: Record<string, number>;
     brand: Record<string, number>;
+    createdBy: Record<string, number>;
   }>({
     queryKey: [
       "products",
@@ -75,6 +85,7 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
       search,
       params.status.join(","),
       params.brandId.join(","),
+      params.createdBy.join(","),
       params.minPrice,
       params.maxPrice,
       currency,
@@ -85,15 +96,17 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
       if (search) sp.set("search", search);
       for (const s of params.status) sp.append("status", s);
       for (const id of params.brandId) sp.append("brandId", id);
+      for (const id of params.createdBy) sp.append("createdBy", id);
       if (params.minPrice != null) sp.set("minPrice", String(params.minPrice / rate));
       if (params.maxPrice != null) sp.set("maxPrice", String(params.maxPrice / rate));
       const { data } = await axios.get(`/api/admin/products/counts?${sp.toString()}`);
-      return data as { status: Record<string, number>; brand: Record<string, number> };
+      return data as { status: Record<string, number>; brand: Record<string, number>; createdBy: Record<string, number> };
     },
   });
   const countsReady = countsQuery.isSuccess;
   const statusCounts = useMemo(() => countsQuery.data?.status ?? {}, [countsQuery.data]);
   const brandCounts = useMemo(() => countsQuery.data?.brand ?? {}, [countsQuery.data]);
+  const createdByCounts = useMemo(() => countsQuery.data?.createdBy ?? {}, [countsQuery.data]);
 
   const filterGroups: FilterGroup[] = useMemo(() => {
     // Status is a small fixed enum: always show every option (with a count,
@@ -145,16 +158,43 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
         });
       }
     }
+    if (members.length > 0) {
+      // Same treatment as brand: counts + hide members with nothing in the
+      // current result set, keeping a selected member visible so it can be
+      // cleared.
+      const selectedMembers = new Set(params.createdBy);
+      const memberOptions = countsReady
+        ? members
+            .map((m) => ({
+              value: m.id,
+              label: m.name || m.email,
+              count: createdByCounts[m.id] ?? 0,
+            }))
+            .filter((m) => m.count > 0 || selectedMembers.has(m.value))
+        : members.map((m) => ({ value: m.id, label: m.name || m.email }));
+      if (memberOptions.length > 0) {
+        groups.push({
+          type: "checkbox",
+          key: "createdBy",
+          label: t("products.createdBy"),
+          options: memberOptions,
+          maxVisible: FILTER_OPTIONS_VISIBLE_LIMIT,
+        });
+      }
+    }
     return groups;
   }, [
     brands,
+    members,
     t,
     currencySymbol,
     locale,
     countsReady,
     statusCounts,
     brandCounts,
+    createdByCounts,
     params.brandId,
+    params.createdBy,
   ]);
 
   const filters: AdminProductFilters = {
@@ -165,12 +205,14 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
     minPrice: params.minPrice,
     maxPrice: params.maxPrice,
     brandId: params.brandId,
+    createdBy: params.createdBy,
   };
 
   const filterValues: FilterValues = {
     status: params.status,
     price: [params.minPrice ?? undefined, params.maxPrice ?? undefined],
     brandId: params.brandId,
+    createdBy: params.createdBy,
   };
 
   // Filter writes commit immediately (no throttle) so nothing stays queued to
@@ -189,11 +231,14 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
     } else if (key === "brandId") {
       const vals = value as string[];
       setParams({ brandId: vals }, NOW);
+    } else if (key === "createdBy") {
+      const vals = value as string[];
+      setParams({ createdBy: vals }, NOW);
     }
   };
 
   const handleFilterClear = () => {
-    setParams({ status: [], minPrice: null, maxPrice: null, brandId: [] }, NOW);
+    setParams({ status: [], minPrice: null, maxPrice: null, brandId: [], createdBy: [] }, NOW);
   };
 
   const handleFilterRemove = (key: string, value?: string) => {
@@ -203,6 +248,8 @@ export function AdminProductsPage({ brands = [] }: { brands?: BrandOption[] }) {
       setParams({ minPrice: null, maxPrice: null }, NOW);
     } else if (key === "brandId") {
       setParams({ brandId: [] }, NOW);
+    } else if (key === "createdBy") {
+      setParams({ createdBy: [] }, NOW);
     }
   };
 

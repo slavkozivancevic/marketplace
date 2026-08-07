@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { safeAuth } from "@/lib/auth/safeAuth";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -25,7 +25,7 @@ export default async function MyProductsRoute() {
   const t = await getTranslations();
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();
-  const { userId } = await auth();
+  const { userId } = await safeAuth();
   const breadcrumbItems = [
     { name: tCrumbs("dashboard"), href: getPathname({ href: "/dashboard", locale }) },
     { name: tCrumbs("myProducts"), href: getPathname({ href: "/dashboard/my-products", locale }) },
@@ -53,9 +53,10 @@ export default async function MyProductsRoute() {
   if (!user.activeOrgId) {
     redirect(`/${locale}/dashboard`);
   }
+  const activeOrgId = user.activeOrgId;
 
   const activeMembership = user.memberships.find(
-    (m) => m.orgId === user.activeOrgId,
+    (m) => m.orgId === activeOrgId,
   );
 
   const canWrite =
@@ -65,7 +66,10 @@ export default async function MyProductsRoute() {
   // The list is fetched client-side (MyProductsList via React Query with
   // `refetchOnMount: "always"`), so we skip a blocking SSR prefetch and let its
   // own skeleton be the single loading state.
-  const brands = await fetchBrands();
+  const [brands, members] = await Promise.all([
+    fetchBrands(),
+    fetchOrgMembers(activeOrgId),
+  ]);
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
@@ -90,8 +94,23 @@ export default async function MyProductsRoute() {
             <AlertDescription>{t("myProducts.verifyPendingBanner")}</AlertDescription>
           </Alert>
         )}
-        <MyProductsPage canWrite={canWrite} brands={brands} />
+        <MyProductsPage canWrite={canWrite} brands={brands} members={members} />
       </div>
     </div>
   );
+}
+
+/**
+ * Org members for the "Created by" filter's option labels - not `"use cache"`,
+ * since membership changes (removals, role swaps) should show up immediately
+ * rather than sit behind a cache tag nothing currently invalidates for this
+ * specific list shape.
+ */
+async function fetchOrgMembers(organizationId: string) {
+  const memberships = await prisma.membership.findMany({
+    where: { orgId: organizationId },
+    select: { user: { select: { id: true, name: true, email: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+  return memberships.map((m) => m.user);
 }

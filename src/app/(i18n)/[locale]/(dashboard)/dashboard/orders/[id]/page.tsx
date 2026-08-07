@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { safeAuth } from "@/lib/auth/safeAuth";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Link, getPathname } from "@/i18n/navigation";
@@ -36,7 +36,7 @@ export default async function OrderDetailPage({
   const locale = await getLocale();
   const dl = dateLocale(locale);
   const { id } = await params;
-  const { userId: clerkUserId } = await auth();
+  const { userId: clerkUserId } = await safeAuth();
   if (!clerkUserId) notFound();
 
   const user = await prisma.user.findUnique({

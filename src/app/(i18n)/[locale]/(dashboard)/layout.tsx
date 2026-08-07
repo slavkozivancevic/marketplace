@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { safeAuth } from "@/lib/auth/safeAuth";
 import { redirect } from "next/navigation";
 import { getLocale } from "next-intl/server";
 import { cacheTag } from "next/cache";
@@ -16,7 +16,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { userId } = await auth();
+  const { userId } = await safeAuth();
 
   if (!userId) {
     const locale = await getLocale();

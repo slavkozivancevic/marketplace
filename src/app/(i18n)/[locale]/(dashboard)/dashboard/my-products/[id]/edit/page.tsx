@@ -1,7 +1,7 @@
 import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
 import { Link, getPathname } from "@/i18n/navigation";
-import { auth } from "@clerk/nextjs/server";
+import { safeAuth } from "@/lib/auth/safeAuth";
 import { getLocale, getTranslations } from "next-intl/server";
 import { prisma } from "@/core/db/prisma";
 
@@ -31,7 +31,7 @@ interface MyProductEditPageProps {
 
 async function ProductEditContent({ productId }: { productId: string }) {
   const t = await getTranslations();
-  const { userId: clerkUserId } = await auth();
+  const { userId: clerkUserId } = await safeAuth();
   if (!clerkUserId) notFound();
 
   const product = await prisma.product.findFirst({

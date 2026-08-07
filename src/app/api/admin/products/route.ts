@@ -53,6 +53,7 @@ export async function GET(req: NextRequest) {
   const minPrice = minPriceRaw != null ? decimalToCents(minPriceRaw) : undefined;
   const maxPrice = maxPriceRaw != null ? decimalToCents(maxPriceRaw) : undefined;
   const brandId = searchParams.getAll("brandId");
+  const createdBy = searchParams.getAll("createdBy");
 
   try {
     const repo = productRepository(ctx);
@@ -66,6 +67,7 @@ export async function GET(req: NextRequest) {
       minPrice,
       maxPrice,
       brandId,
+      createdBy,
     });
 
     return NextResponse.json({

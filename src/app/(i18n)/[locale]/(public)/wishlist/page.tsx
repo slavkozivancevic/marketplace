@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { safeAuth } from "@/lib/auth/safeAuth";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
@@ -20,7 +20,7 @@ export default async function WishlistPage() {
   await connection();
   const t = await getTranslations();
   const locale = await getLocale();
-  const { userId: clerkUserId } = await auth();
+  const { userId: clerkUserId } = await safeAuth();
   if (!clerkUserId) redirect(`/${locale}/sign-in`);
 
   const user = await prisma.user.findUnique({

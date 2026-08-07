@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
     select: {
       id: true,
       organizationId: true,
+      createdById: true,
       // Chat header just shows a label - take the default-locale title.
       // Buyer can switch UI language elsewhere.
       translations: {
@@ -52,20 +53,40 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
 
-  // 2. Find the org owner (the "seller")
-  const ownerMembership = await prisma.membership.findFirst({
-    where: { orgId: product.organizationId, role: "OWNER" },
-    select: { userId: true },
-  });
+  // 2. Who to message: the product's creator, if they're still on the org -
+  // real sellers are teams, not a single "owner", so route to whoever actually
+  // manages the listing. Falls back to the OWNER when there's no creator (e.g.
+  // legacy/bulk-imported rows) or the creator has since left the org.
+  let sellerUserId: string | undefined;
+  if (product.createdById) {
+    const creatorMembership = await prisma.membership.findFirst({
+      where: { userId: product.createdById, orgId: product.organizationId },
+      select: { userId: true },
+    });
+    sellerUserId = creatorMembership?.userId;
+  }
+  if (!sellerUserId) {
+    const ownerMembership = await prisma.membership.findFirst({
+      where: { orgId: product.organizationId, role: "OWNER" },
+      select: { userId: true },
+    });
+    sellerUserId = ownerMembership?.userId;
+  }
 
-  const sellerUserId = ownerMembership?.userId;
   if (!sellerUserId) {
     return NextResponse.json({ error: "Seller not found" }, { status: 404 });
   }
 
-  if (sellerUserId === buyerId) {
+  // Any member of the selling org is "the seller" here, not just whichever
+  // user sellerUserId resolved to - otherwise a teammate messaging about a
+  // colleague's product would slip through as an ordinary buyer-seller chat.
+  const buyerMembership = await prisma.membership.findFirst({
+    where: { userId: buyerId, orgId: product.organizationId },
+    select: { id: true },
+  });
+  if (buyerMembership) {
     return NextResponse.json(
-      { error: "Cannot message your own product" },
+      { error: "Cannot message your own organization's product" },
       { status: 400 }
     );
   }

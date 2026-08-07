@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { cacheTag } from "next/cache";
 import { notFound, permanentRedirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
-import { auth } from "@clerk/nextjs/server";
+import { safeAuth } from "@/lib/auth/safeAuth";
 
 import { prisma } from "@/core/db/prisma";
 import { Link, getPathname } from "@/i18n/navigation";
@@ -206,7 +206,7 @@ export default async function PublicProductPage({
       fetchRelatedProducts(product.id),
       getFrequentlyBoughtTogether(product.id),
       fetchSellerShipping(product.id),
-      isOrgOwner(product.organizationId),
+      isOrgMember(product.organizationId),
     ]);
 
   const localTitle = getProductTitle(product, locale);
@@ -399,20 +399,22 @@ async function fetchSellerShipping(
 }
 
 /**
- * Whether the signed-in visitor is the OWNER of the org selling this product -
- * mirrors the check in /api/chat/start-with-seller so the "Message seller"
- * button can be disabled up front instead of round-tripping a 400. Deliberately
- * NOT `"use cache"`: it's per-visitor, unlike the rest of this page's data.
+ * Whether the signed-in visitor belongs to the org selling this product - any
+ * member, not just the OWNER, since routing "Message seller" now targets
+ * whoever created the listing. Mirrors the membership check in
+ * /api/chat/start-with-seller so the button can be disabled up front instead
+ * of round-tripping a 400. Deliberately NOT `"use cache"`: it's per-visitor,
+ * unlike the rest of this page's data.
  */
-async function isOrgOwner(organizationId: string): Promise<boolean> {
-  const { userId: clerkUserId } = await auth();
+async function isOrgMember(organizationId: string): Promise<boolean> {
+  const { userId: clerkUserId } = await safeAuth();
   if (!clerkUserId) return false;
 
-  const ownerMembership = await prisma.membership.findFirst({
-    where: { orgId: organizationId, role: "OWNER", user: { clerkUserId } },
+  const membership = await prisma.membership.findFirst({
+    where: { orgId: organizationId, user: { clerkUserId } },
     select: { id: true },
   });
-  return !!ownerMembership;
+  return !!membership;
 }
 
 async function fetchRelatedProducts(
