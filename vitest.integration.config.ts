@@ -19,6 +19,11 @@ const stub = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 export default defineConfig({
   resolve: {
     tsconfigPaths: true,
+    // Without this, next-intl/server's conditional export falls back to its
+    // react-client build (no "react-server" condition set), which throws
+    // "getTranslations is not supported in Client Components" the moment a
+    // server action under test calls handleActionError -> getTranslations.
+    conditions: ["react-server"],
     alias: {
       "server-only": stub("./test/stubs/empty.ts"),
       "client-only": stub("./test/stubs/empty.ts"),
