@@ -17,6 +17,7 @@ import { PublicProductsPage } from "@/features/products/components/PublicProduct
 import { Footer } from "@/components/layout/footer";
 import { CacheTags } from "@/lib/cache/tags";
 import { getAllBrands } from "@/features/brands/db/brands";
+import { getAllTags } from "@/features/tags/db/tags";
 import {
   getCategoryTree,
   getDescendantIds,
@@ -96,10 +97,11 @@ export default async function ProductsRoute({
     { name: tCrumbs("products"), href: getPathname({ href: "/products", locale }) },
   ];
 
-  const [queryClient, brands, categoryTree] = await Promise.all([
+  const [queryClient, brands, categoryTree, tags] = await Promise.all([
     Promise.resolve(getQueryClient()),
     fetchBrands(),
     fetchCategoryTree(),
+    fetchTags(),
   ]);
 
   // Resolve dept slug → descendant IDs for the SSR prefetch
@@ -128,26 +130,31 @@ export default async function ProductsRoute({
     minPrice: params.minPrice,
     maxPrice: params.maxPrice,
     onSale: params.onSale,
+    bestseller: params.bestseller,
     isDigital: params.isDigital,
     brandId: params.brandId,
+    tagId: params.tagId,
     minRating: params.minRating,
     dept: params.dept,
     attrs: params.attrs,
   };
 
   await queryClient.prefetchInfiniteQuery({
-    queryKey: ["products", "public", filters, currency],
+    queryKey: ["products", "public", filters, currency, locale],
     queryFn: () =>
       getPublicProductsPage({
         take: GRID_PAGE_SIZE,
         search: filters.search || undefined,
+        searchLocale: locale,
         sortBy: filters.sortBy,
         sortOrder: filters.sortOrder,
         minPrice: minPriceCents,
         maxPrice: maxPriceCents,
         onSale: filters.onSale,
+        bestseller: filters.bestseller,
         isDigital: filters.isDigital,
         brandId: filters.brandId.length ? filters.brandId : undefined,
+        tagId: filters.tagId.length ? filters.tagId : undefined,
         minRating: filters.minRating ?? undefined,
         categoryId: deptCategoryIds?.length ? deptCategoryIds : undefined,
         attributeFilters: parseAttrs(filters.attrs),
@@ -169,6 +176,7 @@ export default async function ProductsRoute({
           <PublicProductsPage
             brands={brands}
             categoryTree={categoryTree}
+            tags={tags}
             footer={<Footer />}
           />
         </HydrationBoundary>
@@ -187,4 +195,10 @@ async function fetchCategoryTree() {
   "use cache";
   cacheTag(CacheTags.categories.all());
   return getCategoryTree();
+}
+
+async function fetchTags() {
+  "use cache";
+  cacheTag(CacheTags.tags.all());
+  return getAllTags();
 }

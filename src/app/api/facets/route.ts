@@ -33,9 +33,12 @@ export async function GET(req: NextRequest) {
   const maxPrice = maxPriceRaw != null ? decimalToCents(maxPriceRaw) : undefined;
   const onSaleParam = searchParams.get("onSale");
   const onSale = onSaleParam === "true" ? true : onSaleParam === "false" ? false : null;
+  const bestsellerParam = searchParams.get("bestseller");
+  const bestseller = bestsellerParam === "true" ? true : bestsellerParam === "false" ? false : null;
   const isDigitalParam = searchParams.get("isDigital");
   const isDigital = isDigitalParam === "true" ? true : isDigitalParam === "false" ? false : null;
   const brandId = searchParams.getAll("brandId");
+  const tagId = searchParams.getAll("tagId");
   const minRatingRaw = searchParams.get("minRating");
   const minRating = minRatingRaw ? parseInt(minRatingRaw, 10) : undefined;
   const attributeFilters = parseAttrs(searchParams.get("attrs"));
@@ -52,7 +55,9 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({
           facets: [],
           brandCounts: {},
+          tagCounts: {},
           onSaleCount: 0,
+          bestsellerCount: 0,
           isDigitalCounts: { true: 0, false: 0 },
         });
       }
@@ -67,8 +72,10 @@ export async function GET(req: NextRequest) {
         minPrice,
         maxPrice,
         onSale,
+        bestseller,
         isDigital,
         brandId,
+        tagId,
         minRating,
       },
       attributeFilters,

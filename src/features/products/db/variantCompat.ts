@@ -31,6 +31,7 @@ export const publicProductInclude = {
     },
   },
   brand: { select: { id: true, logoUrl: true, logoUrlDark: true, logoBackdrop: true, logoBackdropDark: true, translations: true } },
+  tags: { include: { tag: { select: { id: true, translations: true } } } },
 } satisfies Prisma.ProductInclude;
 
 type RawVariant = PublicProductRaw["variants"][number];

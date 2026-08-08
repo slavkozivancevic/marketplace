@@ -11,6 +11,7 @@ import { Link, getPathname } from "@/i18n/navigation";
 import {
   Package,
   Tag,
+  Tags,
   Building2,
   Users,
   LayoutDashboard,
@@ -65,6 +66,12 @@ export default async function AdminPage() {
       title: t("admin.attributes"),
       description: t("admin.attributesDesc"),
       icon: SlidersHorizontal,
+    },
+    {
+      href: "/admin/tags",
+      title: t("admin.tags"),
+      description: t("admin.tagsDesc"),
+      icon: Tags,
     },
     {
       href: "/admin/organizations",

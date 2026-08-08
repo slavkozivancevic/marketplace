@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
   );
   const cursor = searchParams.get("cursor") ?? undefined;
   const search = searchParams.get("search") ?? undefined;
+  const searchLocale = searchParams.get("searchLocale") ?? undefined;
   const sortBy = parseSort(searchParams.get("sortBy"));
   const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
   const minPriceRaw = parseOptionalFloat(searchParams.get("minPrice"));
@@ -45,9 +46,12 @@ export async function GET(req: NextRequest) {
   const maxPrice = maxPriceRaw != null ? decimalToCents(maxPriceRaw) : undefined;
   const onSaleParam = searchParams.get("onSale");
   const onSale = onSaleParam === "true" ? true : onSaleParam === "false" ? false : null;
+  const bestsellerParam = searchParams.get("bestseller");
+  const bestseller = bestsellerParam === "true" ? true : bestsellerParam === "false" ? false : null;
   const isDigitalParam = searchParams.get("isDigital");
   const isDigital = isDigitalParam === "true" ? true : isDigitalParam === "false" ? false : null;
   const brandId = searchParams.getAll("brandId");
+  const tagId = searchParams.getAll("tagId");
   const minRatingRaw = searchParams.get("minRating");
   const minRating = minRatingRaw ? parseInt(minRatingRaw, 10) : undefined;
   const dept = searchParams.get("dept") ?? "";
@@ -66,13 +70,16 @@ export async function GET(req: NextRequest) {
       take,
       cursor,
       search,
+      searchLocale,
       sortBy,
       sortOrder,
       minPrice,
       maxPrice,
       onSale,
+      bestseller,
       isDigital,
       brandId,
+      tagId,
       minRating,
       categoryId,
       attributeFilters,

@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { X, ImageOff, ExternalLink, ShoppingCart } from "lucide-react";
+import { X, ImageOff, ExternalLink, ShoppingCart, Award } from "lucide-react";
 import { RetryImage } from "@/components/RetryImage";
 
 import { useLocale } from "next-intl";
@@ -19,6 +19,7 @@ import {
   getProductShortDescription,
 } from "@/features/products/utils/translations";
 import { getBrandName } from "@/features/brands/utils/translations";
+import { getTagName } from "@/features/tags/utils/translations";
 import { BrandLogo } from "@/features/brands/components/BrandLogo";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -439,6 +440,12 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
               ) : product ? (
                 <>
                   <h2 className="text-sm font-semibold leading-snug pr-5 line-clamp-2">{localTitle}</h2>
+                  {product.isBestseller && (
+                    <Badge className="w-fit gap-1 bg-amber-500 text-white text-[10px] py-0 h-4 hover:bg-amber-600">
+                      <Award className="h-2.5 w-2.5" />
+                      {t("bestsellerBadge")}
+                    </Badge>
+                  )}
                   {localShortDescription && (
                     <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">{localShortDescription}</p>
                   )}
@@ -454,6 +461,16 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                         size={18}
                       />
                       <span className="font-medium text-foreground">{localBrandName}</span>
+                    </div>
+                  )}
+                  {product.tags.length > 0 && (
+                    <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-muted-foreground">
+                      <span>{t("tagsLabel")}</span>
+                      {product.tags.map((pt) => (
+                        <Badge key={pt.tagId} variant="secondary" className="text-[10px] py-0 h-4">
+                          {getTagName(pt.tag, locale)}
+                        </Badge>
+                      ))}
                     </div>
                   )}
                   {product.ratingCount > 0 && (

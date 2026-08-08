@@ -54,6 +54,14 @@ export const BRAND_EXAMPLES: {
   slug: { en: "nike", sr: "najki", de: "nike", es: "nike" },
 };
 
+export const TAG_EXAMPLES: {
+  name: LocaleExamples;
+  slug: LocaleExamples;
+} = {
+  name: { en: "Staff Pick", sr: "Izbor tima", de: "Redaktionstipp", es: "Selección del equipo" },
+  slug: { en: "staff-pick", sr: "izbor-tima", de: "redaktionstipp", es: "seleccion-del-equipo" },
+};
+
 export const ATTRIBUTE_EXAMPLES: {
   /** Example attribute label per section locale (e.g. the "Color" attribute). */
   label: LocaleExamples;

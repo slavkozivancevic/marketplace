@@ -381,9 +381,9 @@ async function syncVariants(
  * Refreshes the per-locale search blob (`ProductTranslation.searchText`) for
  * one product. Mirrors the public search expectations: each locale's blob
  * concatenates the localized title + shortDescription, the brand's name in
- * that locale (fallback to default) and the names of all linked categories
- * in that locale (fallback to default). The GIN trigram index on the column
- * makes `contains` searches fast within each locale.
+ * that locale (fallback to default), and the names of all linked categories
+ * and tags in that locale (fallback to default). The GIN trigram index on the
+ * column makes `contains` searches fast within each locale.
  */
 export async function refreshProductSearchText(
   tx: Prisma.TransactionClient,
@@ -407,6 +407,15 @@ export async function refreshProductSearchText(
       categories: {
         select: {
           category: {
+            select: {
+              translations: { select: { locale: true, name: true } },
+            },
+          },
+        },
+      },
+      tags: {
+        select: {
+          tag: {
             select: {
               translations: { select: { locale: true, name: true } },
             },
@@ -439,6 +448,10 @@ export async function refreshProductSearchText(
     for (const c of p.categories) {
       const catT = pick(c.category.translations, locale);
       if (catT?.name) parts.push(catT.name);
+    }
+    for (const t of p.tags) {
+      const tagT = pick(t.tag.translations, locale);
+      if (tagT?.name) parts.push(tagT.name);
     }
 
     const searchText = parts.filter((s) => s.trim().length > 0).join(" ");
@@ -550,6 +563,12 @@ function buildBulkFilterWhere(
     where.categories = { none: {} };
   } else if (filter.categoryId?.length) {
     where.categories = { some: { categoryId: { in: filter.categoryId } } };
+  }
+
+  if (filter.noTag) {
+    where.tags = { none: {} };
+  } else if (filter.tagId?.length) {
+    where.tags = { some: { tagId: { in: filter.tagId } } };
   }
 
   if (filter.status?.length) {
@@ -757,6 +776,13 @@ const productWithRelationsInclude = {
     include: {
       category: {
         select: { id: true, parentId: true, translations: true },
+      },
+    },
+  },
+  tags: {
+    include: {
+      tag: {
+        select: { id: true, translations: true },
       },
     },
   },
@@ -969,6 +995,7 @@ export function productRepository(
       translations?: ProductTranslationsInput | null;
       brandId?: string;
       categoryIds?: string[];
+      tagIds?: string[];
       media?: MediaInput[];
       variants?: ProductVariantInput[];
       attributes?: ProductAttributeInput[];
@@ -1028,6 +1055,13 @@ export function productRepository(
         if (data?.categoryIds?.length) {
           await tx.productCategory.createMany({
             data: data.categoryIds.map((categoryId) => ({ productId: created.id, categoryId })),
+            skipDuplicates: true,
+          });
+        }
+
+        if (data?.tagIds?.length) {
+          await tx.productTag.createMany({
+            data: data.tagIds.map((tagId) => ({ productId: created.id, tagId })),
             skipDuplicates: true,
           });
         }
@@ -1105,6 +1139,7 @@ export function productRepository(
         translations?: ProductTranslationsInput | null;
         brandId?: string;
         categoryIds?: string[];
+        tagIds?: string[];
         media?: MediaInput[];
         status?: ProductStatus;
         variants?: ProductVariantInput[];
@@ -1123,6 +1158,7 @@ export function productRepository(
           weightUnit,
           dimensionUnit,
           categoryIds,
+          tagIds,
           translations,
           title,
           slug,
@@ -1209,6 +1245,16 @@ export function productRepository(
           if (categoryIds.length > 0) {
             await tx.productCategory.createMany({
               data: categoryIds.map((categoryId) => ({ productId: id, categoryId })),
+              skipDuplicates: true,
+            });
+          }
+        }
+
+        if (tagIds !== undefined) {
+          await tx.productTag.deleteMany({ where: { productId: id } });
+          if (tagIds.length > 0) {
+            await tx.productTag.createMany({
+              data: tagIds.map((tagId) => ({ productId: id, tagId })),
               skipDuplicates: true,
             });
           }
@@ -1746,6 +1792,7 @@ export function productRepository(
         isDigital,
         stock,
         categories,
+        tags,
       } = updates;
 
       const stockUpdateRequested = stock !== undefined;
@@ -1783,7 +1830,8 @@ export function productRepository(
         taxable === undefined &&
         requiresShipping === undefined &&
         isDigital === undefined &&
-        categories === undefined;
+        categories === undefined &&
+        tags === undefined;
       if (onlyStockChange && stockIds.length === 0) {
         return { count: 0, skippedWithVariants };
       }
@@ -1792,11 +1840,12 @@ export function productRepository(
 
       const categoryMutationRequested =
         categories !== undefined && categories.mode !== undefined;
+      const tagMutationRequested = tags !== undefined && tags.mode !== undefined;
 
-      // Category mutations rebuild search text per product (N+1 in-txn). Guard
-      // against a broad filter opening a long, lock-heavy transaction.
+      // Category/tag mutations rebuild search text per product (N+1 in-txn).
+      // Guard against a broad filter opening a long, lock-heavy transaction.
       if (
-        categoryMutationRequested &&
+        (categoryMutationRequested || tagMutationRequested) &&
         productIds.length > BULK_CATEGORY_MUTATION_LIMIT
       ) {
         throw new BulkLimitExceededError({
@@ -1816,7 +1865,7 @@ export function productRepository(
           requiresShipping !== undefined ||
           isDigital !== undefined;
 
-        if (hasNonStockScalarUpdate || categoryMutationRequested) {
+        if (hasNonStockScalarUpdate || categoryMutationRequested || tagMutationRequested) {
           await tx.product.updateMany({
             where: {
               id: { in: productIds },
@@ -1837,7 +1886,7 @@ export function productRepository(
             data: {
               stock,
               updatedById: ctx.userId,
-              ...(hasNonStockScalarUpdate || categoryMutationRequested
+              ...(hasNonStockScalarUpdate || categoryMutationRequested || tagMutationRequested
                 ? {}
                 : { version: { increment: 1 } }),
             },
@@ -1869,6 +1918,40 @@ export function productRepository(
               where: {
                 productId: { in: productIds },
                 categoryId: { in: categories.ids },
+              },
+            });
+          }
+
+          for (const id of productIds) {
+            await refreshProductSearchText(tx, id);
+          }
+        }
+
+        if (tagMutationRequested && tags) {
+          if (tags.mode === "set") {
+            await tx.productTag.deleteMany({
+              where: { productId: { in: productIds } },
+            });
+            if (tags.ids.length > 0) {
+              await tx.productTag.createMany({
+                data: productIds.flatMap((productId) =>
+                  tags.ids.map((tagId) => ({ productId, tagId })),
+                ),
+                skipDuplicates: true,
+              });
+            }
+          } else if (tags.mode === "add" && tags.ids.length > 0) {
+            await tx.productTag.createMany({
+              data: productIds.flatMap((productId) =>
+                tags.ids.map((tagId) => ({ productId, tagId })),
+              ),
+              skipDuplicates: true,
+            });
+          } else if (tags.mode === "remove" && tags.ids.length > 0) {
+            await tx.productTag.deleteMany({
+              where: {
+                productId: { in: productIds },
+                tagId: { in: tags.ids },
               },
             });
           }

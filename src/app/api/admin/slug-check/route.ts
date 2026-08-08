@@ -7,7 +7,7 @@ import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 const querySchema = z.object({
   // Type of entity we're checking. The unique constraint lives on the
   // per-entity translation table - one route handles all three.
-  entity: z.enum(["brand", "category", "product"]),
+  entity: z.enum(["brand", "category", "product", "tag"]),
   locale: z.string().min(2).max(8),
   slug: z.string().min(1).max(200),
   // When editing, callers pass the entity id so the existing row that
@@ -66,6 +66,14 @@ export async function GET(req: NextRequest) {
         select: { productId: true },
       });
       exists = row != null && row.productId !== excludeId;
+      break;
+    }
+    case "tag": {
+      const row = await prisma.tagTranslation.findUnique({
+        where: { locale_slug: { locale, slug } },
+        select: { tagId: true },
+      });
+      exists = row != null && row.tagId !== excludeId;
       break;
     }
   }

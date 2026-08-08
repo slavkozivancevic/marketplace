@@ -5,7 +5,7 @@ import { Check, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import axios from "axios";
 
-type SlugCheckEntity = "brand" | "category" | "product";
+type SlugCheckEntity = "brand" | "category" | "product" | "tag";
 
 type Status =
   | { kind: "idle" }

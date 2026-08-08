@@ -5,7 +5,7 @@ import React, { useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@/i18n/navigation";
-import { ImageOff, ShoppingCart, ChevronDown, X, Video as VideoIcon } from "lucide-react";
+import { ImageOff, ShoppingCart, ChevronDown, X, Video as VideoIcon, Award } from "lucide-react";
 
 import { HoverImageCycler } from "@/components/product/HoverImageCycler";
 import { BrandLogo } from "@/features/brands/components/BrandLogo";
@@ -175,6 +175,7 @@ export function ProductCard({
   const { currency, currentRate } = useCurrencyStore();
   const locale = useLocale();
   const tCart = useTranslations("cart");
+  const tProducts = useTranslations("products");
   const localTitle = getProductTitle(product, locale);
   const localShortDescription = getProductShortDescription(product, locale);
   const localDescription = getProductDescription(product, locale);
@@ -242,11 +243,19 @@ export function ProductCard({
                 </div>
               );
             })()}
-            {isOnSale && (
+            {(isOnSale || product.isBestseller) && (
               <div className="absolute top-3 left-0 flex flex-col items-start gap-1 pointer-events-none">
-                <span className="bg-linear-to-r from-red-500 to-rose-600 text-white text-sm font-black px-4 py-1.5 rounded-r-full shadow-lg shadow-red-500/50 tracking-wider uppercase">
-                  -{Math.round(((product.compareAtPrice! - product.price) / product.compareAtPrice!) * 100)}%
-                </span>
+                {isOnSale && (
+                  <span className="bg-linear-to-r from-red-500 to-rose-600 text-white text-sm font-black px-4 py-1.5 rounded-r-full shadow-lg shadow-red-500/50 tracking-wider uppercase">
+                    -{Math.round(((product.compareAtPrice! - product.price) / product.compareAtPrice!) * 100)}%
+                  </span>
+                )}
+                {product.isBestseller && (
+                  <span className="flex items-center gap-1 bg-linear-to-r from-amber-500 to-orange-500 text-white text-xs font-black px-3 py-1 rounded-r-full shadow-lg shadow-amber-500/50 tracking-wider uppercase">
+                    <Award className="h-3 w-3" />
+                    {tProducts("bestsellerBadge")}
+                  </span>
+                )}
               </div>
             )}
             {product.brand && (

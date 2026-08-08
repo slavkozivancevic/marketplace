@@ -262,11 +262,26 @@ model ProductCategory {
 }
 
 model Tag {
-  id   String @id @default(uuid())
-  name String @unique
-  slug String @unique
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  products ProductTag[]
+  translations TagTranslation[]
+  products     ProductTag[]
+}
+
+model TagTranslation {
+  id     String @id @default(uuid())
+  tagId  String
+  locale String
+  name   String
+  slug   String
+
+  tag Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([tagId, locale])
+  @@unique([locale, slug])
+  @@index([tagId])
 }
 
 model ProductTag {
@@ -306,6 +321,12 @@ model Product {
 
   // Digital
   isDigital Boolean @default(false)
+
+  // Amazon-style algorithmic badge, recomputed daily by the
+  // marketplace-notifications EventBridge cron (POST /api/internal/
+  // recompute-bestsellers) - NOT a manually-assigned Tag. See
+  // src/app/api/internal/recompute-bestsellers/route.ts.
+  isBestseller Boolean @default(false)
 
   // Relations
   brandId        String?
@@ -347,6 +368,7 @@ model Product {
   @@index([organizationId, status, deletedAt])
   @@index([brandId])
   @@index([featuredAt])
+  @@index([isBestseller])
 }
 
 // Per-locale translations for a product. Every supported locale has exactly
@@ -959,6 +981,7 @@ enum SluggedEntityType {
   PRODUCT
   BRAND
   CATEGORY
+  TAG
 }
 
 // Old per-locale slugs of products / brands / categories, recorded whenever an

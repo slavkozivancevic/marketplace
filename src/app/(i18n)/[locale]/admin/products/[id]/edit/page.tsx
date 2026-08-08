@@ -19,6 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SerializedProductWithRelations } from "@/types/types";
 import { getAllBrands } from "@/features/brands/db/brands";
 import { getCategoryTree } from "@/features/categories/db/categories";
+import { getAllTags } from "@/features/tags/db/tags";
 import {
   fetchAttributeSelector,
   fetchCategoryAttributeMap,
@@ -41,6 +42,12 @@ async function fetchCategoryTree() {
   return getCategoryTree();
 }
 
+async function fetchTags() {
+  "use cache";
+  cacheTag(CacheTags.tags.all());
+  return getAllTags();
+}
+
 export default async function EditProductPage({
   params,
 }: EditProductPageProps) {
@@ -52,11 +59,12 @@ export default async function EditProductPage({
   const ctx = await resolveRequestContext();
   requirePermission(ctx, "product:read");
 
-  const [result, brands, categoryTree, attributeLibrary, categoryAttributeMap] =
+  const [result, brands, categoryTree, tags, attributeLibrary, categoryAttributeMap] =
     await Promise.all([
       fetchProductForEdit(ctx.organizationId, ctx.userId, id),
       fetchBrands(),
       fetchCategoryTree(),
+      fetchTags(),
       fetchAttributeSelector(),
       fetchCategoryAttributeMap(),
     ]);
@@ -124,6 +132,7 @@ export default async function EditProductPage({
           product={product}
           brands={brands}
           categoryTree={categoryTree}
+          tags={tags}
           attributeLibrary={attributeLibrary}
           categoryAttributeMap={categoryAttributeMap}
         />

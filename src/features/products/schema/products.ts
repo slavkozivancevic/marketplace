@@ -157,6 +157,7 @@ export const createProductSchema = z
     // Relacije
     brandId: z.string().optional(),
     categoryIds: z.array(z.string()).default([]),
+    tagIds: z.array(z.string()).default([]),
 
     media: z.array(productMediaSchema).default([]),
     variants: z.array(productVariantSchema).default([]),

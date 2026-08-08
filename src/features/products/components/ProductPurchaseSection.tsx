@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations, useLocale } from "next-intl";
+import { Award } from "lucide-react";
 import { BrandLogo } from "@/features/brands/components/BrandLogo";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +16,7 @@ import { formatPrice, convertCents } from "@/lib/currency";
 import { getOptionValue } from "@/features/products/utils/optionTranslations";
 import { getProductDescription } from "@/features/products/utils/translations";
 import { getBrandName } from "@/features/brands/utils/translations";
+import { getTagName } from "@/features/tags/utils/translations";
 
 interface ProductPurchaseSectionProps {
   product: SerializedPublicProduct;
@@ -55,30 +57,44 @@ export function ProductPurchaseSection({
     : product.compareAtPrice;
   const isOnSale = displayCompareAt != null && displayCompareAt > displayPrice;
 
+  const priceRow = (
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex items-baseline gap-3 flex-wrap">
+        {isOnSale ? (
+          <>
+            <span className="text-3xl font-bold text-red-500">
+              {formatPrice(convertCents(displayPrice, currency, currentRate()), currency)}
+            </span>
+            <span className="text-xl text-muted-foreground line-through">
+              {formatPrice(convertCents(displayCompareAt!, currency, currentRate()), currency)}
+            </span>
+            <Badge className="bg-red-500 text-white hover:bg-red-600">
+              -{discountPct(displayPrice, displayCompareAt!)}%
+            </Badge>
+          </>
+        ) : (
+          <span className="text-3xl font-bold">{formatPrice(convertCents(displayPrice, currency, currentRate()), currency)}</span>
+        )}
+      </div>
+      <WishlistButton productId={product.id} size={20} className="shrink-0" />
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <Card>
-        <CardContent className="pt-6 space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-baseline gap-3 flex-wrap">
-              {isOnSale ? (
-                <>
-                  <span className="text-3xl font-bold text-red-500">
-                    {formatPrice(convertCents(displayPrice, currency, currentRate()), currency)}
-                  </span>
-                  <span className="text-xl text-muted-foreground line-through">
-                    {formatPrice(convertCents(displayCompareAt!, currency, currentRate()), currency)}
-                  </span>
-                  <Badge className="bg-red-500 text-white hover:bg-red-600">
-                    -{discountPct(displayPrice, displayCompareAt!)}%
-                  </Badge>
-                </>
-              ) : (
-                <span className="text-3xl font-bold">{formatPrice(convertCents(displayPrice, currency, currentRate()), currency)}</span>
-              )}
+        <CardContent className={cn("space-y-4", product.isBestseller ? "pt-4" : "pt-6")}>
+          {product.isBestseller ? (
+            <div className="space-y-2">
+              <Badge className="w-fit gap-1 bg-amber-500 text-white hover:bg-amber-600">
+                <Award className="h-3.5 w-3.5" />
+                {t("bestsellerBadge")}
+              </Badge>
+              {priceRow}
             </div>
-            <WishlistButton productId={product.id} size={20} className="shrink-0" />
-          </div>
+          ) : (
+            priceRow
+          )}
           {product.brand && (
             <div className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground font-medium">{t("brandLabel")}</span>
@@ -91,6 +107,16 @@ export function ProductPurchaseSection({
                 size={20}
               />
               <span className="font-medium">{localBrandName}</span>
+            </div>
+          )}
+          {product.tags.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap text-sm">
+              <span className="text-muted-foreground font-medium">{t("tagsLabel")}</span>
+              {product.tags.map((pt) => (
+                <Badge key={pt.tagId} variant="secondary">
+                  {getTagName(pt.tag, locale)}
+                </Badge>
+              ))}
             </div>
           )}
           <p className="text-muted-foreground">

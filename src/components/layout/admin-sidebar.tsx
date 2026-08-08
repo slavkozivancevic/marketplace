@@ -1,6 +1,6 @@
 "use client";
 
-import { Package, Users, Building2, LayoutDashboard, Tag, Shield, LayoutGrid, SlidersHorizontal, ScrollText, Ticket, Star, Wallet } from "lucide-react";
+import { Package, Users, Building2, LayoutDashboard, Tag, Tags, Shield, LayoutGrid, SlidersHorizontal, ScrollText, Ticket, Star, Wallet } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { SidebarNav, type SidebarLink } from "./sidebar-nav";
 
@@ -13,6 +13,7 @@ export function AdminSidebar() {
     { href: "/admin/brands", label: t("brands"), icon: Tag },
     { href: "/admin/categories", label: t("categories"), icon: LayoutGrid },
     { href: "/admin/attributes", label: t("attributes"), icon: SlidersHorizontal },
+    { href: "/admin/tags", label: t("tags"), icon: Tags },
     { href: "/admin/organizations", label: t("organizations"), icon: Building2 },
     { href: "/admin/users", label: t("users"), icon: Users },
     { href: "/admin/coupons", label: t("coupons"), icon: Ticket },

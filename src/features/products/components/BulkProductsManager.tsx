@@ -13,13 +13,16 @@ import { ConditionalBulkPanel } from "./ConditionalBulkPanel";
 
 type BrandOption = { id: string; name: string };
 type CategoryOption = { id: string; name: string; pathName: string };
+type TagOption = { id: string; name: string };
 
 export function BulkProductsManager({
   brands,
   categories,
+  tags,
 }: {
   brands: BrandOption[];
   categories: CategoryOption[];
+  tags: TagOption[];
 }) {
   const t = useTranslations();
   const pathname = usePathname();
@@ -57,7 +60,7 @@ export function BulkProductsManager({
       </TabsList>
 
       <TabsContent forceMount value="conditional" className="flex-1 min-h-0 mt-3 overflow-y-auto rounded-lg border bg-card p-6 data-[state=inactive]:hidden">
-        <ConditionalBulkPanel key={resetKey} brands={brands} categories={categories} />
+        <ConditionalBulkPanel key={resetKey} brands={brands} categories={categories} tags={tags} />
       </TabsContent>
 
       <TabsContent forceMount value="manage" className="flex-1 min-h-0 mt-3 rounded-lg border bg-card p-6 data-[state=inactive]:hidden flex flex-col">

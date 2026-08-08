@@ -20,8 +20,10 @@ export const productSearchParams = {
   minPrice: parseAsFloat,
   maxPrice: parseAsFloat,
   onSale: parseAsBoolean,
+  bestseller: parseAsBoolean,
   isDigital: parseAsBoolean,
   brandId: parseAsArrayOf(parseAsString).withDefault([]),
+  tagId: parseAsArrayOf(parseAsString).withDefault([]),
   minRating: parseAsInteger,
   // dept = slug of the selected department/category (any level).
   // "" means "All Departments". The API resolves this to the full
@@ -39,8 +41,10 @@ export type ProductFilters = {
   minPrice: number | null;
   maxPrice: number | null;
   onSale: boolean | null;
+  bestseller: boolean | null;
   isDigital: boolean | null;
   brandId: string[];
+  tagId: string[];
   minRating: number | null;
   dept: string;
   attrs: string;

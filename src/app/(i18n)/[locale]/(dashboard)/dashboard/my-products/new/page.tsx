@@ -10,6 +10,7 @@ import { CacheTags } from "@/lib/cache/tags";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { getCategoryTree } from "@/features/categories/db/categories";
 import { getAllBrands } from "@/features/brands/db/brands";
+import { getAllTags } from "@/features/tags/db/tags";
 import {
   fetchAttributeSelector,
   fetchCategoryAttributeMap,
@@ -61,10 +62,11 @@ export default async function NewMyProductPage() {
 // Only fetch the (heavy) form option data once the org is verified and the form
 // will actually render.
 async function CreateProductForm() {
-  const [brands, categoryTree, attributeLibrary, categoryAttributeMap] =
+  const [brands, categoryTree, tags, attributeLibrary, categoryAttributeMap] =
     await Promise.all([
       fetchBrands(),
       fetchCategoryTree(),
+      fetchTags(),
       fetchAttributeSelector(),
       fetchCategoryAttributeMap(),
     ]);
@@ -75,6 +77,7 @@ async function CreateProductForm() {
       redirectTo="/dashboard/my-products"
       brands={brands}
       categoryTree={categoryTree}
+      tags={tags}
       attributeLibrary={attributeLibrary}
       categoryAttributeMap={categoryAttributeMap}
     />
@@ -91,4 +94,10 @@ async function fetchCategoryTree() {
   "use cache";
   cacheTag(CacheTags.categories.all());
   return getCategoryTree();
+}
+
+async function fetchTags() {
+  "use cache";
+  cacheTag(CacheTags.tags.all());
+  return getAllTags();
 }

@@ -20,6 +20,7 @@ import { PublishLocalePaths, type LocalePaths } from "@/i18n/LocalePathsContext"
 import type { Locale } from "@/i18n/config";
 import { getQueryClient } from "@/lib/query/getQueryClient";
 import { getAllBrands } from "@/features/brands/db/brands";
+import { getAllTags } from "@/features/tags/db/tags";
 import { getCategoryTree } from "@/features/categories/db/categories";
 import { getPublicProductsPage } from "@/features/products/db/publicProducts";
 import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
@@ -73,6 +74,12 @@ async function fetchCategoryTree() {
   "use cache";
   cacheTag(CacheTags.categories.all());
   return getCategoryTree();
+}
+
+async function fetchTags() {
+  "use cache";
+  cacheTag(CacheTags.tags.all());
+  return getAllTags();
 }
 
 export async function generateMetadata({
@@ -196,10 +203,11 @@ export default async function BrandDetailPage({ params }: BrandPageProps) {
   // Hydrate the first product page server-side so the initial HTML
   // already contains real products (SEO + perceived speed) instead of
   // skeletons. The client useInfiniteQuery picks up from this snapshot.
-  const [queryClient, brands, categoryTree] = await Promise.all([
+  const [queryClient, brands, categoryTree, tags] = await Promise.all([
     Promise.resolve(getQueryClient()),
     fetchBrands(),
     fetchCategoryTree(),
+    fetchTags(),
   ]);
 
   const lockedFilters = {
@@ -209,6 +217,7 @@ export default async function BrandDetailPage({ params }: BrandPageProps) {
     minPrice: null,
     maxPrice: null,
     onSale: null,
+    bestseller: null,
     isDigital: null,
     brandId: [brand.id],
     minRating: null,
@@ -225,10 +234,11 @@ export default async function BrandDetailPage({ params }: BrandPageProps) {
     : "usd";
 
   await queryClient.prefetchInfiniteQuery({
-    queryKey: ["products", "public", lockedFilters, currency],
+    queryKey: ["products", "public", lockedFilters, currency, locale],
     queryFn: () =>
       getPublicProductsPage({
         take: GRID_PAGE_SIZE,
+        searchLocale: locale,
         sortBy: lockedFilters.sortBy,
         sortOrder: lockedFilters.sortOrder,
         brandId: lockedFilters.brandId,
@@ -282,6 +292,7 @@ export default async function BrandDetailPage({ params }: BrandPageProps) {
           <PublicProductsPage
             brands={brands}
             categoryTree={categoryTree}
+            tags={tags}
             footer={<Footer />}
             lockedBrandId={brand.id}
           />

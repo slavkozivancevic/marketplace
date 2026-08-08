@@ -93,10 +93,11 @@ export async function createProduct(
     requirePermission(ctx, "product:create");
     const repo = productRepository(ctx);
 
-    const { price, compareAtPrice, costPrice, variants, categoryIds, ...rest } = parsed.data;
+    const { price, compareAtPrice, costPrice, variants, categoryIds, tagIds, ...rest } = parsed.data;
     const created = await repo.create({
       ...rest,
       categoryIds,
+      tagIds,
       price: decimalToCents(price),
       compareAtPrice: compareAtPrice != null ? decimalToCents(compareAtPrice) : null,
       costPrice: costPrice != null ? decimalToCents(costPrice) : null,
@@ -136,10 +137,11 @@ export async function updateProduct(
     requirePermission(ctx, "product:update");
     const repo = productRepository(ctx);
 
-    const { price: dPrice, compareAtPrice: dCap, costPrice: dCost, variants: dVariants, categoryIds, ...restData } = data;
+    const { price: dPrice, compareAtPrice: dCap, costPrice: dCost, variants: dVariants, categoryIds, tagIds, ...restData } = data;
     await repo.update(id, version, {
       ...restData,
       categoryIds,
+      tagIds,
       ...(dPrice !== undefined && { price: decimalToCents(dPrice) }),
       ...(dCap !== undefined && { compareAtPrice: dCap != null ? decimalToCents(dCap) : null }),
       ...(dCost !== undefined && { costPrice: dCost != null ? decimalToCents(dCost) : null }),

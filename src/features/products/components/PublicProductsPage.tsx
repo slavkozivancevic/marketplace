@@ -6,6 +6,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import axios from "axios";
 import { getBrandName } from "@/features/brands/utils/translations";
+import { getTagName } from "@/features/tags/utils/translations";
+import type { TagListItem } from "@/features/tags/db/tags";
 import { getLabel } from "@/features/attributes/utils/translations";
 import type { CategoryFacetsResult } from "@/features/attributes/db/facets";
 import {
@@ -76,12 +78,14 @@ function findDeptNodeBySlug(
 export function PublicProductsPage({
   brands = [],
   categoryTree = [],
+  tags = [],
   footer,
   lockedBrandId,
   currentDept,
 }: {
   brands?: BrandOption[];
   categoryTree?: CategoryTreeItem[];
+  tags?: TagListItem[];
   footer?: React.ReactNode;
   lockedBrandId?: string;
   currentDept?: string;
@@ -155,8 +159,10 @@ export function PublicProductsPage({
       minPrice: urlSearchParams.get("minPrice") ? Number(urlSearchParams.get("minPrice")) : null,
       maxPrice: urlSearchParams.get("maxPrice") ? Number(urlSearchParams.get("maxPrice")) : null,
       onSale: boolParam("onSale"),
+      bestseller: boolParam("bestseller"),
       isDigital: boolParam("isDigital"),
       brandId: urlSearchParams.get("brandId")?.split(",").filter(Boolean) ?? [],
+      tagId: urlSearchParams.get("tagId")?.split(",").filter(Boolean) ?? [],
       minRating: urlSearchParams.get("minRating") ? parseInt(urlSearchParams.get("minRating")!, 10) : null,
       dept: urlSearchParams.get("dept") ?? "",
       attrs: urlSearchParams.get("attrs") ?? "",
@@ -178,9 +184,11 @@ export function PublicProductsPage({
       params.minPrice,
       params.maxPrice,
       params.onSale,
+      params.bestseller,
       params.isDigital,
       params.minRating,
       lockedOrParamBrand.join(","),
+      params.tagId.join(","),
       search,
       params.attrs,
       locale,
@@ -194,8 +202,10 @@ export function PublicProductsPage({
       if (params.minPrice != null) sp.set("minPrice", String(params.minPrice / rate));
       if (params.maxPrice != null) sp.set("maxPrice", String(params.maxPrice / rate));
       if (params.onSale === true) sp.set("onSale", "true");
+      if (params.bestseller === true) sp.set("bestseller", "true");
       if (params.isDigital != null) sp.set("isDigital", String(params.isDigital));
       for (const id of lockedOrParamBrand) sp.append("brandId", id);
+      for (const id of params.tagId) sp.append("tagId", id);
       if (params.minRating != null) sp.set("minRating", String(params.minRating));
       if (params.attrs) sp.set("attrs", params.attrs);
       const { data } = await axios.get(`/api/facets?${sp.toString()}`);
@@ -213,11 +223,16 @@ export function PublicProductsPage({
     () => facetsQuery.data?.brandCounts ?? {},
     [facetsQuery.data],
   );
+  const tagCounts = useMemo(
+    () => facetsQuery.data?.tagCounts ?? {},
+    [facetsQuery.data],
+  );
   // Base-refinement counts are only authoritative once the request resolves;
   // until then the toggles render without counts (and without hide-empty) to
   // avoid a flash of disappearing filters on first paint.
   const countsReady = facetsQuery.isSuccess;
   const onSaleCount = facetsQuery.data?.onSaleCount ?? 0;
+  const bestsellerCount = facetsQuery.data?.bestsellerCount ?? 0;
   const isDigitalCounts = useMemo(
     () => facetsQuery.data?.isDigitalCounts ?? { true: 0, false: 0 },
     [facetsQuery.data],
@@ -241,21 +256,34 @@ export function PublicProductsPage({
       },
     ];
 
-    // Deals + product type are discrete refinements, so - like brand and the
-    // attribute facets - they carry disjunctive counts and hide when nothing
-    // matches. A selected value stays visible so the buyer can always clear it.
-    // Until the first facet request resolves they render plain (no count, no
-    // hide-empty) to avoid a flash of disappearing filters.
+    // Deals: on-sale + bestseller are independent boolean refinements grouped
+    // under one heading (both are disjunctive-count + hide-empty, like brand
+    // and the attribute facets - a selected value stays visible so the buyer
+    // can always clear it). Until the first facet request resolves both
+    // render plain (no count, no hide-empty) to avoid a flash of disappearing
+    // filters. Bestseller is tied to the algorithmic `Product.isBestseller`
+    // badge, not a tag - see prisma/seed.ts's tag pool comment.
+    const dealsOptions: { value: string; label: string; count?: number }[] = [];
     if (!countsReady || onSaleCount > 0 || params.onSale === true) {
+      dealsOptions.push(
+        countsReady
+          ? { value: "onSale", label: t("products.onSale"), count: onSaleCount }
+          : { value: "onSale", label: t("products.onSale") },
+      );
+    }
+    if (!countsReady || bestsellerCount > 0 || params.bestseller === true) {
+      dealsOptions.push(
+        countsReady
+          ? { value: "bestseller", label: t("products.bestseller"), count: bestsellerCount }
+          : { value: "bestseller", label: t("products.bestseller") },
+      );
+    }
+    if (dealsOptions.length > 0) {
       groups.push({
         type: "checkbox",
-        key: "onSale",
+        key: "deals",
         label: t("products.deals"),
-        options: [
-          countsReady
-            ? { value: "true", label: t("products.onSale"), count: onSaleCount }
-            : { value: "true", label: t("products.onSale") },
-        ],
+        options: dealsOptions,
       });
     }
 
@@ -309,6 +337,29 @@ export function PublicProductsPage({
       }
     }
 
+    // Tag: same disjunctive-count + hide-empty treatment as brand.
+    if (tags.length > 0) {
+      const selectedTags = new Set(params.tagId);
+      const tagOptions = countsReady
+        ? tags
+            .map((tg) => ({
+              value: tg.id,
+              label: getTagName(tg, locale),
+              count: tagCounts[tg.id] ?? 0,
+            }))
+            .filter((tg) => tg.count > 0 || selectedTags.has(tg.value))
+        : tags.map((tg) => ({ value: tg.id, label: getTagName(tg, locale) }));
+      if (tagOptions.length > 0) {
+        groups.push({
+          type: "checkbox",
+          key: "tagId",
+          label: t("products.tags"),
+          options: tagOptions,
+          maxVisible: FILTER_OPTIONS_VISIBLE_LIMIT,
+        });
+      }
+    }
+
     // Category-specific facets (own + inherited), keyed `attr:<attributeKey>`.
     for (const f of facets) {
       const baseLabel = getLabel(f.translations, locale);
@@ -347,16 +398,21 @@ export function PublicProductsPage({
   }, [
     brands,
     lockedBrandId,
+    tags,
     t,
     currencySymbol,
     locale,
     facets,
     countsReady,
     brandCounts,
+    tagCounts,
     onSaleCount,
+    bestsellerCount,
     isDigitalCounts,
     params.brandId,
+    params.tagId,
     params.onSale,
+    params.bestseller,
     params.isDigital,
   ]);
 
@@ -365,9 +421,13 @@ export function PublicProductsPage({
   const filterValues: FilterValues = {
     price: [params.minPrice ?? undefined, params.maxPrice ?? undefined],
     minRating: params.minRating ?? null,
-    onSale: params.onSale === true ? ["true"] : [],
+    deals: [
+      ...(params.onSale === true ? ["onSale"] : []),
+      ...(params.bestseller === true ? ["bestseller"] : []),
+    ],
     isDigital: params.isDigital != null ? [String(params.isDigital)] : [],
     brandId: params.brandId,
+    tagId: params.tagId,
   };
   for (const f of facets) {
     const k = `attr:${f.key}`;
@@ -410,15 +470,23 @@ export function PublicProductsPage({
       setParams({ minPrice: min ?? null, maxPrice: max ?? null }, NOW);
     } else if (key === "minRating") {
       setParams({ minRating: (value as number | null) ?? null }, NOW);
-    } else if (key === "onSale") {
+    } else if (key === "deals") {
       const vals = value as string[];
-      setParams({ onSale: vals.includes("true") ? true : null }, NOW);
+      setParams(
+        {
+          onSale: vals.includes("onSale") ? true : null,
+          bestseller: vals.includes("bestseller") ? true : null,
+        },
+        NOW,
+      );
     } else if (key === "isDigital") {
       const vals = value as string[];
       if (vals.length === 0 || vals.length === 2) setParams({ isDigital: null }, NOW);
       else setParams({ isDigital: vals[0] === "true" }, NOW);
     } else if (key === "brandId") {
       setParams({ brandId: value as string[] }, NOW);
+    } else if (key === "tagId") {
+      setParams({ tagId: value as string[] }, NOW);
     }
   };
 
@@ -427,8 +495,10 @@ export function PublicProductsPage({
       minPrice: null,
       maxPrice: null,
       onSale: null,
+      bestseller: null,
       isDigital: null,
       brandId: [],
+      tagId: [],
       minRating: null,
       attrs: "",
     }, NOW);
@@ -446,9 +516,16 @@ export function PublicProductsPage({
       }
     } else if (key === "price") setParams({ minPrice: null, maxPrice: null }, NOW);
     else if (key === "minRating") setParams({ minRating: null }, NOW);
-    else if (key === "onSale") setParams({ onSale: null }, NOW);
+    else if (key === "deals") {
+      if (value === "onSale") setParams({ onSale: null }, NOW);
+      else if (value === "bestseller") setParams({ bestseller: null }, NOW);
+    }
     else if (key === "isDigital") setParams({ isDigital: null }, NOW);
-    else if (key === "brandId") setParams({ brandId: [] }, NOW);
+    else if (key === "brandId") {
+      setParams({ brandId: value ? params.brandId.filter((v) => v !== value) : [] }, NOW);
+    } else if (key === "tagId") {
+      setParams({ tagId: value ? params.tagId.filter((v) => v !== value) : [] }, NOW);
+    }
   };
 
   const filters: ProductFilters = {
@@ -459,10 +536,12 @@ export function PublicProductsPage({
     minPrice: params.minPrice,
     maxPrice: params.maxPrice,
     onSale: params.onSale,
+    bestseller: params.bestseller,
     isDigital: params.isDigital,
     // Locked dimensions take precedence so the visitor can't unlock the
     // brand storefront / category page via URL tampering.
     brandId: lockedBrandId ? [lockedBrandId] : params.brandId,
+    tagId: params.tagId,
     minRating: params.minRating,
     dept,
     attrs: params.attrs,

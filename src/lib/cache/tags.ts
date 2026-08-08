@@ -36,6 +36,10 @@ export const CacheTags = {
     all: () => "global:categories" as const,
     byId: (id: string) => `id:categories:${id}` as const,
   },
+  tags: {
+    all: () => "global:tags" as const,
+    byId: (id: string) => `id:tags:${id}` as const,
+  },
   attributes: {
     all: () => "global:attributes" as const,
     byId: (id: string) => `id:attributes:${id}` as const,

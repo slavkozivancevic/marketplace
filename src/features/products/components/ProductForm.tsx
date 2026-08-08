@@ -57,6 +57,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { getCategoryName } from "@/features/categories/utils/translations";
 import type { CategoryTreeItem } from "@/features/categories/db/categories";
+import { getTagName } from "@/features/tags/utils/translations";
+import type { TagListItem } from "@/features/tags/db/tags";
 import { consumeLanguageSwitch, setPreserveAcrossLocaleSwitch } from "@/lib/i18n/localeSwitch";
 import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
 import { useBoolFormat } from "@/lib/forms/changedFormatters";
@@ -199,6 +201,7 @@ type ProductFormData = {
   translations: ProductTranslationsForm;
   brandId: string | undefined;
   categoryIds: string[];
+  tagIds: string[];
   media: {
     key: string;
     mediaType: "IMAGE" | "VIDEO";
@@ -239,6 +242,7 @@ interface ProductFormProps {
   product?: SerializedProductWithRelations;
   brands?: BrandOption[];
   categoryTree?: CategoryTreeItem[];
+  tags?: TagListItem[];
   attributeLibrary?: AttributeSelectorItem[];
   categoryAttributeMap?: Record<string, string[]>;
   onSuccess?: () => void;
@@ -333,6 +337,68 @@ function CategoryPicker({
             return (
               <Badge key={id} variant="secondary" className="gap-1 pr-1">
                 {getCategoryName(node, locale)}
+                <button type="button" onClick={() => toggle(id)} className="rounded-full hover:bg-muted-foreground/20 p-0.5 cursor-pointer">
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------- TagPicker ----------
+
+function TagPicker({
+  options,
+  value,
+  onChange,
+}: {
+  options: TagListItem[];
+  value: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const locale = useLocale();
+  const tForm = useTranslations("productForm");
+
+  const toggle = (id: string) =>
+    onChange(value.includes(id) ? value.filter((v) => v !== id) : [...value, id]);
+
+  return (
+    <div className="space-y-2">
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="outline" className="w-full justify-start font-normal text-left">
+            {value.length === 0
+              ? <span className="text-muted-foreground">{tForm("selectTags")}</span>
+              : <span className="truncate">{value.map((id) => getTagName(options.find((o) => o.id === id) ?? { translations: [] }, locale)).join(", ")}</span>}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-80 p-0 max-h-72 overflow-y-auto">
+          {options.length === 0 ? (
+            <p className="p-4 text-sm text-muted-foreground">{tForm("noTags")}</p>
+          ) : (
+            <div className="p-2 space-y-0.5">
+              {options.map((opt) => (
+                <label key={opt.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted cursor-pointer">
+                  <Checkbox checked={value.includes(opt.id)} onCheckedChange={() => toggle(opt.id)} />
+                  <span className="text-sm">{getTagName(opt, locale)}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {value.map((id) => {
+            const opt = options.find((o) => o.id === id);
+            if (!opt) return null;
+            return (
+              <Badge key={id} variant="secondary" className="gap-1 pr-1">
+                {getTagName(opt, locale)}
                 <button type="button" onClick={() => toggle(id)} className="rounded-full hover:bg-muted-foreground/20 p-0.5 cursor-pointer">
                   <X className="h-3 w-3" />
                 </button>
@@ -574,6 +640,7 @@ export function ProductForm({
   product,
   brands = [],
   categoryTree = [],
+  tags = [],
   attributeLibrary = [],
   categoryAttributeMap = {},
   onSuccess,
@@ -655,6 +722,7 @@ export function ProductForm({
         translations: normalizeProductTranslations(null),
         brandId: undefined,
         categoryIds: [],
+        tagIds: [],
         media: [],
         options: [],
         variants: [],
@@ -694,6 +762,7 @@ export function ProductForm({
       translations: normalizeProductTranslations(product.translations),
       brandId: product.brandId ?? undefined,
       categoryIds: product.categories.map((c) => c.categoryId),
+      tagIds: product.tags.map((t) => t.tagId),
       media: product.media.map(toFormMedia),
       options: [],
       variants: product.variants.map((v) => {
@@ -957,6 +1026,7 @@ export function ProductForm({
       dirty.description ||
       dirty.shortDescription ||
       dirty.categoryIds ||
+      dirty.tagIds ||
       dirty.brandId ||
       dirty.attributes ||
       dirty.media ||
@@ -1044,6 +1114,17 @@ export function ProductForm({
     return v.map((id) => categoryNameById.get(id as string) ?? String(id)).join(", ");
   };
 
+  const tagNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const tg of tags) map.set(tg.id, getTagName(tg, locale));
+    return map;
+  }, [tags, locale]);
+
+  const fmtTagIds = (v: unknown) => {
+    if (!Array.isArray(v) || v.length === 0) return "-";
+    return v.map((id) => tagNameById.get(id as string) ?? String(id)).join(", ");
+  };
+
   const fmtBrandId = (v: unknown) => {
     const b = brands.find((x) => x.id === v);
     if (!b) return "-";
@@ -1090,6 +1171,7 @@ export function ProductForm({
           translations: translationsPayload,
           brandId: data.brandId || undefined,
           categoryIds: data.categoryIds,
+          tagIds: data.tagIds,
           media: data.media,
           variants: data.variants,
           attributes: data.attributes,
@@ -1334,6 +1416,30 @@ export function ProductForm({
                       />
                     </FormControl>
                     <FieldChangedHint format={fmtCategoryIds} />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {tags.length > 0 && (
+              <FormField
+                control={form.control}
+                name="tagIds"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t("tags")}
+                      <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
+                    </FormLabel>
+                    <FormControl>
+                      <TagPicker
+                        options={tags}
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FieldChangedHint format={fmtTagIds} />
                     <FormMessage />
                   </FormItem>
                 )}

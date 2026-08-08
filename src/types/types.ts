@@ -194,6 +194,16 @@ export type ProductWithRelations = Prisma.ProductGetPayload<{
         };
       };
     };
+    tags: {
+      include: {
+        tag: {
+          select: {
+            id: true;
+            translations: true;
+          };
+        };
+      };
+    };
     attributeValues: {
       select: {
         attributeId: true;
@@ -316,6 +326,7 @@ export type PublicProductRaw = Prisma.ProductGetPayload<{
       };
     };
     brand: { select: { id: true; logoUrl: true; logoUrlDark: true; logoBackdrop: true; logoBackdropDark: true; translations: true } };
+    tags: { include: { tag: { select: { id: true; translations: true } } } };
   };
 }>;
 

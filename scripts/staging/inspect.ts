@@ -42,7 +42,7 @@ async function main() {
         },
       },
       categories: { select: { category: { select: { id: true, translations: { where: { locale: "en" }, select: { name: true, slug: true } } } } } },
-      tags: { select: { tag: { select: { slug: true } } } },
+      tags: { select: { tag: { select: { translations: { where: { locale: "en" }, select: { slug: true } } } } } },
       media: { select: { id: true, url: true, order: true, mediaType: true } },
       attributeValues: {
         select: {
@@ -101,7 +101,13 @@ async function main() {
     },
   });
 
-  const tags = await prisma.tag.findMany({ select: { id: true, name: true, slug: true, _count: { select: { products: true } } } });
+  const tags = await prisma.tag.findMany({
+    select: {
+      id: true,
+      translations: { where: { locale: "en" }, select: { name: true, slug: true } },
+      _count: { select: { products: true } },
+    },
+  });
 
   const slugHistoryCount = await prisma.slugHistory.count();
   const orderCount = await prisma.order.count();

@@ -1,6 +1,6 @@
 "use client";
 import axios from "axios";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 
 import { cn } from "@/lib/utils";
 
@@ -16,7 +16,7 @@ import { useCurrencyStore, getCurrentRate } from "@/store/currency";
 import { QuickViewModal } from "./QuickViewModal";
 import { ProductCard } from "./ProductCard";
 
-function buildFetcher(filters: ProductFilters) {
+function buildFetcher(filters: ProductFilters, searchLocale: string) {
   return async ({
     pageParam,
   }: {
@@ -30,6 +30,7 @@ function buildFetcher(filters: ProductFilters) {
     params.set("take", String(GRID_PAGE_SIZE));
     if (pageParam) params.set("cursor", pageParam);
     if (filters.search) params.set("search", filters.search);
+    params.set("searchLocale", searchLocale);
     if (filters.sortBy) params.set("sortBy", filters.sortBy);
     if (filters.sortOrder) params.set("sortOrder", filters.sortOrder);
     // filters.minPrice/maxPrice are in the display currency; convert to USD
@@ -37,8 +38,10 @@ function buildFetcher(filters: ProductFilters) {
     if (filters.minPrice != null) params.set("minPrice", String(filters.minPrice / rate));
     if (filters.maxPrice != null) params.set("maxPrice", String(filters.maxPrice / rate));
     if (filters.onSale === true) params.set("onSale", "true");
+    if (filters.bestseller === true) params.set("bestseller", "true");
     if (filters.isDigital != null) params.set("isDigital", String(filters.isDigital));
     for (const id of filters.brandId) params.append("brandId", id);
+    for (const id of filters.tagId) params.append("tagId", id);
     if (filters.minRating != null) params.set("minRating", String(filters.minRating));
     if (filters.dept) params.set("dept", filters.dept);
     if (filters.attrs) params.set("attrs", filters.attrs);
@@ -56,6 +59,7 @@ export function PublicProductsGrid({
   scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const t = useTranslations("products");
+  const locale = useLocale();
   const [quickViewId, setQuickViewId] = useState<string | null>(null);
 
   // Include currency in the query key so that switching currency triggers a
@@ -74,8 +78,8 @@ export function PublicProductsGrid({
     isSentinelRow,
     isPlaceholderData,
   } = useInfiniteVirtualGrid<SerializedProductListItem>({
-    queryKey: ["products", "public", filters, currency],
-    queryFn: buildFetcher(filters),
+    queryKey: ["products", "public", filters, currency, locale],
+    queryFn: buildFetcher(filters, locale),
     minCardWidth: 280,
     gap: 24,
     estimateRowHeight: 380,

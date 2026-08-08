@@ -1,9 +1,18 @@
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath, revalidateTag, updateTag } from "next/cache";
 import { CacheTags } from "@/lib/cache/tags";
 
 export function revalidateProductCache(orgId: string, productId: string) {
-  revalidateTag(CacheTags.products.all(orgId), "max");
-  revalidateTag(CacheTags.products.byId(orgId, productId), "max");
+  // updateTag, NOT revalidateTag(tag, "max"): product mutations (including
+  // bulk-by-filter) are seller/admin actions and the actor immediately
+  // navigates back to the list / reopens the edit page - those reads must
+  // see the write. The "max" profile is stale-while-revalidate and can
+  // serve the old data once more. Same convention as revalidateBrandCache /
+  // revalidateCategoryCache / revalidateAttributeCache / revalidateTagCache.
+  updateTag(CacheTags.products.all(orgId));
+  updateTag(CacheTags.products.byId(orgId, productId));
+
+  // Public storefront caches: the actor isn't the one reading these next,
+  // so eventual consistency is fine here.
   revalidateTag(CacheTags.products.publicAll(), "max");
   revalidateTag(CacheTags.products.publicById(productId), "max");
   // Admin brand/category lists embed a product count via Prisma `_count`,
@@ -30,8 +39,11 @@ export function revalidateProductHistoryCache(
   orgId: string,
   productId: string,
 ) {
-  revalidateTag(CacheTags.products.byId(orgId, productId), "max");
-  revalidateTag(CacheTags.products.history(orgId, productId), "max");
+  // Same read-your-own-writes reasoning as revalidateProductCache above -
+  // the admin who just triggered a history-writing change (publish, status,
+  // price) is the one who'll immediately open the history tab.
+  updateTag(CacheTags.products.byId(orgId, productId));
+  updateTag(CacheTags.products.history(orgId, productId));
 
   revalidatePath("/[locale]/admin/products/[id]/history", "page");
 }

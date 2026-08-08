@@ -284,8 +284,12 @@ const brands: BrandSeed[] = [
 
 // ---------- Tags ----------
 
+// "bestseller" is deliberately excluded - that word is owned by the
+// algorithmic `Product.isBestseller` badge (see recompute-bestsellers),
+// not a manually-curated tag. Having both meant a product could carry the
+// tag without the real badge (or vice versa), which just confused buyers.
 const tags = [
-  "new", "popular", "bestseller", "discount", "premium", "limited", "eco-friendly",
+  "new", "popular", "discount", "premium", "limited", "eco-friendly",
   "trending", "clearance", "top-rated", "handmade", "imported", "exclusive", "gift-idea",
   "budget", "luxury", "staff-pick", "back-in-stock", "seasonal", "online-only",
 ];
@@ -622,10 +626,22 @@ async function seedTags(): Promise<{ id: string; slug: string }[]> {
   const out: { id: string; slug: string }[] = [];
   for (const name of tags) {
     const slug = slugify(name);
-    const tag = await prisma.tag.upsert({
-      where: { slug },
-      update: { name },
-      create: { name, slug },
+    const existing = await prisma.tagTranslation.findUnique({
+      where: { locale_slug: { locale: "en", slug } },
+      select: { tagId: true },
+    });
+    if (existing) { out.push({ id: existing.tagId, slug }); continue; }
+    const tag = await prisma.tag.create({
+      data: {
+        translations: {
+          create: [
+            { locale: "en", name, slug },
+            { locale: "sr", name, slug: `${slug}-sr` },
+            { locale: "de", name, slug: `${slug}-de` },
+            { locale: "es", name, slug: `${slug}-es` },
+          ],
+        },
+      },
     });
     out.push({ id: tag.id, slug });
   }

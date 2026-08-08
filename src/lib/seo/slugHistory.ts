@@ -121,6 +121,13 @@ async function currentSlugFor(
     });
     return pickSlug(rows, locale);
   }
+  if (entityType === "TAG") {
+    const rows = await prisma.tagTranslation.findMany({
+      where: { tagId: entityId },
+      select: { locale: true, slug: true },
+    });
+    return pickSlug(rows, locale);
+  }
   const rows = await prisma.brandTranslation.findMany({
     where: { brandId: entityId },
     select: { locale: true, slug: true },

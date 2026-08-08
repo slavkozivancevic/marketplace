@@ -47,8 +47,16 @@ export function UnsavedChangesGuard() {
       }
       if (!useUnsavedGuardStore.getState().hasUnsaved()) return;
 
-      const anchor = (e.target as HTMLElement | null)?.closest("a");
+      const eventTarget = e.target as HTMLElement | null;
+      const anchor = eventTarget?.closest("a");
       if (!anchor) return;
+      // Card-wide links can wrap nested action buttons that call their own
+      // stopPropagation() - too late to stop this capture-phase listener
+      // (see the identical guard in NavigationProgress.tsx). A real link
+      // click never originates on a nested interactive element, since
+      // interactive elements can't validly nest inside an <a>.
+      const interactive = eventTarget?.closest("button, [role='button'], input, select, textarea");
+      if (interactive && anchor.contains(interactive)) return;
       const href = anchor.getAttribute("href");
       if (
         !href ||

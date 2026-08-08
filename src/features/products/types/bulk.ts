@@ -24,6 +24,10 @@ export type BulkFilter = {
   categoryId?: string[];
   /** Only products that have NO category assigned. */
   noCategory?: boolean;
+  /** Product must carry at least one of these tag IDs. */
+  tagId?: string[];
+  /** Only products that have NO tag assigned. */
+  noTag?: boolean;
   /** Product status must be one of these values. */
   status?: string[];
   minPrice?: number;
@@ -51,6 +55,16 @@ export type BulkCategoryUpdate = {
   ids: string[];
 };
 
+export type BulkTagUpdate = {
+  /**
+   * - "set": replace all tags with `ids`
+   * - "add": append `ids` to existing tags (skip duplicates)
+   * - "remove": detach `ids` from existing tags
+   */
+  mode: "set" | "add" | "remove";
+  ids: string[];
+};
+
 export type BulkUpdateFields = {
   status?: string;
   /** Pass null to remove the brand assignment. */
@@ -65,6 +79,8 @@ export type BulkUpdateFields = {
   stock?: number | null;
   /** Category set / add / remove operation. */
   categories?: BulkCategoryUpdate;
+  /** Tag set / add / remove operation. */
+  tags?: BulkTagUpdate;
 };
 
 export type PreviewResult = {

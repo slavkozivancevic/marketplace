@@ -13,6 +13,7 @@ import {
   getAllCategoriesFlat,
   getCategoryName,
 } from "@/features/categories/db/categories";
+import { getAllTags, getTagName } from "@/features/tags/db/tags";
 import { CacheTags } from "@/lib/cache/tags";
 
 type CategoryRow = {
@@ -64,9 +65,10 @@ export default async function BulkProductsPage() {
   const ctx = await resolveRequestContext();
   requirePermission(ctx, "product:read");
 
-  const [brands, categoryRows] = await Promise.all([
+  const [brands, categoryRows, tags] = await Promise.all([
     fetchBrands(),
     fetchCategories(),
+    fetchTags(),
   ]);
 
   const categories = buildCategoryPaths(categoryRows, locale);
@@ -74,6 +76,12 @@ export default async function BulkProductsPage() {
     .map((b) => ({
       id: b.id,
       name: getBrandName(b, locale),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, locale));
+  const localizedTags = tags
+    .map((tg) => ({
+      id: tg.id,
+      name: getTagName(tg, locale),
     }))
     .sort((a, b) => a.name.localeCompare(b.name, locale));
 
@@ -92,7 +100,7 @@ export default async function BulkProductsPage() {
       </div>
 
       <div className="flex-1 flex flex-col min-h-0 px-6 pb-6">
-        <BulkProductsManager brands={localizedBrands} categories={categories} />
+        <BulkProductsManager brands={localizedBrands} categories={categories} tags={localizedTags} />
       </div>
     </div>
   );
@@ -113,4 +121,10 @@ async function fetchCategories(): Promise<CategoryRow[]> {
     translations: c.translations,
     parentId: c.parentId,
   }));
+}
+
+async function fetchTags() {
+  "use cache";
+  cacheTag(CacheTags.tags.all());
+  return getAllTags();
 }

@@ -13,6 +13,7 @@ import {
 import { CacheTags } from "@/lib/cache/tags";
 import { getAllBrands } from "@/features/brands/db/brands";
 import { getCategoryTree } from "@/features/categories/db/categories";
+import { getAllTags } from "@/features/tags/db/tags";
 import {
   fetchAttributeSelector,
   fetchCategoryAttributeMap,
@@ -95,11 +96,12 @@ async function ProductEditContent({ productId }: { productId: string }) {
     );
   }
 
-  const [result, brands, categoryTree, attributeLibrary, categoryAttributeMap] =
+  const [result, brands, categoryTree, tags, attributeLibrary, categoryAttributeMap] =
     await Promise.all([
       fetchProductForEdit(product.organizationId, user.id, productId),
       fetchBrands(),
       fetchCategoryTree(),
+      fetchTags(),
       fetchAttributeSelector(),
       fetchCategoryAttributeMap(),
     ]);
@@ -127,6 +129,7 @@ async function ProductEditContent({ productId }: { productId: string }) {
       product={productData}
       brands={brands}
       categoryTree={categoryTree}
+      tags={tags}
       attributeLibrary={attributeLibrary}
       categoryAttributeMap={categoryAttributeMap}
       redirectTo={`/dashboard/my-products/${productData.id}`}
@@ -144,6 +147,12 @@ async function fetchCategoryTree() {
   "use cache";
   cacheTag(CacheTags.categories.all());
   return getCategoryTree();
+}
+
+async function fetchTags() {
+  "use cache";
+  cacheTag(CacheTags.tags.all());
+  return getAllTags();
 }
 
 export default async function MyProductEditPage({

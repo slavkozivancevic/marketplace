@@ -8,6 +8,7 @@ import { Link, getPathname } from "@/i18n/navigation";
 import { CacheTags } from "@/lib/cache/tags";
 import { getAllBrands } from "@/features/brands/db/brands";
 import { getCategoryTree } from "@/features/categories/db/categories";
+import { getAllTags } from "@/features/tags/db/tags";
 import {
   fetchAttributeSelector,
   fetchCategoryAttributeMap,
@@ -17,10 +18,11 @@ export default async function NewProductPage() {
   const t = await getTranslations();
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();
-  const [brands, categoryTree, attributeLibrary, categoryAttributeMap] =
+  const [brands, categoryTree, tags, attributeLibrary, categoryAttributeMap] =
     await Promise.all([
       fetchBrands(),
       fetchCategoryTree(),
+      fetchTags(),
       fetchAttributeSelector(),
       fetchCategoryAttributeMap(),
     ]);
@@ -49,6 +51,7 @@ export default async function NewProductPage() {
           mode="create"
           brands={brands}
           categoryTree={categoryTree}
+          tags={tags}
           attributeLibrary={attributeLibrary}
           categoryAttributeMap={categoryAttributeMap}
         />
@@ -67,4 +70,10 @@ async function fetchCategoryTree() {
   "use cache";
   cacheTag(CacheTags.categories.all());
   return getCategoryTree();
+}
+
+async function fetchTags() {
+  "use cache";
+  cacheTag(CacheTags.tags.all());
+  return getAllTags();
 }

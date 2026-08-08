@@ -2,6 +2,7 @@ import { prisma } from "@/core/db/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { SerializedProductListItem } from "@/types/types";
 import type { AttributeFilter } from "@/lib/query/attrs";
+import { DEFAULT_LOCALE } from "@/i18n/config";
 
 type SortField = "createdAt" | "price" | "avgRating";
 type SortOrder = "asc" | "desc";
@@ -50,10 +51,12 @@ export type PublicProductWhereParams = {
   minPrice?: number;
   maxPrice?: number;
   onSale?: boolean | null;
+  bestseller?: boolean | null;
   isDigital?: boolean | null;
   brandId?: string[];
   minRating?: number | null;
   categoryId?: string[];
+  tagId?: string[];
   attributeFilters?: AttributeFilter[];
 };
 
@@ -99,6 +102,31 @@ function attributeClause(f: AttributeFilter): Prisma.ProductWhereInput | null {
 }
 
 /**
+ * Locale-with-fallback name match against a `{ translations: { locale, name }[] }`
+ * relation (currently just Tag) - mirrors the `pick()` fallback used when
+ * building `ProductTranslation.searchText`: match the requested locale's own
+ * name, or - only when that locale has no translation row at all for this
+ * entity - its default-locale name instead.
+ */
+function translationNameMatch(search: string, locale: string): Prisma.TagWhereInput {
+  return {
+    OR: [
+      { translations: { some: { locale, name: { contains: search, mode: "insensitive" } } } },
+      {
+        AND: [
+          { translations: { none: { locale } } },
+          {
+            translations: {
+              some: { locale: DEFAULT_LOCALE, name: { contains: search, mode: "insensitive" } },
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
+/**
  * Shared `where` builder for the public catalog - reused by the product list
  * query and the facet count aggregation so both stay perfectly in sync.
  * Attribute facets combine with AND across attributes (each must match at least
@@ -113,10 +141,43 @@ export function buildPublicProductWhere(
   };
 
   if (p.search) {
-    const localeClause = p.searchLocale ? { locale: p.searchLocale } : {};
-    where.translations = {
-      some: { ...localeClause, searchText: { contains: p.search, mode: "insensitive" } },
-    };
+    if (p.searchLocale) {
+      // Match the requested locale's own searchText, OR - for a product with
+      // no translation row at all in that locale - fall back to the default
+      // locale's searchText. Mirrors how the storefront already displays such
+      // products (title/description fall back to the default locale), so a
+      // product that's findable/visible in a locale by browsing shouldn't be
+      // unfindable by search just because it was never translated.
+      where.OR = [
+        {
+          translations: {
+            some: { locale: p.searchLocale, searchText: { contains: p.search, mode: "insensitive" } },
+          },
+        },
+        {
+          AND: [
+            { translations: { none: { locale: p.searchLocale } } },
+            {
+              translations: {
+                some: { locale: DEFAULT_LOCALE, searchText: { contains: p.search, mode: "insensitive" } },
+              },
+            },
+          ],
+        },
+        // A tag's own name is independently translated from the product it's
+        // attached to - a product should be findable by a tag's localized
+        // name even when the PRODUCT itself was never translated into that
+        // locale (searchText above can only reflect a tag name once baked
+        // into an existing product translation row). Tag/TagTranslation is a
+        // tiny table, so this join costs nothing like a product-text scan
+        // would.
+        { tags: { some: { tag: translationNameMatch(p.search, p.searchLocale) } } },
+      ];
+    } else {
+      where.translations = {
+        some: { searchText: { contains: p.search, mode: "insensitive" } },
+      };
+    }
   }
 
   if (p.minPrice != null || p.maxPrice != null) {
@@ -126,11 +187,15 @@ export function buildPublicProductWhere(
   }
 
   if (p.onSale === true) where.compareAtPrice = { not: null };
+  if (p.bestseller === true) where.isBestseller = true;
   if (p.isDigital != null) where.isDigital = p.isDigital;
   if (p.brandId?.length) where.brandId = { in: p.brandId };
   if (p.minRating != null && p.minRating > 0) where.avgRating = { gte: p.minRating };
   if (p.categoryId?.length) {
     where.categories = { some: { categoryId: { in: p.categoryId } } };
+  }
+  if (p.tagId?.length) {
+    where.tags = { some: { tagId: { in: p.tagId } } };
   }
 
   const attrClauses = (p.attributeFilters ?? [])
@@ -160,10 +225,12 @@ export async function getPublicProductsPage({
   minPrice,
   maxPrice,
   onSale,
+  bestseller,
   isDigital,
   brandId,
   minRating,
   categoryId,
+  tagId,
   attributeFilters,
 }: {
   take: number;
@@ -175,10 +242,12 @@ export async function getPublicProductsPage({
   minPrice?: number;
   maxPrice?: number;
   onSale?: boolean | null;
+  bestseller?: boolean | null;
   isDigital?: boolean | null;
   brandId?: string[];
   minRating?: number | null;
   categoryId?: string[];
+  tagId?: string[];
   attributeFilters?: AttributeFilter[];
 }): Promise<{ items: SerializedProductListItem[]; nextCursor?: string }> {
   const where = buildPublicProductWhere({
@@ -187,10 +256,12 @@ export async function getPublicProductsPage({
     minPrice,
     maxPrice,
     onSale,
+    bestseller,
     isDigital,
     brandId,
     minRating,
     categoryId,
+    tagId,
     attributeFilters,
   });
 

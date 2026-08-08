@@ -51,6 +51,7 @@ import { BULK_CATEGORY_MUTATION_LIMIT } from "@/features/products/types/bulk";
 type BrandOption = { id: string; name: string };
 /** Pre-flattened with indented `pathName` (e.g. "Apparel > Shoes > Men"). */
 type CategoryOption = { id: string; name: string; pathName: string };
+type TagOption = { id: string; name: string };
 
 const STATUS_OPTIONS = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
 type ProductStatus = (typeof STATUS_OPTIONS)[number];
@@ -67,6 +68,8 @@ type ConditionType =
   | "noBrand"
   | "category"
   | "noCategory"
+  | "tag"
+  | "noTag"
   | "status"
   | "minPrice"
   | "maxPrice"
@@ -83,6 +86,8 @@ type Condition =
   | { type: "noBrand" }
   | { type: "category"; categoryIds: string[] }
   | { type: "noCategory" }
+  | { type: "tag"; tagIds: string[] }
+  | { type: "noTag" }
   | { type: "status"; statuses: ProductStatus[] }
   | { type: "minPrice"; value: number }
   | { type: "maxPrice"; value: number }
@@ -104,6 +109,10 @@ type ActionType =
   | "addCategories"
   | "removeCategories"
   | "clearCategories"
+  | "setTagsReplace"
+  | "addTags"
+  | "removeTags"
+  | "clearTags"
   | "setPrice"
   | "setCompareAtPrice"
   | "setCostPrice"
@@ -120,6 +129,8 @@ const MUTEX_PARTNERS: Partial<Record<ConditionType, ConditionType[]>> = {
   noBrand: ["brand"],
   category: ["noCategory"],
   noCategory: ["category"],
+  tag: ["noTag"],
+  noTag: ["tag"],
   minStock: ["outOfStock"],
   maxStock: ["outOfStock"],
   outOfStock: ["minStock", "maxStock"],
@@ -144,6 +155,12 @@ function conditionsToFilter(conditions: Condition[]): BulkFilter {
         break;
       case "noCategory":
         filter.noCategory = true;
+        break;
+      case "tag":
+        if (c.tagIds.length > 0) filter.tagId = c.tagIds;
+        break;
+      case "noTag":
+        filter.noTag = true;
         break;
       case "status":
         if (c.statuses.length > 0) filter.status = c.statuses;
@@ -234,12 +251,14 @@ function ConditionRow({
   condition,
   brands,
   categories,
+  tags,
   onUpdate,
   onRemove,
 }: {
   condition: Condition;
   brands: BrandOption[];
   categories: CategoryOption[];
+  tags: TagOption[];
   onUpdate: (c: Condition) => void;
   onRemove: () => void;
 }) {
@@ -258,6 +277,8 @@ function ConditionRow({
     noBrand: t("condNoBrand"),
     category: t("condCategory"),
     noCategory: t("condNoCategory"),
+    tag: t("condTag"),
+    noTag: t("condNoTag"),
     status: t("condStatus"),
     minPrice: t("condMinPrice"),
     maxPrice: t("condMaxPrice"),
@@ -286,6 +307,15 @@ function ConditionRow({
       ? existing.filter((c) => c !== categoryId)
       : [...existing, categoryId];
     onUpdate({ type: "category", categoryIds: next });
+  };
+
+  const toggleTag = (tagId: string) => {
+    if (condition.type !== "tag") return;
+    const existing = condition.tagIds;
+    const next = existing.includes(tagId)
+      ? existing.filter((t) => t !== tagId)
+      : [...existing, tagId];
+    onUpdate({ type: "tag", tagIds: next });
   };
 
   const toggleStatus = (s: ProductStatus) => {
@@ -330,6 +360,20 @@ function ConditionRow({
 
         {condition.type === "noCategory" && (
           <span className="text-sm text-muted-foreground">{t("noCategoryAssigned")}</span>
+        )}
+
+        {condition.type === "tag" && (
+          <ChipGroup
+            options={tags}
+            selectedIds={condition.tagIds}
+            onToggle={toggleTag}
+            labelFor={(tg) => tg.name}
+            emptyMessage={t("noTagsFound")}
+          />
+        )}
+
+        {condition.type === "noTag" && (
+          <span className="text-sm text-muted-foreground">{t("noTagAssigned")}</span>
         )}
 
         {condition.type === "status" && (
@@ -441,12 +485,14 @@ function ActionEditor({
   onChangeValue,
   brands,
   categories,
+  tags,
 }: {
   action: { type: ActionType; value?: string | number | boolean | null | string[] };
   onChangeType: (t: ActionType) => void;
   onChangeValue: (v: string | number | boolean | null | string[]) => void;
   brands: BrandOption[];
   categories: CategoryOption[];
+  tags: TagOption[];
 }) {
   const t = useTranslations("bulkProducts");
   const { rates, currency } = useCurrencyStore();
@@ -466,6 +512,10 @@ function ActionEditor({
     addCategories: t("actAddCategories"),
     removeCategories: t("actRemoveCategories"),
     clearCategories: t("actClearCategories"),
+    setTagsReplace: t("actSetTagsReplace"),
+    addTags: t("actAddTags"),
+    removeTags: t("actRemoveTags"),
+    clearTags: t("actClearTags"),
     setPrice: t("actSetPrice"),
     setCompareAtPrice: t("actSetCompareAtPrice"),
     setCostPrice: t("actSetCostPrice"),
@@ -480,6 +530,11 @@ function ActionEditor({
     action.type === "addCategories" ||
     action.type === "removeCategories";
 
+  const isTagMultiSelectAction =
+    action.type === "setTagsReplace" ||
+    action.type === "addTags" ||
+    action.type === "removeTags";
+
   const isBoolAction =
     action.type === "setTaxable" ||
     action.type === "setRequiresShipping" ||
@@ -490,6 +545,14 @@ function ActionEditor({
     const next = selectedCategoryIds.includes(id)
       ? selectedCategoryIds.filter((c) => c !== id)
       : [...selectedCategoryIds, id];
+    onChangeValue(next);
+  };
+
+  const selectedTagIds = (action.value as string[]) ?? [];
+  const toggleTagAction = (id: string) => {
+    const next = selectedTagIds.includes(id)
+      ? selectedTagIds.filter((tg) => tg !== id)
+      : [...selectedTagIds, id];
     onChangeValue(next);
   };
 
@@ -578,6 +641,31 @@ function ActionEditor({
           {selectedCategoryIds.length > 0 && (
             <p className="text-xs text-muted-foreground">
               {t("categoriesSelected", { count: selectedCategoryIds.length })}
+            </p>
+          )}
+        </div>
+      )}
+
+      {isTagMultiSelectAction && (
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs text-muted-foreground">
+            {action.type === "setTagsReplace"
+              ? t("pickTagsReplace")
+              : action.type === "addTags"
+              ? t("pickTagsAdd")
+              : t("pickTagsRemove")}
+          </Label>
+          <ChipGroup
+            options={tags}
+            selectedIds={selectedTagIds}
+            onToggle={toggleTagAction}
+            labelFor={(tg) => tg.name}
+            emptyMessage={t("noTagsFound")}
+            maxHeightClass="max-h-48"
+          />
+          {selectedTagIds.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {t("tagsSelected", { count: selectedTagIds.length })}
             </p>
           )}
         </div>
@@ -706,6 +794,8 @@ function makeDefaultCondition(type: ConditionType): Condition {
     case "noBrand": return { type: "noBrand" };
     case "category": return { type: "category", categoryIds: [] };
     case "noCategory": return { type: "noCategory" };
+    case "tag": return { type: "tag", tagIds: [] };
+    case "noTag": return { type: "noTag" };
     case "status": return { type: "status", statuses: [] };
     case "minPrice": return { type: "minPrice", value: 0 };
     case "maxPrice": return { type: "maxPrice", value: 0 };
@@ -722,9 +812,11 @@ function makeDefaultCondition(type: ConditionType): Condition {
 export function ConditionalBulkPanel({
   brands,
   categories,
+  tags,
 }: {
   brands: BrandOption[];
   categories: CategoryOption[];
+  tags: TagOption[];
 }) {
   const t = useTranslations("bulkProducts");
   const tCommon = useTranslations("common");
@@ -735,6 +827,8 @@ export function ConditionalBulkPanel({
     { type: "noBrand", label: t("condNoBrand") },
     { type: "category", label: t("condCategory") },
     { type: "noCategory", label: t("condNoCategory") },
+    { type: "tag", label: t("condTag") },
+    { type: "noTag", label: t("condNoTag") },
     { type: "status", label: t("condStatus") },
     { type: "minPrice", label: t("condMinPrice") },
     { type: "maxPrice", label: t("condMaxPrice") },
@@ -819,6 +913,14 @@ export function ConditionalBulkPanel({
         return { categories: { mode: "remove", ids: (action.value as string[]) ?? [] } };
       case "clearCategories":
         return { categories: { mode: "set", ids: [] } };
+      case "setTagsReplace":
+        return { tags: { mode: "set", ids: (action.value as string[]) ?? [] } };
+      case "addTags":
+        return { tags: { mode: "add", ids: (action.value as string[]) ?? [] } };
+      case "removeTags":
+        return { tags: { mode: "remove", ids: (action.value as string[]) ?? [] } };
+      case "clearTags":
+        return { tags: { mode: "set", ids: [] } };
       case "setPrice":
         return { price: action.value as number };
       case "setCompareAtPrice":
@@ -839,11 +941,20 @@ export function ConditionalBulkPanel({
   };
 
   const isActionValid = (): boolean => {
-    if (action.type === "delete" || action.type === "removeBrand" || action.type === "clearCategories") return true;
+    if (
+      action.type === "delete" ||
+      action.type === "removeBrand" ||
+      action.type === "clearCategories" ||
+      action.type === "clearTags"
+    ) return true;
     if (action.type === "setStatus") return !!action.value;
     if (action.type === "setBrand") return !!action.value;
     if (action.type === "setCategoriesReplace") return Array.isArray(action.value);
     if (action.type === "addCategories" || action.type === "removeCategories") {
+      return Array.isArray(action.value) && (action.value as string[]).length > 0;
+    }
+    if (action.type === "setTagsReplace") return Array.isArray(action.value);
+    if (action.type === "addTags" || action.type === "removeTags") {
       return Array.isArray(action.value) && (action.value as string[]).length > 0;
     }
     if (action.type === "setPrice") return (action.value as number) > 0;
@@ -900,14 +1011,18 @@ export function ConditionalBulkPanel({
   const hasConditions = conditions.length > 0;
   const effectivePreviewCount = preview?.count ?? 0;
 
-  // Category writes rebuild search text per product (N+1 in-txn), so the server
-  // caps how many a single filter run may touch. Mirror that cap here so the
-  // user sees it before executing instead of hitting a server error.
+  // Category/tag writes rebuild search text per product (N+1 in-txn), so the
+  // server caps how many a single filter run may touch. Mirror that cap here
+  // so the user sees it before executing instead of hitting a server error.
   const isCategoryMutationAction =
     action.type === "setCategoriesReplace" ||
     action.type === "addCategories" ||
     action.type === "removeCategories" ||
-    action.type === "clearCategories";
+    action.type === "clearCategories" ||
+    action.type === "setTagsReplace" ||
+    action.type === "addTags" ||
+    action.type === "removeTags" ||
+    action.type === "clearTags";
   const exceedsBulkCategoryLimit =
     isCategoryMutationAction && effectivePreviewCount > BULK_CATEGORY_MUTATION_LIMIT;
 
@@ -953,6 +1068,7 @@ export function ConditionalBulkPanel({
             condition={condition}
             brands={brands}
             categories={categories}
+            tags={tags}
             onUpdate={(c) => updateCondition(i, c)}
             onRemove={() => removeCondition(i)}
           />
@@ -1028,7 +1144,10 @@ export function ConditionalBulkPanel({
                 ? true
                 : type === "setCategoriesReplace" ||
                   type === "addCategories" ||
-                  type === "removeCategories"
+                  type === "removeCategories" ||
+                  type === "setTagsReplace" ||
+                  type === "addTags" ||
+                  type === "removeTags"
                 ? []
                 : type === "setStock"
                 ? 0
@@ -1038,6 +1157,7 @@ export function ConditionalBulkPanel({
           onChangeValue={(v) => setAction((prev) => ({ ...prev, value: v }))}
           brands={brands}
           categories={categories}
+          tags={tags}
         />
       </div>
 

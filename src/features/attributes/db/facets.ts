@@ -43,7 +43,9 @@ export type Facet = {
 export type CategoryFacetsResult = {
   facets: Facet[];
   brandCounts: Record<string, number>;
+  tagCounts: Record<string, number>;
   onSaleCount: number;
+  bestsellerCount: number;
   isDigitalCounts: { true: number; false: number };
 };
 
@@ -223,25 +225,38 @@ export async function getCategoryFacets(params: {
   // narrows within it. Scoped to the category branch (empty branch = global,
   // which is what the `/products` and `/brands/[slug]` pages pass).
   const whereWithout = (
-    omit: Partial<Record<"brandId" | "onSale" | "isDigital", true>>,
+    omit: Partial<Record<"brandId" | "tagId" | "onSale" | "bestseller" | "isDigital", true>>,
   ) =>
     buildPublicProductWhere({
       ...params.base,
       ...(omit.brandId && { brandId: undefined }),
+      ...(omit.tagId && { tagId: undefined }),
       ...(omit.onSale && { onSale: null }),
+      ...(omit.bestseller && { bestseller: null }),
       ...(omit.isDigital && { isDigital: null }),
       categoryId: params.deptDescendantIds,
       attributeFilters: params.attributeFilters,
     });
 
-  const [groupedBrands, onSaleCount, groupedType] = await Promise.all([
+  const [groupedBrands, groupedTags, onSaleCount, bestsellerCount, groupedType] = await Promise.all([
     prisma.product.groupBy({
       by: ["brandId"],
       where: { AND: [whereWithout({ brandId: true }), { brandId: { not: null } }] },
       _count: { _all: true },
     }),
+    // Tags are a many-to-many join, not a scalar FK - group the join rows
+    // themselves (productId+tagId is the composite PK, so this counts
+    // distinct products per tag with no risk of double-counting).
+    prisma.productTag.groupBy({
+      by: ["tagId"],
+      where: { product: whereWithout({ tagId: true }) },
+      _count: { _all: true },
+    }),
     prisma.product.count({
       where: { AND: [whereWithout({ onSale: true }), { compareAtPrice: { not: null } }] },
+    }),
+    prisma.product.count({
+      where: { AND: [whereWithout({ bestseller: true }), { isBestseller: true }] },
     }),
     prisma.product.groupBy({
       by: ["isDigital"],
@@ -255,11 +270,16 @@ export async function getCategoryFacets(params: {
     if (g.brandId) brandCounts[g.brandId] = g._count._all;
   }
 
+  const tagCounts: Record<string, number> = {};
+  for (const g of groupedTags) {
+    tagCounts[g.tagId] = g._count._all;
+  }
+
   const isDigitalCounts = { true: 0, false: 0 };
   for (const g of groupedType) {
     if (g.isDigital) isDigitalCounts.true = g._count._all;
     else isDigitalCounts.false = g._count._all;
   }
 
-  return { facets, brandCounts, onSaleCount, isDigitalCounts };
+  return { facets, brandCounts, tagCounts, onSaleCount, bestsellerCount, isDigitalCounts };
 }

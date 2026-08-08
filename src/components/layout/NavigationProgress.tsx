@@ -95,6 +95,16 @@ export function NavigationProgress() {
       const target = e.target as HTMLElement | null;
       const anchor = target?.closest?.("a");
       if (!anchor) return;
+      // Card-wide links (product grid, etc.) wrap nested action buttons -
+      // add-to-cart, wishlist, popover triggers - that call their own
+      // preventDefault()/stopPropagation(). That runs in the bubble phase,
+      // too late to stop this capture-phase listener, which would otherwise
+      // start the bar for a click that never navigates. Real link
+      // navigation never originates on a nested interactive element (you
+      // can't validly nest a <button> inside an <a>), so use that to tell
+      // the two apart structurally instead of relying on phase ordering.
+      const interactive = target?.closest("button, [role='button'], input, select, textarea");
+      if (interactive && anchor.contains(interactive)) return;
       if (anchor.hasAttribute("download")) return;
       if (anchor.target && anchor.target !== "_self") return;
       const href = anchor.getAttribute("href");

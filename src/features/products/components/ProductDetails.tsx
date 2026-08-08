@@ -12,6 +12,7 @@ import { ProductImageCarousel } from "@/components/product/ProductImageCarousel"
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
 import { getCategoryName } from "@/features/categories/utils/translations";
+import { getTagName } from "@/features/tags/utils/translations";
 import { getLabel } from "@/features/attributes/utils/translations";
 import { getBrandName } from "@/features/brands/utils/translations";
 import {
@@ -92,6 +93,16 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
               {product.categories.map((c) => (
                 <Badge key={c.categoryId} variant="secondary">
                   {getCategoryName(c.category, locale)}
+                </Badge>
+              ))}
+            </div>
+          )}
+          {product.tags?.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <strong>{t("tagsLabel")}</strong>
+              {product.tags.map((pt) => (
+                <Badge key={pt.tagId} variant="secondary">
+                  {getTagName(pt.tag, locale)}
                 </Badge>
               ))}
             </div>
