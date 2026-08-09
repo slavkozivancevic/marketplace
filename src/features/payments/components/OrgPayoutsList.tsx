@@ -50,7 +50,13 @@ function PayoutTableHeader({ t }: { t: ReturnType<typeof useTranslations> }) {
   );
 }
 
-export function OrgPayoutsList({ filters }: { filters: OrgPayoutFilters }) {
+export function OrgPayoutsList({
+  filters,
+  scrollResetToken,
+}: {
+  filters: OrgPayoutFilters;
+  scrollResetToken?: number;
+}) {
   const t = useTranslations("payouts");
   const orgId = useActiveOrgId();
 
@@ -59,6 +65,7 @@ export function OrgPayoutsList({ filters }: { filters: OrgPayoutFilters }) {
       queryKey: ["payouts", "org", orgId, filters],
       queryFn: buildFetcher(filters),
       estimateSize: 56,
+      resetScrollKey: scrollResetToken,
     });
 
   if (query.status === "pending") {
@@ -101,6 +108,7 @@ export function OrgPayoutsList({ filters }: { filters: OrgPayoutFilters }) {
           "rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]",
           isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150",
         )}
+        ref={parentRef}
       >
         <PayoutTableHeader t={t} />
         {items.map((payout) => (

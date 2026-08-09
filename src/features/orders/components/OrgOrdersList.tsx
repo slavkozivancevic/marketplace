@@ -51,7 +51,13 @@ function OrgOrderTableHeader({ t }: { t: ReturnType<typeof useTranslations> }) {
   );
 }
 
-export function OrgOrdersList({ filters }: { filters?: OrgOrderFilters }) {
+export function OrgOrdersList({
+  filters,
+  scrollResetToken,
+}: {
+  filters?: OrgOrderFilters;
+  scrollResetToken?: number;
+}) {
   const t = useTranslations("orgOrders");
 
   const defaultFilters: OrgOrderFilters = {
@@ -68,6 +74,7 @@ export function OrgOrdersList({ filters }: { filters?: OrgOrderFilters }) {
       queryKey: ["orders", "org", orgId, f],
       queryFn: buildFetcher(f),
       estimateSize: 56,
+      resetScrollKey: scrollResetToken,
     });
 
   if (query.status === "pending") {
@@ -115,6 +122,7 @@ export function OrgOrdersList({ filters }: { filters?: OrgOrderFilters }) {
       <div
         role="table"
         className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
+        ref={parentRef}
       >
         <OrgOrderTableHeader t={t} />
         {items.map((order) => (

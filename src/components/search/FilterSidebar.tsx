@@ -343,6 +343,11 @@ function DesktopFilterSidebar(props: {
   onChange: (key: string, value: string[] | [number?, number?] | number | null) => void;
   onClear: () => void;
   sticky?: boolean;
+  /** Measured height (px) of the scroll container - caps the sticky sidebar
+   *  to exactly what's visible so its own overflow scrolls independently of
+   *  the product grid. Falls back to a rough viewport estimate until the
+   *  first measurement lands (avoids a flash of unbounded height). */
+  maxHeightPx?: number;
 }) {
   const t = useTranslations("search");
   const activeCount = Object.entries(props.values).filter(([, v]) => {
@@ -351,10 +356,13 @@ function DesktopFilterSidebar(props: {
   }).length;
 
   return (
-    <aside className={cn(
-      "hidden lg:flex flex-col w-56 shrink-0 border-r",
-      props.sticky && "sticky top-0 self-start max-h-[calc(100svh-8rem)]"
-    )}>
+    <aside
+      className={cn(
+        "hidden lg:flex flex-col w-56 shrink-0 border-r",
+        props.sticky && "sticky top-0 self-start max-h-[calc(100svh-8rem)]"
+      )}
+      style={props.sticky && props.maxHeightPx ? { maxHeight: props.maxHeightPx } : undefined}
+    >
       <div className="shrink-0 pr-6 pt-1 pb-2">
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold">{t("filters")}</p>
@@ -440,6 +448,7 @@ interface FilterSidebarProps {
   onChange: (key: string, value: string[] | [number?, number?] | number | null) => void;
   onClear: () => void;
   sticky?: boolean;
+  maxHeightPx?: number;
 }
 
 export function FilterSidebar({
@@ -448,6 +457,7 @@ export function FilterSidebar({
   onChange,
   onClear,
   sticky,
+  maxHeightPx,
 }: FilterSidebarProps) {
   if (groups.length === 0) return null;
 
@@ -458,6 +468,7 @@ export function FilterSidebar({
       onChange={onChange}
       onClear={onClear}
       sticky={sticky}
+      maxHeightPx={maxHeightPx}
     />
   );
 }

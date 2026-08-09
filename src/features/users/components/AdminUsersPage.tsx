@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
 import { SearchInput } from "@/components/search/SearchInput";
 import {
   FilterSidebar,
@@ -81,16 +82,24 @@ export function AdminUsersPage({ users }: { users: SerializedUser[] }) {
 
   const filterValues: FilterValues = { role: roleFilter };
 
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  const resetListScroll = () => listScrollRef.current?.scrollTo({ top: 0 });
+
   const handleFilterChange = (
     key: string,
     value: string[] | [number?, number?] | number | null,
   ) => {
+    resetListScroll();
     if (key === "role") setRoleFilter(value as string[]);
   };
 
-  const handleFilterClear = () => setRoleFilter([]);
+  const handleFilterClear = () => {
+    resetListScroll();
+    setRoleFilter([]);
+  };
 
   const handleFilterRemove = (key: string, value?: string) => {
+    resetListScroll();
     if (key === "role" && value) {
       setRoleFilter((prev) => prev.filter((r) => r !== value));
     }
@@ -124,13 +133,22 @@ export function AdminUsersPage({ users }: { users: SerializedUser[] }) {
             {filtered.length.toLocaleString()} {filtered.length !== 1 ? t("users.usersLabel") : t("users.userLabel")}
           </span>
         </div>
-        <ActiveFilters
-          groups={FILTER_GROUPS}
-          values={filterValues}
-          onRemove={handleFilterRemove}
-          onClearAll={handleFilterClear}
-        />
-        <div className="flex-1 min-h-0 overflow-y-auto pb-6">
+        <div
+          className={cn(
+            "grid transition-[grid-template-rows] duration-200 ease-out",
+            activeFilterCount > 0 ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          )}
+        >
+          <div className="overflow-hidden">
+            <ActiveFilters
+              groups={FILTER_GROUPS}
+              values={filterValues}
+              onRemove={handleFilterRemove}
+              onClearAll={handleFilterClear}
+            />
+          </div>
+        </div>
+        <div ref={listScrollRef} className="flex-1 min-h-0 overflow-y-auto pb-6">
           {filtered.length === 0 ? (
             <Alert>
               <AlertTitle>{t("admin.noUsers")}</AlertTitle>

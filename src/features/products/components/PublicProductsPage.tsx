@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
@@ -40,6 +40,7 @@ import { getCategorySlug } from "@/features/categories/utils/translations";
 import { useRouter } from "@/i18n/navigation";
 import { useCurrencyStore, getCurrentRate } from "@/store/currency";
 import { getCurrencyConfig } from "@/lib/currency";
+import { cn } from "@/lib/utils";
 
 /** Sheet close animation duration (see `data-closed:animate-out` +
  *  `transition duration-200` in `components/ui/sheet`). The dept-change
@@ -450,6 +451,7 @@ export function PublicProductsPage({
     key: string,
     value: string[] | [number?, number?] | number | null,
   ) => {
+    resetGridScroll();
     if (key.startsWith("attr:")) {
       const fk = key.slice(5);
       const facet = facets.find((f) => f.key === fk);
@@ -491,6 +493,7 @@ export function PublicProductsPage({
   };
 
   const handleFilterClear = () => {
+    resetGridScroll();
     setParams({
       minPrice: null,
       maxPrice: null,
@@ -505,6 +508,7 @@ export function PublicProductsPage({
   };
 
   const handleFilterRemove = (key: string, value?: string) => {
+    resetGridScroll();
     if (key.startsWith("attr:")) {
       const fk = key.slice(5);
       const facet = facets.find((f) => f.key === fk);
@@ -549,6 +553,33 @@ export function PublicProductsPage({
 
   const outerScrollRef = useRef<HTMLDivElement>(null);
 
+  // Sidebar's sticky max-height must match the scroll container's ACTUAL
+  // available height, not a guessed viewport-minus-constant - the header
+  // stack above it (breadcrumbs, search bar, active-filter pills) varies by
+  // page and grows/shrinks at runtime, so any fixed offset drifts out of
+  // sync and leaves part of the sidebar unreachable until the (unrelated)
+  // product grid is scrolled to its own bottom. Measuring the real box
+  // keeps it correct through every resize/content change automatically.
+  const [sidebarMaxHeight, setSidebarMaxHeight] = useState<number>();
+  useEffect(() => {
+    const el = outerScrollRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => setSidebarMaxHeight(el.clientHeight));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Filter interactions reset the shared grid/sidebar scroll to the top -
+  // otherwise the viewport is left at whatever scroll position it happened
+  // to be at, which reads as broken once the result set underneath changes.
+  const resetGridScroll = () => {
+    outerScrollRef.current?.scrollTo({ top: 0 });
+  };
+
+  const hasActiveFilters = Object.values(filterValues).some((v) =>
+    Array.isArray(v) ? v.some((item) => item != null) : v != null,
+  );
+
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-4">
 
@@ -570,12 +601,23 @@ export function PublicProductsPage({
           onFilterChange={handleFilterChange}
           onFilterClear={handleFilterClear}
         />
-        <ActiveFilters
-          groups={filterGroups}
-          values={filterValues}
-          onRemove={handleFilterRemove}
-          onClearAll={handleFilterClear}
-        />
+        {/* grid-rows 0fr->1fr animates the pills row in/out smoothly instead
+            of the grid below snapping down the instant a chip appears. */}
+        <div
+          className={cn(
+            "grid transition-[grid-template-rows] duration-200 ease-out",
+            hasActiveFilters ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          )}
+        >
+          <div className="overflow-hidden">
+            <ActiveFilters
+              groups={filterGroups}
+              values={filterValues}
+              onRemove={handleFilterRemove}
+              onClearAll={handleFilterClear}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Outer scroll container: sidebar + grid + footer */}
@@ -587,6 +629,7 @@ export function PublicProductsPage({
             onChange={handleFilterChange}
             onClear={handleFilterClear}
             sticky
+            maxHeightPx={sidebarMaxHeight}
           />
           <div className="flex-1 min-w-0">
             <PublicProductsGrid filters={filters} scrollContainerRef={outerScrollRef} />

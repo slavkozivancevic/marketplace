@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
+import { cn } from "@/lib/utils";
 import { useQueryStates } from "nuqs";
 import { orgOrderSearchParams, type OrgOrderFilters } from "@/lib/query/searchParams";
 import { SearchToolbar } from "@/components/search/SearchToolbar";
@@ -79,17 +80,31 @@ export function OrgOrdersPage() {
 
   const filterValues: FilterValues = { status: params.status };
 
+  // Filter interactions snap the (list-owned) scroll back to the top - see
+  // resetScrollKey on useInfiniteVirtualList.
+  const [scrollResetToken, setScrollResetToken] = useState(0);
+  const resetListScroll = () => setScrollResetToken((n) => n + 1);
+
   const handleFilterChange = (key: string, value: string[] | [number?, number?] | number | null) => {
+    resetListScroll();
     if (key === "status") setParams({ status: value as string[] });
   };
 
-  const handleFilterClear = () => setParams({ status: [] });
+  const handleFilterClear = () => {
+    resetListScroll();
+    setParams({ status: [] });
+  };
 
   const handleFilterRemove = (key: string, value?: string) => {
+    resetListScroll();
     if (key === "status" && value) {
       setParams({ status: params.status.filter((s) => s !== value) });
     }
   };
+
+  const hasActiveFilters = Object.values(filterValues).some((v) =>
+    Array.isArray(v) ? v.some((item) => item != null) : v != null,
+  );
 
   return (
     <div className="flex gap-6 flex-1 min-h-0">
@@ -114,13 +129,22 @@ export function OrgOrdersPage() {
           onFilterChange={handleFilterChange}
           onFilterClear={handleFilterClear}
         />
-        <ActiveFilters
-          groups={FILTER_GROUPS}
-          values={filterValues}
-          onRemove={handleFilterRemove}
-          onClearAll={handleFilterClear}
-        />
-        <OrgOrdersList filters={filters} />
+        <div
+          className={cn(
+            "grid transition-[grid-template-rows] duration-200 ease-out",
+            hasActiveFilters ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          )}
+        >
+          <div className="overflow-hidden">
+            <ActiveFilters
+              groups={FILTER_GROUPS}
+              values={filterValues}
+              onRemove={handleFilterRemove}
+              onClearAll={handleFilterClear}
+            />
+          </div>
+        </div>
+        <OrgOrdersList filters={filters} scrollResetToken={scrollResetToken} />
       </div>
     </div>
   );

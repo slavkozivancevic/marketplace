@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
 import { SearchInput } from "@/components/search/SearchInput";
 import { FilterSidebar, type FilterGroup, type FilterValues } from "@/components/search/FilterSidebar";
 import { ActiveFilters } from "@/components/search/ActiveFilters";
@@ -91,13 +92,21 @@ export function AdminOrganizationsPage({
 
   const filterValues: FilterValues = { verified: verifiedFilter };
 
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  const resetListScroll = () => listScrollRef.current?.scrollTo({ top: 0 });
+
   const handleFilterChange = (key: string, value: string[] | [number?, number?] | number | null) => {
+    resetListScroll();
     if (key === "verified") setVerifiedFilter(value as string[]);
   };
 
-  const handleFilterClear = () => setVerifiedFilter([]);
+  const handleFilterClear = () => {
+    resetListScroll();
+    setVerifiedFilter([]);
+  };
 
   const handleFilterRemove = (key: string, value?: string) => {
+    resetListScroll();
     if (key === "verified" && value) {
       setVerifiedFilter((prev) => prev.filter((v) => v !== value));
     }
@@ -131,13 +140,22 @@ export function AdminOrganizationsPage({
             {filtered.length.toLocaleString()} {filtered.length !== 1 ? t("admin.orgsLabel") : t("admin.orgLabel")}
           </span>
         </div>
-        <ActiveFilters
-          groups={FILTER_GROUPS}
-          values={filterValues}
-          onRemove={handleFilterRemove}
-          onClearAll={handleFilterClear}
-        />
-        <div className="flex-1 min-h-0 overflow-y-auto pb-6">
+        <div
+          className={cn(
+            "grid transition-[grid-template-rows] duration-200 ease-out",
+            activeFilterCount > 0 ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          )}
+        >
+          <div className="overflow-hidden">
+            <ActiveFilters
+              groups={FILTER_GROUPS}
+              values={filterValues}
+              onRemove={handleFilterRemove}
+              onClearAll={handleFilterClear}
+            />
+          </div>
+        </div>
+        <div ref={listScrollRef} className="flex-1 min-h-0 overflow-y-auto pb-6">
           {filtered.length === 0 ? (
             <Alert>
               <AlertTitle>{t("admin.noOrgs")}</AlertTitle>

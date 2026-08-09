@@ -26,6 +26,10 @@ type Options<TItem> = {
   staleTime?: number;
   refetchOnMount?: boolean | "always";
   refetchOnWindowFocus?: boolean | "always";
+  /** Bump this (e.g. an incrementing counter) to snap the scroll container
+   *  back to the top - callers use it on filter changes so the list doesn't
+   *  stay scrolled to a position that no longer matches the new results. */
+  resetScrollKey?: number;
 };
 
 /**
@@ -46,8 +50,14 @@ export function useInfiniteVirtualList<TItem>({
   staleTime,
   refetchOnMount,
   refetchOnWindowFocus,
+  resetScrollKey,
 }: Options<TItem>) {
   const parentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (resetScrollKey === undefined) return;
+    parentRef.current?.scrollTo({ top: 0 });
+  }, [resetScrollKey]);
 
   const query = useInfiniteQuery<
     InfinitePage<TItem>,

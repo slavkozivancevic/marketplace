@@ -41,8 +41,10 @@ function buildFetcher(filters: AdminProductFilters) {
 
 export function AdminProductsList({
   filters,
+  scrollResetToken,
 }: {
   filters?: AdminProductFilters;
+  scrollResetToken?: number;
 }) {
   const t = useTranslations("products");
   const defaultFilters: AdminProductFilters = {
@@ -68,6 +70,7 @@ export function AdminProductsList({
       // revalidatePath. Refetch on every mount so status changes show up
       // immediately on soft-nav back.
       refetchOnMount: "always",
+      resetScrollKey: scrollResetToken,
     });
 
   // Lock the whole table while any row has an action (edit nav / duplicate /
@@ -128,6 +131,7 @@ export function AdminProductsList({
       <div
         role="table"
         className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", tableLocked && "opacity-60 pointer-events-none transition-opacity duration-150")}
+        ref={parentRef}
       >
         <ProductTableHeader showActions showCreatedBy />
         {items.map((product) => (

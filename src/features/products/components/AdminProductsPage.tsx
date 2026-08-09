@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
+import { cn } from "@/lib/utils";
 import { useQueryStates } from "nuqs";
 import { useCurrencyStore, getCurrentRate } from "@/store/currency";
 import { getCurrencyConfig } from "@/lib/currency";
@@ -219,10 +220,16 @@ export function AdminProductsPage({
   // leak into the next route, and the URL-derived read above updates at once.
   const NOW = { throttleMs: 0 } as const;
 
+  // Filter interactions snap the (list-owned) scroll back to the top - see
+  // resetScrollKey on useInfiniteVirtualList.
+  const [scrollResetToken, setScrollResetToken] = useState(0);
+  const resetListScroll = () => setScrollResetToken((n) => n + 1);
+
   const handleFilterChange = (
     key: string,
     value: string[] | [number?, number?] | number | null,
   ) => {
+    resetListScroll();
     if (key === "status") {
       setParams({ status: value as string[] }, NOW);
     } else if (key === "price") {
@@ -238,10 +245,12 @@ export function AdminProductsPage({
   };
 
   const handleFilterClear = () => {
+    resetListScroll();
     setParams({ status: [], minPrice: null, maxPrice: null, brandId: [], createdBy: [] }, NOW);
   };
 
   const handleFilterRemove = (key: string, value?: string) => {
+    resetListScroll();
     if (key === "status" && value) {
       setParams({ status: params.status.filter((s) => s !== value) }, NOW);
     } else if (key === "price") {
@@ -252,6 +261,10 @@ export function AdminProductsPage({
       setParams({ createdBy: [] }, NOW);
     }
   };
+
+  const hasActiveFilters = Object.values(filterValues).some((v) =>
+    Array.isArray(v) ? v.some((item) => item != null) : v != null,
+  );
 
   return (
     <div className="flex gap-6 flex-1 min-h-0">
@@ -278,13 +291,22 @@ export function AdminProductsPage({
           onFilterChange={handleFilterChange}
           onFilterClear={handleFilterClear}
         />
-        <ActiveFilters
-          groups={filterGroups}
-          values={filterValues}
-          onRemove={handleFilterRemove}
-          onClearAll={handleFilterClear}
-        />
-        <AdminProductsList filters={filters} />
+        <div
+          className={cn(
+            "grid transition-[grid-template-rows] duration-200 ease-out",
+            hasActiveFilters ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          )}
+        >
+          <div className="overflow-hidden">
+            <ActiveFilters
+              groups={filterGroups}
+              values={filterValues}
+              onRemove={handleFilterRemove}
+              onClearAll={handleFilterClear}
+            />
+          </div>
+        </div>
+        <AdminProductsList filters={filters} scrollResetToken={scrollResetToken} />
       </div>
     </div>
   );
