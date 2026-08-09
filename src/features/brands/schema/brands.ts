@@ -22,7 +22,7 @@ const translationsSchema = z
 export const logoBackdropSchema = z.enum(["AUTO", "LIGHT", "DARK", "NEUTRAL"]);
 
 export const createBrandSchema = z.object({
-  name: z.string().min(1).max(100),
+  name: z.string().trim().min(1).max(100),
   slug: z.string().optional(),
   logoUrl: z.url().optional().or(z.literal("")),
   // Optional second asset shown on dark surfaces (theme-following render).

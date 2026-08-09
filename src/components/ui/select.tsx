@@ -67,7 +67,16 @@ const SelectContent = React.forwardRef<
     {
       className,
       children,
-      position = "item-aligned",
+      // "item-aligned" (Radix's default) opens the menu overlapping the
+      // trigger so the selected item's text lines up with the trigger's -
+      // matching that pixel-for-pixel requires the item and trigger to share
+      // identical padding, which our shared styles don't guarantee. Any
+      // mismatch shows up as the value visibly jumping/overlapping on open,
+      // and the menu only enforces a *minimum* width so it can flare wider
+      // than the trigger once open. "popper" instead opens below/above like
+      // a normal dropdown - no overlap, and it's what every existing
+      // explicit `position="popper"` usage in this app already relies on.
+      position = "popper",
       align = "center",
       ...props
     },
@@ -79,12 +88,19 @@ const SelectContent = React.forwardRef<
           ref={ref}
           data-slot="select-content"
           data-align-trigger={position === "item-aligned"}
+          data-position={position}
           className={cn(
+            // `min-w-36` is only a fallback floor for `item-aligned` (which
+            // has no trigger-width var to bind to). In `popper` mode - the
+            // default - it's overridden below by the trigger's own width, so
+            // a narrow field (e.g. a `w-24` currency selector) gets a
+            // matching narrow menu instead of always ballooning to 144px.
             "relative z-50 max-h-(--radix-select-content-available-height) min-w-36 origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[align-trigger=true]:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
-            position === "popper" &&
-              "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+            "data-[position=popper]:min-w-(--radix-select-trigger-width)",
             className,
           )}
+          // Flush against the trigger, not floating a few pixels off it.
+          sideOffset={0}
           position={position}
           align={align}
           {...props}

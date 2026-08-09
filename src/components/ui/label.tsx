@@ -7,8 +7,16 @@ import { cn } from "@/lib/utils"
 
 function Label({
   className,
+  children,
+  required,
   ...props
-}: React.ComponentProps<typeof LabelPrimitive.Root>) {
+}: React.ComponentProps<typeof LabelPrimitive.Root> & {
+  /** Appends a small "*" marker - the app-wide convention for flagging a
+   *  field the user must fill in. Leave unset for optional fields; nothing
+   *  is shown either way, so there's no separate "optional" state to keep
+   *  in sync with the schema. */
+  required?: boolean
+}) {
   return (
     <LabelPrimitive.Root
       data-slot="label"
@@ -17,7 +25,14 @@ function Label({
         className
       )}
       {...props}
-    />
+    >
+      {children}
+      {required && (
+        <span className="text-destructive" aria-hidden="true">
+          *
+        </span>
+      )}
+    </LabelPrimitive.Root>
   )
 }
 

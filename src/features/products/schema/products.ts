@@ -50,7 +50,7 @@ export const productVariantOptionSchema = z.object({
 export const productVariantSchema = z
   .object({
     sku: z.string().min(1),
-    price: z.coerce.number().nonnegative(),
+    price: z.coerce.number().positive(),
     compareAtPrice: z.preprocess(
       (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
       z.number().nonnegative().nullable(),
@@ -98,13 +98,13 @@ function variantPayloadSignature(
 
 export const createProductSchema = z
   .object({
-    title: z.string().min(1),
+    title: z.string().trim().min(1),
     slug: z.string().optional(),
-    description: z.string().min(1),
+    description: z.string().trim().min(1),
     shortDescription: z.string().optional(),
 
     // Pricing
-    price: z.coerce.number().nonnegative(),
+    price: z.coerce.number().positive(),
     compareAtPrice: z.preprocess(
       (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
       z.number().nonnegative().nullable(),

@@ -12,6 +12,7 @@ import { NumberStepper } from "@/components/ui/number-stepper";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ChangedHint } from "@/components/forms/ChangedHint";
+import { Label } from "@/components/ui/label";
 import { PriceInput } from "./PriceInput";
 import { useCurrencyStore } from "@/store/currency";
 import { cn } from "@/lib/utils";
@@ -95,15 +96,20 @@ export function VariantsEditor({
     return attributeLibrary.filter((a) => ids.has(a.id) && a.isVariantDefining);
   }, [categoryIds, categoryAttributeMap, parentOf, attributeLibrary]);
 
-  const writeVariants = (next: VariantRow[]) =>
-    // shouldValidate so an invalid variant field (e.g. negative stock) surfaces
-    // its error as soon as it's edited, instead of only on submit.
-    form.setValue("variants", next, { shouldDirty: true, shouldValidate: true });
+  // `validate` defaults to false: bulk operations (generate, add, remove) can
+  // populate a row with a not-yet-valid inherited value (e.g. price 0 before
+  // Pricing is filled in) and shouldn't flag it before the user has actually
+  // touched that row - same "no error until submit or direct edit" rule every
+  // other required field in this form follows. Direct field edits (`setField`)
+  // opt back in so an invalid value surfaces its error as soon as it's edited,
+  // instead of only on submit.
+  const writeVariants = (next: VariantRow[], validate = false) =>
+    form.setValue("variants", next, { shouldDirty: true, shouldValidate: validate });
 
   const setField = (i: number, patch: Partial<VariantRow>) => {
     const cur = [...(form.getValues("variants") ?? [])];
     cur[i] = { ...cur[i], ...patch };
-    writeVariants(cur);
+    writeVariants(cur, true);
   };
 
   const toggleMedia = (i: number, key: string) => {
@@ -136,7 +142,11 @@ export function VariantsEditor({
   const removeVariant = (i: number) => {
     const cur = [...(form.getValues("variants") ?? [])];
     cur.splice(i, 1);
-    writeVariants(cur);
+    // Unlike generate/addVariant, removing a row never introduces new
+    // not-yet-valid data - it can only drop the row an existing error belonged
+    // to. Validate so that error (and the tab's red icon, once no row is left
+    // invalid) actually clears instead of lingering for an index that's gone.
+    writeVariants(cur, true);
   };
 
   // ---- Generate-from-options (cartesian) ----
@@ -155,13 +165,6 @@ export function VariantsEditor({
 
   const [picked, setPicked] = useState<Record<string, string[]>>(seedPicked);
 
-  // Snapshot of the option selection that the current variants were last
-  // generated from. When `picked` drifts from this snapshot (user checks/
-  // unchecks an option, or the applicable axes change), the generated variants
-  // are stale and we prompt the user to regenerate. Seeded to match `picked`
-  // so an unedited product shows no "needs regenerate" signal.
-  const [syncedPicked, setSyncedPicked] = useState<Record<string, string[]>>(seedPicked);
-
   const toggleOption = (attributeId: string, optionId: string) => {
     setPicked((prev) => {
       const cur = prev[attributeId] ?? [];
@@ -175,38 +178,55 @@ export function VariantsEditor({
   const sigOf = (opts: { attributeId: string; optionId: string }[]) =>
     [...opts].map((o) => `${o.attributeId}:${o.optionId}`).sort().join("|");
 
-  // Stable signature of a per-axis selection, scoped to the currently
-  // applicable axes so a category change (which adds/removes axes) also counts
-  // as drift. Used to detect when the generated variants are out of sync.
-  const pickedSignature = (sel: Record<string, string[]>) =>
-    axes
-      .map((a) => `${a.id}:${[...(sel[a.id] ?? [])].sort().join(",")}`)
-      .sort()
-      .join("|");
+  // Cartesian product across the selected options of each active (checked)
+  // axis. Shared by the staleness check below and by `generate()` itself, so
+  // "what regenerating would produce" can never drift from "what we compare
+  // against" the way two independently-updated snapshots can.
+  const activeAxes = axes
+    .map((a) => ({ a, opts: picked[a.id] ?? [] }))
+    .filter((x) => x.opts.length > 0);
+  const cartesianCombos = (axesToCombine: typeof activeAxes) => {
+    let combos: { attributeId: string; optionId: string }[][] = [[]];
+    for (const { a, opts } of axesToCombine) {
+      combos = combos.flatMap((combo) =>
+        opts.map((optionId) => [...combo, { attributeId: a.id, optionId }]),
+      );
+    }
+    return combos;
+  };
 
-  const optionsChanged = useMemo(
-    () => pickedSignature(picked) !== pickedSignature(syncedPicked),
+  // Staleness is a direct comparison of ground truth - the set of combos the
+  // checked pills currently imply vs. the set actually present in `variants`
+  // - rather than a separately-tracked "last synced selection" snapshot. A
+  // snapshot only updates where `generate()` explicitly touches it, so it
+  // goes stale itself the moment variants are added/removed by hand (edit a
+  // row, delete one, delete all) without ever re-checking a pill; comparing
+  // directly against `variants` stays correct through any of that. Manual
+  // (axis-less) variants are ignored on the "present" side - they aren't part
+  // of the checkbox bookkeeping at all.
+  const needsRegenerate = useMemo(() => {
+    // No axis has a checked option: `cartesianCombos([])` returns `[[]]` (the
+    // empty combo is the identity element of the product, not "zero combos"),
+    // which would otherwise register as one bogus "expected" signature and
+    // flag staleness before the user has picked anything.
+    if (activeAxes.length === 0) return false;
+    const expected = new Set(cartesianCombos(activeAxes).map(sigOf));
+    const present = new Set(
+      variants.filter((v) => (v.options ?? []).length > 0).map((v) => sigOf(v.options ?? [])),
+    );
+    if (expected.size !== present.size) return true;
+    for (const sig of expected) if (!present.has(sig)) return true;
+    return false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [picked, syncedPicked, axes],
-  );
+  }, [picked, axes, variants]);
 
   const generate = () => {
-    const activeAxes = axes
-      .map((a) => ({ a, opts: picked[a.id] ?? [] }))
-      .filter((x) => x.opts.length > 0);
     if (activeAxes.length === 0) {
       toast.error(t("addOptionFirst"));
       return;
     }
 
-    // Cartesian product across the selected options of each active axis.
-    let combos: { attributeId: string; optionId: string }[][] = [[]];
-    for (const { a, opts } of activeAxes) {
-      combos = combos.flatMap((combo) =>
-        opts.map((optionId) => [...combo, { attributeId: a.id, optionId }]),
-      );
-    }
-
+    const combos = cartesianCombos(activeAxes);
     const prev = form.getValues("variants") ?? [];
     const prevBySig = new Map(prev.map((v) => [sigOf(v.options ?? []), v]));
     const usedSkus = new Set<string>();
@@ -243,7 +263,6 @@ export function VariantsEditor({
       };
     });
     writeVariants(next);
-    setSyncedPicked(picked);
     toast.success(t("generated", { count: next.length }));
   };
 
@@ -260,7 +279,7 @@ export function VariantsEditor({
 
   return (
     <div className="space-y-4">
-      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b bg-background pt-4 pb-3">
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-lg border p-4 bg-background dark:bg-input/30">
         <div>
           <h3 className="text-base font-semibold">{t("variants")}</h3>
           <p className="text-sm text-muted-foreground">{t("variantsDesc")}</p>
@@ -311,12 +330,12 @@ export function VariantsEditor({
           <Button
             type="button"
             size="sm"
-            variant={optionsChanged ? "default" : "outline"}
+            variant={needsRegenerate ? "default" : "outline"}
             onClick={generate}
           >
             <RefreshCw className="w-3.5 h-3.5 mr-1" />
             {t("generateVariants")}
-            {optionsChanged && ` ${t("required")}`}
+            {needsRegenerate && ` ${t("needsRegenerate")}`}
           </Button>
         </div>
       )}
@@ -324,7 +343,7 @@ export function VariantsEditor({
       {/* Signals that the option selection drifted from what the current
           variants were generated from; the variant list is stale until the
           user regenerates. */}
-      {optionsChanged && variants.length > 0 && (
+      {needsRegenerate && (
         <Alert className="border-orange-200 bg-orange-50 dark:border-orange-900/50 dark:bg-orange-950/30">
           <RefreshCw className="h-4 w-4 text-orange-600 dark:text-orange-400" />
           <AlertTitle className="text-orange-800 dark:text-orange-300">
@@ -369,7 +388,7 @@ export function VariantsEditor({
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1">
-                <label className="text-xs font-medium">{t("sku")}</label>
+                <Label className="text-xs font-medium" required>{t("sku")}</Label>
                 <Input
                   placeholder={t("skuPlaceholder")}
                   value={v.sku}
@@ -383,7 +402,7 @@ export function VariantsEditor({
                 )}
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium">{t("price")}</label>
+                <Label className="text-xs font-medium" required>{t("price")}</Label>
                 <PriceInput
                   value={v.price}
                   onChange={(usd) => setField(i, { price: usd })}
@@ -401,7 +420,7 @@ export function VariantsEditor({
                 )}
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium">{t("stock")}</label>
+                <Label className="text-xs font-medium">{t("stock")}</Label>
                 <NumberStepper
                   min={0}
                   value={v.stock}

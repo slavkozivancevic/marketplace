@@ -1150,7 +1150,7 @@
     "addVariant": "Add Variant",
     "variantsNoAxes": "This category has no variant-defining attributes, so variants won't have options.",
     "generateVariants": "Generate from Options",
-    "required": "(required)",
+    "needsRegenerate": "(needs regenerating)",
     "addManually": "Add Manually",
     "optionsChanged": "Options changed",
     "regenerateHint": "Regenerate variants to sync all combinations with current options.",
@@ -1427,7 +1427,8 @@
     "leaveTitle": "Leave without saving?",
     "leaveDescription": "You have unsaved changes. If you leave this page they will be lost.",
     "stay": "Stay",
-    "leave": "Leave"
+    "leave": "Leave",
+    "requiredHint": "Fields marked with * are required."
   },
   "common": {
     "validationFailed": "Please fix the highlighted fields before submitting.",

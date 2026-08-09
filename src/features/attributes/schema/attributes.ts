@@ -31,7 +31,7 @@ const optionSchema = z.object({
   id: z.string().optional(),
   // Machine value; auto-derived from the label when left blank.
   value: z.string().max(80).optional(),
-  label: z.string().min(1).max(100),
+  label: z.string().trim().min(1).max(100),
   translations: labelTranslationsSchema,
   order: z.number().int().min(0),
 });
@@ -45,7 +45,7 @@ export const attributeSchema = z
     type: z.enum(ATTRIBUTE_TYPES),
     // Unit suffix shown next to RANGE values (e.g. "inch", "GB").
     unit: z.string().max(20).optional(),
-    label: z.string().min(1).max(100),
+    label: z.string().trim().min(1).max(100),
     translations: labelTranslationsSchema,
     order: z.number().int().min(0),
     options: z.array(optionSchema),

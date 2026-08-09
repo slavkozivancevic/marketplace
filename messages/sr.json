@@ -1150,7 +1150,7 @@
     "addVariant": "Dodaj varijantu",
     "variantsNoAxes": "Ova kategorija nema atribute koji definišu varijante, pa varijante neće imati opcije.",
     "generateVariants": "Generiši iz opcija",
-    "required": "(obavezno)",
+    "needsRegenerate": "(potrebno regenerisati)",
     "addManually": "Dodaj ručno",
     "optionsChanged": "Opcije su promenjene",
     "regenerateHint": "Regenerišite varijante da sinhronizujete sve kombinacije sa trenutnim opcijama.",
@@ -1427,7 +1427,8 @@
     "leaveTitle": "Napustiti bez čuvanja?",
     "leaveDescription": "Imate nesačuvane izmene. Ako napustite ovu stranicu, biće izgubljene.",
     "stay": "Ostani",
-    "leave": "Napusti"
+    "leave": "Napusti",
+    "requiredHint": "Polja označena sa * su obavezna."
   },
   "common": {
     "validationFailed": "Ispravite označena polja pre slanja.",

@@ -9,6 +9,7 @@ import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
 import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
 import { FormSaveBar } from "@/components/forms/FormSaveBar";
+import { RequiredFieldsNote } from "@/components/forms/RequiredFieldsNote";
 import { FieldChangedHint } from "@/components/forms/FieldChangedHint";
 import {
   Form,
@@ -81,12 +82,13 @@ export function OrganizationSettingsForm({
   return (
     <Form {...form}>
       <form noValidate onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-4">
+        <RequiredFieldsNote />
         <FormField
           control={form.control}
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t("orgName")}</FormLabel>
+              <FormLabel required>{t("orgName")}</FormLabel>
               <FormControl>
                 <Input
                   placeholder={t("orgNamePlaceholder")}

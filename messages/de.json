@@ -1150,7 +1150,7 @@
     "addVariant": "Variante hinzufügen",
     "variantsNoAxes": "Diese Kategorie hat keine variantenbildenden Attribute, daher haben Varianten keine Optionen.",
     "generateVariants": "Aus Optionen generieren",
-    "required": "(erforderlich)",
+    "needsRegenerate": "(muss neu generiert werden)",
     "addManually": "Manuell hinzufügen",
     "optionsChanged": "Optionen geändert",
     "regenerateHint": "Generieren Sie Varianten neu, um alle Kombinationen mit den aktuellen Optionen zu synchronisieren.",
@@ -1427,7 +1427,8 @@
     "leaveTitle": "Ohne Speichern verlassen?",
     "leaveDescription": "Sie haben ungespeicherte Änderungen. Wenn Sie diese Seite verlassen, gehen sie verloren.",
     "stay": "Bleiben",
-    "leave": "Verlassen"
+    "leave": "Verlassen",
+    "requiredHint": "Mit * gekennzeichnete Felder sind erforderlich."
   },
   "common": {
     "validationFailed": "Bitte korrigieren Sie die markierten Felder vor dem Absenden.",

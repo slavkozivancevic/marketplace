@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
+import { RequiredFieldsNote } from "@/components/forms/RequiredFieldsNote";
 import { useCartStore } from "../store/cartStore";
 import { COUPON_STORAGE_KEY } from "../utils/couponStorage";
 import { localizedVariantLabel, pickLocalized } from "../utils/variantOptions";
@@ -31,13 +32,13 @@ import { Link } from "@/i18n/navigation";
 type PaymentMethod = "card" | "cod";
 
 const shippingSchema = z.object({
-  name: z.string().min(2),
-  line1: z.string().min(3),
+  name: z.string().trim().min(2),
+  line1: z.string().trim().min(3),
   line2: z.string().optional(),
-  city: z.string().min(1),
+  city: z.string().trim().min(1),
   state: z.string().optional(),
-  postalCode: z.string().min(1),
-  country: z.string().min(2),
+  postalCode: z.string().trim().min(1),
+  country: z.string().trim().min(2),
 });
 
 type ShippingForm = z.infer<typeof shippingSchema>;
@@ -490,9 +491,10 @@ export function CheckoutPage() {
           {method === "cod" && (
             <form onSubmit={handleSubmit(handleCodSubmit, onInvalid)} className="space-y-4">
               <p className="text-sm font-semibold">{t("shippingDetails")}</p>
+              <RequiredFieldsNote />
 
               <div className="space-y-1">
-                <Label htmlFor="name">{t("fullName")}</Label>
+                <Label htmlFor="name" required>{t("fullName")}</Label>
                 <Input id="name" {...register("name")} aria-invalid={!!errors.name} />
                 {errors.name && (
                   <p className="text-xs text-destructive">{errors.name.message}</p>
@@ -500,7 +502,7 @@ export function CheckoutPage() {
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="line1">{t("addressLine1")}</Label>
+                <Label htmlFor="line1" required>{t("addressLine1")}</Label>
                 <Input id="line1" {...register("line1")} aria-invalid={!!errors.line1} />
                 {errors.line1 && (
                   <p className="text-xs text-destructive">{errors.line1.message}</p>
@@ -514,14 +516,14 @@ export function CheckoutPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="city">{t("city")}</Label>
+                  <Label htmlFor="city" required>{t("city")}</Label>
                   <Input id="city" {...register("city")} aria-invalid={!!errors.city} />
                   {errors.city && (
                     <p className="text-xs text-destructive">{errors.city.message}</p>
                   )}
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="postalCode">{t("postalCode")}</Label>
+                  <Label htmlFor="postalCode" required>{t("postalCode")}</Label>
                   <Input id="postalCode" {...register("postalCode")} aria-invalid={!!errors.postalCode} />
                   {errors.postalCode && (
                     <p className="text-xs text-destructive">{errors.postalCode.message}</p>
@@ -535,7 +537,7 @@ export function CheckoutPage() {
                   <Input id="state" {...register("state")} />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="country">{t("country")}</Label>
+                  <Label htmlFor="country" required>{t("country")}</Label>
                   <Input id="country" {...register("country")} aria-invalid={!!errors.country} />
                   {errors.country && (
                     <p className="text-xs text-destructive">{errors.country.message}</p>

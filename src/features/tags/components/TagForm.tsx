@@ -10,6 +10,7 @@ import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
 import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
 import { FormSaveBar } from "@/components/forms/FormSaveBar";
+import { RequiredFieldsNote } from "@/components/forms/RequiredFieldsNote";
 import { FieldChangedHint, ChangedHintScope } from "@/components/forms/FieldChangedHint";
 import {
   Form,
@@ -251,6 +252,7 @@ function TagFormInner(props: TagFormProps & { onDiscard: () => void }) {
     <Form {...form}>
       <ChangedHintScope enabled={props.mode === "edit"}>
       <form noValidate onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6 max-w-2xl">
+        <RequiredFieldsNote />
         {/* ── Default locale (canonical) ── */}
         <div className="rounded-lg border border-border/60 p-4 space-y-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -262,7 +264,7 @@ function TagFormInner(props: TagFormProps & { onDiscard: () => void }) {
             name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("tagName")}</FormLabel>
+                <FormLabel required>{t("tagName")}</FormLabel>
                 <FormControl>
                   <Input placeholder={withEgPrefix(locale, TAG_EXAMPLES.name[DEFAULT_LOCALE])} {...field} />
                 </FormControl>

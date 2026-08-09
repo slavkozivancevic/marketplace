@@ -11,6 +11,7 @@ import { useInvalidToast } from "@/lib/forms/useInvalidToast";
 import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
 import { useBoolFormat } from "@/lib/forms/changedFormatters";
 import { FormSaveBar } from "@/components/forms/FormSaveBar";
+import { RequiredFieldsNote } from "@/components/forms/RequiredFieldsNote";
 import { FieldChangedHint, ChangedHintScope } from "@/components/forms/FieldChangedHint";
 import {
   Form,
@@ -325,6 +326,7 @@ function CategoryFormInner(props: CategoryFormProps & { onDiscard: () => void })
     <Form {...form}>
       <ChangedHintScope enabled={props.mode === "edit"}>
       <form noValidate onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6 max-w-2xl">
+        <RequiredFieldsNote />
 
         {/* ── Default locale (canonical) ── */}
         <div className="rounded-lg border border-border/60 p-4 space-y-4">
@@ -337,7 +339,7 @@ function CategoryFormInner(props: CategoryFormProps & { onDiscard: () => void })
             name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("name")}</FormLabel>
+                <FormLabel required>{t("name")}</FormLabel>
                 <FormControl>
                   <Input placeholder={withEgPrefix(locale, CATEGORY_EXAMPLES.name[DEFAULT_LOCALE])} {...field} />
                 </FormControl>

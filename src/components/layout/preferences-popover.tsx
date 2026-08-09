@@ -17,6 +17,7 @@ import { useCurrencyStore } from "@/store/currency";
 import { SUPPORTED_LOCALES, LOCALE_LABELS } from "@/i18n/config";
 import { Sun, Moon, Sparkles, Monitor, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -71,6 +72,9 @@ export function PreferencesPopover() {
   const [, startTransition] = useTransition();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  // Flags load from flagcdn.com, not next/image - track per-locale so each
+  // shows a shimmer placeholder instead of a blank gap until it arrives.
+  const [loadedFlags, setLoadedFlags] = useState<Partial<Record<Locale, boolean>>>({});
   // Controlled so a language change can close the popover explicitly. On a soft
   // (storefront) locale swap the menu would otherwise linger open and Radix
   // re-anchors it against the new tree - it ends up clipped behind the header.
@@ -194,14 +198,25 @@ export function PreferencesPopover() {
                   : "border-border text-muted-foreground hover:border-primary/50 hover:bg-muted hover:text-foreground",
               )}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={lang.flag}
-                alt={lang.label}
-                width={16}
-                height={12}
-                className="shrink-0 rounded-sm object-cover"
-              />
+              <span className="relative h-3 w-4 shrink-0">
+                {!loadedFlags[lang.locale] && (
+                  <Skeleton className="absolute inset-0 rounded-sm" />
+                )}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={lang.flag}
+                  alt={lang.label}
+                  width={16}
+                  height={12}
+                  onLoad={() =>
+                    setLoadedFlags((prev) => ({ ...prev, [lang.locale]: true }))
+                  }
+                  className={cn(
+                    "absolute inset-0 h-full w-full rounded-sm object-cover transition-opacity",
+                    loadedFlags[lang.locale] ? "opacity-100" : "opacity-0",
+                  )}
+                />
+              </span>
               {lang.label}
             </button>
           ))}

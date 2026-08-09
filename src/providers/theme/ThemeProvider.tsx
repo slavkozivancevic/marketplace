@@ -69,12 +69,19 @@ function applyThemeToHtml(resolved: ResolvedTheme) {
  * frame painted with the old value, so momentarily killing all transitions
  * while the class swap happens means the new theme just appears, instantly,
  * with nothing to animate from. Same trick `next-themes` uses internally.
+ *
+ * Excludes open Radix popper content (dropdowns, popovers, selects, ...):
+ * killing `animation` there too collides with Radix's own open/close
+ * animation, which made the preferences popover briefly flash/vanish/
+ * reappear when switching theme from inside it. Those elements just get a
+ * quick, harmless color transition instead of an instant snap.
  */
 function disableTransitionsDuringSwap(): () => void {
   if (typeof document === "undefined") return () => {};
   const css = document.createElement("style");
-  css.textContent =
-    "*,*::before,*::after{transition:none!important;animation:none!important;}";
+  const scope =
+    "*:not([data-radix-popper-content-wrapper]):not([data-radix-popper-content-wrapper] *)";
+  css.textContent = `${scope},${scope}::before,${scope}::after{transition:none!important;animation:none!important;}`;
   document.head.appendChild(css);
   return () => {
     // Force a style recalculation so the theme change is committed under the

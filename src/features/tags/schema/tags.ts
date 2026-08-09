@@ -18,7 +18,7 @@ const translationsSchema = z
   .optional();
 
 export const createTagSchema = z.object({
-  name: z.string().min(1).max(100),
+  name: z.string().trim().min(1).max(100),
   slug: z.string().optional(),
   translations: translationsSchema,
 });

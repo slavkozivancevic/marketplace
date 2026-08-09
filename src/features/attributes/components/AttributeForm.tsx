@@ -10,6 +10,7 @@ import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
 import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
 import { FormSaveBar } from "@/components/forms/FormSaveBar";
+import { RequiredFieldsNote } from "@/components/forms/RequiredFieldsNote";
 import { FieldChangedHint, ChangedHintScope } from "@/components/forms/FieldChangedHint";
 import {
   Form,
@@ -276,6 +277,7 @@ function AttributeFormInner(props: AttributeFormProps & { onDiscard: () => void 
         onSubmit={form.handleSubmit(onSubmit, onInvalid)}
         className="space-y-6 max-w-2xl"
       >
+        <RequiredFieldsNote />
         {/* Default locale label + key */}
         <div className="rounded-lg border border-border/60 p-4 space-y-4">
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -288,7 +290,7 @@ function AttributeFormInner(props: AttributeFormProps & { onDiscard: () => void 
             name="label"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t("label")}</FormLabel>
+                <FormLabel required>{t("label")}</FormLabel>
                 <FormControl>
                   <Input
                     {...field}
@@ -413,7 +415,7 @@ function AttributeFormInner(props: AttributeFormProps & { onDiscard: () => void 
         {showOptions && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <FormLabel>{t("options")}</FormLabel>
+              <FormLabel required>{t("options")}</FormLabel>
               <Button
                 type="button"
                 variant="outline"

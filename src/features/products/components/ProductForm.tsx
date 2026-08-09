@@ -63,6 +63,7 @@ import { consumeLanguageSwitch, setPreserveAcrossLocaleSwitch } from "@/lib/i18n
 import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
 import { useBoolFormat } from "@/lib/forms/changedFormatters";
 import { FormSaveBar } from "@/components/forms/FormSaveBar";
+import { RequiredFieldsNote } from "@/components/forms/RequiredFieldsNote";
 import { FieldChangedHint, ChangedHintScope } from "@/components/forms/FieldChangedHint";
 import { ProductAttributesField } from "./ProductAttributesField";
 import { VariantsEditor } from "./VariantsEditor";
@@ -1244,6 +1245,7 @@ export function ProductForm({
     <Form {...form}>
       <ChangedHintScope enabled={mode === "update"}>
       <form noValidate onSubmit={form.handleSubmit(onSubmit, onSubmitInvalid)} className="flex-1 flex flex-col min-h-0">
+        <RequiredFieldsNote />
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0">
           {/* `h-auto!`: TabsList's own `h-8` is a `group-data-horizontal/tabs:`
               variant utility, which beats a plain `h-auto` override on CSS
@@ -1290,7 +1292,7 @@ export function ProductForm({
                 name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("titleField")}</FormLabel>
+                    <FormLabel required>{t("titleField")}</FormLabel>
                     <FormControl>
                       <Input placeholder={t("titlePlaceholder")} {...field} />
                     </FormControl>
@@ -1351,10 +1353,7 @@ export function ProductForm({
                 name="shortDescription"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
-                      {t("shortDesc")}
-                      <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
-                    </FormLabel>
+                    <FormLabel>{t("shortDesc")}</FormLabel>
                     <FormControl>
                       <Input placeholder={t("shortDescPlaceholder")} {...field} />
                     </FormControl>
@@ -1369,7 +1368,7 @@ export function ProductForm({
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("description")}</FormLabel>
+                    <FormLabel required>{t("description")}</FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder={t("descPlaceholder")}
@@ -1404,10 +1403,7 @@ export function ProductForm({
                 name="categoryIds"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
-                      {t("categories")}
-                      <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
-                    </FormLabel>
+                    <FormLabel>{t("categories")}</FormLabel>
                     <FormControl>
                       <CategoryPicker
                         tree={categoryTree}
@@ -1428,10 +1424,7 @@ export function ProductForm({
                 name="tagIds"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
-                      {t("tags")}
-                      <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
-                    </FormLabel>
+                    <FormLabel>{t("tags")}</FormLabel>
                     <FormControl>
                       <TagPicker
                         options={tags}
@@ -1459,10 +1452,7 @@ export function ProductForm({
                 name="brandId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
-                      {t("brand")}
-                      <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
-                    </FormLabel>
+                    <FormLabel>{t("brand")}</FormLabel>
                     <FormControl>
                       <BrandSelect
                         brands={brands}
@@ -1497,7 +1487,7 @@ export function ProductForm({
                 name="price"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("price")}</FormLabel>
+                    <FormLabel required>{t("price")}</FormLabel>
                     <FormControl>
                       <PriceInput value={field.value} onChange={field.onChange} onBlur={field.onBlur} rates={rates} defaultCurrency={currency} />
                     </FormControl>
@@ -1512,10 +1502,7 @@ export function ProductForm({
                 name="compareAtPrice"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
-                      {t("compareAtPrice")}
-                      <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
-                    </FormLabel>
+                    <FormLabel>{t("compareAtPrice")}</FormLabel>
                     <FormControl>
                       <PriceInput value={field.value ?? 0} onChange={(v) => field.onChange(v || null)} onBlur={field.onBlur} rates={rates} defaultCurrency={currency} />
                     </FormControl>
@@ -1531,10 +1518,7 @@ export function ProductForm({
                 name="costPrice"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
-                      {t("costPrice")}
-                      <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
-                    </FormLabel>
+                    <FormLabel>{t("costPrice")}</FormLabel>
                     <FormControl>
                       <PriceInput value={field.value ?? 0} onChange={(v) => field.onChange(v || null)} onBlur={field.onBlur} rates={rates} defaultCurrency={currency} />
                     </FormControl>
@@ -1601,10 +1585,7 @@ export function ProductForm({
               name="barcode"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>
-                    {t("barcode")}
-                    <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
-                  </FormLabel>
+                  <FormLabel>{t("barcode")}</FormLabel>
                   <FormControl>
                     <Input placeholder={t("barcodePlaceholder")} {...field} />
                   </FormControl>
@@ -1645,10 +1626,7 @@ export function ProductForm({
                 name="taxCode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
-                      {t("taxCode")}
-                      <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
-                    </FormLabel>
+                    <FormLabel>{t("taxCode")}</FormLabel>
                     <FormControl>
                       <Input placeholder={t("taxCodePlaceholder")} {...field} />
                     </FormControl>
@@ -1866,10 +1844,7 @@ export function ProductForm({
                 name="metaTitle"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
-                      {t("metaTitle")}
-                      <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
-                    </FormLabel>
+                    <FormLabel>{t("metaTitle")}</FormLabel>
                     <FormControl>
                       <Input
                         placeholder={form.watch("title") || t("metaTitlePlaceholder")}
@@ -1891,10 +1866,7 @@ export function ProductForm({
                 name="metaDescription"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
-                      {t("metaDescription")}
-                      <span className="ml-1.5 font-normal text-muted-foreground">- {t("optional")}</span>
-                    </FormLabel>
+                    <FormLabel>{t("metaDescription")}</FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder={t("metaDescPlaceholder")}

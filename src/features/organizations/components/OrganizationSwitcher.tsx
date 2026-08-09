@@ -44,24 +44,6 @@ export function OrganizationSwitcher({
     setMounted(true);
   }, []);
 
-  // Item-aligned content (the default Select position, which overlaps the
-  // current item over the trigger when opened) only enforces a *minimum*
-  // width equal to the trigger's - long org names still push it wider than
-  // the field. Pin it to the trigger's own border-box width so it lines up
-  // exactly instead.
-  const [triggerNode, setTriggerNode] = useState<HTMLButtonElement | null>(
-    null,
-  );
-  const [triggerWidth, setTriggerWidth] = useState<number>();
-  useEffect(() => {
-    if (!triggerNode) return;
-    const measure = () => setTriggerWidth(triggerNode.getBoundingClientRect().width);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(triggerNode);
-    return () => observer.disconnect();
-  }, [triggerNode]);
-
   const handleSwitch = (orgId: string) => {
     if (orgId === currentOrgId) return;
 
@@ -96,15 +78,11 @@ export function OrganizationSwitcher({
         onValueChange={handleSwitch}
         disabled={isPending}
       >
-        {/* The value slot must stay a real <SelectValue>: Radix's item-aligned
-            content positions itself against that node, and without it the menu
+        {/* The value slot must stay a real <SelectValue>: without it the menu
             silently fails to open. The shared trigger makes the slot
             `display:flex`, which cancels its own `line-clamp-1`; force it back to
             a truncating block so long names get an ellipsis. */}
-        <SelectTrigger
-          ref={setTriggerNode}
-          className="w-full text-sm cursor-pointer *:data-[slot=select-value]:block! *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:truncate"
-        >
+        <SelectTrigger className="w-full text-sm cursor-pointer *:data-[slot=select-value]:block! *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:truncate">
           {isPending ? (
             <span className="flex min-w-0 items-center gap-2">
               <Loader2 className="size-3.5 animate-spin shrink-0" />
@@ -116,27 +94,16 @@ export function OrganizationSwitcher({
             <SelectValue placeholder="Select organization" />
           )}
         </SelectTrigger>
-        <SelectContent
-          className="min-w-0"
-          style={
-            triggerWidth
-              ? { width: triggerWidth, maxWidth: triggerWidth }
-              : undefined
-          }
-        >
+        {/* The shared component already floors popper content at the
+            trigger's width; also cap it there so long org names don't flare
+            the menu wider than the sidebar - those truncate via the item's
+            own ellipsis instead. */}
+        <SelectContent className="max-w-(--radix-select-trigger-width)">
           {organizations.map((org) => (
             <SelectItem
               key={org.id}
               value={org.id}
-              // Radix aligns the open menu by lining up this item's text with
-              // the trigger's value text (not by matching box edges) - it's
-              // what makes the current selection overlap the trigger instead
-              // of shifting sideways on open. The shared item's `pl-1.5` sits
-              // closer to its box edge than the trigger's `border + pl-2.5`
-              // inset, so left-align them here to match; otherwise pinning
-              // this menu's width to the trigger's (below) skews that
-              // alignment and the text visibly jumps when it opens.
-              className="cursor-pointer pl-2.5 *:[span:last-child]:block *:[span:last-child]:min-w-0 *:[span:last-child]:truncate"
+              className="cursor-pointer *:[span:last-child]:block *:[span:last-child]:min-w-0 *:[span:last-child]:truncate"
             >
               {org.name}
             </SelectItem>

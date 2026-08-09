@@ -1150,7 +1150,7 @@
     "addVariant": "Añadir variante",
     "variantsNoAxes": "Esta categoría no tiene atributos que definan variantes, por lo que las variantes no tendrán opciones.",
     "generateVariants": "Generar desde opciones",
-    "required": "(obligatorio)",
+    "needsRegenerate": "(necesita regenerarse)",
     "addManually": "Añadir manualmente",
     "optionsChanged": "Opciones cambiadas",
     "regenerateHint": "Regenera las variantes para sincronizar todas las combinaciones con las opciones actuales.",
@@ -1427,7 +1427,8 @@
     "leaveTitle": "¿Salir sin guardar?",
     "leaveDescription": "Tienes cambios sin guardar. Si sales de esta página se perderán.",
     "stay": "Quedarse",
-    "leave": "Salir"
+    "leave": "Salir",
+    "requiredHint": "Los campos marcados con * son obligatorios."
   },
   "common": {
     "validationFailed": "Corrige los campos marcados antes de enviar.",

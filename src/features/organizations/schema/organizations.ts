@@ -9,7 +9,7 @@ export const updateMemberRoleSchema = z.object({
 });
 
 export const updateOrganizationNameSchema = z.object({
-  name: z.string().min(1).max(100),
+  name: z.string().trim().min(1).max(100),
 });
 
 // Shipping config in dollars (the form works in the display currency; the action

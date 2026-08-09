@@ -23,6 +23,7 @@ import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
 import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
 import { FormSaveBar } from "@/components/forms/FormSaveBar";
+import { RequiredFieldsNote } from "@/components/forms/RequiredFieldsNote";
 import { ChangedHint } from "@/components/forms/ChangedHint";
 import { useCurrencyStore } from "@/store/currency";
 import { convertCents, formatPrice } from "@/lib/currency";
@@ -187,8 +188,9 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
 
   return (
     <form noValidate onSubmit={handleSubmit(onSubmit, onInvalid)} className="max-w-lg space-y-5">
+      <RequiredFieldsNote />
       <div className="space-y-1.5">
-        <Label htmlFor="code">{t("form.code")}</Label>
+        <Label htmlFor="code" required>{t("form.code")}</Label>
         <Input
           id="code"
           {...register("code")}
@@ -220,7 +222,7 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
           )}
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="value">{type === "PERCENT" ? t("form.valuePercent") : t("form.valueFixed")}</Label>
+          <Label htmlFor="value" required>{type === "PERCENT" ? t("form.valuePercent") : t("form.valueFixed")}</Label>
           {type === "PERCENT" ? (
             <NumberStepper
               id="value"

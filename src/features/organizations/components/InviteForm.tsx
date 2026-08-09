@@ -8,6 +8,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
+import { RequiredFieldsNote } from "@/components/forms/RequiredFieldsNote";
 import {
   Form,
   FormControl,
@@ -79,12 +80,13 @@ export function InviteForm() {
   return (
     <Form {...form}>
       <form noValidate onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-4">
+        <RequiredFieldsNote />
         <FormField
           control={form.control}
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t("email")}</FormLabel>
+              <FormLabel required>{t("email")}</FormLabel>
               <FormControl>
                 <div className="relative flex items-center">
                   <Input placeholder={t("emailPlaceholder")} className="pr-9" {...field} />
