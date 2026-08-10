@@ -14,6 +14,8 @@ export async function getAuditLogsPage({
   action,
   entityType,
   sortOrder = "desc",
+  dateFrom,
+  dateTo,
 }: {
   take: number;
   cursor?: string;
@@ -21,6 +23,10 @@ export async function getAuditLogsPage({
   action?: string[];
   entityType?: string[];
   sortOrder?: "asc" | "desc";
+  /** YYYY-MM-DD, inclusive. */
+  dateFrom?: string;
+  /** YYYY-MM-DD, inclusive. */
+  dateTo?: string;
 }) {
   const where: Prisma.AuditLogWhereInput = {};
   const and: Prisma.AuditLogWhereInput[] = [];
@@ -35,6 +41,14 @@ export async function getAuditLogsPage({
   }
   if (action && action.length > 0) and.push({ action: { in: action } });
   if (entityType && entityType.length > 0) and.push({ entityType: { in: entityType } });
+  if (dateFrom) and.push({ createdAt: { gte: new Date(dateFrom) } });
+  if (dateTo) {
+    // "to" is inclusive of the whole day - use the next day's midnight as an
+    // exclusive upper bound rather than juggling end-of-day milliseconds.
+    const exclusiveEnd = new Date(dateTo);
+    exclusiveEnd.setUTCDate(exclusiveEnd.getUTCDate() + 1);
+    and.push({ createdAt: { lt: exclusiveEnd } });
+  }
   if (and.length > 0) where.AND = and;
 
   const rows = await prisma.auditLog.findMany({

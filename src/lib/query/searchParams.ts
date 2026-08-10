@@ -168,6 +168,8 @@ export const auditSearchParams = {
   action: parseAsString.withDefault(""),
   entityType: parseAsString.withDefault(""),
   sortOrder: parseAsStringEnum(["asc", "desc"] as const).withDefault("desc"),
+  dateFrom: parseAsString.withDefault(""),
+  dateTo: parseAsString.withDefault(""),
 };
 
 export type AuditFilters = {
@@ -175,6 +177,10 @@ export type AuditFilters = {
   action: string;
   entityType: string;
   sortOrder: "asc" | "desc";
+  /** YYYY-MM-DD, inclusive. Empty string = unbounded. */
+  dateFrom: string;
+  /** YYYY-MM-DD, inclusive. Empty string = unbounded. */
+  dateTo: string;
 };
 
 // ---------- Admin coupons ----------

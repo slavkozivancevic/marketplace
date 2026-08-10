@@ -463,6 +463,8 @@
       "allActions": "All actions",
       "filterEntity": "Entity",
       "allEntities": "All entities",
+      "dateFrom": "From date",
+      "dateTo": "To date",
       "apply": "Apply",
       "reset": "Reset",
       "noLogs": "No audit entries match your filters.",
@@ -488,7 +490,8 @@
         "invite": "Invite",
         "organization": "Organization",
         "coupon": "Coupon",
-        "review": "Review"
+        "review": "Review",
+        "tag": "Tag"
       },
       "fields": {
         "count": "Count",
@@ -570,7 +573,8 @@
           "verified_changed": "Organization verification changed",
           "member_removed": "Member removed (account deleted)",
           "owner_promoted": "New owner promoted",
-          "catalog_deactivated": "Catalog deactivated"
+          "catalog_deactivated": "Catalog deactivated",
+          "org_deleted": "Organization deleted"
         },
         "product": {
           "created": "Product created",
@@ -613,6 +617,12 @@
         "review": {
           "approved": "Review approved",
           "rejected": "Review rejected"
+        },
+        "tag": {
+          "created": "Tag created",
+          "updated": "Tag updated",
+          "deleted": "Tag deleted",
+          "duplicated": "Tag duplicated"
         }
       },
       "columns": {

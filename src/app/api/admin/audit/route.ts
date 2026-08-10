@@ -29,6 +29,8 @@ export async function GET(req: NextRequest) {
   const action = searchParams.get("action");
   const entityType = searchParams.get("entityType");
   const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
+  const dateFrom = searchParams.get("dateFrom") ?? undefined;
+  const dateTo = searchParams.get("dateTo") ?? undefined;
 
   try {
     const result = await getAuditLogsPage({
@@ -38,6 +40,8 @@ export async function GET(req: NextRequest) {
       action: action ? [action] : undefined,
       entityType: entityType ? [entityType] : undefined,
       sortOrder,
+      dateFrom,
+      dateTo,
     });
     return NextResponse.json(result);
   } catch (error) {

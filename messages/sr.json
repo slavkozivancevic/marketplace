@@ -463,6 +463,8 @@
       "allActions": "Sve akcije",
       "filterEntity": "Entitet",
       "allEntities": "Svi entiteti",
+      "dateFrom": "Od datuma",
+      "dateTo": "Do datuma",
       "apply": "Primeni",
       "reset": "Poništi",
       "noLogs": "Nema zapisa koji odgovaraju filterima.",
@@ -488,7 +490,8 @@
         "invite": "Pozivnica",
         "organization": "Organizacija",
         "coupon": "Kupon",
-        "review": "Recenzija"
+        "review": "Recenzija",
+        "tag": "Tag"
       },
       "fields": {
         "count": "Broj",
@@ -570,7 +573,8 @@
           "verified_changed": "Promenjena verifikacija organizacije",
           "member_removed": "Član uklonjen (brisanje naloga)",
           "owner_promoted": "Novi vlasnik organizacije",
-          "catalog_deactivated": "Katalog organizacije deaktiviran"
+          "catalog_deactivated": "Katalog organizacije deaktiviran",
+          "org_deleted": "Organizacija obrisana"
         },
         "product": {
           "created": "Proizvod kreiran",
@@ -613,6 +617,12 @@
         "review": {
           "approved": "Recenzija odobrena",
           "rejected": "Recenzija odbijena"
+        },
+        "tag": {
+          "created": "Tag kreiran",
+          "updated": "Tag izmenjen",
+          "deleted": "Tag obrisan",
+          "duplicated": "Tag dupliran"
         }
       },
       "columns": {

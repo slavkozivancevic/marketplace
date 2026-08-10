@@ -463,6 +463,8 @@
       "allActions": "Alle Aktionen",
       "filterEntity": "Entität",
       "allEntities": "Alle Entitäten",
+      "dateFrom": "Von Datum",
+      "dateTo": "Bis Datum",
       "apply": "Anwenden",
       "reset": "Zurücksetzen",
       "noLogs": "Keine Einträge entsprechen Ihren Filtern.",
@@ -488,7 +490,8 @@
         "invite": "Einladung",
         "organization": "Organisation",
         "coupon": "Gutschein",
-        "review": "Bewertung"
+        "review": "Bewertung",
+        "tag": "Tag"
       },
       "fields": {
         "count": "Anzahl",
@@ -570,7 +573,8 @@
           "verified_changed": "Organisationsverifizierung geändert",
           "member_removed": "Mitglied entfernt (Konto gelöscht)",
           "owner_promoted": "Neuer Eigentümer befördert",
-          "catalog_deactivated": "Katalog deaktiviert"
+          "catalog_deactivated": "Katalog deaktiviert",
+          "org_deleted": "Organisation gelöscht"
         },
         "product": {
           "created": "Produkt erstellt",
@@ -613,6 +617,12 @@
         "review": {
           "approved": "Bewertung genehmigt",
           "rejected": "Bewertung abgelehnt"
+        },
+        "tag": {
+          "created": "Tag erstellt",
+          "updated": "Tag aktualisiert",
+          "deleted": "Tag gelöscht",
+          "duplicated": "Tag dupliziert"
         }
       },
       "columns": {

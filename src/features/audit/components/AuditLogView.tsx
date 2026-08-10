@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import axios from "axios";
 import { useTranslations, useLocale } from "next-intl";
 import { useQueryStates } from "nuqs";
@@ -13,6 +14,7 @@ import {
 import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import { SearchInput } from "@/components/search/SearchInput";
 import { SortSelect } from "@/components/search/SortSelect";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -48,6 +50,8 @@ const KNOWN_ACTIONS = new Set([
   "review.approved", "review.rejected",
   "cod_balance.settled", "payout.reversed", "payout.reversal_failed",
   "organization.member_removed", "organization.owner_promoted", "organization.catalog_deactivated",
+  "organization.org_deleted",
+  "tag.created", "tag.updated", "tag.deleted", "tag.duplicated",
 ]);
 
 type Labels = {
@@ -72,6 +76,8 @@ function buildFetcher(f: AuditFilters) {
     if (f.action) params.set("action", f.action);
     if (f.entityType) params.set("entityType", f.entityType);
     if (f.sortOrder) params.set("sortOrder", f.sortOrder);
+    if (f.dateFrom) params.set("dateFrom", f.dateFrom);
+    if (f.dateTo) params.set("dateTo", f.dateTo);
     const { data } = await axios.get(`/api/admin/audit?${params.toString()}`);
     return data;
   };
@@ -179,6 +185,7 @@ export function AuditLogView({
     Organization: t("entities.organization"),
     Coupon: t("entities.coupon"),
     Review: t("entities.review"),
+    Tag: t("entities.tag"),
   };
   const fieldLabels: Record<string, string> = {
     count: t("fields.count"),
@@ -259,7 +266,15 @@ export function AuditLogView({
     action: params.action,
     entityType: params.entityType,
     sortOrder: params.sortOrder,
+    dateFrom: params.dateFrom,
+    dateTo: params.dateTo,
   };
+
+  // Action/entity-type filter changes snap the scroll back to the top - see
+  // resetScrollKey on useInfiniteVirtualList. Search and sort are left alone
+  // (same scope as every other filtered list in the app).
+  const [scrollResetToken, setScrollResetToken] = useState(0);
+  const resetListScroll = () => setScrollResetToken((n) => n + 1);
 
   const { parentRef, virtualizer, items, query, isSentinelIndex, isPlaceholderData } =
     useInfiniteVirtualList<AuditLogItem>({
@@ -271,6 +286,7 @@ export function AuditLogView({
       // this view within the global 60s staleTime would hide the newest entries.
       // Refetch on every mount so the log is current on soft-nav back.
       refetchOnMount: "always",
+      resetScrollKey: scrollResetToken,
     });
 
   const Header = (
@@ -293,7 +309,10 @@ export function AuditLogView({
       />
       <Select
         value={f.action || ALL}
-        onValueChange={(v) => setParams({ action: v === ALL ? "" : v })}
+        onValueChange={(v) => {
+          resetListScroll();
+          setParams({ action: v === ALL ? "" : v });
+        }}
       >
         <SelectTrigger className="h-9 min-w-44">
           <SelectValue placeholder={t("allActions")} />
@@ -307,7 +326,10 @@ export function AuditLogView({
       </Select>
       <Select
         value={f.entityType || ALL}
-        onValueChange={(v) => setParams({ entityType: v === ALL ? "" : v })}
+        onValueChange={(v) => {
+          resetListScroll();
+          setParams({ entityType: v === ALL ? "" : v });
+        }}
       >
         <SelectTrigger className="h-9 min-w-40">
           <SelectValue placeholder={t("allEntities")} />
@@ -325,6 +347,24 @@ export function AuditLogView({
         onSortByChange={() => {}}
         onSortOrderChange={(order) => setParams({ sortOrder: order })}
         options={[{ value: "createdAt", label: t("colTime") }]}
+      />
+      <DatePicker
+        value={f.dateFrom || null}
+        onChange={(v) => {
+          resetListScroll();
+          setParams({ dateFrom: v ?? "" });
+        }}
+        placeholder={t("dateFrom")}
+        className="w-40"
+      />
+      <DatePicker
+        value={f.dateTo || null}
+        onChange={(v) => {
+          resetListScroll();
+          setParams({ dateTo: v ?? "" });
+        }}
+        placeholder={t("dateTo")}
+        className="w-40"
       />
     </div>
   );
@@ -345,7 +385,7 @@ export function AuditLogView({
       </div>
     );
   } else if (items.length === 0) {
-    const hasFilters = !!f.search || !!f.action || !!f.entityType;
+    const hasFilters = !!f.search || !!f.action || !!f.entityType || !!f.dateFrom || !!f.dateTo;
     body = (
       <p className="text-sm text-muted-foreground py-10 text-center">
         {hasFilters ? t("noLogs") : t("noEntries")}
@@ -353,7 +393,7 @@ export function AuditLogView({
     );
   } else if (!query.hasNextPage) {
     body = (
-      <div role="table" className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}>
+      <div role="table" ref={parentRef} className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}>
         {Header}
         {items.map((row) => <Row key={row.id} row={row} dl={dl} labels={labels} />)}
       </div>
