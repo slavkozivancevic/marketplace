@@ -69,7 +69,7 @@ export function ActiveFilters({
         <Badge
           key={`${chip.key}-${chip.value}`}
           variant="secondary"
-          className="gap-1 pr-1 cursor-pointer hover:bg-secondary/80 transition-colors"
+          className="gap-1 pr-1 cursor-pointer border-border/60 bg-card text-card-foreground hover:bg-muted/70 transition-colors"
           onClick={() =>
             chip.value === "__range__"
               ? onRemove(chip.key)

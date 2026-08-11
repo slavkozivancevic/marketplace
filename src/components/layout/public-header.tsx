@@ -153,7 +153,7 @@ export function PublicHeader({
               <Button
                 variant="outline"
                 size="icon"
-                className="lg:hidden h-9 w-9"
+                className="lg:hidden"
                 onClick={() => setMobileOpen(!mobileOpen)}
               >
                 {mobileOpen ? (

@@ -122,7 +122,7 @@ export default async function HomePage() {
       <JsonLdScript data={orgSchema} />
       <JsonLdScript data={websiteSchema} />
       {/* Hero Section */}
-      <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden">
+      <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden pt-14 sm:pt-0">
         <HeroBackground />
 
         {/* Hero overlay gradient */}

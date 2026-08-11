@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { registerTouchFocusCycle } from "./touchFocusCycle";
 
 interface HoverImageCyclerProps {
   images: string[];
@@ -34,6 +35,7 @@ export function HoverImageCycler({
 }: HoverImageCyclerProps) {
   const [index, setIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   // First image drives the shimmer; it clears on load OR error so it can
   // never spin forever.
   const [firstSettled, setFirstSettled] = useState(false);
@@ -44,6 +46,16 @@ export function HoverImageCycler({
     () => new Set(),
   );
   const [retryCounts, setRetryCounts] = useState<Record<string, number>>({});
+  // Devices whose primary input has no hover (touch/stylus) never fire
+  // mouseenter, so the cycle - and the vignette that's meant to lift while
+  // "hovered" - would otherwise be stuck at rest forever. Read once
+  // up-front (SSR default true, same as the pre-touch-support behavior;
+  // never rendered into markup, so a client/server mismatch here is moot).
+  const [supportsHover, setSupportsHover] = useState(() =>
+    typeof window === "undefined" || !window.matchMedia
+      ? true
+      : window.matchMedia("(hover: hover) and (pointer: fine)").matches,
+  );
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const retryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -84,6 +96,57 @@ export function HoverImageCycler({
     };
   }, []);
 
+  const handleEnter = useCallback(() => {
+    setIsHovered(true);
+    if (images.length <= 1) return;
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setIndex((i) => {
+        // Advance to the nearest loaded frame; hold the current one if no
+        // other frame is ready yet (it joins the cycle once it loads).
+        for (let step = 1; step <= images.length; step++) {
+          const next = (i + step) % images.length;
+          if (loadedUrlsRef.current.has(images[next])) return next;
+        }
+        return i;
+      });
+    }, intervalMs);
+  }, [images, intervalMs]);
+
+  const handleLeave = useCallback(() => {
+    setIsHovered(false);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setIndex(0);
+  }, []);
+
+  // Keep the primary-pointer detection in sync (e.g. a 2-in-1 laptop
+  // switching between touch and trackpad).
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const onChange = (e: MediaQueryListEvent) => setSupportsHover(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  // Touch/stylus devices have no hover to drive the cycle or lift the
+  // vignette, so on those a shared scroll-position coordinator stands in for
+  // "hovered" instead - only the single card nearest the vertical center of
+  // the viewport cycles (and clears its shadow) at any given time, instead
+  // of every visible card animating at once.
+  useEffect(() => {
+    if (supportsHover) return;
+    const el = containerRef.current;
+    if (!el) return;
+    return registerTouchFocusCycle(el, {
+      onFocus: handleEnter,
+      onBlur: handleLeave,
+    });
+  }, [supportsHover, handleEnter, handleLeave]);
+
   if (images.length === 0) return null;
 
   const handleLoad = (url: string, isFirst: boolean) => {
@@ -101,34 +164,9 @@ export function HoverImageCycler({
     retryTimersRef.current.push(t);
   };
 
-  const handleEnter = () => {
-    setIsHovered(true);
-    if (images.length <= 1) return;
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setIndex((i) => {
-        // Advance to the nearest loaded frame; hold the current one if no
-        // other frame is ready yet (it joins the cycle once it loads).
-        for (let step = 1; step <= images.length; step++) {
-          const next = (i + step) % images.length;
-          if (loadedUrlsRef.current.has(images[next])) return next;
-        }
-        return i;
-      });
-    }, intervalMs);
-  };
-
-  const handleLeave = () => {
-    setIsHovered(false);
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    setIndex(0);
-  };
-
   return (
     <div
+      ref={containerRef}
       className={cn(
         "relative overflow-hidden",
         images.length > 1 && "cursor-grab",

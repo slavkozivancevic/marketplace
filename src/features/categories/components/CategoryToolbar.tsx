@@ -71,7 +71,7 @@ function CategoryDrawer({
 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <SheetContent side="left" className="w-72 flex flex-col p-0" aria-describedby={undefined}>
+      <SheetContent side="left" className="w-72 flex flex-col p-0" aria-describedby={undefined} showCloseButton={false}>
         <SheetHeader className="shrink-0 px-4 pt-4 pb-3 border-b">
           <div className="flex items-center gap-2">
             {parentLabel ? (

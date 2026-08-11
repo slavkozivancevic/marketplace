@@ -94,7 +94,7 @@ export function DepartmentDrawer({
 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <SheetContent side="left" className="w-72 p-0 flex flex-col gap-0" aria-describedby={undefined}>
+      <SheetContent side="left" className="w-72 p-0 flex flex-col gap-0" aria-describedby={undefined} showCloseButton={false}>
 
         {/* Header */}
         <div className="flex items-center gap-2 px-4 py-3 border-b shrink-0">
