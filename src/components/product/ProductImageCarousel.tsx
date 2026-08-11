@@ -96,6 +96,126 @@ export function ProductImageCarousel({
 
   const handleZoomLeave = () => setZoomState(null);
 
+  // Touch has no hover, so the lens is entered with a double-tap (the
+  // standard mobile convention - Instagram/Photos etc.) instead: the first
+  // tap of a pair still needs a brief window to see whether a second one is
+  // coming, so it can't open the lightbox immediately - see TAP_MAX_DELAY.
+  // While `zoomedIndex` holds a slide, one-finger drag pans the lens there
+  // instead of swiping; `watchDrag` below reads it via a ref (not state, so
+  // the check stays in sync without waiting on a re-render) to keep embla
+  // from also treating that same drag as a slide change.
+  const [zoomedIndex, setZoomedIndex] = useState<number | null>(null);
+  const zoomedIndexRef = useRef<number | null>(null);
+  useEffect(() => {
+    zoomedIndexRef.current = zoomedIndex;
+  }, [zoomedIndex]);
+
+  const watchDrag = useCallback(
+    () => zoomedIndexRef.current === null,
+    [],
+  );
+
+  const TAP_MAX_DELAY = 300;
+  const TAP_MAX_MOVE = 24;
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const lastTapRef = useRef<{ time: number; x: number; y: number; index: number } | null>(null);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearTapTimer = () => {
+    if (tapTimerRef.current) {
+      clearTimeout(tapTimerRef.current);
+      tapTimerRef.current = null;
+    }
+  };
+  // Cancel a pending single-tap-open timer if the component unmounts mid-wait.
+  useEffect(() => clearTapTimer, []);
+
+  const setZoomFromPoint = (
+    container: HTMLElement,
+    clientX: number,
+    clientY: number,
+    index: number,
+  ) => {
+    const rect = container.getBoundingClientRect();
+    setZoomState({
+      index,
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+      containerW: rect.width,
+      containerH: rect.height,
+    });
+  };
+
+  const handleImageTouchStart = (
+    e: React.TouchEvent<HTMLDivElement>,
+  ) => {
+    const touch = e.touches[0];
+    if (!touch) return;
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleImageTouchMove = (
+    e: React.TouchEvent<HTMLDivElement>,
+    index: number,
+  ) => {
+    if (zoomedIndex !== index) return; // not zoomed - let embla swipe natively
+    const touch = e.touches[0];
+    if (!touch) return;
+    setZoomFromPoint(e.currentTarget, touch.clientX, touch.clientY, index);
+  };
+
+  const handleImageTouchEnd = (
+    e: React.TouchEvent<HTMLDivElement>,
+    index: number,
+  ) => {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    const touch = e.changedTouches[0];
+    const moved = !start || !touch || Math.hypot(touch.clientX - start.x, touch.clientY - start.y) > TAP_MAX_MOVE;
+
+    if (zoomedIndex === index) {
+      handleZoomLeave();
+      if (!moved) {
+        // A tap (not a pan) while already zoomed exits zoom mode.
+        e.preventDefault();
+        setZoomedIndex(null);
+      }
+      return;
+    }
+
+    if (moved || !touch) return; // real swipe/drag - leave it to embla
+
+    // Every tap is handled ourselves (never the native click) so a second
+    // tap can still be recognized as a double-tap instead of racing it.
+    e.preventDefault();
+    const now = Date.now();
+    const last = lastTapRef.current;
+    const isDoubleTap =
+      !!last &&
+      last.index === index &&
+      now - last.time < TAP_MAX_DELAY &&
+      Math.hypot(touch.clientX - last.x, touch.clientY - last.y) < TAP_MAX_MOVE;
+
+    if (isDoubleTap) {
+      clearTapTimer();
+      lastTapRef.current = null;
+      setZoomedIndex(index);
+      setZoomFromPoint(e.currentTarget, touch.clientX, touch.clientY, index);
+      return;
+    }
+
+    lastTapRef.current = { time: now, x: touch.clientX, y: touch.clientY, index };
+    clearTapTimer();
+    tapTimerRef.current = setTimeout(() => {
+      lastTapRef.current = null;
+      openLightbox(index);
+    }, TAP_MAX_DELAY);
+  };
+
+  const handleImageTouchCancel = () => {
+    touchStartRef.current = null;
+    handleZoomLeave();
+  };
+
   const setApiAndListen = useCallback((newApi: CarouselApi) => {
     setApi(newApi);
     if (!newApi) return;
@@ -112,6 +232,14 @@ export function ProductImageCarousel({
     videoElRefs.current.forEach((videoEl, idx) => {
       if (idx !== current) videoEl.pause();
     });
+  }, [current]);
+
+  // Changing slides via the arrows/thumbnail strip bypasses the touch
+  // handlers (and their watchDrag guard), so a zoomed slide leaving view
+  // needs to drop out of zoom mode here instead.
+  useEffect(() => {
+    setZoomedIndex((prev) => (prev !== null && prev !== current ? null : prev));
+    setZoomState((prev) => (prev && prev.index !== current ? null : prev));
   }, [current]);
 
   const lastHandledTicket = useRef<number | undefined>(jumpTicket);
@@ -174,7 +302,13 @@ export function ProductImageCarousel({
         <Carousel
           setApi={setApiAndListen}
           className="w-full"
-          opts={{ loop: media.length > 1 }}
+          opts={{
+            loop: media.length > 1,
+            // Swipe stays on by default; it's only turned off (via the ref
+            // `watchDrag` reads) while a slide is in double-tap zoom mode, so
+            // panning the lens there doesn't also drag the carousel.
+            watchDrag,
+          }}
         >
           <CarouselContent>
             {media.map((item, index) => {
@@ -184,13 +318,26 @@ export function ProductImageCarousel({
                   <div
                     className={cn(
                       "relative w-full h-96 rounded-lg overflow-hidden border",
-                      isVideo ? "cursor-pointer" : "cursor-zoom-in",
+                      isVideo
+                        ? "cursor-pointer"
+                        : cn(
+                            "cursor-zoom-in touch-manipulation",
+                            zoomedIndex === index && "touch-none",
+                          ),
                     )}
                     onClick={isVideo ? undefined : () => openLightbox(index)}
                     onMouseMove={
                       isVideo ? undefined : (e) => handleZoomMove(e, index)
                     }
                     onMouseLeave={isVideo ? undefined : handleZoomLeave}
+                    onTouchStart={isVideo ? undefined : handleImageTouchStart}
+                    onTouchMove={
+                      isVideo ? undefined : (e) => handleImageTouchMove(e, index)
+                    }
+                    onTouchEnd={
+                      isVideo ? undefined : (e) => handleImageTouchEnd(e, index)
+                    }
+                    onTouchCancel={isVideo ? undefined : handleImageTouchCancel}
                   >
                     {isVideo ? (
                       <>

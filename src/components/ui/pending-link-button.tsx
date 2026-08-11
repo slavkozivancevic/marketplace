@@ -5,6 +5,7 @@ import { useLinkStatus } from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
 import { Button, type ButtonProps } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type PendingLinkButtonProps = {
   href: ComponentProps<typeof Link>["href"];
@@ -36,7 +37,21 @@ export function PendingLinkButton({
   className,
 }: PendingLinkButtonProps) {
   return (
-    <Button asChild variant={variant} className={className}>
+    // Button's disabled:opacity-50/pointer-events-none only fire on a real
+    // `disabled` attribute, which the <a> rendered here can never have. Mirror
+    // that look via a data-pending marker the child sets (useLinkStatus only
+    // works inside the Link's subtree, not on this element). duration-0 makes
+    // it snap in instead of fading via the base `transition-all` - it should
+    // land the instant `pending` flips, same as the icon/label swap next to
+    // it, not visibly lag a beat behind it.
+    <Button
+      asChild
+      variant={variant}
+      className={cn(
+        "has-data-[pending=true]:pointer-events-none has-data-[pending=true]:opacity-50 has-data-[pending=true]:duration-0",
+        className,
+      )}
+    >
       <Link href={href}>
         <PendingLinkContent label={label} pendingLabel={pendingLabel} icon={icon} />
       </Link>
@@ -52,13 +67,13 @@ function PendingLinkContent({
   // `useLinkStatus` reads the pending state of the nearest ancestor <Link>.
   const { pending } = useLinkStatus();
   return (
-    <>
+    <span data-pending={pending} className="contents">
       {pending ? (
         <Loader2 className="animate-spin" aria-hidden />
       ) : Icon ? (
         <Icon aria-hidden />
       ) : null}
       {pending ? pendingLabel : label}
-    </>
+    </span>
   );
 }
