@@ -300,12 +300,21 @@ export function AuditLogView({
     </div>
   );
 
+  // Selected-value labels, computed once here so the trigger can wrap them in
+  // a truncating span - Radix SelectValue only auto-renders the matched
+  // SelectItem's children when given none of its own, so overriding the
+  // content (to add `truncate`) means resolving the label ourselves, same as
+  // SortSelect already does for its own trigger.
+  const actionLabel = f.action ? labels.action(f.action) : t("allActions");
+  const entityTypeLabel = f.entityType ? labels.entity(f.entityType) : t("allEntities");
+
   const Filters = (
     <div className="flex flex-wrap items-center gap-3 mb-4">
       <SearchInput
         value={f.search}
         onChange={(v) => setParams({ search: v })}
         placeholder={t("searchPlaceholder")}
+        className="min-w-40"
       />
       <Select
         value={f.action || ALL}
@@ -314,8 +323,10 @@ export function AuditLogView({
           setParams({ action: v === ALL ? "" : v });
         }}
       >
-        <SelectTrigger className="h-9 min-w-44">
-          <SelectValue placeholder={t("allActions")} />
+        <SelectTrigger className="h-9 min-w-0 max-w-[45vw] sm:max-w-none sm:min-w-44">
+          <SelectValue placeholder={t("allActions")}>
+            <span className="truncate">{actionLabel}</span>
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={ALL}>{t("allActions")}</SelectItem>
@@ -331,8 +342,10 @@ export function AuditLogView({
           setParams({ entityType: v === ALL ? "" : v });
         }}
       >
-        <SelectTrigger className="h-9 min-w-40">
-          <SelectValue placeholder={t("allEntities")} />
+        <SelectTrigger className="h-9 min-w-0 max-w-[45vw] sm:max-w-none sm:min-w-40">
+          <SelectValue placeholder={t("allEntities")}>
+            <span className="truncate">{entityTypeLabel}</span>
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={ALL}>{t("allEntities")}</SelectItem>
@@ -347,6 +360,7 @@ export function AuditLogView({
         onSortByChange={() => {}}
         onSortOrderChange={(order) => setParams({ sortOrder: order })}
         options={[{ value: "createdAt", label: t("colTime") }]}
+        triggerClassName="max-w-[45vw] sm:max-w-none"
       />
       <DatePicker
         value={f.dateFrom || null}
@@ -355,7 +369,7 @@ export function AuditLogView({
           setParams({ dateFrom: v ?? "" });
         }}
         placeholder={t("dateFrom")}
-        className="w-40"
+        className="w-32 sm:w-40"
       />
       <DatePicker
         value={f.dateTo || null}
@@ -364,7 +378,7 @@ export function AuditLogView({
           setParams({ dateTo: v ?? "" });
         }}
         placeholder={t("dateTo")}
-        className="w-40"
+        className="w-32 sm:w-40"
       />
     </div>
   );

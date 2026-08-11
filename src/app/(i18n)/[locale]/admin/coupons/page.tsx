@@ -1,5 +1,4 @@
 import { getLocale, getTranslations } from "next-intl/server";
-import { Plus } from "lucide-react";
 import { connection } from "next/server";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
@@ -23,11 +22,8 @@ export default async function AdminCouponsRoute() {
       <div className="shrink-0 px-6 pt-2 sticky-header-bg">
         <Breadcrumbs items={breadcrumbItems} seo={false} />
         <PageHeader title={t("title")} description={t("description")}>
-          <Button asChild size="sm">
-            <Link href="/admin/coupons/new">
-              <Plus className="mr-2 h-4 w-4" />
-              {t("newCoupon")}
-            </Link>
+          <Button asChild>
+            <Link href="/admin/coupons/new">{t("addCoupon")}</Link>
           </Button>
         </PageHeader>
       </div>

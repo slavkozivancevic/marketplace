@@ -334,14 +334,25 @@ export function ReviewsView({ counts }: { counts: Record<ReviewStatus, number> }
     </div>
   );
 
+  const selectedStatusLabel = f.status ? statusLabel(f.status) : t("allStatuses");
+
   const Filters = (
     <div className="flex flex-wrap items-center gap-3 mb-4">
-      <SearchInput value={f.search} onChange={(v) => setParams({ search: v })} placeholder={t("searchPlaceholder")} />
+      <SearchInput
+        value={f.search}
+        onChange={(v) => setParams({ search: v })}
+        placeholder={t("searchPlaceholder")}
+        className="min-w-40"
+      />
       <Select
         value={f.status || ALL}
         onValueChange={(v) => setParams({ status: v === ALL ? "" : (v as ReviewFilters["status"]) })}
       >
-        <SelectTrigger className="h-9 min-w-44"><SelectValue placeholder={t("colStatus")} /></SelectTrigger>
+        <SelectTrigger className="h-9 min-w-0 max-w-[45vw] sm:max-w-none sm:min-w-44">
+          <SelectValue placeholder={t("colStatus")}>
+            <span className="truncate">{selectedStatusLabel}</span>
+          </SelectValue>
+        </SelectTrigger>
         <SelectContent>
           <SelectItem value={ALL}>{t("allStatuses")}</SelectItem>
           <SelectItem value="PENDING">{statusLabel("PENDING")}</SelectItem>
@@ -355,6 +366,7 @@ export function ReviewsView({ counts }: { counts: Record<ReviewStatus, number> }
         onSortByChange={() => {}}
         onSortOrderChange={(o) => setParams({ sortOrder: o })}
         options={[{ value: "createdAt", label: t("colDate") }]}
+        triggerClassName="max-w-[45vw] sm:max-w-none"
       />
     </div>
   );

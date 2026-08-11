@@ -118,8 +118,12 @@ export function DepartmentSearchBar({
 
   return (
     <>
-      {/* Row 1: [dept + search input] + MobileFilterSheet + SortSelect */}
-      <div className="flex items-stretch gap-2">
+      {/* Row 1: [dept + search input] + MobileFilterSheet + SortSelect.
+          flex-wrap is a safety net (matches every other toolbar in the app) -
+          on any width where everything already fits on one line this is a
+          no-op; it only kicks in if the row ever gets too tight to hold all
+          three pieces at once. */}
+      <div className="flex flex-wrap items-stretch gap-2">
         <div className="h-8 flex-1 min-w-40 max-w-lg flex items-stretch gap-0 rounded-lg border border-border bg-background shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:border-transparent transition-all">
 
           {/* Department selector */}

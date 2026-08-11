@@ -1584,6 +1584,7 @@
   "coupons": {
     "title": "Coupons",
     "description": "Create and manage discount codes.",
+    "addCoupon": "Add Coupon",
     "newCoupon": "New Coupon",
     "editCoupon": "Edit Coupon",
     "editCouponTitle": "Edit: {code}",

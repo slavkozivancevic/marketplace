@@ -1584,6 +1584,7 @@
   "coupons": {
     "title": "Gutscheine",
     "description": "Rabattcodes erstellen und verwalten.",
+    "addCoupon": "Gutschein hinzufügen",
     "newCoupon": "Neuer Gutschein",
     "editCoupon": "Gutschein bearbeiten",
     "editCouponTitle": "Bearbeiten: {code}",

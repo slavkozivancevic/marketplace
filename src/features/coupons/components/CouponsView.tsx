@@ -348,14 +348,28 @@ export function CouponsView() {
     </div>
   );
 
+  // Mirrors what Radix would auto-render from the matched SelectItem - needed
+  // once the trigger overrides SelectValue's children to add `truncate`.
+  const statusLabel =
+    f.status === "active" ? t("table.active") : f.status === "inactive" ? t("table.inactive") : t("filterAll");
+
   const Filters = (
     <div className="flex flex-wrap items-center gap-3 mb-4">
-      <SearchInput value={f.search} onChange={(v) => setParams({ search: v })} placeholder={t("searchPlaceholder")} />
+      <SearchInput
+        value={f.search}
+        onChange={(v) => setParams({ search: v })}
+        placeholder={t("searchPlaceholder")}
+        className="min-w-40"
+      />
       <Select
         value={f.status || ALL}
         onValueChange={(v) => setParams({ status: v === ALL ? "" : (v as "active" | "inactive") })}
       >
-        <SelectTrigger className="h-9 min-w-36"><SelectValue placeholder={t("table.status")} /></SelectTrigger>
+        <SelectTrigger className="h-9 min-w-0 max-w-[45vw] sm:max-w-none sm:min-w-36">
+          <SelectValue placeholder={t("table.status")}>
+            <span className="truncate">{statusLabel}</span>
+          </SelectValue>
+        </SelectTrigger>
         <SelectContent>
           <SelectItem value={ALL}>{t("filterAll")}</SelectItem>
           <SelectItem value="active">{t("table.active")}</SelectItem>
@@ -371,6 +385,7 @@ export function CouponsView() {
           { value: "createdAt", label: t("sortCreated") },
           { value: "code", label: t("table.code") },
         ]}
+        triggerClassName="max-w-[45vw] sm:max-w-none"
       />
     </div>
   );

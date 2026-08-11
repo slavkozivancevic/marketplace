@@ -55,6 +55,7 @@ export function SearchToolbar({
           onChange={onSearchChange}
           placeholder={searchPlaceholder}
           isPending={isPending}
+          className="min-w-40"
         />
         <div className="flex items-center gap-2">
           {filterGroups &&
@@ -75,6 +76,7 @@ export function SearchToolbar({
             onSortByChange={onSortByChange}
             onSortOrderChange={onSortOrderChange}
             options={sortOptions}
+            triggerClassName="max-w-28 sm:max-w-none"
           />
         </div>
         {resultCount != null && (
