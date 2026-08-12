@@ -1767,7 +1767,8 @@
     "codBalanceNettedShort": "Deuda COD",
     "codBalanceNettedPill": "Retenido por deuda COD",
     "codBalanceNettedNote": "Parte de este pago se retuvo para saldar la comisión contra reembolso que adeuda tu organización.",
-    "connecting": "Redirigiendo a Stripe..."
+    "connecting": "Redirigiendo a Stripe...",
+    "toggleDetails": "Mostrar/ocultar detalles"
   },
   "actionErrors": {
     "forbidden": "No permitido",

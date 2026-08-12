@@ -1767,7 +1767,8 @@
     "codBalanceNettedShort": "Nachnahme-Schuld",
     "codBalanceNettedPill": "Nachnahme-Schuld",
     "codBalanceNettedNote": "Ein Teil dieser Auszahlung wurde einbehalten, um die geschuldete Nachnahme-Provision Ihrer Organisation zu begleichen.",
-    "connecting": "Weiterleitung zu Stripe..."
+    "connecting": "Weiterleitung zu Stripe...",
+    "toggleDetails": "Details ein-/ausblenden"
   },
   "actionErrors": {
     "forbidden": "Nicht erlaubt",

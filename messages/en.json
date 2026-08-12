@@ -1767,7 +1767,8 @@
     "codBalanceNettedShort": "COD debt",
     "codBalanceNettedPill": "COD debt withheld",
     "codBalanceNettedNote": "Part of this payout was withheld to settle COD commission your organization owed.",
-    "connecting": "Redirecting to Stripe..."
+    "connecting": "Redirecting to Stripe...",
+    "toggleDetails": "Toggle details"
   },
   "actionErrors": {
     "forbidden": "Forbidden",

@@ -12,8 +12,8 @@ import {
 export default function CategoryLoading() {
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="shrink-0 px-6 pt-6 pb-4">
-        <SkeletonBreadcrumbs width="w-56" />
+      <div className="shrink-0 px-6 pt-2 pb-3 sticky-header-bg">
+        <SkeletonBreadcrumbs segments={3} />
         <SkeletonPageHeader
           titleWidth="w-56"
           descriptionWidth="w-80"

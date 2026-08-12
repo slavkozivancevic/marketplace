@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { Copy, ImageOff, Loader2, Pencil, Trash2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -104,7 +105,7 @@ export function ProductTableRow({
   product: SerializedAdminProductListItem;
   showActions?: boolean;
   showCreatedBy?: boolean;
-  basePath?: string;
+  basePath?: "/admin/products" | "/dashboard/my-products";
   onBusyChange?: (id: string, busy: boolean) => void;
 }) {
   const t = useTranslations("products");
@@ -174,7 +175,19 @@ export function ProductTableRow({
     return () => onBusyChange?.(product.id, false);
   }, [isBusy, product.id, onBusyChange]);
 
+  const viewHref =
+    basePath === "/dashboard/my-products"
+      ? { pathname: "/dashboard/my-products/[id]" as const, params: { id: product.id } }
+      : { pathname: "/admin/products/[id]" as const, params: { id: product.id } };
+
   return (
+    // display:contents keeps this Link out of the CSS grid layout below - the
+    // grid columns are on the row div, not this wrapper - while giving the
+    // row a real <a> for NavigationProgress's click detection to see. The
+    // isBusy guard lives in this onClick (not just the inner div's
+    // pointer-events-none) because pointer-events:none on a descendant lets
+    // the click fall through to this ancestor anchor instead of blocking it.
+    <Link href={viewHref} className="contents" onClick={(e) => isBusy && e.preventDefault()}>
     <div
       role="row"
       className={cn(
@@ -184,7 +197,6 @@ export function ProductTableRow({
           : "cursor-pointer hover:bg-muted/50",
       )}
       style={{ gridTemplateColumns: cols }}
-      onClick={() => !isBusy && router.push(`/${locale}${basePath}/${product.id}`)}
     >
       <div role="cell">
         {thumbnailUrl ? (
@@ -320,5 +332,6 @@ export function ProductTableRow({
         </div>
       )}
     </div>
+    </Link>
   );
 }

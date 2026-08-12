@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import { Link, getPathname } from "@/i18n/navigation";
 import { RetryImage } from "@/components/RetryImage";
 import { getTranslations, getLocale } from "next-intl/server";
-import { MapPin, Mail, Truck, CreditCard, ArrowLeft, RotateCcw, Info } from "lucide-react";
+import { MapPin, Mail, Truck, CreditCard, RotateCcw, Info } from "lucide-react";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
 import { getOrgOrderById } from "@/features/orders/db/orgOrders";
@@ -142,7 +142,6 @@ export default async function OrgOrderDetailPage({ params }: Props) {
   const shortId = `#${order.id.slice(-8).toUpperCase()}`;
   const breadcrumbItems = [
     { name: tCrumbs("dashboard"), href: getPathname({ href: "/dashboard", locale }) },
-    { name: tCrumbs("organization"), href: getPathname({ href: "/dashboard/organization", locale }) },
     { name: tCrumbs("receivedOrders"), href: getPathname({ href: "/dashboard/organization/orders", locale }) },
     {
       name: `${tCrumbs("orderDetails")} ${shortId}`,
@@ -181,10 +180,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
           })}
         >
           <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard/organization/orders">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              {t("backToOrders")}
-            </Link>
+            <Link href="/dashboard/organization/orders">{t("backToOrders")}</Link>
           </Button>
         </PageHeader>
       </div>

@@ -9,7 +9,7 @@ export default async function MyProductEditLoadingPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6 pt-2 sticky-header-bg">
-        <SkeletonBreadcrumbs width="w-72" />
+        <SkeletonBreadcrumbs segments={4} />
         <PageHeader
           title={t("myProducts.edit")}
           description={t("myProducts.editDesc")}

@@ -79,7 +79,7 @@ function TagTableRow({
   return (
     <div
       role="row"
-      className="grid items-center gap-4 border-b p-3 hover:bg-muted/50 transition-colors min-w-fit"
+      className="grid items-center gap-4 border-b p-3 min-w-fit"
       style={{ gridTemplateColumns: COLS }}
     >
       <TruncatedTooltip content={displayName}>

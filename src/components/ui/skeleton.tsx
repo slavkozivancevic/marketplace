@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -14,12 +15,25 @@ export function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-export function SkeletonButton({ className }: { className?: string }) {
+/**
+ * Mirrors <Button>'s own `size` variant so a skeleton action matches the real
+ * button's height exactly (e.g. the org order detail page's `size="sm"` back
+ * button is 28px tall, not the 32px default - a mismatched skeleton visibly
+ * resizes on hydration).
+ */
+export function SkeletonButton({
+  className,
+  size = "default",
+}: {
+  className?: string;
+  size?: "default" | "sm" | "xs" | "lg";
+}) {
   return (
     <div
       className={cn(
         buttonVariants({
           variant: "secondary",
+          size,
           className: "pointer-events-none w-24 animate-pulse",
         }),
         className,
@@ -72,28 +86,50 @@ export function SkeletonText({
 }
 
 /**
- * Skeleton for the <Breadcrumbs> trail. The real nav is `text-xs py-2` (~32px
- * tall), so this matches that height exactly - otherwise a loading.tsx sits a
- * few px shorter and the whole page nudges down when the real trail renders.
+ * Skeleton for the <Breadcrumbs> trail. Mirrors its exact box (`pt-2 pb-1`,
+ * text-xs children -> 28px tall, not 32px) and its chevron-separated item
+ * structure (real `<ChevronRight className="h-3 w-3" />` between crumbs), so
+ * a loading.tsx trail doesn't shift height or look like a single bar when the
+ * real multi-segment trail renders.
  */
 export function SkeletonBreadcrumbs({
   className,
-  width = "w-64",
+  segments = 2,
+  widths = ["w-12", "w-24", "w-20", "w-32"],
 }: {
   className?: string;
-  width?: string;
+  /** Number of crumb items - match the real page's `breadcrumbItems.length`. */
+  segments?: number;
+  widths?: string[];
 }) {
+  // Padding and the row's fixed height must live on SEPARATE elements: this
+  // box is border-box (Tailwind preflight), so a height class and padding on
+  // the same div don't add - the padding eats into the fixed height instead,
+  // undershooting the real nav's auto (content-driven) height.
   return (
-    <div className={cn("flex h-8 items-center", className)}>
-      <Skeleton className={cn("h-3", width)} />
+    <div className={cn("pt-2 pb-1", className)}>
+      <div className="flex h-4 items-center gap-1">
+        {Array.from({ length: segments }, (_, i) => (
+          <div key={i} className="flex items-center gap-1">
+            {i > 0 && (
+              <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/60" />
+            )}
+            <Skeleton className={cn("h-3", widths[i % widths.length])} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
 /**
- * Skeleton for <PageHeader>. Matches its box exactly (`pt-6 pb-4 mb-2`, a
- * text-2xl title line and a text-sm description line) so a loading.tsx that
- * can't call the real PageHeader (dynamic title) doesn't shift on hydration.
+ * Skeleton for <PageHeader>. Reproduces its box classes verbatim - including
+ * `sticky-header-bg` (so the nested-under-a-`sticky-header-bg`-wrapper CSS
+ * rules zero this div's own padding-top/margin-bottom and hand the border +
+ * paint to the outer wrapper exactly like the real header does) and its
+ * responsive `pt-3 pb-3 sm:pt-6 sm:pb-4` / `text-xl sm:text-2xl` sizing - so a
+ * loading.tsx that can't call the real PageHeader (dynamic title) still
+ * matches it 1:1 at every breakpoint instead of only on desktop.
  */
 export function SkeletonPageHeader({
   titleWidth = "w-56",
@@ -105,17 +141,19 @@ export function SkeletonPageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="pt-6 pb-4 mb-2">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="space-y-0.5">
-          <div className="flex h-8 items-center">
-            <Skeleton className={cn("h-6", titleWidth)} />
+    <div className="sticky top-0 z-10 pt-3 pb-3 mb-2 sm:pt-6 sm:pb-4 sticky-header-bg will-change-transform">
+      <div className="flex flex-col gap-2 sm:gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-0.5 min-w-0">
+          <div className="flex h-7 items-center sm:h-8">
+            <Skeleton className={cn("h-5 sm:h-6", titleWidth)} />
           </div>
           <div className="flex h-5 items-center">
             <Skeleton className={cn("h-3.5", descriptionWidth)} />
           </div>
         </div>
-        {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+        {actions && (
+          <div className="flex flex-wrap items-center gap-2 md:shrink-0">{actions}</div>
+        )}
       </div>
     </div>
   );
@@ -418,8 +456,8 @@ export function SkeletonProductCard() {
 export function SkeletonOrderDetail() {
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="shrink-0 px-6 pt-2">
-        <SkeletonBreadcrumbs />
+      <div className="shrink-0 px-6 pt-2 sticky-header-bg">
+        <SkeletonBreadcrumbs segments={3} />
         <SkeletonPageHeader
           titleWidth="w-48"
           descriptionWidth="w-64"
@@ -534,12 +572,12 @@ export function SkeletonOrgOrderDetail() {
   // constrained to max-w-2xl with `space-y-5`, matching the real page.
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="shrink-0 px-6 pt-2">
-        <SkeletonBreadcrumbs />
+      <div className="shrink-0 px-6 pt-2 sticky-header-bg">
+        <SkeletonBreadcrumbs segments={3} />
         <SkeletonPageHeader
           titleWidth="w-48"
           descriptionWidth="w-64"
-          actions={<SkeletonButton className="w-28" />}
+          actions={<SkeletonButton className="w-28" size="sm" />}
         />
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
@@ -789,6 +827,10 @@ export function SkeletonProductForm() {
   // bare-field version was missing).
   return (
     <div className="flex-1 flex flex-col min-h-0">
+      {/* <RequiredFieldsNote /> - text-xs line sitting directly above <Tabs>,
+          no gap class between them on the form element itself. */}
+      <Skeleton className="h-3 w-56 shrink-0" />
+
       {/* <Tabs> is `flex flex-col gap-2` - the 8px gap between the tab list and
           its content must be reproduced or the fields sit 8px too high. */}
       <div className="flex-1 min-h-0 flex flex-col gap-2">

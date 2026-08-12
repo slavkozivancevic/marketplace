@@ -8,12 +8,18 @@ import {
   AlertCircle,
   Clock,
   CreditCard,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "@/components/ui/sonner";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   startConnectOnboarding,
   type ConnectStatus,
@@ -33,6 +39,12 @@ export function ConnectPayouts({ status }: { status: ConnectStatus }) {
   const pendingReview = status.connected && status.detailsSubmitted && !fullyEnabled;
   const incomplete = status.connected && !status.detailsSubmitted;
 
+  // Nothing to act on -> start collapsed to a one-line status bar so it
+  // doesn't crowd out the payout table on short (mobile) screens. Anything
+  // that needs the seller's attention starts open. Still just the initial
+  // state - the chevron lets the seller expand/collapse by hand either way.
+  const [open, setOpen] = useState(!fullyEnabled);
+
   const onConnect = () => {
     start(async () => {
       const res = await startConnectOnboarding();
@@ -46,59 +58,73 @@ export function ConnectPayouts({ status }: { status: ConnectStatus }) {
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <CreditCard className="h-4 w-4" />
-          {t("title")}
-        </CardTitle>
-        {fullyEnabled ? (
-          <Badge variant="default" className="gap-1">
-            <CheckCircle2 className="h-3 w-3" />
-            {t("statusActive")}
-          </Badge>
-        ) : pendingReview ? (
-          <Badge variant="secondary" className="gap-1">
-            <Clock className="h-3 w-3" />
-            {t("statusPending")}
-          </Badge>
-        ) : (
-          <Badge variant="outline" className="gap-1">
-            <AlertCircle className="h-3 w-3" />
-            {t("statusNotConnected")}
-          </Badge>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-4 text-sm">
-        <p className="text-muted-foreground">{t("description")}</p>
+    <Card className="gap-0">
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <CardHeader className="flex flex-row items-center justify-between gap-2 pb-0">
+          <CardTitle className="text-base flex items-center gap-2 min-w-0">
+            <CreditCard className="h-4 w-4 shrink-0" />
+            <span className="truncate">{t("title")}</span>
+          </CardTitle>
+          <div className="flex items-center gap-1 shrink-0">
+            {fullyEnabled ? (
+              <Badge variant="default" className="gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                {t("statusActive")}
+              </Badge>
+            ) : pendingReview ? (
+              <Badge variant="secondary" className="gap-1">
+                <Clock className="h-3 w-3" />
+                {t("statusPending")}
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {t("statusNotConnected")}
+              </Badge>
+            )}
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7 -mr-1.5">
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
+                />
+                <span className="sr-only">{t("toggleDetails")}</span>
+              </Button>
+            </CollapsibleTrigger>
+          </div>
+        </CardHeader>
+        <CollapsibleContent>
+          <CardContent className="space-y-4 pt-4 text-sm">
+            <p className="text-muted-foreground">{t("description")}</p>
 
-        {fullyEnabled && (
-          <Alert>
-            <CheckCircle2 className="h-4 w-4" />
-            <AlertTitle>{t("activeTitle")}</AlertTitle>
-            <AlertDescription>{t("activeDesc")}</AlertDescription>
-          </Alert>
-        )}
+            {fullyEnabled && (
+              <Alert>
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertTitle>{t("activeTitle")}</AlertTitle>
+                <AlertDescription>{t("activeDesc")}</AlertDescription>
+              </Alert>
+            )}
 
-        {pendingReview && (
-          <Alert>
-            <Clock className="h-4 w-4" />
-            <AlertTitle>{t("pendingTitle")}</AlertTitle>
-            <AlertDescription>{t("pendingDesc")}</AlertDescription>
-          </Alert>
-        )}
+            {pendingReview && (
+              <Alert>
+                <Clock className="h-4 w-4" />
+                <AlertTitle>{t("pendingTitle")}</AlertTitle>
+                <AlertDescription>{t("pendingDesc")}</AlertDescription>
+              </Alert>
+            )}
 
-        {!fullyEnabled && (
-          <Button onClick={onConnect} disabled={busy} className="gap-2">
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-            {busy
-              ? t("connecting")
-              : incomplete || pendingReview
-                ? t("continueOnboarding")
-                : t("connectStripe")}
-          </Button>
-        )}
-      </CardContent>
+            {!fullyEnabled && (
+              <Button onClick={onConnect} disabled={busy} className="gap-2">
+                {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+                {busy
+                  ? t("connecting")
+                  : incomplete || pendingReview
+                    ? t("continueOnboarding")
+                    : t("connectStripe")}
+              </Button>
+            )}
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   );
 }

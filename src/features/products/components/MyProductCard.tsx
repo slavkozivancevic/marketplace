@@ -103,8 +103,16 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
   };
 
   return (
-    <div className="border border-border/50 rounded-lg overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 cursor-pointer"
-      onClick={() => router.push(`/${locale}/dashboard/my-products/${product.id}`)}>
+    <div className="border border-border/50 rounded-lg overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5">
+      {/* Only the view area (image + text) is a real link - the actions row
+          below has its own real Edit link plus duplicate/delete buttons, and
+          nesting an <a> inside another <a> is invalid/unreliable, so it stays
+          a sibling instead. className="contents" keeps this Link out of the
+          layout flow so it doesn't disturb the block/padding structure below. */}
+      <Link
+        href={{ pathname: "/dashboard/my-products/[id]", params: { id: product.id } }}
+        className="contents cursor-pointer"
+      >
       <div className="relative">
         {product.imageUrls.length > 0 ? (
           <>
@@ -150,7 +158,7 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
           </div>
         )}
       </div>
-      <div className="p-4 space-y-2">
+      <div className="p-4 pb-2 space-y-2">
         <h2 className="font-semibold">{localTitle}</h2>
         <p className="text-sm text-muted-foreground line-clamp-2">
           {localDescription}
@@ -176,7 +184,10 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
             {product.status === "PUBLISHED" ? t("published") : product.status === "DRAFT" ? t("draft") : t("archived")}
           </Badge>
         </div>
-        <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+      </div>
+      </Link>
+      <div className="px-4 pb-4">
+        <div className="flex gap-1.5">
           <Button asChild variant="outline" size="sm" className="flex-1 gap-1.5">
             <Link href={{ pathname: "/dashboard/my-products/[id]/edit", params: { id: product.id } }}>
               <Pencil className="h-3.5 w-3.5" />

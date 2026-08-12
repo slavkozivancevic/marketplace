@@ -20,7 +20,6 @@ export default async function OrgOrdersRoute() {
   const locale = await getLocale();
   const breadcrumbItems = [
     { name: tCrumbs("dashboard"), href: getPathname({ href: "/dashboard", locale }) },
-    { name: tCrumbs("organization"), href: getPathname({ href: "/dashboard/organization", locale }) },
     { name: tCrumbs("receivedOrders"), href: getPathname({ href: "/dashboard/organization/orders", locale }) },
   ];
 

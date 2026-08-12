@@ -1767,7 +1767,8 @@
     "codBalanceNettedShort": "COD dug",
     "codBalanceNettedPill": "Zadržano za COD dug",
     "codBalanceNettedNote": "Deo ove isplate je zadržan da izmiri proviziju od pouzeća koju vaša organizacija duguje.",
-    "connecting": "Preusmeravanje na Stripe..."
+    "connecting": "Preusmeravanje na Stripe...",
+    "toggleDetails": "Prikaži/sakrij detalje"
   },
   "actionErrors": {
     "forbidden": "Nije dozvoljeno",
