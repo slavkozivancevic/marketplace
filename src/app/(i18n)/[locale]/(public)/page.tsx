@@ -152,24 +152,24 @@ export default async function HomePage() {
 
           {/* CTA Buttons */}
           <div className="animate-slide-up delay-400 mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 opacity-0">
-            <Link href="/products">
-              <Button
-                size="lg"
-                className="h-12 px-8 text-base font-semibold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 hover:-translate-y-0.5 group"
-              >
+            <Button
+              asChild
+              size="lg"
+              className="h-12 px-8 text-base font-semibold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 hover:-translate-y-0.5 group"
+            >
+              <Link href="/products">
                 {t("home.exploreProducts")}
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Button>
-            </Link>
-            <Link href="/dashboard">
-              <Button
-                variant="outline"
-                size="lg"
-                className="h-12 px-8 text-base font-semibold backdrop-blur-xs hover:-translate-y-0.5 transition-all duration-300"
-              >
-                {t("home.startSelling")}
-              </Button>
-            </Link>
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="h-12 px-8 text-base font-semibold backdrop-blur-xs hover:-translate-y-0.5 transition-all duration-300"
+            >
+              <Link href="/dashboard">{t("home.startSelling")}</Link>
+            </Button>
           </div>
 
           {/* Stats */}
@@ -236,24 +236,19 @@ export default async function HomePage() {
                 {t("home.joinThousands")}
               </p>
               <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link href="/sign-up/[[...sign-up]]">
-                  <Button
-                    size="lg"
-                    className="h-12 px-8 text-base font-semibold shadow-lg shadow-primary/20 group"
-                  >
+                <Button
+                  asChild
+                  size="lg"
+                  className="h-12 px-8 text-base font-semibold shadow-lg shadow-primary/20 group"
+                >
+                  <Link href="/sign-up/[[...sign-up]]">
                     {t("home.createAccount")}
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </Button>
-                </Link>
-                <Link href="/products">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="h-12 px-8 text-base font-semibold"
-                  >
-                    {t("home.browseProducts")}
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="lg" className="h-12 px-8 text-base font-semibold">
+                  <Link href="/products">{t("home.browseProducts")}</Link>
+                </Button>
               </div>
             </div>
           </div>

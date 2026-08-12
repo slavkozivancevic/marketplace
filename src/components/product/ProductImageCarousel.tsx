@@ -39,6 +39,14 @@ function getThumbSrc(item: ProductMediaItem): string {
   return item.thumbUrl ?? item.url;
 }
 
+// react-hooks/purity flags a direct `Date.now()` call anywhere lexically
+// inside the component, even in an event handler that only ever runs from
+// onTouchEnd - wrapping it in a plain (non-component) function sidesteps
+// that, same as formatRelativeTime does in ReviewList.tsx.
+function currentTimeMs(): number {
+  return Date.now();
+}
+
 export function ProductImageCarousel({
   media,
   title,
@@ -173,12 +181,12 @@ export function ProductImageCarousel({
     const moved = !start || !touch || Math.hypot(touch.clientX - start.x, touch.clientY - start.y) > TAP_MAX_MOVE;
 
     if (zoomedIndex === index) {
+      // Zoom drag mode is scoped to a single pan gesture - the moment the
+      // finger lifts (whether that was an actual pan or just a tap), it
+      // turns back off. A fresh double-tap is what re-arms it.
       handleZoomLeave();
-      if (!moved) {
-        // A tap (not a pan) while already zoomed exits zoom mode.
-        e.preventDefault();
-        setZoomedIndex(null);
-      }
+      setZoomedIndex(null);
+      e.preventDefault();
       return;
     }
 
@@ -187,7 +195,7 @@ export function ProductImageCarousel({
     // Every tap is handled ourselves (never the native click) so a second
     // tap can still be recognized as a double-tap instead of racing it.
     e.preventDefault();
-    const now = Date.now();
+    const now = currentTimeMs();
     const last = lastTapRef.current;
     const isDoubleTap =
       !!last &&
@@ -238,6 +246,7 @@ export function ProductImageCarousel({
   // handlers (and their watchDrag guard), so a zoomed slide leaving view
   // needs to drop out of zoom mode here instead.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting derived zoom state when the slide changes, not deriving `current` itself
     setZoomedIndex((prev) => (prev !== null && prev !== current ? null : prev));
     setZoomState((prev) => (prev && prev.index !== current ? null : prev));
   }, [current]);

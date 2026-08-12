@@ -2,43 +2,55 @@
 
 // Coordinates HoverImageCycler instances on touch/no-hover devices: instead
 // of every visible card cycling its images at once (chaotic on a dense
-// mobile grid), exactly one card - the one nearest the vertical center of
-// the viewport - is ever "in focus" at a time, mimicking a carousel's active
-// slide as the user scrolls. A single shared IntersectionObserver drives all
-// registered cards so cost stays flat regardless of grid size.
+// mobile grid), only the row nearest the vertical center of the viewport is
+// ever "in focus" at a time, mimicking a carousel's active slide as the user
+// scrolls. A single shared IntersectionObserver drives all registered cards
+// so cost stays flat regardless of grid size.
+//
+// "Row" isn't tracked via grid/DOM structure (cards register independently,
+// with no shared parent contract) - it's inferred purely from geometry: a
+// CSS grid lays every card in a row out with an identical `top`, so cards
+// within a small pixel tolerance of each other are treated as the same row.
 
 type Registration = {
   onFocus: () => void;
   onBlur: () => void;
 };
 
+// Cards in the same row align exactly in a CSS grid; this only needs to
+// absorb subpixel/rounding drift, not real layout differences.
+const ROW_TOLERANCE_PX = 4;
+
 const registry = new Map<Element, Registration>();
 const intersecting = new Set<Element>();
-let activeEl: Element | null = null;
+let activeGroup = new Set<Element>();
 let observer: IntersectionObserver | null = null;
 
-function pickWinner(): Element | null {
-  if (intersecting.size === 0) return null;
+function pickActiveRow(): Set<Element> {
+  if (intersecting.size === 0) return new Set();
   const viewportCenter = window.innerHeight / 2;
-  let winner: Element | null = null;
-  let winnerDist = Infinity;
-  for (const el of intersecting) {
+  const items = Array.from(intersecting, (el) => {
     const rect = el.getBoundingClientRect();
-    const dist = Math.abs(rect.top + rect.height / 2 - viewportCenter);
-    if (dist < winnerDist) {
-      winnerDist = dist;
-      winner = el;
-    }
-  }
-  return winner;
+    return { el, top: rect.top, dist: Math.abs(rect.top + rect.height / 2 - viewportCenter) };
+  });
+  items.sort((a, b) => a.dist - b.dist);
+  const anchorTop = items[0].top;
+  return new Set(
+    items
+      .filter((item) => Math.abs(item.top - anchorTop) <= ROW_TOLERANCE_PX)
+      .map((item) => item.el),
+  );
 }
 
 function reconcile() {
-  const winner = pickWinner();
-  if (winner === activeEl) return;
-  if (activeEl) registry.get(activeEl)?.onBlur();
-  activeEl = winner;
-  if (activeEl) registry.get(activeEl)?.onFocus();
+  const nextGroup = pickActiveRow();
+  for (const el of activeGroup) {
+    if (!nextGroup.has(el)) registry.get(el)?.onBlur();
+  }
+  for (const el of nextGroup) {
+    if (!activeGroup.has(el)) registry.get(el)?.onFocus();
+  }
+  activeGroup = nextGroup;
 }
 
 function getObserver(): IntersectionObserver {
@@ -71,9 +83,6 @@ export function registerTouchFocusCycle(
     getObserver().unobserve(el);
     registry.delete(el);
     intersecting.delete(el);
-    if (activeEl === el) {
-      activeEl = null;
-      reconcile();
-    }
+    if (activeGroup.has(el)) reconcile();
   };
 }
