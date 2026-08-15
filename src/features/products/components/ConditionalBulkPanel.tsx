@@ -18,6 +18,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -326,14 +332,27 @@ function ConditionRow({
   };
 
   return (
-    <div className="flex items-start gap-2 rounded-lg border bg-muted/30 p-3">
-      {/* Condition type label */}
-      <span className="text-sm font-medium pt-0.5 w-44 shrink-0">
-        {CONDITION_LABELS[condition.type]}
-      </span>
+    <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-start">
+      {/* Condition type label + (mobile) remove button share a row; on sm+
+          this wrapper drops out of the box model via `contents` so the
+          label and button become direct flex items of the row below,
+          ordered label / value / trash to match the desktop layout. */}
+      <div className="flex items-center justify-between gap-2 sm:contents">
+        <span className="text-sm font-medium sm:w-44 sm:shrink-0 sm:pt-0.5">
+          {CONDITION_LABELS[condition.type]}
+        </span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0 sm:order-last"
+          onClick={onRemove}
+        >
+          <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+        </Button>
+      </div>
 
       {/* Value editor */}
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         {condition.type === "brand" && (
           <ChipGroup
             options={brands}
@@ -467,10 +486,6 @@ function ConditionRow({
           />
         )}
       </div>
-
-      <Button variant="ghost" size="icon" className="shrink-0 h-7 w-7" onClick={onRemove}>
-        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-      </Button>
     </div>
   );
 }
@@ -746,8 +761,8 @@ function PreviewCard({ preview }: { preview: PreviewResult }) {
           : t("willAffect", { count: preview.count })}
       </p>
       {preview.samples.length > 0 && (
-        <div className="rounded border overflow-hidden">
-          <table className="w-full text-xs">
+        <div className="rounded border overflow-x-auto">
+          <table className="w-full min-w-125 text-xs">
             <thead>
               <tr className="border-b bg-background">
                 <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">{t("colTitle")}</th>
@@ -774,7 +789,7 @@ function PreviewCard({ preview }: { preview: PreviewResult }) {
             </tbody>
           </table>
           {preview.count > preview.samples.length && (
-            <p className="px-3 py-1.5 text-xs text-muted-foreground border-t">
+            <p className="min-w-125 px-3 py-1.5 text-xs text-muted-foreground border-t">
               {t("andMore", { count: preview.count - preview.samples.length })}
             </p>
           )}
@@ -859,15 +874,12 @@ export function ConditionalBulkPanel({
     wasExecuting.current = isExecuting;
   }, [isExecuting]);
 
-  const [showAddMenu, setShowAddMenu] = useState(false);
-
   const addCondition = (type: ConditionType) => {
     if (conditions.some((c) => c.type === type)) return;
     const partners = MUTEX_PARTNERS[type] ?? [];
     if (partners.some((p) => conditions.some((c) => c.type === p))) return;
     setConditions((prev) => [...prev, makeDefaultCondition(type)]);
     setPreview(null);
-    setShowAddMenu(false);
   };
 
   const updateCondition = (index: number, c: Condition) => {
@@ -1075,59 +1087,48 @@ export function ConditionalBulkPanel({
         ))}
 
         {/* Add condition menu */}
-        <div className="relative w-fit">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => setShowAddMenu((v) => !v)}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {t("addCondition")}
-            <ChevronDown className="h-3.5 w-3.5" />
-          </Button>
-          {showAddMenu && (
-            <div className="absolute left-0 top-full mt-1 z-20 w-72 max-h-80 overflow-y-auto rounded-lg border bg-popover shadow-lg py-1">
-              {ADDABLE_CONDITIONS.map(({ type, label }) => {
-                const alreadyAdded = existingTypes.has(type);
-                const partners = MUTEX_PARTNERS[type] ?? [];
-                const blockingPartner = partners.find((p) => existingTypes.has(p));
-                const disabled = alreadyAdded || !!blockingPartner;
-                // Surface *why* the item is unavailable so users aren't left
-                // wondering why their click did nothing.
-                const reasonLabel = alreadyAdded
-                  ? t("added")
-                  : blockingPartner
-                  ? t("conflictsWith", {
-                      condition:
-                        ADDABLE_CONDITIONS.find((c) => c.type === blockingPartner)?.label ?? "",
-                    })
-                  : null;
-                return (
-                  <button
-                    key={type}
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => addCondition(type)}
-                    title={reasonLabel ?? undefined}
-                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-sm text-left transition-colors ${
-                      disabled
-                        ? "opacity-40 cursor-not-allowed"
-                        : "cursor-pointer hover:bg-muted"
-                    }`}
-                  >
-                    <span className="truncate">{label}</span>
-                    {reasonLabel && (
-                      <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground shrink-0">
-                        {reasonLabel}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="w-fit gap-1.5">
+              <Plus className="h-3.5 w-3.5" />
+              {t("addCondition")}
+              <ChevronDown className="h-3.5 w-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-72 max-h-80">
+            {ADDABLE_CONDITIONS.map(({ type, label }) => {
+              const alreadyAdded = existingTypes.has(type);
+              const partners = MUTEX_PARTNERS[type] ?? [];
+              const blockingPartner = partners.find((p) => existingTypes.has(p));
+              const disabled = alreadyAdded || !!blockingPartner;
+              // Surface *why* the item is unavailable so users aren't left
+              // wondering why their click did nothing.
+              const reasonLabel = alreadyAdded
+                ? t("added")
+                : blockingPartner
+                ? t("conflictsWith", {
+                    condition:
+                      ADDABLE_CONDITIONS.find((c) => c.type === blockingPartner)?.label ?? "",
+                  })
+                : null;
+              return (
+                <DropdownMenuItem
+                  key={type}
+                  disabled={disabled}
+                  onSelect={() => addCondition(type)}
+                  title={reasonLabel ?? undefined}
+                >
+                  <span className="truncate">{label}</span>
+                  {reasonLabel && (
+                    <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground shrink-0">
+                      {reasonLabel}
+                    </span>
+                  )}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <Separator />

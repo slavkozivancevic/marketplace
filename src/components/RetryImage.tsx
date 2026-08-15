@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import type { Ref, SyntheticEvent } from "react";
 import Image, { type ImageProps } from "next/image";
+import { ImageUnavailable } from "@/components/ImageUnavailable";
 
 // A freshly uploaded image is cold end-to-end (CDN miss + first optimizer
 // resize), so its very first fetch can fail; next/image never retries a
@@ -28,6 +29,14 @@ type RetryImageProps = Omit<ImageProps, "onError"> & {
    * pattern used across the app).
    */
   showShimmer?: boolean;
+  /**
+   * Shows the shared `ImageUnavailable` placeholder once every retry has
+   * been exhausted and the image still hasn't loaded, instead of leaving the
+   * browser's native broken-image icon + alt text in its place. On by
+   * default - turn off only when the caller renders its own terminal-failure
+   * UI.
+   */
+  showFallback?: boolean;
 };
 
 export function RetryImage({
@@ -37,10 +46,12 @@ export function RetryImage({
   src,
   ref,
   showShimmer = true,
+  showFallback = true,
   ...props
 }: RetryImageProps) {
   const [attempt, setAttempt] = useState(0);
   const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
   // Tracks the src this attempt/loaded pair belongs to, compared during
   // render rather than in a useEffect. Next.js's Router Cache keeps a page
   // that's navigated away from alive but hidden instead of unmounting it, and
@@ -56,6 +67,7 @@ export function RetryImage({
     setTrackedSrc(src);
     setAttempt(0);
     setLoaded(false);
+    setFailed(false);
   }
 
   // Forwards the caller's own ref (if any) and, when the shimmer is on, also
@@ -75,6 +87,7 @@ export function RetryImage({
       {showShimmer && !loaded && (
         <div className="absolute inset-0 z-10 skeleton-shimmer pointer-events-none" />
       )}
+      {showFallback && failed && <ImageUnavailable />}
       <Image
         {...props}
         ref={setImageRef}
@@ -88,6 +101,7 @@ export function RetryImage({
         onError={(e) => {
           const willRetry = attempt < MAX_RETRIES;
           if (showShimmer && !willRetry) setLoaded(true);
+          if (!willRetry) setFailed(true);
           onError?.(e, willRetry);
           if (!willRetry) return;
           setTimeout(

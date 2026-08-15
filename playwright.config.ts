@@ -14,10 +14,19 @@ const baseURL = `http://localhost:${PORT}`;
 
 export default defineConfig({
   testDir: "./e2e",
+  globalSetup: "./e2e/global-setup.ts",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? "github" : "html",
+  // Above the 5s default: Next's dev server (which `webServer` always boots,
+  // even after globalSetup's warm-up) compiles each route's RSC payload on
+  // demand, and several specs' first navigations land on a route none of the
+  // others have hit yet - that compile alone can outlast 5s while workers
+  // run in parallel against the same dev process.
+  expect: {
+    timeout: 15_000,
+  },
   use: {
     baseURL,
     trace: "on-first-retry",

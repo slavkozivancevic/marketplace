@@ -29,7 +29,11 @@ import { getAttributeLabel } from "../utils/translations";
 import { cn } from "@/lib/utils";
 import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 
-const GRID = "1fr 130px 80px 90px 116px";
+// Label needs an explicit floor like every other table's `minmax(Npx,1fr)` -
+// a bare `1fr` can collapse toward 0 alongside the container's `min-w-fit`,
+// letting the row's text visually spill past the column edge into the Key
+// column instead of being clipped to the track's own width.
+const GRID = "minmax(140px,1fr) 130px 80px 90px 116px";
 
 export function AdminAttributesPage({
   attributes,
@@ -124,7 +128,7 @@ export function AdminAttributesPage({
         >
           {/* Header */}
           <div
-            className="grid items-center gap-3 border-b p-3 text-xs font-medium text-muted-foreground bg-background sticky top-0 z-10"
+            className="grid items-center gap-3 border-b p-3 text-xs font-medium text-muted-foreground bg-background sticky top-0 z-10 min-w-fit"
             style={{ gridTemplateColumns: GRID }}
           >
             <div>{t("label")}</div>
@@ -137,7 +141,7 @@ export function AdminAttributesPage({
           {filtered.map((row) => (
             <div
               key={row.id}
-              className="grid items-center gap-3 border-b p-3"
+              className="grid items-center gap-3 border-b p-3 min-w-fit"
               style={{ gridTemplateColumns: GRID }}
             >
               {/* Label */}

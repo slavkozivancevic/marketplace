@@ -181,7 +181,7 @@ export function BulkSelectPanel() {
 
         {/* Toolbar - inside table border so it doesn't push the table down */}
         {selectedCount > 0 && (
-          <div className="shrink-0 flex items-center gap-3 border-b bg-background/95 backdrop-blur-xs px-4 py-2.5">
+          <div className="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-background/95 backdrop-blur-xs px-4 py-2.5">
             <span className="text-sm font-medium text-muted-foreground">
               {t("selected", { count: selectedCount })}
             </span>
@@ -309,7 +309,7 @@ export function BulkSelectPanel() {
                     key={product.id}
                     role="row"
                     className={cn(
-                      "grid items-center gap-4 border-b p-3 transition-colors cursor-pointer hover:bg-muted/50",
+                      "grid items-center gap-4 border-b p-3 transition-colors cursor-pointer hover:bg-muted/50 min-w-fit",
                       checked && "bg-primary/5",
                     )}
                     style={{ gridTemplateColumns: GRID_COLS }}

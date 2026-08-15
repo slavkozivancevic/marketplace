@@ -35,6 +35,13 @@ import { getCategoryName } from "../utils/translations";
 import { cn } from "@/lib/utils";
 import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 
+// Name carries a depth indent plus icons/badges on top of the text, so it
+// needs an explicit floor like every other table's `minmax(Npx,1fr)` - a
+// bare `1fr` can collapse toward 0 alongside the container's `min-w-fit`,
+// letting the row's icons/text visually spill past the column edge into
+// the Slug column instead of being clipped to the track's own width.
+const COLS = "minmax(200px,1fr) 140px 90px 70px 116px";
+
 /** Sort flat list into tree order: root → its children → next root → its children */
 function toTreeOrder(categories: CategoryListItem[]): Array<CategoryListItem & { depth: number }> {
   const roots = categories.filter((c) => !c.parentId);
@@ -171,8 +178,8 @@ export function AdminCategoriesPage({
           )}
         >
           {/* Header */}
-          <div className="grid items-center gap-3 border-b p-3 text-xs font-medium text-muted-foreground bg-background sticky top-0 z-10"
-            style={{ gridTemplateColumns: "1fr 140px 90px 70px 116px" }}>
+          <div className="grid items-center gap-3 border-b p-3 text-xs font-medium text-muted-foreground bg-background sticky top-0 z-10 min-w-fit"
+            style={{ gridTemplateColumns: COLS }}>
             <div>{t("name")}</div>
             <div>{t("slug")}</div>
             <div className="text-right">{t("products")}</div>
@@ -188,10 +195,10 @@ export function AdminCategoriesPage({
               <div
                 key={row.id}
                 className={cn(
-                  "grid items-center gap-3 border-b p-3",
+                  "grid items-center gap-3 border-b p-3 min-w-fit",
                   isRoot && "bg-muted/20",
                 )}
-                style={{ gridTemplateColumns: "1fr 140px 90px 70px 116px" }}
+                style={{ gridTemplateColumns: COLS }}
               >
                 {/* Name */}
                 <div className="flex items-center gap-2 min-w-0">

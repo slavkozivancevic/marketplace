@@ -6,6 +6,7 @@ import { PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { registerTouchFocusCycle } from "./touchFocusCycle";
 import { useSupportsHover } from "@/hooks/useSupportsHover";
+import { ImageUnavailable } from "@/components/ImageUnavailable";
 
 interface HoverImageCyclerProps {
   images: string[];
@@ -46,6 +47,12 @@ export function HoverImageCycler({
   const [loadedUrls, setLoadedUrls] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
+  // URLs that have exhausted every retry - the currently-displayed frame
+  // shows the shared "unavailable" placeholder instead of the browser's
+  // native broken-image icon + alt text while its URL is in this set.
+  const [failedUrls, setFailedUrls] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const [retryCounts, setRetryCounts] = useState<Record<string, number>>({});
   // Devices whose primary input has no hover (touch/stylus) never fire
   // mouseenter, so the cycle - and the vignette that's meant to lift while
@@ -62,6 +69,15 @@ export function HoverImageCycler({
 
   const markLoaded = useCallback((url: string) => {
     setLoadedUrls((prev) => {
+      if (prev.has(url)) return prev;
+      const next = new Set(prev);
+      next.add(url);
+      return next;
+    });
+  }, []);
+
+  const markFailed = useCallback((url: string) => {
+    setFailedUrls((prev) => {
       if (prev.has(url)) return prev;
       const next = new Set(prev);
       next.add(url);
@@ -140,9 +156,15 @@ export function HoverImageCycler({
   };
 
   const handleError = (url: string, isFirst: boolean) => {
-    if (isFirst) setFirstSettled(true);
     const attempts = retryCounts[url] ?? 0;
-    if (attempts >= MAX_RETRIES) return;
+    if (attempts >= MAX_RETRIES) {
+      // Every retry exhausted - settle for real now (not mid-retry, so the
+      // shimmer doesn't hand off to a frame that's still about to recover)
+      // and mark the frame so its display slot swaps to the placeholder.
+      markFailed(url);
+      if (isFirst) setFirstSettled(true);
+      return;
+    }
     const t = setTimeout(() => {
       setRetryCounts((prev) => ({ ...prev, [url]: attempts + 1 }));
     }, RETRY_DELAY_MS * (attempts + 1));
@@ -162,6 +184,9 @@ export function HoverImageCycler({
     >
       {!firstSettled && (
         <div className="absolute inset-0 z-10 skeleton-shimmer" />
+      )}
+      {failedUrls.has(images[index]) && !loadedUrls.has(images[index]) && (
+        <ImageUnavailable />
       )}
       {images.map((url, i) => (
         <Image
