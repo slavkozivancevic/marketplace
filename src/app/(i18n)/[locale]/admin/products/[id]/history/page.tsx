@@ -26,18 +26,6 @@ export default async function AdminProductHistoryPage({
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();
   const { id } = await params;
-  const breadcrumbItems = [
-    { name: tCrumbs("admin"), href: getPathname({ href: "/admin", locale }) },
-    { name: tCrumbs("adminProducts"), href: getPathname({ href: "/admin/products", locale }) },
-    {
-      name: tCrumbs("productDetails"),
-      href: getPathname({ href: { pathname: "/admin/products/[id]", params: { id } }, locale }),
-    },
-    {
-      name: tCrumbs("history"),
-      href: getPathname({ href: { pathname: "/admin/products/[id]/history", params: { id } }, locale }),
-    },
-  ];
 
   const ctx = await resolveRequestContext();
   requirePermission(ctx, "product:read");
@@ -47,13 +35,25 @@ export default async function AdminProductHistoryPage({
   if (!result) return notFound();
 
   if (isActionErrorResult(result)) {
+    const breadcrumbItems = [
+      { name: tCrumbs("admin"), href: getPathname({ href: "/admin", locale }) },
+      { name: tCrumbs("adminProducts"), href: getPathname({ href: "/admin/products", locale }) },
+      {
+        name: tCrumbs("productDetails"),
+        href: getPathname({ href: { pathname: "/admin/products/[id]", params: { id } }, locale }),
+      },
+      {
+        name: tCrumbs("history"),
+        href: getPathname({ href: { pathname: "/admin/products/[id]/history", params: { id } }, locale }),
+      },
+    ];
     return (
       <div className="flex-1 flex flex-col min-h-0">
         <div className="shrink-0 px-6 pt-2 sticky-header-bg">
           <Breadcrumbs items={breadcrumbItems} seo={false} />
           <PageHeader
             title={t("admin.productHistory")}
-            description={t("admin.productHistoryDesc", { id })}
+            description={t("admin.productHistoryDesc", { title: id })}
           >
             <Button asChild variant="outline">
               <Link href={{ pathname: "/admin/products/[id]", params: { id } }}>{t("admin.backToProduct")}</Link>
@@ -71,6 +71,22 @@ export default async function AdminProductHistoryPage({
   }
 
   const history = result as SerializedProductHistory[];
+  // The flat `title` column (unlike `translationsSnap`) is always the
+  // default-locale title, not the viewer's - same simplification the history
+  // table itself already makes for its own "Title" column.
+  const productTitle = history[0]?.title || id;
+  const breadcrumbItems = [
+    { name: tCrumbs("admin"), href: getPathname({ href: "/admin", locale }) },
+    { name: tCrumbs("adminProducts"), href: getPathname({ href: "/admin/products", locale }) },
+    {
+      name: productTitle,
+      href: getPathname({ href: { pathname: "/admin/products/[id]", params: { id } }, locale }),
+    },
+    {
+      name: tCrumbs("history"),
+      href: getPathname({ href: { pathname: "/admin/products/[id]/history", params: { id } }, locale }),
+    },
+  ];
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
@@ -78,7 +94,7 @@ export default async function AdminProductHistoryPage({
         <Breadcrumbs items={breadcrumbItems} seo={false} />
         <PageHeader
           title={t("admin.productHistory")}
-          description={t("admin.productHistoryDesc", { id })}
+          description={t("admin.productHistoryDesc", { title: productTitle })}
         >
           <Button asChild variant="outline">
             <Link href={{ pathname: "/admin/products/[id]", params: { id } }}>{t("admin.backToProduct")}</Link>

@@ -70,6 +70,8 @@ import { VariantsEditor } from "./VariantsEditor";
 import type { AttributeSelectorItem } from "@/features/attributes/db/attributes";
 import { useCurrencyStore } from "@/store/currency";
 import { PriceInput } from "./PriceInput";
+import { formatPrice, convertCents, decimalToCents } from "@/lib/currency";
+import type { Currency } from "@/lib/currency-config";
 
 // ── Translation form shape ───────────────────────────────────────────────
 //
@@ -654,6 +656,13 @@ export function ProductForm({
   const { rates, currency } = useCurrencyStore();
   const [isPending, startTransition] = useTransition();
 
+  // Each PriceInput has its own inline currency selector, independent of the
+  // other price fields - track what each is currently showing so the
+  // saved-value hint below it can match (see PriceInput's onCurrencyChange).
+  const [priceCurrency, setPriceCurrency] = useState<Currency>(currency);
+  const [compareAtCurrency, setCompareAtCurrency] = useState<Currency>(currency);
+  const [costCurrency, setCostCurrency] = useState<Currency>(currency);
+
   // The client Router Cache can serve a stale RSC payload when the user
   // returns to the edit page after a prior save (e.g. they changed the slug,
   // navigated away, and came back). That stale payload carries an outdated
@@ -1136,8 +1145,16 @@ export function ProductForm({
     );
   };
 
-  // Product prices live in USD-base dollars in the form.
-  const fmtUsd = (v: unknown) => `$${Number(v).toFixed(2)}`;
+  // Product prices live in USD-base dollars in the form, but the saved-value
+  // hint should match whatever currency that field's PriceInput is currently
+  // showing (tracked above via onCurrencyChange) - not raw USD, which read
+  // as a mismatch against the input and its own inline "≈ USD" helper line
+  // whenever the display currency wasn't USD.
+  const fmtPrice = (fieldCurrency: Currency) => (v: unknown) =>
+    formatPrice(
+      convertCents(decimalToCents(Number(v)), fieldCurrency, rates[fieldCurrency] ?? 1),
+      fieldCurrency,
+    );
   const fmtStock = (v: unknown) => (v == null ? t("unlimited") : String(v));
 
   const onSubmit = (data: ProductFormData) => {
@@ -1489,9 +1506,9 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel required>{t("price")}</FormLabel>
                     <FormControl>
-                      <PriceInput value={field.value} onChange={field.onChange} onBlur={field.onBlur} rates={rates} defaultCurrency={currency} />
+                      <PriceInput value={field.value} onChange={field.onChange} onBlur={field.onBlur} rates={rates} defaultCurrency={currency} onCurrencyChange={setPriceCurrency} />
                     </FormControl>
-                    <FieldChangedHint format={fmtUsd} />
+                    <FieldChangedHint format={fmtPrice(priceCurrency)} />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1504,10 +1521,10 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>{t("compareAtPrice")}</FormLabel>
                     <FormControl>
-                      <PriceInput value={field.value ?? 0} onChange={(v) => field.onChange(v || null)} onBlur={field.onBlur} rates={rates} defaultCurrency={currency} />
+                      <PriceInput value={field.value ?? 0} onChange={(v) => field.onChange(v || null)} onBlur={field.onBlur} rates={rates} defaultCurrency={currency} onCurrencyChange={setCompareAtCurrency} />
                     </FormControl>
                     <FormDescription>{t("compareAtDesc")}</FormDescription>
-                    <FieldChangedHint format={fmtUsd} />
+                    <FieldChangedHint format={fmtPrice(compareAtCurrency)} />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1520,10 +1537,10 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>{t("costPrice")}</FormLabel>
                     <FormControl>
-                      <PriceInput value={field.value ?? 0} onChange={(v) => field.onChange(v || null)} onBlur={field.onBlur} rates={rates} defaultCurrency={currency} />
+                      <PriceInput value={field.value ?? 0} onChange={(v) => field.onChange(v || null)} onBlur={field.onBlur} rates={rates} defaultCurrency={currency} onCurrencyChange={setCostCurrency} />
                     </FormControl>
                     <FormDescription>{t("costDesc")}</FormDescription>
-                    <FieldChangedHint format={fmtUsd} />
+                    <FieldChangedHint format={fmtPrice(costCurrency)} />
                     <FormMessage />
                   </FormItem>
                 )}

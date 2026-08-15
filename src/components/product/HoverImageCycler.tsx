@@ -5,6 +5,7 @@ import Image from "next/image";
 import { PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { registerTouchFocusCycle } from "./touchFocusCycle";
+import { useSupportsHover } from "@/hooks/useSupportsHover";
 
 interface HoverImageCyclerProps {
   images: string[];
@@ -48,14 +49,8 @@ export function HoverImageCycler({
   const [retryCounts, setRetryCounts] = useState<Record<string, number>>({});
   // Devices whose primary input has no hover (touch/stylus) never fire
   // mouseenter, so the cycle - and the vignette that's meant to lift while
-  // "hovered" - would otherwise be stuck at rest forever. Read once
-  // up-front (SSR default true, same as the pre-touch-support behavior;
-  // never rendered into markup, so a client/server mismatch here is moot).
-  const [supportsHover, setSupportsHover] = useState(() =>
-    typeof window === "undefined" || !window.matchMedia
-      ? true
-      : window.matchMedia("(hover: hover) and (pointer: fine)").matches,
-  );
+  // "hovered" - would otherwise be stuck at rest forever.
+  const supportsHover = useSupportsHover();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const retryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -120,16 +115,6 @@ export function HoverImageCycler({
       timerRef.current = null;
     }
     setIndex(0);
-  }, []);
-
-  // Keep the primary-pointer detection in sync (e.g. a 2-in-1 laptop
-  // switching between touch and trackpad).
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return;
-    const mq = window.matchMedia("(hover: hover) and (pointer: fine)");
-    const onChange = (e: MediaQueryListEvent) => setSupportsHover(e.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
   }, []);
 
   // Touch/stylus devices have no hover to drive the cycle or lift the

@@ -16,6 +16,8 @@ import { Label } from "@/components/ui/label";
 import { PriceInput } from "./PriceInput";
 import { useCurrencyStore } from "@/store/currency";
 import { cn } from "@/lib/utils";
+import { formatPrice, convertCents, decimalToCents } from "@/lib/currency";
+import type { Currency } from "@/lib/currency-config";
 import { getLabel } from "@/features/attributes/utils/translations";
 import type { AttributeSelectorItem } from "@/features/attributes/db/attributes";
 import type { CategoryTreeItem } from "@/features/categories/db/categories";
@@ -57,6 +59,13 @@ export function VariantsEditor({
   const t = useTranslations("productForm");
   const locale = useLocale();
   const { rates, currency } = useCurrencyStore();
+
+  // Each row's PriceInput has its own inline currency selector - track what
+  // each is currently showing (keyed by row index, same as everything else
+  // in this list) so that row's saved-value hint can match it instead of
+  // always showing raw USD.
+  const [priceCurrencyByRow, setPriceCurrencyByRow] = useState<Record<number, Currency>>({});
+  const priceCurrencyFor = (i: number): Currency => priceCurrencyByRow[i] ?? currency;
 
   const categoryIdsRaw = useWatch({ control: form.control, name: "categoryIds" });
   const categoryIds = useMemo(
@@ -275,7 +284,64 @@ export function VariantsEditor({
   for (const sv of (form.formState.defaultValues?.variants ?? []) as Partial<VariantRow>[]) {
     savedBySig.set(sigOf((sv.options ?? []) as VariantRow["options"]), sv);
   }
-  const fmtUsd = (n: unknown) => `$${Number(n).toFixed(2)}`;
+  // Variant prices live in USD-base dollars in the form, but the saved-value
+  // hint should match whatever currency that row's PriceInput is currently
+  // showing (see priceCurrencyByRow above) - not raw USD.
+  const fmtPrice = (fieldCurrency: Currency) => (n: unknown) =>
+    formatPrice(
+      convertCents(decimalToCents(Number(n)), fieldCurrency, rates[fieldCurrency] ?? 1),
+      fieldCurrency,
+    );
+
+  // Saved baseline for the option pills themselves (as opposed to the saved
+  // variant rows above) - what `picked` looked like right after the last
+  // save, reconstructed the same way `seedPicked` derives the initial
+  // selection, but from the saved baseline instead of the live form. Lets the
+  // "generate from options" button surface a normal saved-value hint too,
+  // the same way every other edited field in this form does, instead of only
+  // the button's own "(needs regenerate)" label with nothing to compare to.
+  const savedPicked: Record<string, string[]> = {};
+  for (const sv of (form.formState.defaultValues?.variants ?? []) as Partial<VariantRow>[]) {
+    for (const o of (sv.options ?? []) as { attributeId: string; optionId: string }[]) {
+      (savedPicked[o.attributeId] ??= []).push(o.optionId);
+    }
+  }
+  for (const k of Object.keys(savedPicked)) savedPicked[k] = [...new Set(savedPicked[k])];
+  const hasSavedVariants = ((form.formState.defaultValues?.variants ?? []) as unknown[]).length > 0;
+  const pickedSig = (p: Record<string, string[]>) =>
+    Object.keys(p)
+      .filter((k) => (p[k] ?? []).length > 0)
+      .sort()
+      .map((k) => `${k}:${[...p[k]].sort().join(",")}`)
+      .join("|");
+  const describePicked = (p: Record<string, string[]>) =>
+    axes
+      .map((a) => {
+        const optIds = p[a.id] ?? [];
+        if (optIds.length === 0) return null;
+        const labels = optIds
+          .map((id) => a.options.find((o) => o.id === id))
+          .filter((o): o is (typeof a.options)[number] => o != null)
+          .map((o) => getLabel(o.translations, locale));
+        return labels.length > 0 ? `${getLabel(a.translations, locale)}: ${labels.join(", ")}` : null;
+      })
+      .filter((s): s is string => s != null)
+      .join(" · ") || null;
+
+  // Saved baseline for a variant's media selection, so a changed selection
+  // gets the same saved-value hint as every other row field. Media items
+  // have no display name, so the saved set is described by thumbnail
+  // position (stable - `uploadedMedia` order doesn't change within a
+  // session) rather than a name list.
+  const mediaKeysSig = (keys: string[] | undefined) => [...(keys ?? [])].sort().join(",");
+  const describeMediaKeys = (keys: string[] | undefined) => {
+    const labels = (keys ?? [])
+      .map((key) => uploadedMedia.findIndex((m) => m.key === key))
+      .filter((idx) => idx >= 0)
+      .sort((a, b) => a - b)
+      .map((idx) => `#${idx + 1}`);
+    return labels.length > 0 ? labels.join(", ") : null;
+  };
 
   return (
     <div className="space-y-4">
@@ -337,6 +403,12 @@ export function VariantsEditor({
             {t("generateVariants")}
             {needsRegenerate && ` ${t("needsRegenerate")}`}
           </Button>
+          {hasSavedVariants && (
+            <ChangedHint
+              changed={pickedSig(picked) !== pickedSig(savedPicked)}
+              savedText={describePicked(savedPicked)}
+            />
+          )}
         </div>
       )}
 
@@ -408,6 +480,7 @@ export function VariantsEditor({
                   onChange={(usd) => setField(i, { price: usd })}
                   rates={rates}
                   defaultCurrency={currency}
+                  onCurrencyChange={(c) => setPriceCurrencyByRow((prev) => ({ ...prev, [i]: c }))}
                 />
                 {errMsg(i, "price") && (
                   <p className="text-xs text-destructive">{errMsg(i, "price")}</p>
@@ -415,7 +488,7 @@ export function VariantsEditor({
                 {saved?.price != null && (
                   <ChangedHint
                     changed={Number(saved.price) !== Number(v.price)}
-                    savedText={fmtUsd(saved.price)}
+                    savedText={fmtPrice(priceCurrencyFor(i))(saved.price)}
                   />
                 )}
               </div>
@@ -480,6 +553,12 @@ export function VariantsEditor({
                     );
                   })}
                 </div>
+              )}
+              {saved?.mediaKeys != null && (
+                <ChangedHint
+                  changed={mediaKeysSig(saved.mediaKeys) !== mediaKeysSig(v.mediaKeys)}
+                  savedText={describeMediaKeys(saved.mediaKeys)}
+                />
               )}
             </div>
           </div>

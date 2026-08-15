@@ -69,20 +69,19 @@ export default async function EditProductPage({
       fetchCategoryAttributeMap(),
     ]);
 
-  const breadcrumbItems = [
-    { name: tCrumbs("admin"), href: getPathname({ href: "/admin", locale }) },
-    { name: tCrumbs("adminProducts"), href: getPathname({ href: "/admin/products", locale }) },
-    {
-      name: tCrumbs("productDetails"),
-      href: getPathname({ href: { pathname: "/admin/products/[id]", params: { id } }, locale }),
-    },
-    {
-      name: tCrumbs("editProduct"),
-      href: getPathname({ href: { pathname: "/admin/products/[id]/edit", params: { id } }, locale }),
-    },
-  ];
-
   if (isActionErrorResult(result)) {
+    const breadcrumbItems = [
+      { name: tCrumbs("admin"), href: getPathname({ href: "/admin", locale }) },
+      { name: tCrumbs("adminProducts"), href: getPathname({ href: "/admin/products", locale }) },
+      {
+        name: tCrumbs("productDetails"),
+        href: getPathname({ href: { pathname: "/admin/products/[id]", params: { id } }, locale }),
+      },
+      {
+        name: tCrumbs("editProduct"),
+        href: getPathname({ href: { pathname: "/admin/products/[id]/edit", params: { id } }, locale }),
+      },
+    ];
     return (
       <div className="flex-1 flex flex-col min-h-0">
         <div className="shrink-0 px-6 pt-2 sticky-header-bg">
@@ -107,6 +106,19 @@ export default async function EditProductPage({
     product.translations.find((tr) => tr.locale === locale)?.title ??
     product.translations.find((tr) => tr.locale === DEFAULT_LOCALE)?.title ??
     "";
+
+  const breadcrumbItems = [
+    { name: tCrumbs("admin"), href: getPathname({ href: "/admin", locale }) },
+    { name: tCrumbs("adminProducts"), href: getPathname({ href: "/admin/products", locale }) },
+    {
+      name: title || tCrumbs("productDetails"),
+      href: getPathname({ href: { pathname: "/admin/products/[id]", params: { id } }, locale }),
+    },
+    {
+      name: tCrumbs("editProduct"),
+      href: getPathname({ href: { pathname: "/admin/products/[id]/edit", params: { id } }, locale }),
+    },
+  ];
 
   return (
     <div className="flex-1 flex flex-col min-h-0">

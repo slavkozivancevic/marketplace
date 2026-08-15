@@ -259,7 +259,21 @@ export function ProductTableRow({
         </TruncatedTooltip>
       )}
       {showActions && (
-        <div role="cell" onClick={(e) => e.stopPropagation()}>
+        <div
+          role="cell"
+          onClick={(e) => {
+            // The parent row is a real <a> (see the Link comment above), so
+            // stopPropagation alone only keeps this click from reaching
+            // *React's* click handling on that anchor - it never runs the
+            // Link's own onClick, which is what calls preventDefault to
+            // cancel the native "follow href" behavior. Without calling
+            // preventDefault ourselves here too, the browser still performs
+            // its default action and navigates to the row's view page
+            // regardless of which action button was clicked.
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+        >
           <div className="flex items-center justify-end gap-1">
             <Button
               variant="ghost"

@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { VerificationRequiredNotice } from "@/components/VerificationRequiredNotice";
 import { SerializedProductWithRelations } from "@/types/types";
+import { DEFAULT_LOCALE } from "@/i18n/config";
 
 interface MyProductEditPageProps {
   params: Promise<{ id: string }>;
@@ -162,11 +163,26 @@ export default async function MyProductEditPage({
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();
   const { id } = await params;
+
+  // Cheap, ungated lookup just for the breadcrumb label - the full authorized
+  // fetch (org/membership/verification checks) happens deeper in
+  // ProductEditContent, too late for the breadcrumb rendered above it. A
+  // product's title isn't sensitive (it's already public storefront content),
+  // so this doesn't leak anything ProductEditContent's own gates protect.
+  const titleProduct = await prisma.product.findFirst({
+    where: { id, deletedAt: null },
+    select: { translations: { select: { locale: true, title: true } } },
+  });
+  const productTitle =
+    titleProduct?.translations.find((tr) => tr.locale === locale)?.title ??
+    titleProduct?.translations.find((tr) => tr.locale === DEFAULT_LOCALE)?.title ??
+    "";
+
   const breadcrumbItems = [
     { name: tCrumbs("dashboard"), href: getPathname({ href: "/dashboard", locale }) },
     { name: tCrumbs("myProducts"), href: getPathname({ href: "/dashboard/my-products", locale }) },
     {
-      name: tCrumbs("productDetails"),
+      name: productTitle || tCrumbs("productDetails"),
       href: getPathname({ href: { pathname: "/dashboard/my-products/[id]", params: { id } }, locale }),
     },
     {

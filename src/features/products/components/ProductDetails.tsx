@@ -55,7 +55,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
     <div className="space-y-6">
       {/* ── BASIC INFO ── */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>{t("basicInfo")}</CardTitle>
           {showActions && (
             <ProductStatusActions

@@ -30,7 +30,9 @@ export default function BrandLoading() {
               </div>
             </div>
           </div>
-          <SkeletonButton className="w-32" />
+          <div className="flex justify-end">
+            <SkeletonButton className="w-32" />
+          </div>
         </div>
       </div>
       <div className="flex flex-col flex-1 min-h-0 gap-4">

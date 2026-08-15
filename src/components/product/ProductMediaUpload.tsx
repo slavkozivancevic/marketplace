@@ -23,6 +23,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useSupportsHover } from "@/hooks/useSupportsHover";
 
 import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
@@ -101,6 +102,10 @@ function SortableItem({ item, onClick, onRemove }: SortableItemProps) {
     transition,
     isDragging,
   } = useSortable({ id: sortableId });
+  // The remove button only reveals on hover, which touch devices never fire -
+  // it would otherwise be permanently invisible (and untappable) there. Keep
+  // it always-on for touch, hover-revealed for mouse/trackpad as before.
+  const supportsHover = useSupportsHover();
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -118,7 +123,11 @@ function SortableItem({ item, onClick, onRemove }: SortableItemProps) {
       style={style}
       {...attributes}
       {...listeners}
-      className={`group py-0 relative aspect-square w-full cursor-pointer overflow-hidden ${isDragging ? "z-1" : ""}`}
+      // touch-none (touch-action: none) is required for dnd-kit's delay-based
+      // PointerSensor activation to work on touch devices - without it, the
+      // browser starts its own scroll gesture on touchmove and cancels the
+      // pointer capture before the long-press delay can recognize a drag.
+      className={`group py-0 relative aspect-square w-full cursor-pointer touch-none overflow-hidden ${isDragging ? "z-1" : ""}`}
     >
       <CardContent className="relative h-full w-full p-0" onClick={onClick}>
         {isVideo && !item.posterUrl ? (
@@ -158,7 +167,9 @@ function SortableItem({ item, onClick, onRemove }: SortableItemProps) {
         )}
       </CardContent>
 
-      <CardAction className="absolute top-1 right-1 opacity-0 transition group-hover:opacity-100">
+      <CardAction
+        className={`absolute top-1 right-1 transition ${supportsHover ? "opacity-0 group-hover:opacity-100" : "opacity-100"}`}
+      >
         <Button
           type="button"
           size="icon-sm"

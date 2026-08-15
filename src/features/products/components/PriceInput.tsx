@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigationGeneration } from "@/lib/navigation/navGeneration";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -114,6 +114,16 @@ export function PriceInput({
       setDisplayValue(value !== 0 ? (value * navRate).toFixed(2) : "");
     }
   }
+
+  // Notify the caller of the currency actually on screen right now, however
+  // it got there (manual pick below, the defaultCurrency-follow branch above,
+  // or the nav-reset branch above) - callers that mirror amounts in this same
+  // currency (e.g. a saved-value hint) would otherwise only learn about
+  // manual picks and go stale on the other two paths.
+  useEffect(() => {
+    onCurrencyChange?.(inputCurrency);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inputCurrency]);
 
   const symbol = CURRENCIES.find((c) => c.code === inputCurrency)?.symbol ?? "$";
 

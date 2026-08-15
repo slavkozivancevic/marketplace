@@ -153,12 +153,12 @@ function MemberRow({
 
   return (
     <div className="flex flex-col gap-2 py-2">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="truncate text-sm font-medium">{member.user.name || member.user.email}</p>
           <p className="truncate text-xs text-muted-foreground">{member.user.email}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
           <Badge variant="outline">{userRoleLabel}</Badge>
 
           {canActOnMember ? (

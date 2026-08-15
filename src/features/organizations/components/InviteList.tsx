@@ -44,14 +44,14 @@ export function InviteList({ invites, canManage }: InviteListProps) {
       {invites.map((invite) => {
         const isCancelling = isPending && cancellingId === invite.id;
         return (
-          <div key={invite.id} className="flex items-center justify-between py-2">
-            <div>
-              <p className="text-sm font-medium">{invite.email}</p>
-              <p className="text-xs text-muted-foreground">
+          <div key={invite.id} className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{invite.email}</p>
+              <p className="truncate text-xs text-muted-foreground">
                 {t("expires", { date: new Date(invite.expiresAt).toLocaleDateString(dl, { year: "numeric", month: "short", day: "numeric" }) })}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
               <Badge variant="secondary">
                 {invite.role === "ADMIN" ? t("roleAdmin") : t("roleMember")}
               </Badge>

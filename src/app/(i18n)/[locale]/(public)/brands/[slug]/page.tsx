@@ -275,7 +275,7 @@ export default async function BrandDetailPage({ params }: BrandPageProps) {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center justify-end gap-2 shrink-0">
             <Button asChild variant="outline">
               <Link href="/brands">{t("publicBackToBrands")}</Link>
             </Button>

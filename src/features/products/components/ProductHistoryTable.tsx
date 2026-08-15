@@ -19,7 +19,7 @@ interface ProductHistoryTableProps {
   productId: string;
 }
 
-const GRID_COLS = "grid-cols-[60px_64px_minmax(140px,1fr)_minmax(200px,2fr)_120px_100px_minmax(120px,1fr)_minmax(180px,1fr)_100px]";
+const GRID_COLS = "grid-cols-[60px_64px_minmax(140px,1fr)_minmax(200px,2fr)_120px_100px_minmax(120px,1fr)_100px_80px_100px]";
 
 function getStatusVariant(status: string) {
   switch (status) {
@@ -51,7 +51,8 @@ function HistoryTableHeader() {
       <div role="columnheader" className="truncate text-right">{t("historyPrice")}</div>
       <div role="columnheader" className="truncate text-center">{t("historyStatus")}</div>
       <div role="columnheader" className="truncate">{t("historyUpdatedBy")}</div>
-      <div role="columnheader" className="truncate">{t("historyCreatedAt")}</div>
+      <div role="columnheader" className="truncate">{t("historyDate")}</div>
+      <div role="columnheader" className="truncate">{t("historyTime")}</div>
       {/* Rollback is a labeled button (not an icon row) - keeping the column
           LEFT-aligned reads more naturally than right-anchoring a wide button. */}
       <div role="columnheader" className="truncate">{t("historyActions")}</div>
@@ -112,7 +113,19 @@ function HistoryRow({
       <div role="cell" className="truncate">
         {entry.updatedBy?.name ?? entry.updatedBy?.email ?? "-"}
       </div>
-      <div role="cell" className="truncate">{new Date(entry.createdAt).toLocaleString(dl)}</div>
+      <div role="cell" className="truncate">
+        {new Date(entry.createdAt).toLocaleDateString(dl, {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })}
+      </div>
+      <div role="cell" className="truncate text-muted-foreground">
+        {new Date(entry.createdAt).toLocaleTimeString(dl, {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}
+      </div>
       <div role="cell">
         {!isLatest && (
           <ActionButton
