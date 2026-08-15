@@ -5,16 +5,13 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { HeaderAuth } from "./header-auth";
 import { PreferencesPopover } from "./preferences-popover";
-import { Menu, X } from "lucide-react";
 import { BrandMark } from "./brand-mark";
 import { BrandWordmark } from "./brand-wordmark";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function AdminHeader() {
   const t = useTranslations("header");
   const [scrolled, setScrolled] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     const main = document.querySelector("main");
@@ -44,7 +41,10 @@ export function AdminHeader() {
               <span className="text-lg font-bold tracking-tight leading-tight truncate">
                 <BrandWordmark />
               </span>
-              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight truncate">
+              {/* Font-size scales down continuously below ~400px (floor
+                  4px) instead of clipping - tracking (`0.2em`, relative)
+                  auto-shrinks with it, no separate rule needed. */}
+              <span className="text-[clamp(1.5px,5.47vw-11.3px,10px)] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight truncate">
                 {t("adminTagline")}
               </span>
             </div>
@@ -58,31 +58,15 @@ export function AdminHeader() {
             <div className="hidden sm:flex items-center gap-2 ml-1">
               <HeaderAuth mode="redirect" showDashboardLink={false} signedIn />
             </div>
-            <Button
-              variant="outline"
-              size="icon"
-              className="sm:hidden h-9 w-9"
-              onClick={() => setMobileOpen(!mobileOpen)}
-            >
-              {mobileOpen ? (
-                <X className="h-4 w-4" />
-              ) : (
-                <Menu className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div
-        className={cn(
-          "sm:hidden overflow-hidden transition-all duration-300 border-t border-border/50",
-          mobileOpen ? "max-h-60" : "max-h-0 border-t-0"
-        )}
-      >
-        <div className="px-4 py-3 space-y-1">
-          <div className="pt-2 px-3 sm:hidden">
-            <HeaderAuth mode="redirect" showDashboardLink={false} signedIn />
+            {/* Avatar-only below sm, always the rightmost element, so it's
+                obvious at a glance who's signed in even on the narrowest
+                widths; the full controls (with the dashboard link) take
+                over at sm - never both at once. There's nothing else that
+                needs a mobile menu here (nav lives in the separate
+                AdminSidebar), so no hamburger/dropdown either. */}
+            <div className="sm:hidden">
+              <HeaderAuth mode="redirect" avatarOnly signedIn />
+            </div>
           </div>
         </div>
       </div>

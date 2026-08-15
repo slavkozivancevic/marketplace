@@ -155,7 +155,7 @@ export function SidebarNav(props: SidebarNavProps) {
                   : "bottom-[calc(1rem+env(safe-area-inset-bottom))]",
               )}
             >
-              <Menu className="h-5 w-5" />
+              <Menu className="h-4 w-4" />
               <span className="sr-only">Open navigation</span>
             </Button>
           </SheetTrigger>

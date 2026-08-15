@@ -23,6 +23,24 @@ interface HeaderAuthProps {
    * settles, so the auth controls don't pop in after the loader lifts.
    */
   signedIn?: boolean;
+  /**
+   * Renders just the avatar slot (or nothing, when signed out) instead of
+   * the full sign-in/sign-up/dashboard controls - for a compact instance
+   * that stays visible at widths where the full controls would overflow.
+   * Pair with a sibling full `<HeaderAuth>` hidden at that same breakpoint
+   * (and shown above it) so together they cover every width without ever
+   * rendering the avatar twice.
+   */
+  avatarOnly?: boolean;
+  /**
+   * Suppresses the avatar for a signed-in visitor - the mirror image of
+   * `avatarOnly`. For an instance living inside a mobile dropdown/panel
+   * alongside a sibling `avatarOnly` instance that's already always visible
+   * in the header row: the dropdown still needs to offer sign-in/sign-up to
+   * a signed-out visitor, but showing the avatar there too would duplicate
+   * the one already visible outside the dropdown.
+   */
+  hideAvatarWhenSignedIn?: boolean;
 }
 
 /**
@@ -39,6 +57,8 @@ export function HeaderAuth({
   mode = "modal",
   showDashboardLink = false,
   signedIn = false,
+  avatarOnly = false,
+  hideAvatarWhenSignedIn = false,
 }: HeaderAuthProps) {
   const t = useTranslations("auth");
   const locale = useLocale();
@@ -144,17 +164,29 @@ export function HeaderAuth({
   // Once Clerk is loaded its <SignedIn>/<SignedOut> become authoritative.
   const clerkReady = mounted && isLoaded;
 
+  // `avatarOnly` has nothing to show for a signed-out visitor - the sign-in/
+  // sign-up buttons stay exclusive to the full `<HeaderAuth>` instance a
+  // caller renders at wider widths.
+  const effectiveSignedOutUI = avatarOnly ? null : signedOutUI;
+  // `hideAvatarWhenSignedIn` is the mirror case: a signed-in visitor already
+  // has the avatar from a sibling `avatarOnly` instance, so this one has
+  // nothing left to show.
+  const effectiveSignedInUI = hideAvatarWhenSignedIn ? null : signedInUI;
+  const effectiveSignedInPlaceholder = hideAvatarWhenSignedIn
+    ? null
+    : signedInPlaceholder;
+
   return (
     <div className="flex items-center gap-4">
       {clerkReady ? (
         <>
-          <SignedOut>{signedOutUI}</SignedOut>
-          <SignedIn>{signedInUI}</SignedIn>
+          <SignedOut>{effectiveSignedOutUI}</SignedOut>
+          <SignedIn>{effectiveSignedInUI}</SignedIn>
         </>
       ) : signedIn ? (
-        signedInPlaceholder
+        effectiveSignedInPlaceholder
       ) : (
-        signedOutUI
+        effectiveSignedOutUI
       )}
     </div>
   );

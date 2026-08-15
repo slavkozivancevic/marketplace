@@ -28,7 +28,10 @@ import { User } from "lucide-react";
  * Same `mounted` + <Signed*> guard as HeaderAuth to avoid a hydration diff
  * on cold start (server hasn't resolved the session yet, client has).
  */
-export function NotFoundAuth() {
+export function NotFoundAuth({
+  avatarOnly = false,
+  hideAvatarWhenSignedIn = false,
+}: { avatarOnly?: boolean; hideAvatarWhenSignedIn?: boolean } = {}) {
   const t = useTranslations("auth");
   const locale = useLocale();
   const [mounted, setMounted] = useState(false);
@@ -49,17 +52,27 @@ export function NotFoundAuth() {
 
   return (
     <div className="flex items-center gap-2">
-      <SignedOut>
-        <Button variant="outline" asChild>
-          <a href={`/${locale}/sign-in`}>{t("signIn")}</a>
-        </Button>
-        <Button asChild>
-          <a href={`/${locale}/sign-up`}>{t("signUp")}</a>
-        </Button>
-      </SignedOut>
-      <SignedIn>
-        <UserMenu />
-      </SignedIn>
+      {/* `avatarOnly` has nothing to show for a signed-out visitor - the
+          sign-in/sign-up buttons stay exclusive to the full instance a
+          caller renders at wider widths. */}
+      {!avatarOnly && (
+        <SignedOut>
+          <Button variant="outline" asChild>
+            <a href={`/${locale}/sign-in`}>{t("signIn")}</a>
+          </Button>
+          <Button asChild>
+            <a href={`/${locale}/sign-up`}>{t("signUp")}</a>
+          </Button>
+        </SignedOut>
+      )}
+      {/* Mirror case: a signed-in visitor already has the avatar from a
+          sibling `avatarOnly` instance, so this one has nothing left to
+          show. */}
+      {!hideAvatarWhenSignedIn && (
+        <SignedIn>
+          <UserMenu />
+        </SignedIn>
+      )}
     </div>
   );
 }
@@ -87,7 +100,7 @@ function UserMenu() {
         <button
           type="button"
           aria-label="Account"
-          className="group relative flex size-7 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="group relative flex size-8 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {user?.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -97,7 +110,7 @@ function UserMenu() {
               className="size-full object-cover"
             />
           ) : (
-            <User className="size-3.5" />
+            <User className="size-4" />
           )}
           {/* Diagonal gloss sweep on hover - mimics Clerk's avatar shine.
               A thin 45deg highlight (oriented bottom-left -> top-right, i.e.

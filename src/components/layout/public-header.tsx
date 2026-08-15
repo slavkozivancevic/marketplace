@@ -101,7 +101,15 @@ export function PublicHeader({
                 <span className="text-lg font-bold tracking-tight leading-tight truncate">
                   <BrandWordmark />
                 </span>
-                <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight truncate">
+                {/* Font-size scales down continuously below ~400px (down to
+                    a 4px floor) instead of a hard breakpoint jump - the
+                    avatar-only slot in the right rail (see below) leaves
+                    less room for this as the viewport narrows, and this
+                    keeps the full text visible (never clipped/ellipsized)
+                    at any width instead of just shrinking once. Tracking
+                    stays `0.2em` (relative), so it shrinks in lockstep with
+                    the font-size automatically - no separate rule needed. */}
+                <span className="text-[clamp(1.5px,5.47vw-11.3px,10px)] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight truncate">
                   {t("header.tagline")}
                 </span>
               </div>
@@ -162,6 +170,13 @@ export function PublicHeader({
                   <Menu className="h-4 w-4" />
                 )}
               </Button>
+              {/* Avatar-only below lg, always the rightmost element, so it's
+                  obvious at a glance who's signed in even on the narrowest
+                  widths; the full controls take over at lg - never both at
+                  once. */}
+              <div className="lg:hidden">
+                <HeaderAuth mode="modal" avatarOnly signedIn={signedIn} />
+              </div>
             </div>
           </div>
         </div>
@@ -197,8 +212,16 @@ export function PublicHeader({
                 if (!mounted || !isSignedIn) return null;
                 return linkEl;
               })}
+              {/* hideAvatarWhenSignedIn: the avatar's already always visible
+                  in the header row (see avatarOnly above) - this only needs
+                  to offer sign-in/sign-up to a signed-out visitor. */}
               <div className="pt-2 px-3 lg:hidden">
-                <HeaderAuth mode="modal" showDashboardLink={false} signedIn={signedIn} />
+                <HeaderAuth
+                  mode="modal"
+                  showDashboardLink={false}
+                  signedIn={signedIn}
+                  hideAvatarWhenSignedIn
+                />
               </div>
             </div>
           </div>

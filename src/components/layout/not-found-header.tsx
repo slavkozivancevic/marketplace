@@ -51,7 +51,10 @@ export function NotFoundHeader() {
               <span className="text-lg font-bold tracking-tight leading-tight truncate">
                 <BrandWordmark />
               </span>
-              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight truncate">
+              {/* Font-size scales down continuously below ~400px (floor
+                  4px) instead of clipping - tracking (`0.2em`, relative)
+                  auto-shrinks with it, no separate rule needed. */}
+              <span className="text-[clamp(1.5px,5.47vw-11.3px,10px)] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight truncate">
                 {t("header.tagline")}
               </span>
             </div>
@@ -75,15 +78,15 @@ export function NotFoundHeader() {
               content width, leaving the rest for the logo/tagline rail. */}
           <div className="flex flex-none md:flex-1 items-center justify-end gap-1 sm:gap-2">
             <PreferencesPopover />
-            <div className="hidden sm:flex items-center gap-2 ml-1">
+            <div className="hidden md:flex items-center gap-2 ml-1">
               <NotFoundAuth />
             </div>
             {/* Mobile menu button - reveals nav (and auth on phones) once the
-                inline nav/auth collapse below md/sm. */}
+                inline nav/auth collapse below md. */}
             <Button
               variant="outline"
               size="icon"
-              className="md:hidden h-9 w-9"
+              className="md:hidden"
               onClick={() => setMobileOpen(!mobileOpen)}
             >
               {mobileOpen ? (
@@ -92,6 +95,15 @@ export function NotFoundHeader() {
                 <Menu className="h-4 w-4" />
               )}
             </Button>
+            {/* Avatar-only below md (matching the hamburger's own md:hidden -
+                a mismatched breakpoint here left the hamburger, not the
+                avatar, as the rightmost element between sm and md), always
+                the rightmost element, so it's obvious at a glance who's
+                signed in even on the narrowest widths; the full controls
+                take over at md - never both at once. */}
+            <div className="md:hidden">
+              <NotFoundAuth avatarOnly />
+            </div>
           </div>
         </div>
       </div>
@@ -114,8 +126,13 @@ export function NotFoundHeader() {
               {link.label}
             </Link>
           ))}
-          <div className="pt-2 px-3 sm:hidden">
-            <NotFoundAuth />
+          {/* hideAvatarWhenSignedIn: the avatar's already always visible in
+              the header row (see avatarOnly above) - this only needs to
+              offer sign-in/sign-up to a signed-out visitor. md:hidden to
+              match avatarOnly's breakpoint above (not sm - this dropdown
+              itself only exists below md anyway). */}
+          <div className="pt-2 px-3 md:hidden">
+            <NotFoundAuth hideAvatarWhenSignedIn />
           </div>
         </div>
       </div>

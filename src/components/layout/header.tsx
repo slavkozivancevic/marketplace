@@ -49,7 +49,10 @@ export function Header() {
               <span className="text-lg font-bold tracking-tight leading-tight truncate">
                 <BrandWordmark />
               </span>
-              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight truncate">
+              {/* Font-size scales down continuously below ~400px (floor
+                  4px) instead of clipping - tracking (`0.2em`, relative)
+                  auto-shrinks with it, no separate rule needed. */}
+              <span className="text-[clamp(1.5px,5.47vw-11.3px,10px)] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight truncate">
                 {t("header.dashboardTagline")}
               </span>
             </div>
@@ -73,7 +76,7 @@ export function Header() {
             <Button
               variant="outline"
               size="icon"
-              className="sm:hidden h-9 w-9"
+              className="sm:hidden"
               onClick={() => setMobileOpen(!mobileOpen)}
             >
               {mobileOpen ? (
@@ -82,6 +85,13 @@ export function Header() {
                 <Menu className="h-4 w-4" />
               )}
             </Button>
+            {/* Avatar-only below sm, always the rightmost element, so it's
+                obvious at a glance who's signed in even on the narrowest
+                widths; the full controls take over at sm - never both at
+                once. */}
+            <div className="sm:hidden">
+              <HeaderAuth mode="redirect" avatarOnly signedIn />
+            </div>
           </div>
         </div>
       </div>
@@ -96,12 +106,12 @@ export function Header() {
       >
         <div className="overflow-hidden">
           <div className="px-4 py-3 space-y-1">
+            {/* No auth entry here - dashboard is always signed in, and that
+                avatar's already always visible in the header row (see
+                avatarOnly above), so there'd be nothing left to show. */}
             <div className="flex items-center gap-2 px-3 pb-1">
               <PreferencesPopover />
               <ChatDrawerTrigger signedIn />
-            </div>
-            <div className="pt-2 px-3">
-              <HeaderAuth mode="redirect" showDashboardLink={false} signedIn />
             </div>
           </div>
         </div>
