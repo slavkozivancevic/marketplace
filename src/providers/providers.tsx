@@ -12,6 +12,7 @@ import { LocalePathsHost } from "@/i18n/LocalePathsContext";
 import { LocaleSync } from "@/components/layout/locale-sync";
 import { NavigationGenerationTracker } from "@/components/layout/navigation-generation-tracker";
 import { ThemeProvider } from "@/providers/theme/ThemeProvider";
+import { PullToRefresh } from "@/components/layout/pull-to-refresh";
 import { type Locale } from "@/i18n/config";
 
 /**
@@ -88,6 +89,9 @@ export function InnerProviders({ children }: { children: React.ReactNode }) {
       <LocalePathsHost>
         <LocaleSync />
         <NavigationGenerationTracker />
+        {/* Mobile/touch pull-to-refresh. Sits above the page so its indicator
+            floats over the sticky header, like the platform gesture does. */}
+        <PullToRefresh />
         <ClerkGate>{children}</ClerkGate>
         <Toaster />
         <ChatDrawerRoot />

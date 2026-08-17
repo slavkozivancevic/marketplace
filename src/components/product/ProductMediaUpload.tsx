@@ -559,7 +559,10 @@ export const ProductMediaUpload: React.FC<ProductMediaUploadProps> = ({
             items={media.map((m) => m.clientId ?? m.key)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="mt-4 grid grid-cols-4 gap-4">
+            {/* A long-press drag here is dnd-kit reordering, not a page
+                pull-to-refresh - the tiles are `touch-none` for exactly that
+                reason, so opt the grid out of the global gesture. */}
+            <div className="mt-4 grid grid-cols-4 gap-4" data-no-pull-refresh>
               {media.map((m, i) => (
                 <SortableItem
                   key={m.clientId ?? m.key}

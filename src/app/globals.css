@@ -253,6 +253,13 @@
   }
   html {
     @apply font-sans overflow-hidden;
+    /* Chrome on Android still offers its own pull-to-refresh when the root
+       scroller is at the top - even here, where the root can't scroll at all.
+       That would fire a full reload on top of our in-app gesture (see
+       pull-to-refresh.tsx), so the browser's version is switched off and the
+       app owns the gesture. Also kills the iOS rubber-band on inner scrollers
+       leaking out to the page. */
+    overscroll-behavior-y: contain;
   }
   /* Page-content wrapper. Sized like the old direct body child (h-screen) so
      layouts using h-full / h-screen keep working. When a Radix Dialog opens,
@@ -808,4 +815,20 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 input[type="number"] {
   -moz-appearance: textfield;
+}
+
+/* ===== TOASTS ===== */
+/* Every toast is swipe-to-dismiss (Sonner's default position, bottom-right,
+   arms the "down" and "right" directions and nothing here opts out with
+   `dismissible: false`) - but the gesture was invisible with a mouse, since
+   Sonner leaves the toast body on the default arrow cursor. Grab/grabbing
+   advertises it. The close and action buttons carry more specific Sonner
+   rules of their own, so they keep their pointer cursor. */
+[data-sonner-toast] {
+  cursor: grab;
+}
+
+[data-sonner-toast]:active,
+[data-sonner-toast][data-swiping="true"] {
+  cursor: grabbing;
 }
