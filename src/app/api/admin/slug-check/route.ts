@@ -4,16 +4,22 @@ import { z } from "zod";
 import { prisma } from "@/core/db/prisma";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 
-const querySchema = z.object({
-  // Type of entity we're checking. The unique constraint lives on the
-  // per-entity translation table - one route handles all three.
-  entity: z.enum(["brand", "category", "product", "tag"]),
-  locale: z.string().min(2).max(8),
-  slug: z.string().min(1).max(200),
-  // When editing, callers pass the entity id so the existing row that
-  // already owns the slug doesn't count as a collision.
-  excludeId: z.string().min(1).optional(),
-});
+const querySchema = z
+  .object({
+    // Type of entity we're checking. For the translated ones the unique
+    // constraint lives on the per-entity translation table; `attribute` is the
+    // odd one out - its `key` is globally unique with no locale dimension.
+    entity: z.enum(["brand", "category", "product", "tag", "attribute"]),
+    locale: z.string().min(2).max(8).optional(),
+    slug: z.string().min(1).max(200),
+    // When editing, callers pass the entity id so the existing row that
+    // already owns the slug doesn't count as a collision.
+    excludeId: z.string().min(1).optional(),
+  })
+  .refine((q) => q.entity === "attribute" || !!q.locale, {
+    message: "locale is required for translation-backed entities",
+    path: ["locale"],
+  });
 
 /**
  * Lightweight "is this slug free in this locale" check for the admin
@@ -30,7 +36,11 @@ export async function GET(req: NextRequest) {
 
   const parsed = querySchema.safeParse({
     entity: req.nextUrl.searchParams.get("entity"),
-    locale: req.nextUrl.searchParams.get("locale"),
+    // `searchParams.get` yields null for an absent param, and zod's
+    // `.optional()` accepts undefined but NOT null - without this the
+    // locale-less `attribute` check failed validation and the form showed
+    // "check failed" for every keystroke.
+    locale: req.nextUrl.searchParams.get("locale") ?? undefined,
     slug: req.nextUrl.searchParams.get("slug"),
     excludeId: req.nextUrl.searchParams.get("excludeId") ?? undefined,
   });
@@ -41,6 +51,24 @@ export async function GET(req: NextRequest) {
     );
   }
   const { entity, locale, slug, excludeId } = parsed.data;
+
+  // Handled first, and returned from, for two reasons: `Attribute.key` is a
+  // single globally unique column with no locale dimension, and splitting it
+  // out here narrows `locale` to a plain string for every lookup below (the
+  // schema's refine guarantees it, but that isn't visible to the type system).
+  if (entity === "attribute") {
+    const row = await prisma.attribute.findUnique({
+      where: { key: slug },
+      select: { id: true },
+    });
+    return NextResponse.json({ available: !(row != null && row.id !== excludeId) });
+  }
+
+  if (!locale) {
+    // Unreachable through the schema above; kept so the narrowing is sound
+    // rather than asserted away.
+    return NextResponse.json({ error: "Invalid query" }, { status: 400 });
+  }
 
   let exists = false;
   switch (entity) {

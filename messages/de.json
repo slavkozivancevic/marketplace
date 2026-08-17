@@ -13,8 +13,9 @@
   },
   "slugAvailability": {
     "checking": "Wird geprüft…",
-    "available": "Slug ist verfügbar",
+    "available": "Verfügbar",
     "taken": "Bereits vergeben - wählen Sie einen anderen",
+    "takenAutoSuffix": "Bereits vergeben - ein eindeutiges Suffix wird angehängt",
     "checkFailed": "Prüfung fehlgeschlagen - Server validiert beim Speichern"
   },
   "nav": {
@@ -838,6 +839,8 @@
     "noOptions": "Noch keine Optionen. Fügen Sie mindestens eine hinzu.",
     "optionLabelPlaceholder": "z. B. Rot",
     "removeOption": "Option entfernen",
+    "removed": "Entfernt",
+    "undo": "Rückgängig",
     "order": "Sortierreihenfolge",
     "orderDesc": "Niedrigere Zahlen erscheinen zuerst.",
     "create": "Attribut erstellen",
@@ -1088,6 +1091,15 @@
     "backToProducts": "Zurück zu den Produkten",
     "backToOrganizations": "Zurück zu den Organisationen",
     "backToUsers": "Zurück zu den Benutzern"
+  },
+  "errorPage": {
+    "title": "Etwas ist schiefgelaufen",
+    "pageDescription": "Beim Laden dieser Seite ist ein unerwarteter Fehler aufgetreten.",
+    "productsBody": "Die angeforderte Produktseite konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "productBody": "Dieses Produkt konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "productHistoryBody": "Der Verlauf dieses Produkts konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "genericDescription": "Ein unerwarteter Fehler ist aufgetreten. Sie können es erneut versuchen.",
+    "tryAgain": "Erneut versuchen"
   },
   "productForm": {
     "titleField": "Titel",

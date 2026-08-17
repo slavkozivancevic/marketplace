@@ -9,6 +9,7 @@ import { VALID_CURRENCIES } from "@/lib/currency-config";
 import { prisma } from "@/core/db/prisma";
 import { Link, getPathname } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
+import { getBrandName } from "@/features/brands/utils/translations";
 import { CacheTags } from "@/lib/cache/tags";
 import { Button } from "@/components/ui/button";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
@@ -92,6 +93,11 @@ export async function generateMetadata({
   const localT =
     brand.translations.find((tr) => tr.locale === locale) ??
     brand.translations.find((tr) => tr.locale === routing.defaultLocale);
+  // Name goes through `getBrandName`, not `localT.name`: this locale can HAVE
+  // a translation row whose name was left blank (the row is kept alive by its
+  // slug/description), and reading the row directly would title the page with
+  // an empty string instead of falling back to English.
+  const brandName = getBrandName(brand, locale);
 
   const languages: Record<string, string> = {};
   for (const tr of brand.translations) {
@@ -106,24 +112,24 @@ export async function generateMetadata({
   languages["x-default"] = languages[routing.defaultLocale] ?? languages[locale];
 
   return {
-    title: localT?.name,
+    title: brandName,
     description: localT?.description ?? undefined,
     alternates: {
       canonical: languages[locale] ?? languages[routing.defaultLocale],
       languages,
     },
     openGraph: {
-      title: localT?.name,
+      title: brandName,
       description: localT?.description ?? undefined,
       locale,
       type: "website",
       images: brand.logoUrl
-        ? [{ url: brand.logoUrl, alt: localT?.name ?? "" }]
+        ? [{ url: brand.logoUrl, alt: brandName }]
         : undefined,
     },
     twitter: {
       card: brand.logoUrl ? "summary_large_image" : "summary",
-      title: localT?.name,
+      title: brandName,
       description: localT?.description ?? undefined,
       images: brand.logoUrl ? [brand.logoUrl] : undefined,
     },
@@ -175,6 +181,9 @@ export default async function BrandDetailPage({ params }: BrandPageProps) {
     localTranslation ??
     brand.translations.find((tr) => tr.locale === routing.defaultLocale) ??
     brand.translations[0];
+  // See generateMetadata: a present row does not guarantee a non-blank name,
+  // so the heading/breadcrumb read through `getBrandName` rather than `localT`.
+  const brandName = getBrandName(brand, locale);
   const t = await getTranslations("brands");
   const tCrumbs = await getTranslations("breadcrumbs");
 
@@ -187,7 +196,7 @@ export default async function BrandDetailPage({ params }: BrandPageProps) {
   const breadcrumbItems = [
     { name: tCrumbs("home"), href: homePath },
     { name: tCrumbs("brands"), href: brandsListPath },
-    { name: localT?.name ?? "", href: brandPath },
+    { name: brandName, href: brandPath },
   ];
 
   // Per-locale URLs of this brand so the language switcher hops straight
@@ -261,12 +270,12 @@ export default async function BrandDetailPage({ params }: BrandPageProps) {
               srcDark={brand.logoUrlDark}
               backdrop={brand.logoBackdrop}
               backdropDark={brand.logoBackdropDark}
-              name={localT?.name ?? ""}
+              name={brandName}
               size={64}
             />
             <div className="space-y-0.5 min-w-0">
               <h1 className="text-2xl font-bold text-foreground truncate">
-                {localT?.name ?? ""}
+                {brandName}
               </h1>
               {localT?.description && (
                 <p className="text-sm text-muted-foreground">

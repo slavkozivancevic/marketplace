@@ -1,4 +1,4 @@
-import { pickTranslation } from "@/i18n/translations";
+import { pickTranslation, pickTranslatedText } from "@/i18n/translations";
 import type { Locale } from "@/i18n/config";
 
 /**
@@ -23,12 +23,16 @@ function asValuesMap(v: unknown): Record<string, string> | null {
   return v as Record<string, string>;
 }
 
-/** Returns the localized option name, falling back to the default-locale row. */
+/**
+ * Returns the localized option name, falling back to the default-locale row -
+ * including when this locale HAS a row whose name is blank (see
+ * `pickTranslatedText`), not just when the row is missing outright.
+ */
 export function getOptionName(
   option: { translations: readonly WithName[] },
   locale: string,
 ): string {
-  return pickTranslation(option.translations, locale)?.name ?? "";
+  return pickTranslatedText(option.translations, locale, "name");
 }
 
 /**

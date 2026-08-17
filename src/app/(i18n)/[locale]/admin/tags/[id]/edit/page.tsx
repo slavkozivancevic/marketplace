@@ -7,7 +7,10 @@ import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { CacheTags } from "@/lib/cache/tags";
 import { getTagById } from "@/features/tags/db/tags";
-import type { TagTranslations } from "@/features/tags/utils/translations";
+import {
+  getTagName,
+  type TagTranslations,
+} from "@/features/tags/utils/translations";
 import { TagForm } from "@/features/tags/components/TagForm";
 import { DEFAULT_LOCALE, NON_DEFAULT_LOCALES } from "@/i18n/config";
 
@@ -36,19 +39,31 @@ export default async function EditTagPage({
   // Form input is keyed by canonical English fields + a non-default
   // translations map. Extract each locale's row from the relation.
   const en = tag.translations.find((tr) => tr.locale === DEFAULT_LOCALE);
+  // Every locale gets an entry (empty strings when no row exists yet) -
+  // never skip a locale entirely. A missing key here left that locale's
+  // react-hook-form default at `undefined`; typing into the empty field and
+  // then deleting it back to "" would then compare "" against `undefined`
+  // forever, so the changed-hint and unsaved-changes warning never cleared.
   const nonDefault: TagTranslations = {};
   for (const loc of NON_DEFAULT_LOCALES) {
     const row = tag.translations.find((tr) => tr.locale === loc);
-    if (row) {
-      // The stored slug MUST round-trip through the form. Omitting it would
-      // make every save regenerate the slug from the (possibly unchanged)
-      // name, which collides with the source tag after a duplicate.
-      nonDefault[loc] = { name: row.name, slug: row.slug };
-    }
+    // The stored slug MUST round-trip through the form WHEN a name is
+    // present - omitting it unconditionally made every save regenerate the
+    // slug from the (possibly unchanged) name, which collided with the
+    // source tag after a duplicate. But when name is blank, any stored slug
+    // is only a derived implementation detail (see buildTagTranslationRows)
+    // kept for URL validity, not something the admin entered - show it as
+    // blank too rather than as if it were. Matches the brand/category pages.
+    nonDefault[loc] = {
+      name: row?.name ?? "",
+      slug: row?.name ? (row?.slug ?? "") : "",
+    };
   }
 
-  const displayName =
-    tag.translations.find((tr) => tr.locale === locale)?.name ?? en?.name ?? "";
+  // `getTagName` (not a raw `find(locale)?.name ?? en?.name`) - `??` stops at
+  // a present-but-blank name, so it would title the page with an empty string
+  // instead of falling back to English.
+  const displayName = getTagName(tag, locale);
 
   return (
     <div className="flex-1 flex flex-col min-h-0">

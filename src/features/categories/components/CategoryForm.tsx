@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useNavigationGeneration } from "@/lib/navigation/navGeneration";
 import { useTranslations } from "next-intl";
 import { Loader2, RefreshCw } from "lucide-react";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useFormState, useWatch } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
@@ -37,6 +37,8 @@ import {
 import { categorySchema, type CategoryInput } from "../schema/categories";
 import { createCategoryAction, updateCategoryAction } from "../actions/categories";
 import { slugify } from "@/lib/utils";
+import { deriveOrRestore } from "@/lib/forms/deriveOrRestore";
+import { useIsFormDirty } from "@/lib/forms/useIsFormDirty";
 import { getCategoryName } from "../utils/translations";
 import { useLocale } from "next-intl";
 import { NON_DEFAULT_LOCALES, LOCALE_LABELS, DEFAULT_LOCALE } from "@/i18n/config";
@@ -65,6 +67,7 @@ function PerLocaleSection({
   fallbackName,
   fallbackDescription,
   excludeId,
+  autoResolvesSlug,
   t,
 }: {
   locale: (typeof NON_DEFAULT_LOCALES)[number];
@@ -72,6 +75,8 @@ function PerLocaleSection({
   fallbackName: string;
   fallbackDescription: string;
   excludeId?: string;
+  /** Create mode: the server suffixes a colliding slug instead of failing. */
+  autoResolvesSlug: boolean;
   t: ReturnType<typeof useTranslations<"categories">>;
 }) {
   const uiLocale = useLocale();
@@ -80,15 +85,43 @@ function PerLocaleSection({
   const descriptionPath = `translations.${locale}.description` as const;
 
   const nameValue = useWatch({ control: form.control, name: namePath });
+  const slugValue = useWatch({ control: form.control, name: slugPath });
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const prevNameRef = useRef<string | undefined>(form.getValues(namePath));
+  // `useFormState` (not `form.formState.defaultValues` directly) - the React
+  // Compiler treats `form` as a stable dependency and can cache a stale
+  // snapshot of the proxy read otherwise (see the identical fix in
+  // VariantsEditor.tsx).
+  const { defaultValues: savedFormValues } = useFormState({ control: form.control });
 
   useEffect(() => {
     if (slugManuallyEdited) return;
     if (nameValue === prevNameRef.current) return;
     prevNameRef.current = nameValue;
-    form.setValue(slugPath, slugify(nameValue ?? ""), { shouldDirty: true });
-  }, [nameValue, slugManuallyEdited, form, slugPath]);
+    const saved = savedFormValues?.translations?.[locale];
+    form.setValue(
+      slugPath,
+      deriveOrRestore(nameValue, saved?.name, saved?.slug, slugify),
+      { shouldDirty: true },
+    );
+    // `savedFormValues` is deliberately NOT a dependency: it's read as the
+    // saved baseline, and re-running this on a baseline re-sync would rewrite
+    // the slug without the user having touched the name.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nameValue, slugManuallyEdited, form, slugPath, locale]);
+
+  // What auto-generation would produce right now. Must be `deriveOrRestore`,
+  // NOT a bare `slugify`: while the name still matches what was saved, the auto
+  // value IS the saved slug (suffix and all). Using `slugify` here made the
+  // button hand back an un-suffixed slug the saved record already owns -
+  // regenerating walked straight into "already in use".
+  const autoSlug = deriveOrRestore(
+    nameValue,
+    savedFormValues?.translations?.[locale]?.name,
+    savedFormValues?.translations?.[locale]?.slug,
+    slugify,
+  );
+  const canRegenerateSlug = slugManuallyEdited && (slugValue ?? "") !== autoSlug;
 
   return (
     <div className="rounded-lg border border-border/60 p-4 space-y-4">
@@ -129,17 +162,20 @@ function PerLocaleSection({
                   value={field.value ?? ""}
                   onChange={(e) => {
                     field.onChange(e);
-                    setSlugManuallyEdited(true);
+                    // An emptied field means "I have no manual value" - hand the
+                    // slug back to auto-generation instead of latching the
+                    // manual flag on forever.
+                    setSlugManuallyEdited(e.target.value.trim() !== "");
                   }}
                 />
               </FormControl>
-              {slugManuallyEdited && (
+              {canRegenerateSlug && (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    form.setValue(slugPath, slugify(form.getValues(namePath) ?? ""));
+                    form.setValue(slugPath, autoSlug, { shouldDirty: true });
                     setSlugManuallyEdited(false);
                   }}
                 >
@@ -154,6 +190,7 @@ function PerLocaleSection({
                 locale={locale}
                 slug={field.value}
                 excludeId={excludeId}
+                autoResolves={autoResolvesSlug}
               />
             </div>
             <FieldChangedHint />
@@ -217,11 +254,17 @@ type CategoryFormProps = (CreateMode | EditMode) & {
 };
 
 /**
- * Discard wrapper. react-hook-form's `reset()` leaves `isDirty` spuriously true
- * when a `useFieldArray` (the attributes editor) is mounted - the array
- * re-registers after the reset and re-flags the form dirty, so the save bar
- * never clears. Instead of fighting that, "Discard" remounts the form via a
- * bumped key: a fresh mount re-reads the saved baseline and is reliably clean.
+ * Discard wrapper. Remounting via a bumped key - rather than calling
+ * `form.reset()` - is what makes "Discard" actually restore everything:
+ * meaningful state lives OUTSIDE react-hook-form and `reset()` never touches
+ * it. `slugManuallyEdited` exists once here and once per locale section, so a
+ * plain reset would restore the values yet leave every slug still flagged as
+ * hand-edited: auto-generation stays off and the regenerate button keeps
+ * hanging around after a discard. A fresh mount re-reads the saved baseline
+ * and is reliably clean in one step.
+ *
+ * (This also predates `useIsFormDirty`, which fixed the separate problem of a
+ * stuck save bar - but the local-state reason above is why remounting stays.)
  */
 export function CategoryForm(props: CategoryFormProps) {
   const [discardKey, setDiscardKey] = useState(0);
@@ -271,7 +314,28 @@ function CategoryFormInner(props: CategoryFormProps & { onDiscard: () => void })
     // (e.g., user navigates away from the edit page and returns - Next.js can
     // preserve the React tree, so without this the unsaved edits would persist).
     values: props.mode === "edit" ? derivedValues : undefined,
+    // Without this, every re-render that produces a fresh `derivedValues`
+    // object makes RHF fully reset the form and discard whatever is being
+    // typed - intermittently, since it depends on what triggered the re-render.
+    // `keepDirtyValues` re-syncs untouched fields from the server while leaving
+    // edited ones alone (ProductForm has always done this).
+    resetOptions: { keepDirtyValues: true },
   });
+
+  // `form.formState.x` is a proxy getter - its value changes without the
+  // `form` object's own reference ever changing, which the React Compiler's
+  // memoization can't see: it treats `form` as a stable dependency and
+  // caches whatever `form.formState.x` returned on the first read, leaving
+  // isDirty/errors stuck stale after the very first render. `useFormState`
+  // is a real hook call - the compiler tracks it correctly - and is the
+  // react-hook-form-documented way to read formState reactively (see the
+  // identical fix in VariantsEditor.tsx).
+  const { errors, defaultValues: savedValues } = useFormState({ control: form.control });
+
+  // NOT react-hook-form's `isDirty`: that flag is only recomputed inside the
+  // write that triggered it, so the auto-derived slug (written in a follow-up
+  // step) is never accounted for and the flag stays stuck on.
+  const isDirty = useIsFormDirty(form.control);
 
   // Create mode has no server `values` to re-sync against; reset to empty on
   // entry so a half-filled form doesn't survive leave-and-return. Keyed on the
@@ -279,11 +343,16 @@ function CategoryFormInner(props: CategoryFormProps & { onDiscard: () => void })
   // returning to the same route (`usePathname` stays identical there and so
   // never fired the reset).
   useEffect(() => {
-    if (props.mode === "create") form.reset(derivedValues);
+    if (props.mode === "create")
+      // Explicit `keepDirtyValues: false`: a bare `reset()` MERGES the
+      // useForm-level `resetOptions`, which would keep the half-filled values
+      // this reset exists to clear.
+      form.reset(derivedValues, { keepDirtyValues: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navGeneration]);
 
   const nameValue = useWatch({ control: form.control, name: "name" });
+  const slugValue = useWatch({ control: form.control, name: "slug" });
   const descriptionValue = useWatch({ control: form.control, name: "description" });
   const parentId = useWatch({ control: form.control, name: "parentId" });
 
@@ -293,14 +362,32 @@ function CategoryFormInner(props: CategoryFormProps & { onDiscard: () => void })
     if (slugManuallyEdited) return;
     if (nameValue === prevNameRef.current) return;
     prevNameRef.current = nameValue;
-    form.setValue("slug", slugify(nameValue ?? ""), { shouldDirty: true });
+    const saved = savedValues;
+    form.setValue(
+      "slug",
+      deriveOrRestore(nameValue, saved?.name, saved?.slug, slugify),
+      { shouldDirty: true },
+    );
+    // Baseline read only - see the per-locale section for why it stays out.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nameValue, slugManuallyEdited, form]);
 
-  useUnsavedChangesWarning(props.mode === "edit" && form.formState.isDirty);
+  // See the per-locale section: `deriveOrRestore`, not a bare `slugify`, so
+  // regenerating while the name is unchanged restores the SAVED slug instead
+  // of an un-suffixed one the record already owns.
+  const autoSlug = deriveOrRestore(
+    nameValue,
+    savedValues?.name,
+    savedValues?.slug,
+    slugify,
+  );
+  const canRegenerateSlug = slugManuallyEdited && (slugValue ?? "") !== autoSlug;
+
+  useUnsavedChangesWarning(props.mode === "edit" && isDirty);
 
   // Block saving while any field is invalid (error-based, so a freshly-loaded
   // valid category isn't disabled before the first validation runs).
-  const hasErrors = Object.keys(form.formState.errors).length > 0;
+  const hasErrors = Object.keys(errors).length > 0;
 
   const onSubmit = (data: CategoryInput) => {
     startTransition(async () => {
@@ -364,17 +451,17 @@ function CategoryFormInner(props: CategoryFormProps & { onDiscard: () => void })
                       {...field}
                       onChange={(e) => {
                         field.onChange(e);
-                        setSlugManuallyEdited(true);
+                        setSlugManuallyEdited(e.target.value.trim() !== "");
                       }}
                     />
                   </FormControl>
-                  {slugManuallyEdited && (
+                  {canRegenerateSlug && (
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        form.setValue("slug", slugify(form.getValues("name") ?? ""));
+                        form.setValue("slug", autoSlug, { shouldDirty: true });
                         setSlugManuallyEdited(false);
                       }}
                     >
@@ -389,6 +476,7 @@ function CategoryFormInner(props: CategoryFormProps & { onDiscard: () => void })
                     locale={DEFAULT_LOCALE}
                     slug={field.value}
                     excludeId={props.mode === "edit" ? props.categoryId : undefined}
+                    autoResolves={props.mode !== "edit"}
                   />
                 </div>
                 <FieldChangedHint />
@@ -427,6 +515,7 @@ function CategoryFormInner(props: CategoryFormProps & { onDiscard: () => void })
             fallbackName={nameValue ?? ""}
             fallbackDescription={descriptionValue ?? ""}
             excludeId={props.mode === "edit" ? props.categoryId : undefined}
+            autoResolvesSlug={props.mode !== "edit"}
             t={t}
           />
         ))}
@@ -601,7 +690,7 @@ function CategoryFormInner(props: CategoryFormProps & { onDiscard: () => void })
 
         {props.mode === "edit" ? (
           <FormSaveBar
-            isDirty={form.formState.isDirty}
+            isDirty={isDirty}
             isPending={isPending}
             onDiscard={props.onDiscard}
             saveLabel={t("saveChanges")}

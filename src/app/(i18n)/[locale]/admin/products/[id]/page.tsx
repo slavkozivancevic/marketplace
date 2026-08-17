@@ -5,6 +5,7 @@ import { Link, getPathname } from "@/i18n/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { productRepository } from "@/features/products/db/products";
+import { getProductTitle } from "@/features/products/utils/translations";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
 import { CacheTags } from "@/lib/cache/tags";
@@ -102,7 +103,7 @@ async function ProductDetailsContent({ id }: { id: string }) {
         <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
           <Alert variant="destructive">
             <AlertTitle>{t("admin.errorLoading")}</AlertTitle>
-            <AlertDescription>{result.message}</AlertDescription>
+            <AlertDescription>{t("errorPage.productBody")}</AlertDescription>
           </Alert>
         </div>
       </>
@@ -113,10 +114,11 @@ async function ProductDetailsContent({ id }: { id: string }) {
 
   if (!product) notFound();
 
-  const titleForHeader =
-    product.translations.find((tr) => tr.locale === locale)?.title ??
-    product.translations.find((tr) => tr.locale === "en")?.title ??
-    "";
+  // `getProductTitle` (not a raw `find(locale)?.title ?? ...`) - a locale can
+  // HAVE a translation row whose title was left blank, and `??` would then
+  // hand back that empty string instead of falling back to English, leaving
+  // the header blank and the breadcrumb stuck on the generic label.
+  const titleForHeader = getProductTitle(product, locale);
   const tCrumbs = await getTranslations("breadcrumbs");
   const breadcrumbItems = await buildAdminProductCrumbs(id, titleForHeader || tCrumbs("productDetails"));
 

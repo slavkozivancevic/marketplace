@@ -41,6 +41,39 @@ export function pickTranslation<T extends LocalizedRow>(
 }
 
 /**
+ * Resolves a **display** string (title / name / label) for `locale`, walking
+ * locale → default locale → any remaining row and taking the first NON-BLANK
+ * value.
+ *
+ * The blank check is the whole point, and it is why callers must not hand-roll
+ * `rows.find((r) => r.locale === locale)?.title ?? englishTitle`. A row can
+ * exist for a locale while its display field is empty: the row is kept alive
+ * by its slug (`@@unique([locale, slug])` forbids a blank one) or by a
+ * translated description, and the name/title is stored exactly as typed -
+ * possibly "" - so the admin edit form can show that field as genuinely empty
+ * rather than silently pre-filled with the English text. `??` only fires on
+ * null/undefined, so it stops at that empty string and the UI renders a blank
+ * heading, breadcrumb, invoice line or page title instead of falling back.
+ */
+export function pickTranslatedText<T extends LocalizedRow>(
+  rows: readonly T[] | null | undefined,
+  locale: string,
+  field: keyof T,
+): string {
+  if (!rows || rows.length === 0) return "";
+  const read = (row: T | undefined): string => {
+    const value = row?.[field];
+    return typeof value === "string" ? value.trim() : "";
+  };
+  return (
+    read(rows.find((r) => r.locale === locale)) ||
+    read(rows.find((r) => r.locale === DEFAULT_LOCALE)) ||
+    read(rows.find((r) => read(r).length > 0)) ||
+    ""
+  );
+}
+
+/**
  * Resolves the value of `field` for the given locale, falling back through
  * locale → default locale → null. Returns `null` (not undefined) when the
  * field is missing or whitespace-only, mirroring the legacy helper contract.

@@ -3,7 +3,7 @@
 import { useEffect, useTransition } from "react";
 import { useNavigationGeneration } from "@/lib/navigation/navGeneration";
 import { useTranslations } from "next-intl";
-import { useForm } from "react-hook-form";
+import { useForm, useFormState } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
@@ -62,10 +62,15 @@ export function OrganizationSettingsForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentName, navGeneration]);
 
-  useUnsavedChangesWarning(form.formState.isDirty);
+  // `form.formState.x` is a proxy getter, unsafe to read during render under
+  // the React Compiler (it treats `form` as a stable dependency and can
+  // cache a stale snapshot - see the identical fix in VariantsEditor.tsx).
+  const { isDirty, errors } = useFormState({ control: form.control });
+
+  useUnsavedChangesWarning(isDirty);
 
   // Block saving while the name is invalid (consistent with all admin forms).
-  const hasErrors = Object.keys(form.formState.errors).length > 0;
+  const hasErrors = Object.keys(errors).length > 0;
 
   const onSubmit = (data: UpdateOrganizationNameInput) => {
     startTransition(async () => {
@@ -109,7 +114,7 @@ export function OrganizationSettingsForm({
 
         {canEdit && (
           <FormSaveBar
-            isDirty={form.formState.isDirty}
+            isDirty={isDirty}
             isPending={isPending}
             onDiscard={() => form.reset()}
             saveLabel={t("saveChanges")}

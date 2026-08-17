@@ -13,6 +13,7 @@ import { ClearCartOnSuccess } from "@/features/cart/components/ClearCartOnSucces
 import { Footer } from "@/components/layout/footer";
 import { stripe } from "@/services/stripe";
 import { getOrderByStripeSessionId, getOrderById } from "@/features/orders/db/orders";
+import { getProductTitle } from "@/features/products/utils/translations";
 import { prisma } from "@/core/db/prisma";
 import type Stripe from "stripe";
 import { formatPrice } from "@/lib/currency";
@@ -99,10 +100,11 @@ export default async function CheckoutSuccessPage({
               </CardHeader>
               <CardContent className="space-y-0">
                 {order.items.map((item: typeof order.items[number], index: number) => {
-                  const productTitle =
-                    item.product.translations.find((tr) => tr.locale === order.locale)?.title ??
-                    item.product.translations.find((tr) => tr.locale === "en")?.title ??
-                    "";
+                  // `getProductTitle` (not a raw `find(locale)?.title ?? ...`)
+                  // - a locale can HAVE a translation row whose title was left
+                  // blank, and `??` would then hand back that empty string
+                  // instead of falling back to English.
+                  const productTitle = getProductTitle(item.product, order.locale);
                   const variantMedia = item.variant?.media[0]?.media ?? null;
                   const variantImageUrl =
                     variantMedia && variantMedia.mediaType === "IMAGE"
@@ -343,10 +345,7 @@ export default async function CheckoutSuccessPage({
             </CardHeader>
             <CardContent className="space-y-0">
               {order.items.map((item, index) => {
-                const productTitle =
-                  item.product.translations.find((tr) => tr.locale === order.locale)?.title ??
-                  item.product.translations.find((tr) => tr.locale === "en")?.title ??
-                  "";
+                const productTitle = getProductTitle(item.product, order.locale);
                 const variantMedia = item.variant?.media[0]?.media ?? null;
                 const variantImageUrl =
                   variantMedia && variantMedia.mediaType === "IMAGE"

@@ -3,7 +3,7 @@
 import { useEffect, useTransition } from "react";
 import { useNavigationGeneration } from "@/lib/navigation/navGeneration";
 import { useTranslations } from "next-intl";
-import { useForm } from "react-hook-form";
+import { useForm, useFormState } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
@@ -75,7 +75,12 @@ export function UserForm({ userId, currentRole, onSuccess }: UserFormProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navGeneration]);
 
-  useUnsavedChangesWarning(form.formState.isDirty);
+  // `form.formState.x` is a proxy getter, unsafe to read during render under
+  // the React Compiler (it treats `form` as a stable dependency and can
+  // cache a stale snapshot - see the identical fix in VariantsEditor.tsx).
+  const { isDirty, errors } = useFormState({ control: form.control });
+
+  useUnsavedChangesWarning(isDirty);
 
   const roleLabel = (role: unknown) =>
     role === "USER" ? t("user") : role === "SELLER" ? t("seller") : t("admin");
@@ -141,7 +146,7 @@ export function UserForm({ userId, currentRole, onSuccess }: UserFormProps) {
         <div className="flex items-center gap-2">
           {/* Per-row discard: only while this user's role is actually changed,
               so the list stays quiet. Reverts to the saved role. */}
-          {form.formState.isDirty && (
+          {isDirty && (
             <Button
               type="button"
               variant="outline"
@@ -155,8 +160,8 @@ export function UserForm({ userId, currentRole, onSuccess }: UserFormProps) {
             type="submit"
             disabled={
               isPending ||
-              !form.formState.isDirty ||
-              Object.keys(form.formState.errors).length > 0
+              !isDirty ||
+              Object.keys(errors).length > 0
             }
           >
             {isPending && <Loader2 className="animate-spin" />}

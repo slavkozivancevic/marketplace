@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/env/server";
 import { prisma } from "@/core/db/prisma";
 import { getEmailThumbUrl } from "@/services/emailThumb";
+import { getProductTitle } from "@/features/products/utils/translations";
 import {
   PLATFORM_FEE_PERCENT,
   platformFeeAmount,
@@ -110,10 +111,10 @@ export async function GET(request: NextRequest) {
 
   const allItems = await Promise.all(order.items.map(async (item) => {
     const org = item.product.organization;
-    const title =
-      item.product.translations.find((tr) => tr.locale === order.locale)?.title ??
-      item.product.translations.find((tr) => tr.locale === "en")?.title ??
-      "";
+    // `getProductTitle` (not a raw `find(locale)?.title ?? ...`) - a locale
+    // can HAVE a translation row whose title was left blank, and `??` would
+    // then put an empty line in the email instead of falling back to English.
+    const title = getProductTitle(item.product, order.locale);
     // Prefer the ordered variant's image, fall back to the product's first
     // image. Resolve to a public JPEG (email clients don't render our WebP
     // thumbnails) - generated and cached on first use.

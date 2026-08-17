@@ -16,6 +16,7 @@ import { recordAudit } from "@/features/audit/db/audit";
 import { revalidateOrderCache } from "@/features/orders/db/cache";
 import { revalidateProductCache } from "@/features/products/db/cache";
 import { getLabel } from "@/features/attributes/utils/translations";
+import { getProductTitle } from "@/features/products/utils/translations";
 import { getEmailThumbUrl } from "@/services/emailThumb";
 import {
   publishReturnRequested,
@@ -90,10 +91,10 @@ async function getReturnLines(
   });
   return Promise.all(
     items.map(async (ri) => {
-      const title =
-        ri.orderItem.product.translations.find((t) => t.locale === locale)?.title ??
-        ri.orderItem.product.translations.find((t) => t.locale === "en")?.title ??
-        "";
+      // `getProductTitle` (not a raw `find(locale)?.title ?? ...`) - a locale
+      // can HAVE a translation row whose title was left blank, and `??` would
+      // then hand back that empty string instead of falling back to English.
+      const title = getProductTitle(ri.orderItem.product, locale);
       const variantLabel = ri.orderItem.variant?.attributeValues
         .map((av) => getLabel(av.option.translations, locale))
         .join(" / ");

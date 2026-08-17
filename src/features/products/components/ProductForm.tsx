@@ -3,7 +3,7 @@ import axios from "axios";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { useForm, useWatch, Resolver, FieldErrors } from "react-hook-form";
+import { useForm, useFormState, useWatch, Resolver, FieldErrors } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/sonner";
@@ -50,8 +50,12 @@ import { NON_DEFAULT_LOCALES, LOCALE_LABELS, DEFAULT_LOCALE, SUPPORTED_LOCALES, 
 type NonDefaultLocale = (typeof NON_DEFAULT_LOCALES)[number];
 import { X, RefreshCw, AlertCircle, Loader2 } from "lucide-react";
 import { slugify } from "@/lib/utils";
+import { deriveOrRestore } from "@/lib/forms/deriveOrRestore";
+import { buildOptionSelection } from "../utils/optionSelection";
+import { useIsFormDirty } from "@/lib/forms/useIsFormDirty";
 import { collectFormErrorMessages } from "@/lib/forms/formErrors";
 import { BrandSelect, type BrandOption } from "@/features/brands/components/BrandSelect";
+import { getBrandName } from "@/features/brands/utils/translations";
 import { SlugAvailabilityIndicator } from "@/components/admin/SlugAvailabilityIndicator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -141,7 +145,11 @@ function normalizeProductTranslations(
     if (!row) continue;
     const slot = result[loc];
     slot.title = row.title ?? "";
-    slot.slug = row.slug ?? "";
+    // A blank title still needs a real, unique stored slug (see
+    // buildProductTranslationRows) purely to keep this locale's URL valid -
+    // that's a derived implementation detail, not something the admin
+    // entered, so the form shows it as blank too rather than as if it were.
+    slot.slug = row.title ? (row.slug ?? "") : "";
     slot.description = row.description ?? "";
     slot.shortDescription = row.shortDescription ?? "";
     slot.metaTitle = row.metaTitle ?? "";
@@ -446,6 +454,7 @@ function PerLocaleProductSection({
   fallbackShortDescription,
   fallbackDescription,
   excludeId,
+  autoResolvesSlug,
   t,
 }: {
   locale: (typeof NON_DEFAULT_LOCALES)[number];
@@ -454,6 +463,8 @@ function PerLocaleProductSection({
   fallbackShortDescription: string;
   fallbackDescription: string;
   excludeId?: string;
+  /** Create mode: the server suffixes a colliding slug instead of failing. */
+  autoResolvesSlug: boolean;
   t: ReturnType<typeof useTranslations<"productForm">>;
 }) {
   const titlePath = `translations.${locale}.title` as const;
@@ -462,15 +473,48 @@ function PerLocaleProductSection({
   const descPath = `translations.${locale}.description` as const;
 
   const titleValue = useWatch({ control: form.control, name: titlePath });
+  const slugValue = useWatch({ control: form.control, name: slugPath });
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const prevTitleRef = useRef<string | undefined>(form.getValues(titlePath));
+  // `useFormState` (not `form.formState.defaultValues` directly) - the React
+  // Compiler treats `form` as a stable dependency and can cache a stale
+  // snapshot of the proxy read otherwise (see the identical fix in
+  // VariantsEditor.tsx). A plain proxy read here intermittently restored the
+  // slug against a stale baseline, leaving it phantom-dirty.
+  const { defaultValues: savedFormValues } = useFormState({ control: form.control });
 
   useEffect(() => {
     if (slugManuallyEdited) return;
     if (titleValue === prevTitleRef.current) return;
     prevTitleRef.current = titleValue;
-    form.setValue(slugPath, slugify(titleValue ?? ""), { shouldDirty: true });
-  }, [titleValue, slugManuallyEdited, form, slugPath]);
+    const saved = savedFormValues?.translations?.[locale];
+    form.setValue(
+      slugPath,
+      deriveOrRestore(titleValue, saved?.title, saved?.slug, slugify),
+      { shouldDirty: true },
+    );
+    // `savedFormValues` is deliberately NOT a dependency: it's read as the
+    // saved baseline, and re-running this on a baseline re-sync would rewrite
+    // the slug without the user having touched the title.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [titleValue, slugManuallyEdited, form, slugPath, locale]);
+
+  // What auto-generation would produce right now. Must be `deriveOrRestore`,
+  // NOT a bare `slugify`: while the title still matches what was saved, the
+  // auto value IS the saved slug (suffix and all). Using `slugify` here made
+  // the button hand back an un-suffixed slug that the saved record itself
+  // already owns - regenerating walked straight into "already in use" - and
+  // hid the button when the manual value differed from the saved slug but
+  // happened to equal `slugify(title)`.
+  const autoSlug = deriveOrRestore(
+    titleValue,
+    savedFormValues?.translations?.[locale]?.title,
+    savedFormValues?.translations?.[locale]?.slug,
+    slugify,
+  );
+  // The button only means something while the manual slug actually differs
+  // from that; otherwise clicking it is a no-op that just makes it vanish.
+  const canRegenerateSlug = slugManuallyEdited && (slugValue ?? "") !== autoSlug;
 
   return (
     <div className="rounded-md border border-border/60 p-4 space-y-4">
@@ -514,17 +558,20 @@ function PerLocaleProductSection({
                   value={field.value ?? ""}
                   onChange={(e) => {
                     field.onChange(e);
-                    setSlugManuallyEdited(true);
+                    // An emptied field means "I have no manual value" - hand the
+                    // slug back to auto-generation instead of latching the
+                    // manual flag on forever.
+                    setSlugManuallyEdited(e.target.value.trim() !== "");
                   }}
                 />
               </FormControl>
-              {slugManuallyEdited && (
+              {canRegenerateSlug && (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    form.setValue(slugPath, slugify(form.getValues(titlePath) ?? ""));
+                    form.setValue(slugPath, autoSlug, { shouldDirty: true });
                     setSlugManuallyEdited(false);
                   }}
                 >
@@ -539,6 +586,7 @@ function PerLocaleProductSection({
                 locale={locale}
                 slug={field.value}
                 excludeId={excludeId}
+                autoResolves={autoResolvesSlug}
               />
             </div>
             <FieldChangedHint />
@@ -676,6 +724,9 @@ export function ProductForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  // Bumped by "Discard" to remount the per-locale sections, clearing the
+  // `slugManuallyEdited` each of them owns privately (see handleDiscard).
+  const [perLocaleResetKey, setPerLocaleResetKey] = useState(0);
   const [previewLocale, setPreviewLocale] = useState<Locale>(locale);
   const [activeTab, setActiveTab] = useState<string>("details");
 
@@ -774,7 +825,10 @@ export function ProductForm({
       categoryIds: product.categories.map((c) => c.categoryId),
       tagIds: product.tags.map((t) => t.tagId),
       media: product.media.map(toFormMedia),
-      options: [],
+      // Seeded from the saved variants so the pills open pre-checked AND have a
+      // real baseline to be compared against (an empty array here would read as
+      // "everything was just toggled on").
+      options: buildOptionSelection(product.variants, attributeLibrary),
       variants: product.variants.map((v) => {
         const mediaKeys = v.media
           .map((vm) => mediaKeyById.get(vm.mediaId))
@@ -798,7 +852,10 @@ export function ProductForm({
       attributes: buildAttributeEntries(product.attributeValues ?? []),
       version: product.version,
     };
-  }, [product, liveStock]);
+    // `attributeLibrary` is a dependency because the option-pill baseline is
+    // ordered by it; it's server-supplied and stable per page load, so this
+    // doesn't add churn.
+  }, [product, liveStock, attributeLibrary]);
 
   // When a draft is restored after a language switch (see the draft block below)
   // this holds the restored values and becomes the controlled `values` source, so
@@ -823,17 +880,42 @@ export function ProductForm({
 
   const watchedVariants = useWatch({ control: form.control, name: "variants" });
   const watchedTitle = useWatch({ control: form.control, name: "title" });
+  const watchedSlug = useWatch({ control: form.control, name: "slug" });
+  const watchedOptionSelection = useWatch({ control: form.control, name: "options" });
   const watchedRequiresShipping = useWatch({ control: form.control, name: "requiresShipping" });
   const watchedIsDigital = useWatch({ control: form.control, name: "isDigital" });
 
   // Auto-generate slug from title when not manually edited
   const prevTitleRef = useRef(form.getValues("title"));
+  // `useFormState` (not `form.formState.defaultValues` directly) - the React
+  // Compiler treats `form` as a stable dependency and can cache a stale
+  // snapshot of the proxy read otherwise (see the identical fix in
+  // VariantsEditor.tsx).
+  const { defaultValues: savedTopLevelValues } = useFormState({ control: form.control });
   useEffect(() => {
     if (slugManuallyEdited) return;
     if (watchedTitle === prevTitleRef.current) return;
     prevTitleRef.current = watchedTitle;
-    form.setValue("slug", slugify(watchedTitle), { shouldDirty: true });
+    const saved = savedTopLevelValues;
+    form.setValue(
+      "slug",
+      deriveOrRestore(watchedTitle, saved?.title, saved?.slug, slugify),
+      { shouldDirty: true },
+    );
+    // Baseline read only - see the per-locale section for why it stays out.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchedTitle, slugManuallyEdited, form]);
+
+  // See the per-locale section: `deriveOrRestore`, not a bare `slugify`, so
+  // regenerating while the title is unchanged restores the SAVED slug instead
+  // of an un-suffixed one the record already owns.
+  const autoSlug = deriveOrRestore(
+    watchedTitle,
+    savedTopLevelValues?.title,
+    savedTopLevelValues?.slug,
+    slugify,
+  );
+  const canRegenerateSlug = slugManuallyEdited && (watchedSlug ?? "") !== autoSlug;
 
   // --- Draft persistence across a language switch -----------------------------
   // A locale change navigates /sr/... -> /en/... which remounts this whole subtree
@@ -1002,8 +1084,23 @@ export function ProductForm({
     mediaSyncedRef.current = true;
   }, [uploadedMedia, form]);
 
+  // `form.formState.x` is a proxy getter - its value changes without the
+  // `form` object's own reference ever changing, which the React Compiler's
+  // memoization can't see: it treats `form` as a stable dependency and
+  // caches whatever `form.formState.x` returned on the first read, leaving
+  // isDirty/errors/dirtyFields stuck stale after the very first render.
+  // `useFormState` is a real hook call - the compiler tracks it correctly -
+  // and is the react-hook-form-documented way to read formState reactively
+  // (see the identical fix in VariantsEditor.tsx).
+  const { errors, dirtyFields: dirty } = useFormState({ control: form.control });
+
+  // NOT react-hook-form's `isDirty`: that flag is only recomputed inside the
+  // write that triggered it, so a value written in a follow-up step (the
+  // auto-derived slug) is never accounted for and the flag stays stuck on.
+  // Comparing values against the baseline has no such ordering hazard.
+  const isDirty = useIsFormDirty(form.control);
+
   // Tab error indicators
-  const errors = form.formState.errors;
   const detailsHasError = !!(errors.title || errors.slug || errors.description || errors.shortDescription);
   const pricingHasError = !!(errors.price || errors.compareAtPrice || errors.costPrice || errors.stock || errors.barcode || errors.taxCode);
   const shippingHasError = !!(errors.weight || errors.length || errors.width || errors.height);
@@ -1012,11 +1109,9 @@ export function ProductForm({
 
   // Per-tab "edited" indicators (update mode only - in create everything reads
   // dirty against empty defaults, so the dots would be meaningless).
-  const isDirty = form.formState.isDirty;
-  const dirty = form.formState.dirtyFields;
   // Block saving while any field is invalid. Error-based (not `!isValid`) so a
   // freshly-loaded valid product isn't disabled before the first validation runs.
-  const hasErrors = Object.keys(form.formState.errors).length > 0;
+  const hasErrors = Object.keys(errors).length > 0;
   const showChanges = mode === "update";
   // Translations are a single nested object spanning multiple tabs (Details owns
   // title/slug/short/description, SEO owns metaTitle/metaDescription). Check the
@@ -1080,25 +1175,54 @@ export function ProductForm({
       })),
     }));
   }, [product, liveStock]);
+  // Baseline for the option pills, mirroring `derivedValues.options`.
+  const savedOptionSelection = useMemo(
+    () => (product ? buildOptionSelection(product.variants, attributeLibrary) : []),
+    [product, attributeLibrary],
+  );
   const variantsHasChanges = useMemo(() => {
     if (!showChanges) return false;
-    return (
+    if (
       JSON.stringify(watchedVariants) !==
       JSON.stringify(savedVariantsBaseline as typeof watchedVariants)
+    ) {
+      return true;
+    }
+    // The pill selection counts as an edit in its own right: it can legitimately
+    // differ from the generated variants (that IS the "needs regenerate" state),
+    // so comparing only `variants` left toggling a pill invisible to this tab.
+    return (
+      JSON.stringify(watchedOptionSelection ?? []) !==
+      JSON.stringify(savedOptionSelection)
     );
-  }, [showChanges, watchedVariants, savedVariantsBaseline]);
+  }, [
+    showChanges,
+    watchedVariants,
+    savedVariantsBaseline,
+    watchedOptionSelection,
+    savedOptionSelection,
+  ]);
 
   useUnsavedChangesWarning(showChanges && isDirty);
 
-  // Discard: restore the form, media and tab state back to the saved server
-  // baseline. Media lives in separate React state, so resetting the form alone
-  // wouldn't revert it; we also re-seed uploadedMedia and flag the next media
-  // sync as a baseline restore (not a user edit) so it doesn't re-dirty.
+  // Discard: restore the form, its media and the per-locale sections back to
+  // the saved server baseline. Anything living in React state rather than in
+  // the form survives `form.reset()`, so each such piece is reverted by hand
+  // below. The active tab is deliberately left alone - staying where you were
+  // after discarding is less disorienting than being thrown back to Details.
   const handleDiscard = () => {
     mediaSyncedRef.current = false;
     setRestoredValues(null);
     setUploadedMedia(productToUploadedMedia(product));
     setSlugManuallyEdited(false);
+    // Each PerLocaleProductSection owns its own `slugManuallyEdited`, which
+    // neither `form.reset()` (React state, not form state) nor the line above
+    // (top-level only) can clear. Without this, discarding after a hand-edited
+    // translated slug left that locale stuck in manual mode: retyping the
+    // title no longer regenerated its slug. Bumping the key remounts just
+    // those sections, so the active tab, uploaded media and fetched live stock
+    // all survive - unlike the whole-form remount the other admin forms use.
+    setPerLocaleResetKey((k) => k + 1);
     // Explicit `keepDirtyValues: false`: a bare `form.reset()` MERGES the
     // useForm-level `resetOptions` ({ keepDirtyValues: true }, there so the
     // on-mount router.refresh doesn't wipe edits), which would make discard keep
@@ -1138,11 +1262,10 @@ export function ProductForm({
   const fmtBrandId = (v: unknown) => {
     const b = brands.find((x) => x.id === v);
     if (!b) return "-";
-    return (
-      b.translations.find((tr) => tr.locale === locale)?.name ??
-      b.translations[0]?.name ??
-      "-"
-    );
+    // `getBrandName` (not a raw `find(locale)?.name ?? ...`) - a locale can
+    // HAVE a translation row whose name was left blank, and `??` would then
+    // hand back that empty string instead of falling back to English.
+    return getBrandName(b, locale) || "-";
   };
 
   // Product prices live in USD-base dollars in the form, but the saved-value
@@ -1332,17 +1455,17 @@ export function ProductForm({
                           {...field}
                           onChange={(e) => {
                             field.onChange(e);
-                            setSlugManuallyEdited(true);
+                            setSlugManuallyEdited(e.target.value.trim() !== "");
                           }}
                         />
                       </FormControl>
-                      {slugManuallyEdited && (
+                      {canRegenerateSlug && (
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            form.setValue("slug", slugify(form.getValues("title")));
+                            form.setValue("slug", autoSlug, { shouldDirty: true });
                             setSlugManuallyEdited(false);
                           }}
                         >
@@ -1357,6 +1480,7 @@ export function ProductForm({
                         locale={DEFAULT_LOCALE}
                         slug={field.value}
                         excludeId={product?.id}
+                        autoResolves={mode === "create"}
                       />
                     </div>
                     <FieldChangedHint />
@@ -1403,13 +1527,16 @@ export function ProductForm({
             {/* Translation sections - one per non-default locale */}
             {NON_DEFAULT_LOCALES.map((loc) => (
               <PerLocaleProductSection
-                key={loc}
+                // `perLocaleResetKey` remounts these on Discard so each
+                // section's private `slugManuallyEdited` goes back to false.
+                key={`${loc}-${perLocaleResetKey}`}
                 locale={loc}
                 form={form}
                 fallbackTitle={form.watch("title") ?? ""}
                 fallbackShortDescription={form.watch("shortDescription") ?? ""}
                 fallbackDescription={form.watch("description") ?? ""}
                 excludeId={product?.id}
+                autoResolvesSlug={mode === "create"}
                 t={t}
               />
             ))}

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import type { OrgOrderListItem } from "../db/orgOrders";
 import type { Currency } from "@/lib/currency-config";
 import { formatPrice } from "@/lib/currency";
+import { getProductTitle } from "@/features/products/utils/translations";
 import { deriveOrderStatus } from "../status";
 import { orderStatusKey, orderStatusVariant } from "../statusBadge";
 
@@ -25,10 +26,10 @@ export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
     .map((i) => {
       // Org order rows display titles in the buyer's order-time locale so
       // sellers see the same string the buyer saw when ordering.
-      const title =
-        i.product.translations.find((tr) => tr.locale === order.locale)?.title ??
-        i.product.translations.find((tr) => tr.locale === "en")?.title ??
-        "";
+      // `getProductTitle` (not a raw `find(locale)?.title ?? ...`) - a locale
+      // can HAVE a translation row whose title was left blank, and `??` would
+      // then hand back that empty string instead of falling back to English.
+      const title = getProductTitle(i.product, order.locale);
       const label = i.variant?.sku ? `${title} (${i.variant.sku})` : title;
       return i.quantity > 1 ? `${label} ×${i.quantity}` : label;
     })

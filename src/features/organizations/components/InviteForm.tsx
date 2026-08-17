@@ -4,7 +4,7 @@ import { useEffect, useTransition } from "react";
 import { useNavigationGeneration } from "@/lib/navigation/navGeneration";
 import { useTranslations } from "next-intl";
 import { Loader2, X } from "lucide-react";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useFormState, useWatch } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
@@ -62,7 +62,11 @@ export function InviteForm() {
   // shows the localized error. Submit stays gated on a non-empty value below.
   const email = useWatch({ control: form.control, name: "email" });
 
-  const hasErrors = Object.keys(form.formState.errors).length > 0;
+  // `form.formState.x` is a proxy getter, unsafe to read during render under
+  // the React Compiler (it treats `form` as a stable dependency and can
+  // cache a stale snapshot - see the identical fix in VariantsEditor.tsx).
+  const { errors } = useFormState({ control: form.control });
+  const hasErrors = Object.keys(errors).length > 0;
 
   const onSubmit = (data: SendInviteInput) => {
     startTransition(async () => {

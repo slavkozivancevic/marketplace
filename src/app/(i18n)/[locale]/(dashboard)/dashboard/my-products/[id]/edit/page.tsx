@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { VerificationRequiredNotice } from "@/components/VerificationRequiredNotice";
 import { SerializedProductWithRelations } from "@/types/types";
-import { DEFAULT_LOCALE } from "@/i18n/config";
+import { getProductTitle } from "@/features/products/utils/translations";
 
 interface MyProductEditPageProps {
   params: Promise<{ id: string }>;
@@ -173,10 +173,10 @@ export default async function MyProductEditPage({
     where: { id, deletedAt: null },
     select: { translations: { select: { locale: true, title: true } } },
   });
-  const productTitle =
-    titleProduct?.translations.find((tr) => tr.locale === locale)?.title ??
-    titleProduct?.translations.find((tr) => tr.locale === DEFAULT_LOCALE)?.title ??
-    "";
+  // `getProductTitle` (not a raw `find(locale)?.title ?? ...`) - a locale can
+  // HAVE a translation row whose title was left blank, and `??` would then
+  // hand back that empty string instead of falling back to English.
+  const productTitle = titleProduct ? getProductTitle(titleProduct, locale) : "";
 
   const breadcrumbItems = [
     { name: tCrumbs("dashboard"), href: getPathname({ href: "/dashboard", locale }) },

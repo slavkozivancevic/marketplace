@@ -24,7 +24,7 @@ import {
   fetchAttributeSelector,
   fetchCategoryAttributeMap,
 } from "@/features/attributes/db/formData";
-import { DEFAULT_LOCALE } from "@/i18n/config";
+import { getProductTitle } from "@/features/products/utils/translations";
 
 interface EditProductPageProps {
   params: Promise<{ id: string }>;
@@ -102,10 +102,10 @@ export default async function EditProductPage({
 
   if (!product) notFound();
 
-  const title =
-    product.translations.find((tr) => tr.locale === locale)?.title ??
-    product.translations.find((tr) => tr.locale === DEFAULT_LOCALE)?.title ??
-    "";
+  // `getProductTitle` (not a raw `find(locale)?.title ?? ...`) - a locale can
+  // HAVE a translation row whose title was left blank, and `??` would then
+  // hand back that empty string instead of falling back to English.
+  const title = getProductTitle(product, locale);
 
   const breadcrumbItems = [
     { name: tCrumbs("admin"), href: getPathname({ href: "/admin", locale }) },

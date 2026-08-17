@@ -63,7 +63,7 @@ export default async function AdminProductHistoryPage({
         <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
           <Alert variant="destructive">
             <AlertTitle>{t("admin.errorLoadingHistory")}</AlertTitle>
-            <AlertDescription>{result.message}</AlertDescription>
+            <AlertDescription>{t("errorPage.productHistoryBody")}</AlertDescription>
           </Alert>
         </div>
       </div>

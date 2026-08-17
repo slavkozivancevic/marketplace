@@ -13,8 +13,9 @@
   },
   "slugAvailability": {
     "checking": "Comprobando…",
-    "available": "Slug disponible",
+    "available": "Disponible",
     "taken": "Ya en uso - elige otro",
+    "takenAutoSuffix": "Ya en uso - se añadirá un sufijo único",
     "checkFailed": "No se pudo verificar - el servidor validará al guardar"
   },
   "nav": {
@@ -838,6 +839,8 @@
     "noOptions": "Aún no hay opciones. Añade al menos una.",
     "optionLabelPlaceholder": "p. ej. Rojo",
     "removeOption": "Quitar opción",
+    "removed": "Eliminado",
+    "undo": "Deshacer",
     "order": "Orden",
     "orderDesc": "Los números más bajos aparecen primero.",
     "create": "Crear atributo",
@@ -1088,6 +1091,15 @@
     "backToProducts": "Volver a productos",
     "backToOrganizations": "Volver a organizaciones",
     "backToUsers": "Volver a usuarios"
+  },
+  "errorPage": {
+    "title": "Algo ha salido mal",
+    "pageDescription": "Se ha producido un error inesperado al cargar esta página.",
+    "productsBody": "No hemos podido cargar la página de productos solicitada. Inténtalo de nuevo.",
+    "productBody": "No hemos podido cargar este producto. Inténtalo de nuevo.",
+    "productHistoryBody": "No hemos podido cargar el historial de este producto. Inténtalo de nuevo.",
+    "genericDescription": "Se ha producido un error inesperado. Puedes intentarlo de nuevo.",
+    "tryAgain": "Intentar de nuevo"
   },
   "productForm": {
     "titleField": "Título",

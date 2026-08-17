@@ -27,6 +27,7 @@ import { formatPrice } from "@/lib/currency";
 import { sellerNetAmount, platformFeeAmount, PLATFORM_FEE_PERCENT } from "@/features/payments/config";
 import type { Currency } from "@/lib/currency-config";
 import { getLabel } from "@/features/attributes/utils/translations";
+import { getProductTitle } from "@/features/products/utils/translations";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -76,10 +77,10 @@ export default async function OrgOrderDetailPage({ params }: Props) {
   // this seller's items with translations).
   const itemInfo = new Map(
     order.items.map((it) => {
-      const title =
-        it.product.translations.find((tr) => tr.locale === order.locale)?.title ??
-        it.product.translations.find((tr) => tr.locale === "en")?.title ??
-        "";
+      // `getProductTitle` (not a raw `find(locale)?.title ?? ...`) - a locale
+      // can HAVE a translation row whose title was left blank, and `??` would
+      // then hand back that empty string instead of falling back to English.
+      const title = getProductTitle(it.product, order.locale);
       const variantLabel =
         it.variant?.attributeValues
           .map((av) => getLabel(av.option.translations, order.locale))
@@ -388,10 +389,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                 const variantLabel = item.variant?.attributeValues
                   .map((av) => getLabel(av.option.translations, order.locale))
                   .join(" / ");
-                const productTitle =
-                  item.product.translations.find((tr) => tr.locale === order.locale)?.title ??
-                  item.product.translations.find((tr) => tr.locale === "en")?.title ??
-                  "";
+                const productTitle = getProductTitle(item.product, order.locale);
 
                 return (
                   <div key={item.id}>

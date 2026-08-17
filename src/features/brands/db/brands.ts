@@ -5,6 +5,7 @@ import { slugify } from "@/lib/utils";
 import { copyName } from "@/lib/i18n/copyName";
 import { refreshProductSearchText } from "@/features/products/db/products";
 import { recordSlugChanges } from "@/lib/seo/slugHistory";
+import { createWithUniqueSlugRetry } from "@/lib/db/uniqueSlugRetry";
 import { DEFAULT_LOCALE, NON_DEFAULT_LOCALES } from "@/i18n/config";
 import { Prisma } from "@/generated/prisma/client";
 import type { BrandTranslations } from "../utils/translations";
@@ -118,11 +119,21 @@ async function resolveLogoBackdrop(
  * Builds the per-locale translation rows for a Brand from the legacy form
  * shape ({ name, slug, description, translations: { [locale]: { name, description } } }).
  * The default locale is always written from the top-level canonical fields;
- * non-default locales come from the `translations` map. Locales without a
- * translated name are skipped so we never insert an empty-name row.
+ * non-default locales come from the `translations` map. A locale with a
+ * blank name but a translated description is still kept (name stored blank -
+ * see the slug note below for why name and slug are handled differently)
+ * rather than being skipped entirely - skipping dropped the WHOLE row on
+ * save, silently discarding a description the admin never touched just
+ * because name+slug were cleared. Only a locale with genuinely nothing
+ * entered anywhere is skipped, so we still never insert a fully-empty row.
  */
-function buildBrandTranslationRows(data: BrandMutationData): BrandTranslationRow[] {
-  const defaultSlug = (data.slug?.trim() || slugify(data.name)).trim();
+function buildBrandTranslationRows(
+  data: BrandMutationData,
+  suffix?: string,
+): BrandTranslationRow[] {
+  const defaultSlug = (
+    (data.slug?.trim() || slugify(data.name)) + (suffix ? `-${suffix}` : "")
+  ).trim();
   const rows: BrandTranslationRow[] = [
     {
       locale: DEFAULT_LOCALE,
@@ -135,47 +146,65 @@ function buildBrandTranslationRows(data: BrandMutationData): BrandTranslationRow
   for (const locale of NON_DEFAULT_LOCALES) {
     const t = data.translations?.[locale];
     const name = t?.name?.trim();
-    if (!name) continue;
-    // Prefer the admin-supplied per-locale slug; fall back to slugify-of-name,
-    // then to a deterministic `${defaultSlug}-${locale}` to guarantee a row.
     const explicitSlug = t?.slug?.trim();
+    const description = t?.description?.trim();
+    // Nothing entered anywhere for this locale - genuinely nothing to save.
+    if (!name && !explicitSlug && !description) continue;
+    // `slug` is `@@unique([locale, slug])` - it can never be blank (two
+    // brands both left with an empty slug would collide), so it still needs
+    // a real, derived fallback even when name is blank. `name` has no such
+    // constraint, so it's stored exactly as typed (possibly blank);
+    // `getBrandName` falls back to the default locale's name at DISPLAY
+    // time instead, so the storefront never shows a blank name but the
+    // admin form still shows this locale's name as genuinely empty - not
+    // silently refilled with the English name - when they clear it.
+    const effectiveName = name || data.name.trim();
+    // The uniqueness suffix has to reach EVERY locale, not just the default
+    // one: `@@unique([locale, slug])` is enforced per row, so a retry that only
+    // suffixed the default row still collided on the translated ones.
+    const derivedSlug = explicitSlug || slugify(effectiveName);
     rows.push({
       locale,
-      name,
-      slug: explicitSlug || slugify(name) || `${defaultSlug}-${locale}`,
-      description: t?.description?.trim() || null,
+      name: name ?? "",
+      slug: derivedSlug
+        ? derivedSlug + (suffix ? `-${suffix}` : "")
+        : `${defaultSlug}-${locale}`,
+      description: description || null,
     });
   }
   return rows;
 }
 
 export async function createBrand(data: BrandMutationData) {
-  const rows = buildBrandTranslationRows(data);
   const [logoBackdrop, logoBackdropDark] = await Promise.all([
     resolveLogoBackdrop(data.logoUrl ?? null, data.logoBackdrop),
     resolveLogoBackdrop(data.logoUrlDark ?? null, data.logoBackdropDark),
   ]);
 
-  const brand = await prisma.$transaction(async (tx) => {
-    const created = await tx.brand.create({
-      data: {
-        logoUrl: data.logoUrl ?? null,
-        logoUrlDark: data.logoUrlDark ?? null,
-        logoBackdrop,
-        logoBackdropDark,
-        translations: { create: rows },
-      },
-      include: { translations: true },
+  const brand = await createWithUniqueSlugRetry(async (suffix) => {
+    const rows = buildBrandTranslationRows(data, suffix);
+
+    return prisma.$transaction(async (tx) => {
+      const created = await tx.brand.create({
+        data: {
+          logoUrl: data.logoUrl ?? null,
+          logoUrlDark: data.logoUrlDark ?? null,
+          logoBackdrop,
+          logoBackdropDark,
+          translations: { create: rows },
+        },
+        include: { translations: true },
+      });
+      // Reclaim these slugs from history so a live brand URL never 308s away.
+      await recordSlugChanges(
+        tx,
+        "BRAND",
+        created.id,
+        new Map(),
+        new Map(rows.map((r) => [r.locale, r.slug])),
+      );
+      return created;
     });
-    // Reclaim these slugs from history so a live brand URL never 308s away.
-    await recordSlugChanges(
-      tx,
-      "BRAND",
-      created.id,
-      new Map(),
-      new Map(rows.map((r) => [r.locale, r.slug])),
-    );
-    return created;
   });
 
   revalidateBrandCache(brand.id);

@@ -13,8 +13,9 @@
   },
   "slugAvailability": {
     "checking": "Checking…",
-    "available": "Slug is available",
+    "available": "Available",
     "taken": "Already in use - choose another",
+    "takenAutoSuffix": "Already in use - a unique suffix will be added",
     "checkFailed": "Couldn't verify - the server will validate on save"
   },
   "nav": {
@@ -838,6 +839,8 @@
     "noOptions": "No options yet. Add at least one.",
     "optionLabelPlaceholder": "e.g. Red",
     "removeOption": "Remove option",
+    "removed": "Removed",
+    "undo": "Undo",
     "order": "Sort Order",
     "orderDesc": "Lower numbers appear first.",
     "create": "Create Attribute",
@@ -1088,6 +1091,15 @@
     "backToProducts": "Back to Products",
     "backToOrganizations": "Back to Organizations",
     "backToUsers": "Back to Users"
+  },
+  "errorPage": {
+    "title": "Something went wrong",
+    "pageDescription": "An unexpected error occurred while loading this page.",
+    "productsBody": "We couldn't load the requested products page. Please try again.",
+    "productBody": "We couldn't load this product. Please try again.",
+    "productHistoryBody": "We couldn't load this product's history. Please try again.",
+    "genericDescription": "An unexpected error occurred. You can try again.",
+    "tryAgain": "Try again"
   },
   "productForm": {
     "titleField": "Title",

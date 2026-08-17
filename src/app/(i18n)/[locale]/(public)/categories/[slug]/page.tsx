@@ -9,6 +9,7 @@ import { VALID_CURRENCIES } from "@/lib/currency-config";
 import { prisma } from "@/core/db/prisma";
 import { Link, getPathname } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
+import { getCategoryName } from "@/features/categories/utils/translations";
 import { CacheTags } from "@/lib/cache/tags";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -129,6 +130,11 @@ export async function generateMetadata({
   const localT =
     category.translations.find((tr) => tr.locale === locale) ??
     category.translations.find((tr) => tr.locale === routing.defaultLocale);
+  // Name goes through `getCategoryName`, not `localT.name`: this locale can
+  // HAVE a translation row whose name was left blank (the row is kept alive
+  // by its slug/description), and reading the row directly would title the
+  // page with an empty string instead of falling back to English.
+  const categoryName = getCategoryName(category, locale);
 
   const languages: Record<string, string> = {};
   for (const tr of category.translations) {
@@ -149,25 +155,25 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: "categories" });
   const description =
     localT?.description ??
-    (localT?.name ? t("metaDescriptionFallback", { name: localT.name }) : undefined);
+    (categoryName ? t("metaDescriptionFallback", { name: categoryName }) : undefined);
 
   return {
-    title: localT?.name,
+    title: categoryName,
     description,
     alternates: {
       canonical: languages[locale] ?? languages[routing.defaultLocale],
       languages,
     },
     openGraph: {
-      title: localT?.name,
+      title: categoryName,
       description,
       locale,
       type: "website",
-      images: ogImage ? [{ url: ogImage, alt: localT?.name ?? "" }] : undefined,
+      images: ogImage ? [{ url: ogImage, alt: categoryName }] : undefined,
     },
     twitter: {
       card: ogImage ? "summary_large_image" : "summary",
-      title: localT?.name,
+      title: categoryName,
       description,
       images: ogImage ? [ogImage] : undefined,
     },
@@ -217,6 +223,10 @@ export default async function CategoryDetailPage({ params }: CategoryPageProps) 
     localTranslation ??
     category.translations.find((tr) => tr.locale === routing.defaultLocale) ??
     category.translations[0];
+  // See generateMetadata: a present row does not guarantee a non-blank name,
+  // so headings and breadcrumbs read through `getCategoryName`. Slugs still
+  // come from the rows themselves - those are per-locale URLs, never blank.
+  const categoryName = getCategoryName(category, locale);
   const t = await getTranslations("categories");
   const tCrumbs = await getTranslations("breadcrumbs");
 
@@ -226,23 +236,27 @@ export default async function CategoryDetailPage({ params }: CategoryPageProps) 
     href: { pathname: "/categories/[slug]", params: { slug } },
     locale,
   });
-  const parentT = category.parent
-    ? category.parent.translations.find((tr) => tr.locale === locale) ??
-      category.parent.translations.find((tr) => tr.locale === routing.defaultLocale)
+  const parent = category.parent;
+  // `parentT` supplies the crumb's per-locale SLUG; the label comes from
+  // `getCategoryName` for the same blank-name reason as above.
+  const parentT = parent
+    ? parent.translations.find((tr) => tr.locale === locale) ??
+      parent.translations.find((tr) => tr.locale === routing.defaultLocale)
     : null;
+  const parentName = parent ? getCategoryName(parent, locale) : "";
   const breadcrumbItems = [
     { name: tCrumbs("home"), href: homePath },
     { name: tCrumbs("products"), href: productsListPath },
     ...(parentT
       ? [{
-          name: parentT.name,
+          name: parentName,
           href: getPathname({
             href: { pathname: "/categories/[slug]", params: { slug: parentT.slug } },
             locale,
           }),
         }]
       : []),
-    { name: localT?.name ?? "", href: currentPath },
+    { name: categoryName, href: currentPath },
   ];
 
   const localePaths: LocalePaths = {};
@@ -310,7 +324,7 @@ export default async function CategoryDetailPage({ params }: CategoryPageProps) 
       <div className="shrink-0 px-6 pt-2 pb-3 sticky-header-bg">
         <Breadcrumbs items={breadcrumbItems} />
         <PageHeader
-          title={localT?.name ?? ""}
+          title={categoryName}
           description={localT?.description ?? undefined}
         >
           <Button asChild variant="outline">
@@ -336,7 +350,7 @@ export default async function CategoryDetailPage({ params }: CategoryPageProps) 
                   }}
                   className="rounded-full border border-border/60 bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-border transition-colors"
                 >
-                  {childT.name}
+                  {getCategoryName(child, locale)}
                 </Link>
               );
             })}

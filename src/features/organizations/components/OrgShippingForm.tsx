@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useFormState, useWatch } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { useTranslations } from "next-intl";
 import { Label } from "@/components/ui/label";
@@ -37,7 +37,7 @@ export function OrgShippingForm({
   const { rates, currency } = useCurrencyStore();
   const [isPending, start] = useTransition();
 
-  const { handleSubmit, control, setValue, reset, formState } =
+  const { handleSubmit, control, setValue, reset } =
     useForm<UpdateOrganizationShippingInput>({
       mode: "onChange",
       resolver: useZodResolver(updateOrganizationShippingSchema),
@@ -47,7 +47,12 @@ export function OrgShippingForm({
       },
     });
 
-  const { isDirty, dirtyFields, errors } = formState;
+  // Read via `useFormState`, not by destructuring the `formState` returned by
+  // `useForm`: that is a proxy getter whose values change while the returned
+  // object's reference never does, so the React Compiler (`reactCompiler:
+  // true`) caches the first read and leaves isDirty/errors/dirtyFields frozen
+  // (see the identical fix in VariantsEditor.tsx).
+  const { isDirty, dirtyFields, errors } = useFormState({ control });
   useUnsavedChangesWarning(isDirty);
 
   // Block saving while any field is invalid (consistent across all admin forms).

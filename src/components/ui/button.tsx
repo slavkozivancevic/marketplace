@@ -37,8 +37,15 @@ const buttonVariants = cva(
         // confirm action of a delete dialog. `destructive` (above) stays the
         // subtle style for inline / trigger buttons. Both use theme tokens so
         // they track every selected theme.
+        //
+        // Hover/active darken the red itself (color-mix toward black) instead
+        // of thinning it with `/90` `/80`. An alpha ramp composites against
+        // whatever sits BEHIND the button, so the same classes read as a clear
+        // darkening on a dark popover but as an almost invisible wash on the
+        // light theme's near-white one. Mixing keeps the step identical in
+        // every theme and on every surface.
         destructiveSolid:
-          "bg-destructive text-destructive-foreground pointer-fine:hover:bg-destructive/90 active:bg-destructive/80 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40",
+          "bg-destructive text-destructive-foreground pointer-fine:hover:bg-[color-mix(in_oklab,var(--destructive)_90%,black)] active:bg-[color-mix(in_oklab,var(--destructive)_80%,black)] focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 pointer-fine:hover:underline active:text-primary/80",
       },
       size: {

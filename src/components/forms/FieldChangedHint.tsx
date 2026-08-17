@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import { useFormContext } from "react-hook-form";
 import { useFormField } from "@/components/ui/form";
 import { ChangedHint } from "./ChangedHint";
 
@@ -64,10 +63,11 @@ export function FieldChangedHint({
   format?: (value: unknown) => string;
 }) {
   const enabled = useContext(ChangedHintEnabledContext);
-  const { name, isDirty } = useFormField();
-  const {
-    formState: { defaultValues },
-  } = useFormContext();
+  // Both `isDirty` and `defaultValues` come from useFormField's live
+  // `useFormState` subscription. Reading them off `useFormContext().formState`
+  // instead returned a compiler-frozen snapshot, so a field edited back to its
+  // saved value kept rendering the "changed" hint forever.
+  const { name, isDirty, defaultValues } = useFormField();
 
   if (!enabled) return null;
 

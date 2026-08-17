@@ -14,6 +14,7 @@ import { getCurrencyRate } from "@/features/currency/db/currencyRates";
 import { convertCents } from "@/lib/currency";
 import { VALID_CURRENCIES, type Currency } from "@/lib/currency-config";
 import { asLocale } from "@/i18n/config";
+import { getProductTitle } from "@/features/products/utils/translations";
 import { getPathname } from "@/i18n/navigation";
 import { validateCoupon } from "@/features/coupons/db/coupons";
 import { cartShippingLines } from "@/features/shipping/db/shipping";
@@ -112,12 +113,16 @@ export async function createCheckoutSession(
       // the NEXT_LOCALE cookie above, e.g. "sr" on /sr/placanje) so the names
       // match the currency and the language the buyer saw in the cart. Fall
       // back to the user's saved locale, then English, then any row.
+      // Each step tests for a NON-BLANK title, not merely a present row: a
+      // locale can have a translation row (kept alive by its slug/description)
+      // whose title was left empty, and `??` would stop there and send Stripe
+      // a blank line item. `getProductTitle` closes out the en/any-row tail.
+      const localeTitle = (loc: string) =>
+        product.translations.find((tr) => tr.locale === loc)?.title?.trim() || "";
       const productTitle =
-        product.translations.find((tr) => tr.locale === locale)?.title ??
-        product.translations.find((tr) => tr.locale === user.locale)?.title ??
-        product.translations.find((tr) => tr.locale === "en")?.title ??
-        product.translations[0]?.title ??
-        "";
+        localeTitle(locale) ||
+        localeTitle(user.locale) ||
+        getProductTitle(product, locale);
 
       let unitPriceUsdCents: number;
       let itemName = productTitle;

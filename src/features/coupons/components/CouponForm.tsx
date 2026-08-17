@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useNavigationGeneration } from "@/lib/navigation/navGeneration";
-import { useForm } from "react-hook-form";
+import { useForm, useFormState } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
@@ -79,7 +79,7 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
     setValue,
     reset,
     clearErrors,
-    formState: { errors, isDirty, dirtyFields },
+    control,
   } = useForm<CouponInput>({
     // Validate on every change so the percent-range / required errors appear
     // immediately (not a keystroke late) and `isValid` can gate the save button.
@@ -87,6 +87,12 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
     resolver: useZodResolver(couponSchema),
     defaultValues: derivedValues,
   });
+
+  // Read via `useFormState`, not by destructuring `formState` off `useForm`:
+  // that is a proxy getter whose values change while the returned object's
+  // reference never does, so the React Compiler (`reactCompiler: true`) caches
+  // the first read and leaves errors/isDirty frozen (see VariantsEditor.tsx).
+  const { errors, isDirty, dirtyFields } = useFormState({ control });
 
   // Block saving while any field is invalid. Error-based (not `!isValid`) so a
   // freshly-loaded valid coupon isn't disabled before the first validation runs.

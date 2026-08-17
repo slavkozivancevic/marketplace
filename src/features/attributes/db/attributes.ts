@@ -4,6 +4,7 @@ import { slugify } from "@/lib/utils";
 import { DEFAULT_LOCALE, NON_DEFAULT_LOCALES } from "@/i18n/config";
 import type { AttributeType } from "@/generated/prisma/client";
 import { revalidateAttributeCache } from "./cache";
+import { createWithUniqueSlugRetry } from "@/lib/db/uniqueSlugRetry";
 import { OPTION_TYPES, type AttributeInput } from "../schema/attributes";
 
 export { getAttributeLabel } from "../utils/translations";
@@ -161,36 +162,41 @@ function isOptionType(type: AttributeType): boolean {
 // ---------- Mutations ----------
 
 export async function createAttribute(data: AttributeInput) {
-  const key = (data.key?.trim() || slugify(data.label)).trim();
   const unit = data.type === "RANGE" ? data.unit?.trim() || null : null;
   const attrRows = buildLabelRows(data.label, data.translations);
 
-  const created = await prisma.$transaction(async (tx) => {
-    const attribute = await tx.attribute.create({
-      data: {
-        key,
-        type: data.type,
-        unit,
-        order: data.order ?? 0,
-        translations: { create: attrRows },
-      },
-    });
+  const created = await createWithUniqueSlugRetry(async (suffix) => {
+    const key = (
+      (data.key?.trim() || slugify(data.label)) + (suffix ? `-${suffix}` : "")
+    ).trim();
 
-    if (isOptionType(data.type)) {
-      for (const [index, opt] of data.options.entries()) {
-        const value = (opt.value?.trim() || slugify(opt.label)).trim();
-        await tx.attributeOption.create({
-          data: {
-            attributeId: attribute.id,
-            value,
-            order: opt.order ?? index,
-            translations: { create: buildLabelRows(opt.label, opt.translations) },
-          },
-        });
+    return prisma.$transaction(async (tx) => {
+      const attribute = await tx.attribute.create({
+        data: {
+          key,
+          type: data.type,
+          unit,
+          order: data.order ?? 0,
+          translations: { create: attrRows },
+        },
+      });
+
+      if (isOptionType(data.type)) {
+        for (const [index, opt] of data.options.entries()) {
+          const value = (opt.value?.trim() || slugify(opt.label)).trim();
+          await tx.attributeOption.create({
+            data: {
+              attributeId: attribute.id,
+              value,
+              order: opt.order ?? index,
+              translations: { create: buildLabelRows(opt.label, opt.translations) },
+            },
+          });
+        }
       }
-    }
 
-    return attribute;
+      return attribute;
+    });
   });
 
   revalidateAttributeCache(created.id);

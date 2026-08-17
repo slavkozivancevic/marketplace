@@ -23,6 +23,7 @@ import type { AttributeSelectorItem } from "@/features/attributes/db/attributes"
 import type { CategoryTreeItem } from "@/features/categories/db/categories";
 import type { PresignedUploadedMedia } from "@/types/types";
 import type { ProductFormData } from "./ProductForm";
+import { normalizeOptionSelection } from "../utils/optionSelection";
 
 type Form = UseFormReturn<ProductFormData, unknown, ProductFormData>;
 type VariantRow = ProductFormData["variants"][number];
@@ -78,7 +79,13 @@ export function VariantsEditor({
   // Per-variant field errors, so each row can surface its own validation message
   // inline (the inputs aren't `<FormField>`-wrapped, so there's no FormMessage).
   // Subscribed via useFormState so the editor re-renders when errors change.
-  const { errors } = useFormState({ control: form.control });
+  // `defaultValues` comes off the same subscription for the same reason: read
+  // as `form.formState.defaultValues` during render it is a proxy getter the
+  // React Compiler can cache behind the stable `form` reference, freezing the
+  // saved baseline that the changed-hints below compare against.
+  const { errors, defaultValues: savedFormValues } = useFormState({
+    control: form.control,
+  });
   type VariantFieldErrors = Partial<
     Record<keyof VariantRow, { message?: string } | undefined>
   >;
@@ -159,29 +166,34 @@ export function VariantsEditor({
   };
 
   // ---- Generate-from-options (cartesian) ----
-  // Which option ids are checked per axis, seeded from the current variants so
-  // editing a product pre-selects the options already in use.
-  const seedPicked = (): Record<string, string[]> => {
-    const init: Record<string, string[]> = {};
-    for (const v of form.getValues("variants") ?? []) {
-      for (const o of v.options ?? []) {
-        (init[o.attributeId] ??= []).push(o.optionId);
-      }
-    }
-    for (const k of Object.keys(init)) init[k] = [...new Set(init[k])];
-    return init;
-  };
+  // Which option ids are checked per axis. Held in the FORM (`options`), not in
+  // component state: as local state it was invisible to the save bar, to the
+  // tab's edited dot and to "Discard", so toggling a pill silently escaped
+  // every unsaved-changes mechanism. Seeded from the saved variants by
+  // `buildOptionSelection` in ProductForm, so it opens pre-checked.
+  const optionSelection = useWatch({ control: form.control, name: "options" }) as
+    | { attributeId: string; optionIds: string[] }[]
+    | undefined;
 
-  const [picked, setPicked] = useState<Record<string, string[]>>(seedPicked);
+  const picked = useMemo(() => {
+    const out: Record<string, string[]> = {};
+    for (const entry of optionSelection ?? []) out[entry.attributeId] = entry.optionIds;
+    return out;
+  }, [optionSelection]);
 
   const toggleOption = (attributeId: string, optionId: string) => {
-    setPicked((prev) => {
-      const cur = prev[attributeId] ?? [];
-      const next = cur.includes(optionId)
-        ? cur.filter((id) => id !== optionId)
-        : [...cur, optionId];
-      return { ...prev, [attributeId]: next };
-    });
+    const cur = picked[attributeId] ?? [];
+    const nextForAxis = cur.includes(optionId)
+      ? cur.filter((id) => id !== optionId)
+      : [...cur, optionId];
+    form.setValue(
+      "options",
+      normalizeOptionSelection(
+        { ...picked, [attributeId]: nextForAxis },
+        attributeLibrary,
+      ),
+      { shouldDirty: true },
+    );
   };
 
   const sigOf = (opts: { attributeId: string; optionId: string }[]) =>
@@ -281,7 +293,7 @@ export function VariantsEditor({
   // Empty in create mode (no saved variants); added/new-combo rows have no match
   // and therefore show no hint.
   const savedBySig = new Map<string, Partial<VariantRow>>();
-  for (const sv of (form.formState.defaultValues?.variants ?? []) as Partial<VariantRow>[]) {
+  for (const sv of (savedFormValues?.variants ?? []) as Partial<VariantRow>[]) {
     savedBySig.set(sigOf((sv.options ?? []) as VariantRow["options"]), sv);
   }
   // Variant prices live in USD-base dollars in the form, but the saved-value
@@ -294,20 +306,19 @@ export function VariantsEditor({
     );
 
   // Saved baseline for the option pills themselves (as opposed to the saved
-  // variant rows above) - what `picked` looked like right after the last
-  // save, reconstructed the same way `seedPicked` derives the initial
-  // selection, but from the saved baseline instead of the live form. Lets the
-  // "generate from options" button surface a normal saved-value hint too,
-  // the same way every other edited field in this form does, instead of only
-  // the button's own "(needs regenerate)" label with nothing to compare to.
+  // variant rows above). Read straight off the baseline of the `options` field
+  // the pills now write to, so the hint compares like with like - deriving it
+  // from the saved VARIANTS instead would drift the moment the selection and
+  // the generated variants legitimately differ (exactly the "needs regenerate"
+  // state).
   const savedPicked: Record<string, string[]> = {};
-  for (const sv of (form.formState.defaultValues?.variants ?? []) as Partial<VariantRow>[]) {
-    for (const o of (sv.options ?? []) as { attributeId: string; optionId: string }[]) {
-      (savedPicked[o.attributeId] ??= []).push(o.optionId);
-    }
+  for (const entry of (savedFormValues?.options ?? []) as {
+    attributeId?: string;
+    optionIds?: string[];
+  }[]) {
+    if (entry?.attributeId) savedPicked[entry.attributeId] = [...(entry.optionIds ?? [])];
   }
-  for (const k of Object.keys(savedPicked)) savedPicked[k] = [...new Set(savedPicked[k])];
-  const hasSavedVariants = ((form.formState.defaultValues?.variants ?? []) as unknown[]).length > 0;
+  const hasSavedVariants = ((savedFormValues?.variants ?? []) as unknown[]).length > 0;
   const pickedSig = (p: Record<string, string[]>) =>
     Object.keys(p)
       .filter((k) => (p[k] ?? []).length > 0)

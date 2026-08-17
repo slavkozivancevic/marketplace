@@ -24,6 +24,7 @@ import {
 } from "@/features/common/errors/domainErrors";
 import { emitProductEvent } from "@/features/webhooks/productEvents";
 import { recordSlugChanges } from "@/lib/seo/slugHistory";
+import { createWithUniqueSlugRetry } from "@/lib/db/uniqueSlugRetry";
 import { deleteS3Object } from "@/services/s3Delete";
 import { copyProductImage, toThumbKey, toEmailThumbKey } from "@/services/s3Copy";
 import { commitProductMedia } from "@/services/s3Tagging";
@@ -64,8 +65,14 @@ type ProductMutationFields = {
 /**
  * Builds the per-locale ProductTranslation rows from the form input shape.
  * The default locale's values come from the top-level canonical fields; the
- * non-default locales come from the `translations` map. Non-default locales
- * whose title is empty are skipped, so we never insert an empty-title row.
+ * non-default locales come from the `translations` map. A non-default locale
+ * with a blank title is still kept (stored with an empty title - see the
+ * slug-strategy note on why title and slug are handled differently) rather
+ * than being skipped entirely - skipping discarded the WHOLE row on save,
+ * silently dropping shortDescription/description/meta the admin never
+ * touched just because title+slug were cleared. Only a locale with
+ * genuinely nothing entered anywhere is skipped, so we still never insert a
+ * fully-empty row.
  *
  * Slug strategy:
  *   - Default locale uses `data.slug` if provided, else `slugify(title)` +
@@ -98,20 +105,48 @@ function buildProductTranslationRows(
   for (const locale of NON_DEFAULT_LOCALES) {
     const t = data.translations?.[locale];
     const title = t?.title?.trim();
-    if (!title) continue;
-    // Admin-supplied per-locale slug wins; otherwise derive from the
-    // translated title; final fallback keeps the row valid on edge-case
-    // titles (all-symbols, etc.) by suffixing the default slug.
     const explicitSlug = t?.slug?.trim();
-    const slug = explicitSlug || slugify(title) || `${defaultSlug}-${locale}`;
+    const description = t?.description?.trim();
+    const shortDescription = t?.shortDescription?.trim();
+    const metaTitle = t?.metaTitle?.trim();
+    const metaDescription = t?.metaDescription?.trim();
+    // Nothing entered anywhere for this locale - genuinely nothing to save.
+    if (
+      !title &&
+      !explicitSlug &&
+      !description &&
+      !shortDescription &&
+      !metaTitle &&
+      !metaDescription
+    ) {
+      continue;
+    }
+    // `slug` is `@@unique([locale, slug])` - it can never be blank (two
+    // products both left with an empty slug would collide), so it still
+    // needs a real, derived fallback even when title is blank. `title` has
+    // no such constraint, so it's stored exactly as typed (possibly blank);
+    // `getProductTitle` falls back to the default locale's title at DISPLAY
+    // time instead, so a shopper never sees a blank title but the admin
+    // form still shows this locale's title as genuinely empty - not
+    // silently refilled with the English title - when they clear it.
+    const effectiveTitle = title || data.title.trim();
+    // The uniqueness suffix has to reach EVERY locale, not just the default
+    // one: `@@unique([locale, slug])` is enforced per row, so a retry that only
+    // suffixed the default row still collided on the translated ones and the
+    // whole create failed with "already exists". The `${defaultSlug}-${locale}`
+    // fallback already carries the suffix via `defaultSlug`.
+    const derivedSlug = explicitSlug || slugify(effectiveTitle);
+    const slug = derivedSlug
+      ? derivedSlug + (suffix ? `-${suffix}` : "")
+      : `${defaultSlug}-${locale}`;
     rows.push({
       locale,
-      title,
+      title: title ?? "",
       slug,
-      description: t?.description?.trim() || data.description,
-      shortDescription: t?.shortDescription?.trim() ?? null,
-      metaTitle: t?.metaTitle?.trim() ?? null,
-      metaDescription: t?.metaDescription?.trim() ?? null,
+      description: description || data.description,
+      shortDescription: shortDescription ?? null,
+      metaTitle: metaTitle ?? null,
+      metaDescription: metaDescription ?? null,
     });
   }
 
@@ -1002,109 +1037,120 @@ export function productRepository(
       /** Defaults to DRAFT; only the bulk-import path passes a non-default value. */
       status?: ProductStatus;
     }): Promise<ProductWithRelations> {
-      const translationRows = buildProductTranslationRows(
-        data,
-        Date.now().toString(36),
-      );
+      const runCreate = async (
+        suffix?: string,
+      ): Promise<ProductWithRelations> => {
+        const translationRows = buildProductTranslationRows(data, suffix);
 
-      const product = await db.prisma.$transaction(async (tx) => {
-        const created = await tx.product.create({
-          data: {
-            price: data.price,
-            compareAtPrice: data.compareAtPrice ?? null,
-            costPrice: data.costPrice ?? null,
-            stock: data.stock ?? null,
-            barcode: data.barcode,
-            taxable: data.taxable ?? true,
-            taxCode: data.taxCode,
-            requiresShipping: data.requiresShipping ?? true,
-            isDigital: data.isDigital ?? false,
-            weight: data.weight ?? null,
-            weightUnit: (data.weightUnit as never) ?? null,
-            length: data.length ?? null,
-            width: data.width ?? null,
-            height: data.height ?? null,
-            dimensionUnit: (data.dimensionUnit as never) ?? null,
-            brandId: data.brandId,
-            status: data.status ?? "DRAFT",
-            ...(data.status === "PUBLISHED" && { publishedAt: new Date() }),
-            organizationId: ctx.organizationId,
-            createdById: ctx.userId,
-            translations: { create: translationRows },
-          },
-        });
-
-        // Reclaim these slugs from history in case a since-deleted entity had
-        // retired them - a live product's URL must never 308 elsewhere.
-        await recordSlugChanges(
-          tx,
-          "PRODUCT",
-          created.id,
-          new Map(),
-          new Map(translationRows.map((r) => [r.locale, r.slug])),
-        );
-
-        const mediaIdByKey = data?.media?.length
-          ? await syncProductMedia(tx, created.id, data.media)
-          : new Map<string, string>();
-
-        if (data?.variants?.length) {
-          await syncVariants(tx, created.id, data.variants, mediaIdByKey);
-        }
-
-        if (data?.categoryIds?.length) {
-          await tx.productCategory.createMany({
-            data: data.categoryIds.map((categoryId) => ({ productId: created.id, categoryId })),
-            skipDuplicates: true,
+        return db.prisma.$transaction(async (tx) => {
+          const created = await tx.product.create({
+            data: {
+              price: data.price,
+              compareAtPrice: data.compareAtPrice ?? null,
+              costPrice: data.costPrice ?? null,
+              stock: data.stock ?? null,
+              barcode: data.barcode,
+              taxable: data.taxable ?? true,
+              taxCode: data.taxCode,
+              requiresShipping: data.requiresShipping ?? true,
+              isDigital: data.isDigital ?? false,
+              weight: data.weight ?? null,
+              weightUnit: (data.weightUnit as never) ?? null,
+              length: data.length ?? null,
+              width: data.width ?? null,
+              height: data.height ?? null,
+              dimensionUnit: (data.dimensionUnit as never) ?? null,
+              brandId: data.brandId,
+              status: data.status ?? "DRAFT",
+              ...(data.status === "PUBLISHED" && { publishedAt: new Date() }),
+              organizationId: ctx.organizationId,
+              createdById: ctx.userId,
+              translations: { create: translationRows },
+            },
           });
-        }
 
-        if (data?.tagIds?.length) {
-          await tx.productTag.createMany({
-            data: data.tagIds.map((tagId) => ({ productId: created.id, tagId })),
-            skipDuplicates: true,
-          });
-        }
-
-        if (data?.attributes?.length) {
-          await syncProductAttributes(tx, created.id, data.attributes);
-        }
-
-        await refreshProductSearchText(tx, created.id);
-
-        const defaultRow = translationRows.find((r) => r.locale === DEFAULT_LOCALE)!;
-        await tx.productHistory.create({
-          data: {
-            productId: created.id,
-            version: 1,
-            title: defaultRow.title,
-            description: defaultRow.description,
-            translationsSnap: buildHistoryTranslationsSnap(translationRows),
-            price: created.price,
-            status: created.status,
-            updatedById: ctx.userId,
-          },
-        });
-
-        await emitProductEvent(tx, "product.created");
-
-        const createdProduct = await tx.product.findFirst({
-          where: {
-            id: created.id,
-            organizationId: ctx.organizationId,
-            deletedAt: null,
-          },
-          include: productWithRelationsInclude,
-        });
-
-        if (!createdProduct) {
-          throw new NotFoundError(
-            `Product ${created.id} not found after create`,
+          // Reclaim these slugs from history in case a since-deleted entity had
+          // retired them - a live product's URL must never 308 elsewhere.
+          await recordSlugChanges(
+            tx,
+            "PRODUCT",
+            created.id,
+            new Map(),
+            new Map(translationRows.map((r) => [r.locale, r.slug])),
           );
-        }
 
-        return createdProduct;
-      });
+          const mediaIdByKey = data?.media?.length
+            ? await syncProductMedia(tx, created.id, data.media)
+            : new Map<string, string>();
+
+          if (data?.variants?.length) {
+            await syncVariants(tx, created.id, data.variants, mediaIdByKey);
+          }
+
+          if (data?.categoryIds?.length) {
+            await tx.productCategory.createMany({
+              data: data.categoryIds.map((categoryId) => ({
+                productId: created.id,
+                categoryId,
+              })),
+              skipDuplicates: true,
+            });
+          }
+
+          if (data?.tagIds?.length) {
+            await tx.productTag.createMany({
+              data: data.tagIds.map((tagId) => ({
+                productId: created.id,
+                tagId,
+              })),
+              skipDuplicates: true,
+            });
+          }
+
+          if (data?.attributes?.length) {
+            await syncProductAttributes(tx, created.id, data.attributes);
+          }
+
+          await refreshProductSearchText(tx, created.id);
+
+          const defaultRow = translationRows.find(
+            (r) => r.locale === DEFAULT_LOCALE,
+          )!;
+          await tx.productHistory.create({
+            data: {
+              productId: created.id,
+              version: 1,
+              title: defaultRow.title,
+              description: defaultRow.description,
+              translationsSnap: buildHistoryTranslationsSnap(translationRows),
+              price: created.price,
+              status: created.status,
+              updatedById: ctx.userId,
+            },
+          });
+
+          await emitProductEvent(tx, "product.created");
+
+          const createdProduct = await tx.product.findFirst({
+            where: {
+              id: created.id,
+              organizationId: ctx.organizationId,
+              deletedAt: null,
+            },
+            include: productWithRelationsInclude,
+          });
+
+          if (!createdProduct) {
+            throw new NotFoundError(
+              `Product ${created.id} not found after create`,
+            );
+          }
+
+          return createdProduct;
+        });
+      };
+
+      const product = await createWithUniqueSlugRetry(runCreate);
 
       revalidateProductCache(ctx.organizationId, product.id);
 

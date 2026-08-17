@@ -10,6 +10,7 @@ import {
   FieldValues,
   FormProvider,
   useFormContext,
+  useFormState,
 } from "react-hook-form";
 
 import { cn } from "@/lib/utils";
@@ -44,7 +45,16 @@ const FormField = <
 const useFormField = () => {
   const fieldContext = React.useContext(FormFieldContext);
   const itemContext = React.useContext(FormItemContext);
-  const { getFieldState, formState } = useFormContext();
+  const { getFieldState, control } = useFormContext();
+
+  // `formState` off `useFormContext()` is a proxy getter: its values change
+  // while the `form` object's own reference never does. The React Compiler
+  // (`reactCompiler: true`) treats that object as a stable dependency and
+  // caches whatever the first read returned, freezing `isDirty` / `error` on
+  // their initial values - a field edited back to its saved value kept showing
+  // as changed forever. `useFormState` is a real hook subscription the
+  // compiler tracks correctly (same fix as VariantsEditor.tsx et al).
+  const formState = useFormState({ control, name: fieldContext.name });
 
   const fieldState = getFieldState(fieldContext.name, formState);
 
@@ -60,6 +70,9 @@ const useFormField = () => {
     formItemId: `${id}-form-item`,
     formDescriptionId: `${id}-form-item-description`,
     formMessageId: `${id}-form-item-message`,
+    // Surfaced so consumers (FieldChangedHint) read the saved baseline off the
+    // same live subscription instead of the stale-prone context proxy.
+    defaultValues: formState.defaultValues,
     ...fieldState,
   };
 };

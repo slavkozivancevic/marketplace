@@ -7,6 +7,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { prisma } from "@/core/db/prisma";
 
 import { productRepository } from "@/features/products/db/products";
+import { getProductTitle } from "@/features/products/utils/translations";
 import {
   handleActionError,
   isActionErrorResult,
@@ -176,10 +177,10 @@ async function MyProductContent({ id }: { id: string }) {
   const productData = result as SerializedProductWithRelations | null;
   if (!productData) notFound();
 
-  const titleForHeader =
-    productData.translations.find((tr) => tr.locale === locale)?.title ??
-    productData.translations.find((tr) => tr.locale === "en")?.title ??
-    "";
+  // `getProductTitle` (not a raw `find(locale)?.title ?? ...`) - a locale can
+  // HAVE a translation row whose title was left blank, and `??` would then
+  // hand back that empty string instead of falling back to English.
+  const titleForHeader = getProductTitle(productData, locale);
 
   return (
     <>

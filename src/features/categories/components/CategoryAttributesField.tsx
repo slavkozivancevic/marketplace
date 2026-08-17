@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { useFieldArray, useWatch, type useForm } from "react-hook-form";
+import { useFieldArray, useFormState, useWatch, type useForm } from "react-hook-form";
 import { Lock, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,7 +52,7 @@ export function CategoryAttributesField({
 
   const parentId = useWatch({ control: form.control, name: "parentId" });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, insert } = useFieldArray({
     control: form.control,
     name: "attributes",
   });
@@ -62,6 +62,12 @@ export function CategoryAttributesField({
   // while delete worked because useFieldArray re-renders). A single top-level
   // useWatch makes the rows reflect their current values.
   const watchedAttributes = useWatch({ control: form.control, name: "attributes" });
+  // `form.formState.defaultValues` is a proxy getter, safe to read fresh
+  // inside an event handler (see `restoreAttribute` below) but not during
+  // render - the React Compiler treats `form` as a stable dependency and
+  // can cache whatever this returned on the first render. `useFormState` is
+  // a real hook call the compiler tracks correctly.
+  const { defaultValues: savedFormValues } = useFormState({ control: form.control });
 
   const libraryById = useMemo(
     () => new Map(attributeLibrary.map((a) => [a.id, a])),
@@ -114,12 +120,32 @@ export function CategoryAttributesField({
     append({ attributeId, order: fields.length, isFilterable: true });
   };
 
+  // Restoring a removed row via `append` would drop it at the *end* of the
+  // array - the values would match the saved baseline again, but the array
+  // order wouldn't, which is enough for react-hook-form's isDirty to stay
+  // (incorrectly) true. `insert` at the position it would occupy among the
+  // currently-present saved attributes reconstructs the original array order
+  // once every removed row is restored, so the form goes truly clean again.
+  const restoreAttribute = (attributeId: string, saved: SavedAssign) => {
+    const originalOrder = (savedFormValues?.attributes ?? []) as SavedAssign[];
+    const originalIndex = originalOrder.findIndex((a) => a?.attributeId === attributeId);
+    const insertAt = originalOrder
+      .slice(0, originalIndex)
+      .filter((a) => a?.attributeId && fields.some((f) => f.attributeId === a.attributeId))
+      .length;
+    insert(insertAt, {
+      attributeId,
+      order: saved.order ?? 0,
+      isFilterable: saved.isFilterable ?? true,
+    });
+  };
+
   // Saved baseline per assigned attribute, so each row can show its persisted
   // order / filterable when edited. Empty in create mode; newly-added rows have
   // no saved match and show no hint.
   type SavedAssign = { attributeId?: string; order?: number; isFilterable?: boolean };
   const savedByAttr = new Map<string, SavedAssign>();
-  for (const s of (form.formState.defaultValues?.attributes ?? []) as SavedAssign[]) {
+  for (const s of (savedFormValues?.attributes ?? []) as SavedAssign[]) {
     if (s?.attributeId) savedByAttr.set(s.attributeId, s);
   }
 
@@ -202,30 +228,64 @@ export function CategoryAttributesField({
               return (
                 <div
                   key={`removed-${row.id}`}
-                  className="flex items-center gap-3 rounded-lg border border-dashed border-border/60 p-2.5"
+                  className="rounded-lg border border-dashed border-border/60 p-2.5 space-y-1.5"
                 >
-                  <span className="flex-1 min-w-0 truncate text-sm font-medium text-muted-foreground line-through">
-                    {attribute ? getAttributeLabel(attribute, locale) : row.id}
-                  </span>
-                  <span className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500 shrink-0">
-                    <span className="size-1.5 rounded-full bg-amber-500" aria-hidden />
+                  {/* Order/filterable stay in place (just inert) instead of
+                      disappearing, so deleting/restoring a row doesn't shrink
+                      and regrow it - only the "removed" hint line below adds
+                      height, same as any other changed-value hint. */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex flex-1 min-w-0 flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2">
+                      <span className="min-w-0 truncate sm:flex-1 text-sm font-medium text-muted-foreground line-through">
+                        {attribute ? getAttributeLabel(attribute, locale) : row.id}
+                      </span>
+                      {/* Stacks below the name on narrow screens (room for its
+                          own full width) and sits beside it from sm up. Its own
+                          max-width + truncate is a second safety net - even a
+                          very long type label can't blow out the row, it just
+                          ellipsizes on its own instead of disappearing into the
+                          name's ellipsis. */}
+                      {attribute && (
+                        <Badge
+                          variant="outline"
+                          className="max-w-[min(8rem,100%)] min-w-0 shrink-0 text-[10px] font-normal"
+                        >
+                          {/* `truncate` on the Badge itself wouldn't ellipsize -
+                              text-overflow doesn't apply to a flex container
+                              (Badge is inline-flex), only to a block/inline-block
+                              text run inside one. */}
+                          <span className="min-w-0 truncate">
+                            {tAttr(`type_${attribute.type}`)}
+                          </span>
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="pointer-events-none shrink-0 opacity-50">
+                      <NumberStepper
+                        min={0}
+                        className="w-16"
+                        value={row.saved.order ?? 0}
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <label className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 text-xs text-muted-foreground shrink-0 pointer-events-none opacity-50">
+                      <Switch checked={row.saved.isFilterable ?? true} onCheckedChange={() => {}} />
+                      {t("filterable")}
+                    </label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => restoreAttribute(row.id, row.saved)}
+                    >
+                      {t("undo")}
+                    </Button>
+                  </div>
+                  <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500">
+                    <span className="size-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden />
                     {t("removed")}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0"
-                    onClick={() =>
-                      append({
-                        attributeId: row.id,
-                        order: row.saved.order ?? 0,
-                        isFilterable: row.saved.isFilterable ?? true,
-                      })
-                    }
-                  >
-                    {t("undo")}
-                  </Button>
+                  </p>
                 </div>
               );
             }
@@ -252,19 +312,35 @@ export function CategoryAttributesField({
                 className="rounded-lg border border-border/60 p-2.5 space-y-1.5"
               >
                 <div className="flex items-center gap-3">
-                <span className="flex-1 min-w-0 truncate text-sm font-medium">
-                  {attribute ? getAttributeLabel(attribute, locale) : field.attributeId}
+                <div className="flex flex-1 min-w-0 flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2">
+                  <span className="min-w-0 truncate sm:flex-1 text-sm font-medium">
+                    {attribute ? getAttributeLabel(attribute, locale) : field.attributeId}
+                  </span>
+                  {/* Stacks below the name on narrow screens and sits beside
+                      it from sm up. Its own max-width + truncate is a second
+                      safety net - even a very long type label can't blow out
+                      the row, it just ellipsizes on its own instead of
+                      disappearing into the name's ellipsis. */}
                   {attribute && (
-                    <Badge variant="outline" className="ml-2 text-[10px] font-normal">
-                      {tAttr(`type_${attribute.type}`)}
+                    <Badge
+                      variant="outline"
+                      className="max-w-[min(8rem,100%)] min-w-0 shrink-0 text-[10px] font-normal"
+                    >
+                      {/* `truncate` on the Badge itself wouldn't ellipsize -
+                          text-overflow doesn't apply to a flex container
+                          (Badge is inline-flex), only to a block/inline-block
+                          text run inside one. */}
+                      <span className="min-w-0 truncate">
+                        {tAttr(`type_${attribute.type}`)}
+                      </span>
                     </Badge>
                   )}
-                </span>
+                </div>
 
                 {/* Order */}
                 <NumberStepper
                   min={0}
-                  className="w-16"
+                  className="w-16 shrink-0"
                   value={order}
                   onChange={(v) =>
                     form.setValue(`attributes.${index}.order`, v ?? 0, { shouldDirty: true })
@@ -272,7 +348,7 @@ export function CategoryAttributesField({
                 />
 
                 {/* Filterable toggle */}
-                <label className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
+                <label className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 text-xs text-muted-foreground shrink-0">
                   <Switch
                     checked={isFilterable}
                     onCheckedChange={(v) =>

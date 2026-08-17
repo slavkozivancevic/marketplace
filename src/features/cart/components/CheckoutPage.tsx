@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useTransition } from "react";
 import { RetryImage } from "@/components/RetryImage";
 import { usePathname } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useFormState } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { z } from "zod/v4";
 import { useRouter } from "@/i18n/navigation";
@@ -209,14 +209,17 @@ export function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemsSig]);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<ShippingForm>({
+  const { register, handleSubmit, control } = useForm<ShippingForm>({
     mode: "onTouched",
     resolver: useZodResolver(shippingSchema),
   });
+
+  // Read via `useFormState`, not by destructuring `formState` off `useForm`:
+  // that is a proxy getter whose values change while the returned object's
+  // reference never does, so the React Compiler (`reactCompiler: true`) caches
+  // the first read and leaves the per-field errors frozen - checkout validation
+  // messages would stick around after the field was corrected.
+  const { errors } = useFormState({ control });
 
   if (items.length === 0) {
     if (!hydrated) return null; // still rehydrating - avoid empty-cart flash

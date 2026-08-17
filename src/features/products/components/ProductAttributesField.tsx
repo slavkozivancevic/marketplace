@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { useWatch, type UseFormReturn } from "react-hook-form";
+import { useFormState, useWatch, type UseFormReturn } from "react-hook-form";
 import type { ProductFormData } from "./ProductForm";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -71,6 +71,13 @@ export function ProductAttributesField({
       | AttributeValueEntry[]
       | undefined) ?? [];
 
+  // `form.formState.x` is a proxy getter, unsafe to read during render under
+  // the React Compiler (it treats `form` as a stable dependency and can
+  // cache a stale snapshot - see the identical fix in VariantsEditor.tsx).
+  // Must stay above the `applicable.length === 0` early return below, along
+  // with the other hooks.
+  const { defaultValues: savedFormValues } = useFormState({ control: form.control });
+
   const { parentOf } = useMemo(() => indexTree(categoryTree), [categoryTree]);
 
   // Resolve the applicable attributes: union of every selected category's own
@@ -100,7 +107,7 @@ export function ProductAttributesField({
   // when edited. Empty in create mode (nothing saved); only attributes that had
   // a saved value get a hint.
   const savedByAttr = new Map<string, Partial<AttributeValueEntry>>();
-  for (const s of (form.formState.defaultValues?.attributes ?? []) as Partial<AttributeValueEntry>[]) {
+  for (const s of (savedFormValues?.attributes ?? []) as Partial<AttributeValueEntry>[]) {
     if (s?.attributeId) savedByAttr.set(s.attributeId, s);
   }
 

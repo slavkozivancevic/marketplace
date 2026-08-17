@@ -13,8 +13,9 @@
   },
   "slugAvailability": {
     "checking": "Proveravanje…",
-    "available": "Slug je dostupan",
+    "available": "Dostupno",
     "taken": "Već se koristi - izaberi drugi",
+    "takenAutoSuffix": "Već se koristi - dodaćemo jedinstven nastavak",
     "checkFailed": "Provera nije uspela - server će proveriti pri snimanju"
   },
   "nav": {
@@ -838,6 +839,8 @@
     "noOptions": "Još nema opcija. Dodajte bar jednu.",
     "optionLabelPlaceholder": "npr. Crvena",
     "removeOption": "Ukloni opciju",
+    "removed": "Uklonjeno",
+    "undo": "Vrati",
     "order": "Redosled",
     "orderDesc": "Manji brojevi se prikazuju prvi.",
     "create": "Kreiraj atribut",
@@ -1088,6 +1091,15 @@
     "backToProducts": "Nazad na proizvode",
     "backToOrganizations": "Nazad na organizacije",
     "backToUsers": "Nazad na korisnike"
+  },
+  "errorPage": {
+    "title": "Došlo je do greške",
+    "pageDescription": "Došlo je do neočekivane greške pri učitavanju ove stranice.",
+    "productsBody": "Nismo uspeli da učitamo traženu stranicu proizvoda. Pokušajte ponovo.",
+    "productBody": "Nismo uspeli da učitamo ovaj proizvod. Pokušajte ponovo.",
+    "productHistoryBody": "Nismo uspeli da učitamo istoriju ovog proizvoda. Pokušajte ponovo.",
+    "genericDescription": "Došlo je do neočekivane greške. Možete pokušati ponovo.",
+    "tryAgain": "Pokušaj ponovo"
   },
   "productForm": {
     "titleField": "Naziv",

@@ -5,6 +5,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { prisma } from "@/core/db/prisma";
 import { Link, getPathname } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
+import { getBrandName } from "@/features/brands/utils/translations";
 import { CacheTags } from "@/lib/cache/tags";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
@@ -88,6 +89,10 @@ export default async function BrandsPage() {
 
   const brands: BrandCard[] = rawBrands
     .map((b) => {
+      // `row` is only for the SLUG - that must stay this locale's own URL.
+      // The NAME goes through `getBrandName`, because a locale can have a
+      // translation row whose name was left blank (kept alive by its
+      // slug/description) and the card would then render an empty label.
       const row =
         b.translations.find((tr) => tr.locale === locale) ??
         b.translations.find((tr) => tr.locale === routing.defaultLocale) ??
@@ -99,7 +104,7 @@ export default async function BrandsPage() {
         logoUrlDark: b.logoUrlDark,
         logoBackdrop: b.logoBackdrop,
         logoBackdropDark: b.logoBackdropDark,
-        name: row.name,
+        name: getBrandName(b, locale),
         slug: row.slug,
         productCount: b._count.products,
       };

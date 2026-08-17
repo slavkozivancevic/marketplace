@@ -5,6 +5,7 @@ import { slugify } from "@/lib/utils";
 import { copyName } from "@/lib/i18n/copyName";
 import { refreshProductSearchText } from "@/features/products/db/products";
 import { recordSlugChanges } from "@/lib/seo/slugHistory";
+import { createWithUniqueSlugRetry } from "@/lib/db/uniqueSlugRetry";
 import { DEFAULT_LOCALE, NON_DEFAULT_LOCALES } from "@/i18n/config";
 import { Prisma } from "@/generated/prisma/client";
 import type { TagTranslations } from "../utils/translations";
@@ -71,8 +72,13 @@ type TagMutationData = {
  * non-default locales come from the `translations` map. Locales without a
  * translated name are skipped so we never insert an empty-name row.
  */
-function buildTagTranslationRows(data: TagMutationData): TagTranslationRow[] {
-  const defaultSlug = (data.slug?.trim() || slugify(data.name)).trim();
+function buildTagTranslationRows(
+  data: TagMutationData,
+  suffix?: string,
+): TagTranslationRow[] {
+  const defaultSlug = (
+    (data.slug?.trim() || slugify(data.name)) + (suffix ? `-${suffix}` : "")
+  ).trim();
   const rows: TagTranslationRow[] = [
     { locale: DEFAULT_LOCALE, name: data.name.trim(), slug: defaultSlug },
   ];
@@ -84,32 +90,40 @@ function buildTagTranslationRows(data: TagMutationData): TagTranslationRow[] {
     // Prefer the admin-supplied per-locale slug; fall back to slugify-of-name,
     // then to a deterministic `${defaultSlug}-${locale}` to guarantee a row.
     const explicitSlug = t?.slug?.trim();
+    // The uniqueness suffix has to reach EVERY locale, not just the default
+    // one: `@@unique([locale, slug])` is enforced per row, so a retry that only
+    // suffixed the default row still collided on the translated ones.
+    const derivedSlug = explicitSlug || slugify(name);
     rows.push({
       locale,
       name,
-      slug: explicitSlug || slugify(name) || `${defaultSlug}-${locale}`,
+      slug: derivedSlug
+        ? derivedSlug + (suffix ? `-${suffix}` : "")
+        : `${defaultSlug}-${locale}`,
     });
   }
   return rows;
 }
 
 export async function createTag(data: TagMutationData) {
-  const rows = buildTagTranslationRows(data);
+  const tag = await createWithUniqueSlugRetry(async (suffix) => {
+    const rows = buildTagTranslationRows(data, suffix);
 
-  const tag = await prisma.$transaction(async (tx) => {
-    const created = await tx.tag.create({
-      data: { translations: { create: rows } },
-      include: { translations: true },
+    return prisma.$transaction(async (tx) => {
+      const created = await tx.tag.create({
+        data: { translations: { create: rows } },
+        include: { translations: true },
+      });
+      // Reclaim these slugs from history so a live tag URL never 308s away.
+      await recordSlugChanges(
+        tx,
+        "TAG",
+        created.id,
+        new Map(),
+        new Map(rows.map((r) => [r.locale, r.slug])),
+      );
+      return created;
     });
-    // Reclaim these slugs from history so a live tag URL never 308s away.
-    await recordSlugChanges(
-      tx,
-      "TAG",
-      created.id,
-      new Map(),
-      new Map(rows.map((r) => [r.locale, r.slug])),
-    );
-    return created;
   });
 
   revalidateTagCache(tag.id);

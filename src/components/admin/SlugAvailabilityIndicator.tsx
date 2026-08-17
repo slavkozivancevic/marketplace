@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Loader2, X } from "lucide-react";
+import { Check, Info, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import axios from "axios";
 
-type SlugCheckEntity = "brand" | "category" | "product" | "tag";
+type SlugCheckEntity = "brand" | "category" | "product" | "tag" | "attribute";
 
 type Status =
   | { kind: "idle" }
@@ -29,12 +29,22 @@ export function SlugAvailabilityIndicator({
   locale,
   slug,
   excludeId,
+  autoResolves = false,
 }: {
   entity: SlugCheckEntity;
-  locale: string;
+  /** Omitted for `attribute`, whose `key` is globally unique with no locale. */
+  locale?: string;
   slug: string | undefined | null;
   /** Existing entity id when editing - skips counting "self" as a conflict. */
   excludeId?: string;
+  /**
+   * True on create, where the server retries a colliding slug with a unique
+   * suffix instead of failing (see `createWithUniqueSlugRetry`). A conflict is
+   * then informational, not an error to fix - saving will succeed either way.
+   * Left false when editing: an existing URL must never be silently rewritten,
+   * so there a conflict really does have to be resolved by hand.
+   */
+  autoResolves?: boolean;
 }) {
   const t = useTranslations("slugAvailability");
   const [status, setStatus] = useState<Status>({ kind: "idle" });
@@ -91,7 +101,12 @@ export function SlugAvailabilityIndicator({
   }
 
   if (status.kind === "taken") {
-    return (
+    return autoResolves ? (
+      <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-500">
+        <Info className="h-3 w-3" />
+        {t("takenAutoSuffix")}
+      </span>
+    ) : (
       <span className="inline-flex items-center gap-1 text-xs text-destructive">
         <X className="h-3 w-3" />
         {t("taken")}

@@ -14,7 +14,10 @@ import {
 import { getAttributeLibrary } from "@/features/attributes/db/attributes";
 import { CategoryForm } from "@/features/categories/components/CategoryForm";
 import { DEFAULT_LOCALE, NON_DEFAULT_LOCALES } from "@/i18n/config";
-import type { CategoryTranslations } from "@/features/categories/utils/translations";
+import {
+  getCategoryName,
+  type CategoryTranslations,
+} from "@/features/categories/utils/translations";
 
 export default async function EditCategoryPage({
   params,
@@ -58,19 +61,24 @@ export default async function EditCategoryPage({
     const row = category.translations.find((tr) => tr.locale === loc);
     nonDefault[loc] = {
       name: row?.name ?? "",
-      // The stored slug MUST round-trip through the form. Omitting it made
-      // every save regenerate the slug from the (possibly unchanged) name,
-      // which collided with the source category after a duplicate ("already
-      // exists" on any edit of the copy).
-      slug: row?.slug ?? "",
+      // The stored slug MUST round-trip through the form WHEN a name is
+      // present - omitting it unconditionally made every save regenerate
+      // the slug from the (possibly unchanged) name, which collided with
+      // the source category after a duplicate ("already exists" on any
+      // edit of the copy). But when name is blank, any stored slug is only
+      // a derived implementation detail (see buildCategoryTranslationRows)
+      // kept for URL validity, not something the admin entered - show it as
+      // blank too rather than as if it were.
+      slug: row?.name ? (row?.slug ?? "") : "",
       description: row?.description ?? "",
     };
   }
 
-  const displayName =
-    category.translations.find((tr) => tr.locale === locale)?.name ??
-    en?.name ??
-    "";
+  // `getCategoryName` (not a raw `find(locale)?.name ?? en?.name`) - this
+  // locale can HAVE a translation row whose name was left blank (kept alive
+  // by its slug/description, see buildCategoryTranslationRows), and `??`
+  // would then hand back that empty string instead of falling back to English.
+  const displayName = getCategoryName(category, locale);
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
