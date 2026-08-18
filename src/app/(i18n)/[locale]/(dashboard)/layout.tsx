@@ -38,7 +38,10 @@ export default async function DashboardLayout({
 
   return (
     <ActiveOrgProvider orgId={currentOrgId}>
-      <div className="flex h-dvh flex-col overflow-hidden">
+      {/* `overflow-clip`, not `overflow-hidden` - see admin/layout.tsx: the
+          shell must never be a scroll container, or a sideways overflow can
+          park the whole page in a blank void beside the content. */}
+      <div className="flex h-dvh flex-col overflow-clip">
         <Header />
         <div className="flex flex-1 min-h-0">
           <DashboardSidebar
@@ -47,7 +50,11 @@ export default async function DashboardLayout({
             currentOrgId={currentOrgId}
             canManagePayouts={canManagePayouts}
           />
-          <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {/* `min-w-0` is required next to `overflow-clip` - see
+              admin/layout.tsx: clip is not a scroll container, so without it
+              main takes the min-content width of the widest table inside and
+              pushes the whole row past the viewport. */}
+          <main className="flex-1 min-w-0 flex flex-col min-h-0 overflow-clip">
             {children}
           </main>
         </div>

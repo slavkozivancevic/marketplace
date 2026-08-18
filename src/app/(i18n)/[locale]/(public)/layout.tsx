@@ -19,10 +19,13 @@ export default async function PublicLayout({
     isAdmin = user?.role === "ADMIN";
   }
 
+  // `overflow-clip`, not `overflow-hidden` - see admin/layout.tsx: the shell
+  // must never be a scroll container, or a sideways overflow can park the whole
+  // page in a blank void beside the content.
   return (
-    <div className="flex h-dvh flex-col overflow-hidden">
+    <div className="flex h-dvh flex-col overflow-clip">
       <PublicHeader showAdminLink={isAdmin} signedIn={!!userId} />
-      <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <main className="flex-1 flex flex-col min-h-0 overflow-clip">
         {children}
       </main>
     </div>

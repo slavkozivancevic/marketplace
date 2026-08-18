@@ -40,9 +40,12 @@ export default async function NotFoundPage() {
       <NextIntlClientProvider locale={locale} messages={messages}>
         <ThemeProvider>
           <HardNavBoundary>
-            <div className="flex h-dvh flex-col overflow-hidden">
+            {/* `overflow-clip`, not `overflow-hidden` - see admin/layout.tsx:
+                the shell must never be a scroll container, or a sideways
+                overflow can park the whole page in a blank void. */}
+            <div className="flex h-dvh flex-col overflow-clip">
               <NotFoundHeader />
-              <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <main className="flex-1 flex flex-col min-h-0 overflow-clip">
                 <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
                   <div className="flex-1 flex items-center justify-center px-6 py-12">
                     <NotFoundContent

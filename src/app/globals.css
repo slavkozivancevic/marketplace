@@ -250,6 +250,17 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Nothing above the page shells may EVER scroll sideways. `overflow-x:
+       clip` (alone - pairing it with an explicit `overflow-y` degrades both
+       axes to `hidden`, which IS a scroll container) leaves the vertical axis
+       untouched while making horizontal scrollable overflow unreachable: no
+       touch pan, no `scrollLeft`, no scroll-into-view jump. Without it, any
+       stray wide box - a full-bleed decoration, a toast/drawer layer that
+       sits beside the shell, an over-wide child - lets the whole page be
+       parked in a blank void next to the content, with no way back (`html` is
+       `overflow: hidden`, so the void has no scrollbar to drag home). Wide
+       content still scrolls inside its own container (tables, carousels). */
+    overflow-x: clip;
   }
   html {
     @apply font-sans overflow-hidden;
@@ -522,7 +533,25 @@
   background: #0a0b1e;
 }
 
-/* Full-width sticky header background - extends beyond any parent container */
+/* Opaque sticky-header surface, painted on pseudo-elements so it sits behind
+   the header's own content (z-index: -1) without a wrapper element.
+
+   The paint spans the header's own box exactly - NO sideways overshoot. It
+   used to sit at `left/right: -9999px` ("full bleed beyond any parent"), and
+   that overshoot is scrollable overflow: the nearest scroll container - every
+   shell's <main>, `overflow: hidden` - reported a scrollWidth ~10000px wider
+   than its viewport. Nothing paints there, so any scroll into it (iOS Safari
+   pans `overflow: hidden` containers on touch; a focus / scroll-into-view can
+   drive `scrollLeft` in every engine) parked the entire page off-screen next
+   to a blank void, with no way to scroll back. It reproduced on every page,
+   most visibly on the admin list screens where opening a filter Select threw
+   the page to the far right.
+
+   The overshoot was never needed: every element carrying this class is a
+   full-width block in the page column, and the one case that IS inset by its
+   parent's padding - a PageHeader nested inside a `px-6` wrapper - paints
+   nothing at all (see the nesting rules below). Shells additionally use
+   `overflow: clip` so a future stray wide child can't re-create the void. */
 .sticky-header-bg {
   position: relative;
 }
@@ -532,8 +561,8 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: -9999px;
-  right: -9999px;
+  left: 0;
+  right: 0;
   background: var(--background);
   border-bottom: 1px solid var(--border);
   z-index: -1;
@@ -575,16 +604,17 @@
    transactional-email header (4-point sparkles + dots), rendered by
    scripts/generate-brand-assets.mjs on a TRANSPARENT background so the theme
    surface shows through. One tuned PNG per theme. On sub-headers the stars
-   live on ::after (spanning just the header box) so the ::before overshoot
-   above doesn't drag them behind the breadcrumbs, and so the rule order can
-   never lose to the ::before background shorthand again. */
+   live on ::after (a second layer spanning the same box as ::before) so they
+   don't get dragged behind the breadcrumbs, and so the rule order can never
+   lose to the ::before background shorthand again. Same box as ::before, and
+   for the same reason: no sideways overshoot. */
 .sticky-header-bg::after {
   content: "";
   position: absolute;
   top: 0;
   bottom: 0;
-  left: -9999px;
-  right: -9999px;
+  left: 0;
+  right: 0;
   pointer-events: none;
   z-index: -1;
 }
