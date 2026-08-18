@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Native-feeling pull-to-refresh, mobile + touch only.
+ * Native-feeling pull-to-refresh, touch input only.
  *
  * Why a custom implementation instead of the browser's own gesture: `html` is
  * `overflow: hidden` (see globals.css) and every page scrolls inside its own
@@ -44,7 +44,16 @@ const MIN_SPIN_MS = 600;
 /** Never leave the spinner up forever if a refresh never settles. */
 const SAFETY_MS = 10_000;
 
-const MOBILE_TOUCH_QUERY = "(max-width: 767px) and (pointer: coarse)";
+/**
+ * Any touch input at all, at any width. `any-pointer` (not `pointer`) is the
+ * point: `pointer` describes only the PRIMARY input, so a touch-screen laptop
+ * - where the primary pointer is the mouse - reported `fine` and never armed
+ * the gesture, and the old `max-width: 767px` cap additionally excluded every
+ * tablet from 768px up (iPad portrait included). Widening this is safe because
+ * the listeners are `touchstart/touchmove/touchend`: a mouse drag emits none of
+ * them, so a mouse user on a touch-capable machine still can't trigger a pull.
+ */
+const TOUCH_QUERY = "(any-pointer: coarse)";
 
 /** Modal surfaces own their gestures - same selectors the page-blur rule uses. */
 const OVERLAY_SELECTOR =
@@ -105,10 +114,10 @@ export function PullToRefresh() {
   const refreshingRef = useRef(false);
   const startedAtRef = useRef(0);
 
-  // Mobile widths + a coarse pointer. A desktop mouse dragging the page down
-  // is not a refresh gesture, so the listeners simply aren't bound there.
+  // Bound only on machines that have a touch input at all - a pointer-only
+  // desktop never pays for the listeners.
   useEffect(() => {
-    const mq = window.matchMedia(MOBILE_TOUCH_QUERY);
+    const mq = window.matchMedia(TOUCH_QUERY);
     const sync = () => setEnabled(mq.matches);
     sync();
     mq.addEventListener("change", sync);
