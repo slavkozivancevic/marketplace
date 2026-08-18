@@ -297,8 +297,13 @@
        applies where supported. */
     height: 100vh;
     height: 100dvh;
+    /* Containing block for the `.page-background` backdrop, which lives inside
+       this wrapper and is sized off it rather than off the viewport - see the
+       .page-background rule for why that distinction matters. */
+    position: relative;
   }
-  body:has([data-slot="dialog-overlay"], [data-slot="alert-dialog-overlay"], [data-slot="sheet-overlay"]) > .page-background,
+  /* The backdrop is a descendant now, so blurring the shell blurs it too - no
+     separate selector for it. */
   body:has([data-slot="dialog-overlay"], [data-slot="alert-dialog-overlay"], [data-slot="sheet-overlay"]) > .app-shell {
     filter: blur(4px);
   }
@@ -353,8 +358,19 @@
 }
 
 /* ===== SUBTLE GLOBAL BACKGROUND IMAGE ===== */
+/* `absolute`, not `fixed`: it fills whatever positioned wrapper it's dropped
+   into - `.app-shell` on a normal page, the `fixed inset-0` overlay in
+   AppLoader / BootLoaderFallback. Fixed sized it off the viewport instead,
+   and the viewport is the one box that can disagree with the app's own width:
+   measured on an admin list screen, every app box (html, body, .app-shell,
+   main) came out at 559px while this backdrop came out at 1044px. Those extra
+   485px were the document's entire horizontal overflow, and the only thing
+   painted out there - i.e. exactly the empty strip the page could be panned
+   into. Sized off `.app-shell` it cannot outgrow the app, whatever the
+   viewport thinks it is. Visually identical: `.app-shell` is `height: 100dvh`
+   and never scrolls, so an absolute child stays put like a fixed one. */
 .page-background {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: -1;
   pointer-events: none;

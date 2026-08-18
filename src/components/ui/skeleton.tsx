@@ -20,6 +20,11 @@ export function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
  * button's height exactly (e.g. the org order detail page's `size="sm"` back
  * button is 28px tall, not the 32px default - a mismatched skeleton visibly
  * resizes on hydration).
+ *
+ * The `secondary` variant is borrowed for geometry only - its `bg-secondary`
+ * fill is overridden with `bg-muted` (twMerge keeps the later class) so the
+ * placeholder reads at the same contrast as every other skeleton in the light
+ * theme, where --secondary sits only 3% below --background.
  */
 export function SkeletonButton({
   className,
@@ -34,7 +39,7 @@ export function SkeletonButton({
         buttonVariants({
           variant: "secondary",
           size,
-          className: "pointer-events-none w-24 animate-pulse",
+          className: "pointer-events-none w-24 animate-pulse bg-muted",
         }),
         className,
       )}
@@ -67,12 +72,19 @@ export function SkeletonText({
   size?: "sm" | "md" | "lg";
   className?: string;
 }) {
+  // Fill MUST be `bg-muted`, the same token <Skeleton> uses. It used to be
+  // `bg-secondary`, which is fine in the dark themes (where --secondary and
+  // --muted are the same lightness) but effectively invisible in the light
+  // theme: --secondary is oklch(0.91) against a --background of oklch(0.94),
+  // a 3% lightness delta. That's why table skeletons looked half-empty - the
+  // thumbnail and brand-logo placeholders (plain <Skeleton>, bg-muted at 0.885)
+  // showed, while the title/description placeholders (SkeletonText) did not.
   return (
     <div className="flex flex-col gap-1.5">
       <SkeletonArray amount={rows}>
         <div
           className={cn(
-            "w-full animate-pulse rounded-sm bg-secondary",
+            "w-full animate-pulse rounded-sm bg-muted",
             rows > 1 && "last:w-3/4",
             size === "sm" && "h-2.5",
             size === "md" && "h-3",
@@ -169,23 +181,31 @@ export function SkeletonSectionHeader({ className }: { className?: string }) {
 }
 
 export function SkeletonHistoryTable({ rows = 8 }: { rows?: number }) {
-  // Mirrors ProductHistoryTable's GRID_COLS (9 columns: version, current badge,
-  // title, description, price, status, updatedBy, createdAt, rollback button).
+  // Must stay identical to ProductHistoryTable's GRID_COLS - 10 columns:
+  // version, current badge, title, description, price, status, updatedBy,
+  // date, time, rollback button. (The date column was split into separate
+  // date/time cells in the real table; this skeleton still carried the old
+  // single `minmax(180px,1fr)` createdAt column, so it rendered 9 cells into a
+  // 10-column grid and every cell from `updatedBy` rightwards sat under the
+  // wrong header.)
   const cols =
-    "grid-cols-[60px_64px_minmax(140px,1fr)_minmax(200px,2fr)_120px_100px_minmax(120px,1fr)_minmax(180px,1fr)_100px]";
+    "grid-cols-[60px_64px_minmax(140px,1fr)_minmax(200px,2fr)_120px_100px_minmax(120px,1fr)_100px_80px_100px]";
 
   return (
     <div className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
-      {/* Header */}
+      {/* Header. The "current" column's real header holds an `invisible` badge
+          purely to reserve width, so it gets an empty cell here rather than a
+          bar that never materialises. */}
       <div className={cn("grid items-center gap-2 border-b p-3 min-w-fit", cols)}>
         <Skeleton className="h-3.5 w-10" />
-        <Skeleton className="h-3.5 w-12 mx-auto" />
+        <div />
         <Skeleton className="h-3.5 w-16" />
         <Skeleton className="h-3.5 w-24" />
         <Skeleton className="h-3.5 w-12 ml-auto" />
         <Skeleton className="h-3.5 w-12 mx-auto" />
         <Skeleton className="h-3.5 w-20" />
-        <Skeleton className="h-3.5 w-24" />
+        <Skeleton className="h-3.5 w-16" />
+        <Skeleton className="h-3.5 w-10" />
         <Skeleton className="h-3.5 w-14" />
       </div>
 
@@ -199,8 +219,10 @@ export function SkeletonHistoryTable({ rows = 8 }: { rows?: number }) {
           <Skeleton className="h-3.5 w-14 ml-auto" />
           <Skeleton className="h-5 w-16 rounded-full mx-auto" />
           <Skeleton className="h-3.5 w-20" />
-          <Skeleton className="h-3.5 w-24" />
-          <Skeleton className="h-8 w-16 rounded-md" />
+          <Skeleton className="h-3.5 w-20" />
+          <Skeleton className="h-3.5 w-10" />
+          {/* Rollback is a `size="sm"` button - h-7, not the h-8 default. */}
+          <Skeleton className="h-7 w-16 rounded-md" />
         </div>
       </SkeletonArray>
     </div>
@@ -304,13 +326,23 @@ export function SkeletonProductTableRow({
   );
 }
 
-export function SkeletonPayoutRow() {
+export function SkeletonPayoutRow({
+  /**
+   * Grid template to match the list's header. Callers pass `PAYOUT_COL` from
+   * OrgPayoutTableRow; the default mirrors it (the hardcoded copy had drifted -
+   * a 180px status column against the real 400px, which shifted the badge
+   * placeholder and shortened the row inside the horizontally scrolling table).
+   */
+  cols = "grid-cols-[minmax(120px,1fr)_120px_90px_150px_400px]",
+}: {
+  cols?: string;
+} = {}) {
   // h-14 matches OrgPayoutTableRow's fixed height (rows stay even whether or not
   // a payout shows the 2-line refund amount).
   return (
     <div
       role="row"
-      className="grid grid-cols-[minmax(120px,1fr)_120px_90px_150px_180px] items-center gap-4 border-b h-14 px-3 min-w-fit"
+      className={cn("grid items-center gap-4 border-b h-14 px-3 min-w-fit", cols)}
     >
       <Skeleton className="h-3.5 w-24" />
       <Skeleton className="h-3.5 w-20" />

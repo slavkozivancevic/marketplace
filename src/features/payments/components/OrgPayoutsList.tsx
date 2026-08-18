@@ -73,7 +73,7 @@ export function OrgPayoutsList({
       <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
         <PayoutTableHeader t={t} />
         {Array.from({ length: 8 }).map((_, i) => (
-          <SkeletonPayoutRow key={i} />
+          <SkeletonPayoutRow key={i} cols={PAYOUT_COL} />
         ))}
       </div>
     );
@@ -141,7 +141,7 @@ export function OrgPayoutsList({
           if (isSentinelIndex(vRow.index)) {
             return (
               <div key="sentinel" ref={virtualizer.measureElement} data-index={vRow.index} style={style}>
-                <SkeletonPayoutRow />
+                <SkeletonPayoutRow cols={PAYOUT_COL} />
               </div>
             );
           }

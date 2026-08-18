@@ -139,18 +139,21 @@ export default async function LocaleRootLayout({
             providers, so it exists in every phase of the switch and gets the
             new locale straight from the [locale] param. Uses no intl hooks. */}
         <LocaleSwitchLoader locale={locale} />
-        <div className="page-background">
-          <Image
-            src={BG_IMAGE_URL}
-            alt=""
-            fill
-            className="object-cover"
-            sizes="100vw"
-            priority
-            unoptimized
-          />
-        </div>
         <div className="app-shell">
+          {/* Inside the shell, not a sibling of it: the backdrop is
+              `position: absolute` and sizes off `.app-shell`, so it can never
+              be wider than the app itself (see globals.css). */}
+          <div className="page-background">
+            <Image
+              src={BG_IMAGE_URL}
+              alt=""
+              fill
+              className="object-cover"
+              sizes="100vw"
+              priority
+              unoptimized
+            />
+          </div>
           <StableOuterProviders>
             <ClerkLocaleProvider locale={locale}>
               {/* Fallback mirrors <AppLoader> (see boot-loader-fallback.tsx):

@@ -150,7 +150,11 @@ export function OrgOrdersList({
                 data-index={vRow.index}
                 style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${vRow.start}px)` }}
               >
-                <SkeletonOrderRow />
+                {/* Must repeat `cols`/`withBuyer` - the defaults are the BUYER
+                    orders table's 6-column layout, so the load-more sentinel
+                    was rendering a narrower, buyer-less row inside this
+                    7-column table. */}
+                <SkeletonOrderRow cols={COL} withBuyer />
               </div>
             );
           }
