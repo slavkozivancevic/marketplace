@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 
 import { useInfiniteVirtualList } from "@/components/infinite/useInfiniteVirtualList";
 import { OrderTableRow } from "./OrderTableRow";
-import { SkeletonOrderRow } from "@/components/ui/skeleton";
+// Grid template is owned by the skeleton module so the two can never drift.
+import { ORDER_COLS, OrderSkeletonRow } from "./OrderTableSkeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Link } from "@/i18n/navigation";
 import type { UserOrderListItem } from "../db/orders";
@@ -38,7 +39,10 @@ function OrderTableHeader({ t }: { t: ReturnType<typeof useTranslations> }) {
   return (
     <div
       role="row"
-      className="grid grid-cols-[100px_100px_80px_minmax(200px,2fr)_120px_230px] items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit"
+      className={cn(
+        "grid items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit",
+        ORDER_COLS,
+      )}
     >
       <div role="columnheader">{t("orders.orderId")}</div>
       <div role="columnheader">{t("orders.date")}</div>
@@ -80,7 +84,7 @@ export function OrdersList({
       <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
         <OrderTableHeader t={t} />
         {Array.from({ length: 8 }).map((_, i) => (
-          <SkeletonOrderRow key={i} />
+          <OrderSkeletonRow key={i} />
         ))}
       </div>
     );
@@ -162,7 +166,7 @@ export function OrdersList({
                   transform: `translateY(${vRow.start}px)`,
                 }}
               >
-                <SkeletonOrderRow />
+                <OrderSkeletonRow />
               </div>
             );
           }

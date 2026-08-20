@@ -68,6 +68,9 @@ export function OrgPayoutsPage() {
           statusOpt("PENDING", t("pendingPayout")),
           statusOpt("FAILED", t("failed")),
         ],
+        // Fixed option set: stays clickable while counts load, only the
+        // numbers are placeholdered.
+        countsPending: !countsReady,
       },
       {
         type: "checkbox",
@@ -78,6 +81,7 @@ export function OrgPayoutsPage() {
           refundedOpt("partial", t("partiallyRefunded")),
           refundedOpt("active", t("notRefunded")),
         ],
+        countsPending: !countsReady,
       },
     ];
   }, [t, countsReady, statusCounts, refundedCounts]);

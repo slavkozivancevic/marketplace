@@ -6,6 +6,7 @@ import { Filter, ChevronDown, ChevronUp, X } from "lucide-react";
 import { StarRating } from "@/features/reviews/components/StarRating";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
@@ -36,6 +37,50 @@ export interface CheckboxFilterGroup {
   options: { value: string; label: string; count?: number }[];
   /** Max items shown before "see more". Defaults to showing all. */
   maxVisible?: number;
+  /**
+   * Set while the facet-count query is still in flight on a group whose
+   * MEMBERSHIP depends on it - brand, tag, created-by and deals all drop their
+   * zero-result options once counts land.
+   *
+   * Without this the sidebar painted the full, unfiltered list and then tore
+   * rows out from under the pointer (20 brands capped to 8 visible plus a
+   * "see more", collapsing to 5 with no toggle - about 100px of jump, with
+   * brand names visibly disappearing). Rendering placeholder rows instead
+   * keeps the flash honest: grey turning into content reads as loading, a list
+   * of real names turning into a shorter list reads as a glitch.
+   *
+   * The rule is about MEMBERSHIP, not list length: any group that hides its
+   * zero-count options belongs here, however few candidates it has. Product
+   * type has exactly two and still needs it - a storefront with no digital
+   * items painted "Digital" and then pulled it back out.
+   *
+   * Groups that always render every option and only fill in the number (status,
+   * role, verification, refund state) must NOT set this. They stay usable the
+   * whole time; use `countsPending` for those instead.
+   *
+   * `options` must STILL be populated while pending. This component ignores it
+   * and draws placeholders, but <ActiveFilters> resolves an already-selected
+   * chip's label out of the same array and falls back to the raw value - so an
+   * emptied list makes a selected brand chip read as a bare UUID.
+   */
+  pending?: boolean;
+  /** Placeholder rows to show while `pending`. Defaults to `maxVisible` or 4. */
+  pendingRows?: number;
+  /**
+   * Set on a FIXED-membership group (status, product type, deals) while its
+   * counts are still loading. Those groups keep painting their real labels and
+   * stay clickable - only the number on the right is missing - so the count
+   * slot shows a small placeholder bar instead of empty space.
+   *
+   * Without it the sidebar contradicts itself: a `pending` brand group draws a
+   * grey bar in the count column while the status group directly above leaves
+   * the same column blank, which reads as "this facet has no count" rather
+   * than "the number is on its way".
+   *
+   * Opt-in rather than derived from `count == null`, so a facet that genuinely
+   * never carries counts shows nothing instead of a bar that loads forever.
+   */
+  countsPending?: boolean;
 }
 
 export interface RangeFilterGroup {
@@ -84,6 +129,32 @@ function CheckboxFilter({
   const showToggle = group.options.length > maxVisible;
   const visible = expanded ? group.options : group.options.slice(0, maxVisible);
 
+  if (group.pending) {
+    // Label stays real - only the rows whose membership is still unknown are
+    // greyed. Row geometry matches a live option exactly: `h-5` (the `text-sm`
+    // line box, taller than the size-4 checkbox), `gap-2`, and the same
+    // reserved `min-w-6` count slot on the right.
+    const rows = group.pendingRows ?? group.maxVisible ?? 4;
+    return (
+      <div className="space-y-2">
+        <p className="text-sm font-medium">{group.label}</p>
+        <div className="space-y-1.5" aria-busy="true">
+          {Array.from({ length: rows }, (_, i) => (
+            <div key={i} className="flex h-5 items-center gap-2">
+              <Skeleton className="h-4 w-4 rounded-lg shrink-0" />
+              <Skeleton className="h-3.5 flex-1" />
+              {/* Same `min-w-6` right-aligned count slot as a live option row,
+                  so the column doesn't shift when real options replace these. */}
+              <span className="flex min-w-6 shrink-0 justify-end">
+                <Skeleton className="h-3 w-5" />
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
       <p className="text-sm font-medium">{group.label}</p>
@@ -98,9 +169,26 @@ function CheckboxFilter({
               onCheckedChange={() => toggle(option.value)}
             />
             <span className="flex-1">{option.label}</span>
-            {option.count != null && (
-              <span className="text-xs text-muted-foreground tabular-nums">
+            {/* The count slot is ALWAYS occupied, so the `flex-1` label's box
+                never changes width. Conditionally mounting it used to take
+                ~28px away from the label the moment counts landed, and since
+                that label wraps (no `truncate`), any option name between one
+                and two lines wide re-wrapped - jolting the whole sidebar
+                downwards. `min-w-6` reserves three tabular `text-xs` digits.
+
+                While counts are loading the slot holds a placeholder bar so it
+                matches the `pending` groups elsewhere in the same sidebar; a
+                group that never carries counts leaves it empty but reserved. */}
+            {option.count != null ? (
+              <span className="text-xs text-muted-foreground tabular-nums shrink-0 min-w-6 text-right">
                 {option.count}
+              </span>
+            ) : (
+              <span
+                className="flex h-4 min-w-6 shrink-0 items-center justify-end"
+                aria-hidden="true"
+              >
+                {group.countsPending && <Skeleton className="h-3 w-5" />}
               </span>
             )}
           </label>

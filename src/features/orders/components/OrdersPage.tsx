@@ -73,6 +73,9 @@ export function OrdersPage() {
           opt("CANCELLED", t("orders.cancelled")),
           opt("REFUNDED", t("orders.refunded")),
         ],
+        // Fixed option set: stays clickable while counts load, only the
+        // numbers are placeholdered.
+        countsPending: !countsReady,
       },
     ];
   }, [t, countsReady, statusCounts]);

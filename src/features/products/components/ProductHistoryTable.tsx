@@ -13,13 +13,13 @@ import { rollbackProductVersion } from "@/features/products/actions/products";
 import { SerializedProductHistory } from "@/types/types";
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
+// Grid template is owned by the skeleton module so the two can never drift.
+import { HISTORY_COLS as GRID_COLS } from "./ProductHistoryTableSkeleton";
 
 interface ProductHistoryTableProps {
   history: SerializedProductHistory[];
   productId: string;
 }
-
-const GRID_COLS = "grid-cols-[60px_64px_minmax(140px,1fr)_minmax(200px,2fr)_120px_100px_minmax(120px,1fr)_100px_80px_100px]";
 
 function getStatusVariant(status: string) {
   switch (status) {

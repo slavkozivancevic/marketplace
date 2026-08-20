@@ -26,7 +26,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Skeleton } from "@/components/ui/skeleton";
+// Grid template + row placeholder are owned by the skeleton module so the real
+// table and its loading state can never describe different columns.
+import { REVIEW_COLS as GRID, ReviewSkeletonRow as SkeletonRow } from "./ReviewTableSkeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -48,8 +50,6 @@ import { StarRating } from "./StarRating";
 import { moderateReviewAction } from "../actions/reviews";
 
 const ALL = "__all__";
-const GRID =
-  "grid grid-cols-[minmax(140px,1.3fr)_minmax(110px,1fr)_110px_minmax(180px,2fr)_110px_140px_110px] items-center gap-4";
 
 function buildFetcher(f: ReviewFilters) {
   return async ({ pageParam }: { pageParam: string | undefined }): Promise<InfinitePage<AdminReviewItem>> => {
@@ -226,25 +226,6 @@ function Row({
         isApproving={approvingId === r.id}
         isRejecting={rejectingId === r.id}
       />
-    </div>
-  );
-}
-
-function SkeletonRow() {
-  // Height matches the real row, whose `RowActions` cell holds two h-8 icon
-  // buttons (approve / reject) - the tallest element in the row.
-  return (
-    <div role="row" className={cn(GRID, "border-b px-3 py-2.5 min-w-fit")}>
-      <Skeleton className="h-3.5 w-32" />
-      <Skeleton className="h-3.5 w-24" />
-      <Skeleton className="h-3.5 w-20" />
-      <Skeleton className="h-3.5 w-40" />
-      <Skeleton className="h-5 w-16 rounded-full mx-auto" />
-      <Skeleton className="h-3.5 w-20" />
-      <div className="flex items-center justify-end gap-1">
-        <Skeleton className="h-8 w-8 rounded-md" />
-        <Skeleton className="h-8 w-8 rounded-md" />
-      </div>
     </div>
   );
 }

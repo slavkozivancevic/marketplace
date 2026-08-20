@@ -67,6 +67,9 @@ export function OrgOrdersPage() {
           opt("CANCELLED", t("cancelled")),
           opt("REFUNDED", t("refunded")),
         ],
+        // Fixed option set: stays clickable while counts load, only the
+        // numbers are placeholdered.
+        countsPending: !countsReady,
       },
     ];
   }, [t, countsReady, statusCounts]);

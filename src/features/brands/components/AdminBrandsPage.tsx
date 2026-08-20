@@ -25,9 +25,11 @@ import {
 import { deleteBrandAction, duplicateBrandAction } from "../actions/brands";
 import type { BrandListItem } from "../db/brands";
 import { getBrandDescription, getBrandName, getBrandSlug } from "../utils/translations";
+import { BRAND_COLS } from "./BrandTableSkeleton";
 
-// Column layout: logo | name | slug | description | products | actions
-const COLS = "48px minmax(120px,1fr) 140px minmax(120px,2fr) 80px 116px";
+// Column layout (logo | name | slug | description | products | actions) is
+// owned by the skeleton module so the two can never drift.
+const COLS = BRAND_COLS;
 
 function BrandTableHeader() {
   const t = useTranslations();

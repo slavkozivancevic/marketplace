@@ -33,6 +33,10 @@ import {
   getProductDescription,
 } from "@/features/products/utils/translations";
 import { getBrandName } from "@/features/brands/utils/translations";
+// The grid template is owned by the skeleton module (see the note there): the
+// real header/row and the loading placeholder read the SAME builder, so adding
+// a column here can't leave the skeleton behind.
+import { buildProductTableCols } from "./ProductTableSkeleton";
 
 function getStatusVariant(status: string) {
   switch (status) {
@@ -43,14 +47,6 @@ function getStatusVariant(status: string) {
     default:
       return "destructive" as const;
   }
-}
-
-const COLS_BASE = "64px minmax(100px,1fr) 120px minmax(150px,2fr) 120px 100px";
-const COLS_CREATED_BY = " 140px";
-const COLS_ACTIONS = " 116px";
-
-function buildProductTableCols(showCreatedBy: boolean, showActions: boolean): string {
-  return COLS_BASE + (showCreatedBy ? COLS_CREATED_BY : "") + (showActions ? COLS_ACTIONS : "");
 }
 
 /**

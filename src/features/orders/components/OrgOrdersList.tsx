@@ -5,7 +5,8 @@ import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { useInfiniteVirtualList } from "@/components/infinite/useInfiniteVirtualList";
 import { OrgOrderTableRow } from "./OrgOrderTableRow";
-import { SkeletonOrderRow } from "@/components/ui/skeleton";
+// Grid template is owned by the skeleton module so the two can never drift.
+import { ORG_ORDER_COLS, OrderSkeletonRow } from "./OrderTableSkeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Link } from "@/i18n/navigation";
 import type { OrgOrderListItem } from "../db/orgOrders";
@@ -32,7 +33,7 @@ function buildFetcher(filters: OrgOrderFilters) {
   };
 }
 
-const COL = "grid-cols-[100px_100px_80px_minmax(180px,2fr)_140px_120px_230px]";
+const COL = ORG_ORDER_COLS;
 
 function OrgOrderTableHeader({ t }: { t: ReturnType<typeof useTranslations> }) {
   return (
@@ -82,7 +83,7 @@ export function OrgOrdersList({
       <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
         <OrgOrderTableHeader t={t} />
         {Array.from({ length: 8 }).map((_, i) => (
-          <SkeletonOrderRow key={i} cols={COL} withBuyer />
+          <OrderSkeletonRow key={i} cols={COL} withBuyer />
         ))}
       </div>
     );
@@ -154,7 +155,7 @@ export function OrgOrdersList({
                     orders table's 6-column layout, so the load-more sentinel
                     was rendering a narrower, buyer-less row inside this
                     7-column table. */}
-                <SkeletonOrderRow cols={COL} withBuyer />
+                <OrderSkeletonRow cols={COL} withBuyer />
               </div>
             );
           }

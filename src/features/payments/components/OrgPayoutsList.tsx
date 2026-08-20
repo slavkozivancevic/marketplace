@@ -5,12 +5,12 @@ import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { useInfiniteVirtualList } from "@/components/infinite/useInfiniteVirtualList";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
-import { SkeletonPayoutRow } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import type { OrgPayoutListItem } from "../db/payouts";
 import type { OrgPayoutFilters } from "@/lib/query/searchParams";
-import { OrgPayoutTableRow, PAYOUT_COL } from "./OrgPayoutTableRow";
+import { OrgPayoutTableRow } from "./OrgPayoutTableRow";
+import { OrgPayoutSkeletonRow, PAYOUT_COL } from "./OrgPayoutTableSkeleton";
 import { useActiveOrgId } from "@/features/organizations/components/ActiveOrgContext";
 
 function buildFetcher(filters: OrgPayoutFilters) {
@@ -73,7 +73,7 @@ export function OrgPayoutsList({
       <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
         <PayoutTableHeader t={t} />
         {Array.from({ length: 8 }).map((_, i) => (
-          <SkeletonPayoutRow key={i} cols={PAYOUT_COL} />
+          <OrgPayoutSkeletonRow key={i} />
         ))}
       </div>
     );
@@ -141,7 +141,7 @@ export function OrgPayoutsList({
           if (isSentinelIndex(vRow.index)) {
             return (
               <div key="sentinel" ref={virtualizer.measureElement} data-index={vRow.index} style={style}>
-                <SkeletonPayoutRow cols={PAYOUT_COL} />
+                <OrgPayoutSkeletonRow />
               </div>
             );
           }

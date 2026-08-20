@@ -180,55 +180,6 @@ export function SkeletonSectionHeader({ className }: { className?: string }) {
   );
 }
 
-export function SkeletonHistoryTable({ rows = 8 }: { rows?: number }) {
-  // Must stay identical to ProductHistoryTable's GRID_COLS - 10 columns:
-  // version, current badge, title, description, price, status, updatedBy,
-  // date, time, rollback button. (The date column was split into separate
-  // date/time cells in the real table; this skeleton still carried the old
-  // single `minmax(180px,1fr)` createdAt column, so it rendered 9 cells into a
-  // 10-column grid and every cell from `updatedBy` rightwards sat under the
-  // wrong header.)
-  const cols =
-    "grid-cols-[60px_64px_minmax(140px,1fr)_minmax(200px,2fr)_120px_100px_minmax(120px,1fr)_100px_80px_100px]";
-
-  return (
-    <div className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
-      {/* Header. The "current" column's real header holds an `invisible` badge
-          purely to reserve width, so it gets an empty cell here rather than a
-          bar that never materialises. */}
-      <div className={cn("grid items-center gap-2 border-b p-3 min-w-fit", cols)}>
-        <Skeleton className="h-3.5 w-10" />
-        <div />
-        <Skeleton className="h-3.5 w-16" />
-        <Skeleton className="h-3.5 w-24" />
-        <Skeleton className="h-3.5 w-12 ml-auto" />
-        <Skeleton className="h-3.5 w-12 mx-auto" />
-        <Skeleton className="h-3.5 w-20" />
-        <Skeleton className="h-3.5 w-16" />
-        <Skeleton className="h-3.5 w-10" />
-        <Skeleton className="h-3.5 w-14" />
-      </div>
-
-      {/* Rows */}
-      <SkeletonArray amount={rows}>
-        <div className={cn("grid items-center gap-2 border-b p-3 min-w-fit", cols)}>
-          <Skeleton className="h-3.5 w-8" />
-          <Skeleton className="h-5 w-14 rounded-full mx-auto" />
-          <Skeleton className="h-3.5 w-28" />
-          <Skeleton className="h-3.5 w-full" />
-          <Skeleton className="h-3.5 w-14 ml-auto" />
-          <Skeleton className="h-5 w-16 rounded-full mx-auto" />
-          <Skeleton className="h-3.5 w-20" />
-          <Skeleton className="h-3.5 w-20" />
-          <Skeleton className="h-3.5 w-10" />
-          {/* Rollback is a `size="sm"` button - h-7, not the h-8 default. */}
-          <Skeleton className="h-7 w-16 rounded-md" />
-        </div>
-      </SkeletonArray>
-    </div>
-  );
-}
-
 /**
  * Skeleton for <PublicProductsGrid>. Mirrors the grid's exact @container
  * column breakpoints so the placeholder column count matches what the real
@@ -277,103 +228,6 @@ export function SkeletonProductGridCard({
         </div>
         {showButton && <SkeletonButton className="w-full mt-3" />}
       </div>
-    </div>
-  );
-}
-
-export function SkeletonProductTableRow({
-  showActions = false,
-  showCreatedBy = false,
-}: {
-  showActions?: boolean;
-  showCreatedBy?: boolean;
-}) {
-  // Columns mirror ProductTable's COLS_BASE / COLS_CREATED_BY / COLS_ACTIONS so
-  // the skeleton lines up under <ProductTableHeader>. Every combination is
-  // spelled out as a literal class so Tailwind's JIT scanner picks it up -
-  // string-concatenating an arbitrary-value class doesn't work.
-  // Height is driven by the 48px thumbnail.
-  const cols = showCreatedBy
-    ? showActions
-      ? "grid-cols-[64px_minmax(100px,1fr)_120px_minmax(150px,2fr)_120px_100px_140px_116px]"
-      : "grid-cols-[64px_minmax(100px,1fr)_120px_minmax(150px,2fr)_120px_100px_140px]"
-    : showActions
-      ? "grid-cols-[64px_minmax(100px,1fr)_120px_minmax(150px,2fr)_120px_100px_116px]"
-      : "grid-cols-[64px_minmax(100px,1fr)_120px_minmax(150px,2fr)_120px_100px]";
-  return (
-    <div
-      role="row"
-      className={cn("grid items-center gap-4 border-b p-3 min-w-fit", cols)}
-    >
-      <Skeleton className="h-12 w-12 rounded border" />
-      <SkeletonText rows={1} size="md" className="w-3/4" />
-      <div className="flex items-center gap-1.5">
-        <Skeleton className="h-5 w-5 rounded" />
-        <Skeleton className="h-3.5 w-16" />
-      </div>
-      <SkeletonText rows={1} size="md" className="w-full" />
-      <Skeleton className="h-3.5 w-16 ml-auto" />
-      <Skeleton className="h-5 w-16 rounded-full mx-auto" />
-      {showCreatedBy && <Skeleton className="h-3.5 w-20" />}
-      {showActions && (
-        <div className="flex items-center justify-end gap-1">
-          <Skeleton className="h-8 w-8 rounded-md" />
-          <Skeleton className="h-8 w-8 rounded-md" />
-          <Skeleton className="h-8 w-8 rounded-md" />
-        </div>
-      )}
-    </div>
-  );
-}
-
-export function SkeletonPayoutRow({
-  /**
-   * Grid template to match the list's header. Callers pass `PAYOUT_COL` from
-   * OrgPayoutTableRow; the default mirrors it (the hardcoded copy had drifted -
-   * a 180px status column against the real 400px, which shifted the badge
-   * placeholder and shortened the row inside the horizontally scrolling table).
-   */
-  cols = "grid-cols-[minmax(120px,1fr)_120px_90px_150px_400px]",
-}: {
-  cols?: string;
-} = {}) {
-  // h-14 matches OrgPayoutTableRow's fixed height (rows stay even whether or not
-  // a payout shows the 2-line refund amount).
-  return (
-    <div
-      role="row"
-      className={cn("grid items-center gap-4 border-b h-14 px-3 min-w-fit", cols)}
-    >
-      <Skeleton className="h-3.5 w-24" />
-      <Skeleton className="h-3.5 w-20" />
-      <Skeleton className="h-3.5 w-12" />
-      <Skeleton className="h-3.5 w-16 ml-auto" />
-      <Skeleton className="h-5 w-20 rounded-full mx-auto" />
-    </div>
-  );
-}
-
-export function SkeletonOrderRow({
-  cols = "grid-cols-[100px_100px_80px_minmax(200px,2fr)_120px_230px]",
-  withBuyer = false,
-}: {
-  /** Grid template to match the list's header (buyer vs org differ). */
-  cols?: string;
-  /** Org orders add a "buyer" column between items and subtotal. */
-  withBuyer?: boolean;
-} = {}) {
-  return (
-    <div
-      role="row"
-      className={cn("grid items-center gap-4 border-b p-3 min-w-fit", cols)}
-    >
-      <Skeleton className="h-3.5 w-16" />
-      <Skeleton className="h-3.5 w-20" />
-      <Skeleton className="h-3.5 w-12" />
-      <Skeleton className="h-3.5 w-40" />
-      {withBuyer && <Skeleton className="h-3.5 w-24" />}
-      <Skeleton className="h-3.5 w-16 ml-auto" />
-      <Skeleton className="h-5 w-20 rounded-full mx-auto" />
     </div>
   );
 }
@@ -727,20 +581,35 @@ export function SkeletonOrganizationCard({
     <div className="flex flex-col gap-4 overflow-hidden rounded-xl bg-card py-4 ring-1 ring-foreground/10">
       <div className="flex flex-row items-center justify-between px-4">
         <div className="space-y-1">
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-5 w-20 rounded-full" />
+          {/* <CardTitle className="text-lg"> keeps the base's `leading-snug`,
+              because twMerge only drops the conflicting `text-base` - line
+              height stays 1.375. So the title's line box is 18 x 1.375 =
+              24.75px, NOT the 28px `text-lg` would give on its own and not the
+              20px a bare `h-5` bar reserved. Getting this wrong is why the real
+              org name appeared to drop below its own placeholder. */}
+          <div className="flex h-[24.75px] items-center">
+            <Skeleton className="h-4 w-40" />
+          </div>
+          <Skeleton className="h-5 w-20 rounded-4xl" />
         </div>
+        {/* `size="sm"` verify/unverify button. */}
         <Skeleton className="h-7 w-20 rounded-lg" />
       </div>
       <div className="px-4">
-        <Skeleton className="mb-2 h-4 w-24" />
+        {/* `<p className="text-sm font-medium mb-2">` - a 20px line box. */}
+        <div className="mb-2 flex h-5 items-center">
+          <Skeleton className="h-3.5 w-24" />
+        </div>
         <div className="space-y-1">
           <SkeletonArray amount={members}>
-            <div className="flex items-center justify-between py-0.5">
-              <Skeleton className="h-4 w-40" />
+            {/* Member rows are `flex items-center justify-between text-sm` with
+                NO padding of their own - 20px, set by the text and the h-5
+                badges alike. The old `py-0.5` made every row 4px too tall. */}
+            <div className="flex h-5 items-center justify-between">
+              <Skeleton className="h-3.5 w-40" />
               <div className="flex items-center gap-2">
-                <Skeleton className="h-5 w-14 rounded-full" />
-                <Skeleton className="h-5 w-16 rounded-full" />
+                <Skeleton className="h-5 w-14 rounded-4xl" />
+                <Skeleton className="h-5 w-16 rounded-4xl" />
               </div>
             </div>
           </SkeletonArray>
@@ -752,21 +621,30 @@ export function SkeletonOrganizationCard({
 
 export function SkeletonUserRow() {
   // Mirrors the real user card in AdminUsersPage: header (name + email + role
-  // badge, mb-4) then <UserForm> which is `space-y-6` with a full-width role
-  // Select over a separate button row - so the skeleton matches its height.
+  // badge, mb-4) then <UserForm>, which is `space-y-6` with a full-width role
+  // Select over a separate button row.
   return (
     <div className="border rounded-lg p-4 bg-background">
       <div className="mb-4 flex items-start justify-between gap-4">
-        <div className="space-y-1.5">
-          <Skeleton className="h-5 w-36" />
-          <Skeleton className="h-4 w-56" />
+        {/* Two stacked <p>s with NO gap between them: a `font-semibold` name at
+            the inherited 16px (24px line box) over a `text-sm` email (20px).
+            The old `space-y-1.5` invented a gap the real card doesn't have. */}
+        <div>
+          <div className="flex h-6 items-center">
+            <Skeleton className="h-4 w-36" />
+          </div>
+          <div className="flex h-5 items-center">
+            <Skeleton className="h-3.5 w-56" />
+          </div>
         </div>
-        <Skeleton className="h-5 w-16 rounded-full" />
+        <Skeleton className="h-5 w-16 rounded-4xl" />
       </div>
       <div className="space-y-6">
         <div className="space-y-2">
+          {/* <FormLabel> is `text-sm leading-none` - 14px, not a 20px line box. */}
           <Skeleton className="h-3.5 w-10" />
-          <Skeleton className="h-9 w-full rounded-md" />
+          {/* <SelectTrigger> is h-8 / rounded-lg, like every other control. */}
+          <Skeleton className="h-8 w-full rounded-lg" />
         </div>
         <Skeleton className="h-8 w-28 rounded-lg" />
       </div>
@@ -779,42 +657,153 @@ export function SkeletonUserRow() {
  * Mirrors the real sidebar frame so a `loading.tsx` lines up with the mounted
  * client page instead of flashing a different layout.
  */
-export function SkeletonFilterSidebar({ groups = 3 }: { groups?: number }) {
+export function SkeletonFilterSidebar({
+  groups = [3, 3, 3],
+}: {
+  /**
+   * One entry per filter group, in the order the page builds them. A number is
+   * a checkbox facet with that many options; `"range"` is the min/max input
+   * pair (used by the price filter) and `"rating"` is the star row - both have
+   * their own height rather than a list of 20px option rows.
+   */
+  groups?: (number | "range" | "rating")[];
+} = {}) {
   return (
     <aside className="hidden lg:flex flex-col w-56 shrink-0 border-r">
+      {/* Header box: `pr-6 pt-1 pb-2`. Its row is 24px tall, not 20px - the
+          "Clear all" ghost button (`h-auto py-1 text-xs`) is taller than the
+          `text-sm` "Filters" label next to it, and it stays mounted (just
+          `invisible`) when no filter is active. */}
       <div className="shrink-0 pr-6 pt-1 pb-2">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-4 w-16" />
+        <div className="flex h-6 items-center justify-between">
+          <Skeleton className="h-3.5 w-12" />
         </div>
-        <div className="mt-3 border-t" />
+        {/* <Separator className="mt-2" /> - h-px, 8px above (NOT mt-3). */}
+        <div className="mt-2 h-px w-full bg-border" />
       </div>
-      <div className="flex-1 overflow-y-auto pr-6 pt-2 space-y-5">
-        <SkeletonArray amount={groups}>
-          <div className="space-y-2.5">
-            <Skeleton className="h-3.5 w-24" />
-            <div className="space-y-2">
-              <SkeletonArray amount={3}>
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-4 w-4 rounded-sm shrink-0" />
-                  <Skeleton className="h-3 w-24" />
+      {/* Body: the real scroller is `pr-6 -ml-1.5 pl-1.5` with no padding-top
+          of its own - the 16px gap comes from <FilterGroups>' own `pt-4`. */}
+      <div className="flex-1 overflow-y-auto pr-6 -ml-1.5 pl-1.5">
+        <div className="space-y-4 pt-4">
+          {groups.map((group, g) => (
+            <div key={g}>
+              {/* Both filter kinds are `space-y-2`: a `text-sm font-medium`
+                  label (20px line box) over the control. */}
+              <div className="space-y-2">
+                <div className="flex h-5 items-center">
+                  <Skeleton className="h-3.5 w-24" />
                 </div>
-              </SkeletonArray>
+                {group === "range" ? (
+                  // RangeFilter: two `h-8 rounded-lg` inputs with a `text-xs`
+                  // "to" between them.
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-8 flex-1 min-w-0 rounded-lg" />
+                    <Skeleton className="h-3 w-4 shrink-0" />
+                    <Skeleton className="h-8 flex-1 min-w-0 rounded-lg" />
+                  </div>
+                ) : group === "rating" ? (
+                  // StarRatingFilter: a single 20px star row plus an "and up"
+                  // caption, not a list.
+                  <div className="flex h-5 items-center gap-2">
+                    <Skeleton className="h-5 w-28" />
+                    <Skeleton className="h-3 w-12 shrink-0" />
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {Array.from({ length: group }, (_, o) => (
+                      // Each option is a `flex items-center gap-2 text-sm`
+                      // label: a size-4 checkbox (rounded-lg) plus the option
+                      // text, so the row is 20px tall - driven by the text, not
+                      // the box.
+                      <div key={o} className="flex h-5 items-center gap-2">
+                        <Skeleton className="h-4 w-4 rounded-lg shrink-0" />
+                        <Skeleton className="h-3.5 flex-1" />
+                        {/* Facet count slot - `min-w-6` right-aligned, exactly
+                            as <CheckboxFilter> reserves it, so the route-level
+                            fallback and the mounted sidebar agree. */}
+                        <span className="flex min-w-6 shrink-0 justify-end">
+                          <Skeleton className="h-3 w-5" />
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* <Separator className="mt-4" /> closes every group. */}
+              <div className="mt-4 h-px w-full bg-border" />
             </div>
-          </div>
-        </SkeletonArray>
+          ))}
+        </div>
       </div>
     </aside>
   );
 }
 
 /**
- * Skeleton for the `<SearchToolbar>` row (search input + sort control).
+ * Skeleton for the `<SearchToolbar>` row (search input + optional mobile filter
+ * button + sort control).
+ *
+ * Sizes come from the real controls, which are SMALLER than they look: both
+ * `<Input>` and `<SelectTrigger>` are `h-8` with `rounded-lg`, not `h-9
+ * rounded-md`. The search field is `flex-1 min-w-40 max-w-sm`, not a fixed
+ * `max-w-xs`.
  */
-export function SkeletonSearchToolbar() {
+export function SkeletonSearchToolbar({
+  /** Set false on toolbars rendered without filter groups (no mobile sheet). */
+  withMobileFilter = true,
+}: {
+  withMobileFilter?: boolean;
+} = {}) {
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Skeleton className="h-9 w-full max-w-xs rounded-md" />
-      <Skeleton className="h-9 w-28 rounded-md" />
+      <Skeleton className="h-8 flex-1 min-w-40 max-w-sm rounded-lg" />
+      <div className="flex items-center gap-2">
+        {/* <MobileFilterSheet> renders a default-size outline button below lg. */}
+        {withMobileFilter && <Skeleton className="lg:hidden h-8 w-9 rounded-lg sm:w-20" />}
+        {/* <SortSelect>'s trigger is `w-fit`, so its width follows the
+            translated label; capped at `max-w-28` below sm. This is the one
+            measurement a server-rendered placeholder cannot derive - it only
+            affects the control's own width, never the row height. */}
+        <Skeleton className="h-8 w-28 sm:w-44 rounded-lg" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Toolbar variant used by the admin USERS and ORGANIZATIONS pages: a search
+ * field, the mobile filter button, and a right-aligned result count - no sort
+ * control. Their `loading.tsx` files used to hand-roll a single
+ * `h-9 ... rounded-md` bar, which was wrong on every count: the real
+ * <SearchInput> is `h-8 rounded-lg` and `flex-1 max-w-sm`, and the button and
+ * counter were missing entirely.
+ */
+export function SkeletonSearchCountToolbar() {
+  return (
+    <div className="shrink-0 flex flex-wrap items-center gap-3">
+      <Skeleton className="h-8 flex-1 min-w-0 max-w-sm rounded-lg" />
+      {/* <MobileFilterSheet>: icon-only below sm, icon + label from sm up. */}
+      <Skeleton className="lg:hidden h-8 w-9 rounded-lg sm:w-20" />
+      {/* `text-xs` result count - a 16px line box. */}
+      <div className="ml-auto flex h-4 items-center">
+        <Skeleton className="h-3 w-16" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Collapsed <ActiveFilters> spacer.
+ *
+ * The real toolbar column is `flex flex-col gap-4` with THREE children -
+ * toolbar, active-filters, list - and the middle one is a `grid-rows-[0fr]`
+ * box that is zero-height until a filter is applied. It still consumes a 16px
+ * flex gap, so a skeleton that omits it sits 16px too high.
+ */
+export function SkeletonActiveFiltersSpacer() {
+  return (
+    <div className="grid grid-rows-[0fr]">
+      <div className="overflow-hidden" />
     </div>
   );
 }

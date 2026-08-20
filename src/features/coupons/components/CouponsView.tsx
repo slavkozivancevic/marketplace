@@ -28,7 +28,9 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+// Grid template + row placeholder are owned by the skeleton module so the real
+// table and its loading state can never describe different columns.
+import { COUPON_COLS as GRID, CouponSkeletonRow as SkeletonRow } from "./CouponTableSkeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -47,8 +49,6 @@ import type { CouponListItem } from "../db/coupons";
 import { deleteCouponAction, duplicateCouponAction } from "../actions/coupons";
 
 const ALL = "__all__";
-const GRID =
-  "grid grid-cols-[minmax(120px,1.2fr)_minmax(90px,0.9fr)_minmax(100px,1fr)_minmax(130px,1.1fr)_minmax(100px,0.9fr)_minmax(110px,1fr)_minmax(90px,0.8fr)_120px] items-center gap-4";
 
 function buildFetcher(f: CouponFilters) {
   return async ({ pageParam }: { pageParam: string | undefined }): Promise<InfinitePage<CouponListItem>> => {
@@ -225,27 +225,6 @@ function Row({
         isDeleting={deletingId === c.id}
         isDuplicating={duplicatingId === c.id}
       />
-    </div>
-  );
-}
-
-function SkeletonRow() {
-  // Height matches the real row, whose `RowActions` cell holds three h-8 icon
-  // buttons - the tallest element in the row.
-  return (
-    <div role="row" className={cn(GRID, "border-b px-3 py-2.5 min-w-fit")}>
-      <Skeleton className="h-3.5 w-24" />
-      <Skeleton className="h-3.5 w-12" />
-      <Skeleton className="h-3.5 w-16" />
-      <Skeleton className="h-3.5 w-10" />
-      <Skeleton className="h-3.5 w-8" />
-      <Skeleton className="h-3.5 w-20" />
-      <Skeleton className="h-5 w-16 rounded-full" />
-      <div className="flex items-center justify-end gap-1">
-        <Skeleton className="h-8 w-8 rounded-md" />
-        <Skeleton className="h-8 w-8 rounded-md" />
-        <Skeleton className="h-8 w-8 rounded-md" />
-      </div>
     </div>
   );
 }

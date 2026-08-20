@@ -69,7 +69,15 @@ export function ActiveFilters({
         <Badge
           key={`${chip.key}-${chip.value}`}
           variant="secondary"
-          className="gap-1 pr-1 cursor-pointer border-border/60 bg-card text-card-foreground hover:bg-muted/70 transition-colors"
+          // Hover mixes the chip's OWN rest colour toward --foreground instead
+          // of washing `bg-muted` over it. The old `hover:bg-muted/70` landed
+          // at roughly oklch(0.912) in the light theme - below the page's 0.94 -
+          // so the chip flipped from raised (bg-card, 0.975) to recessed in one
+          // step and read as a harsh slam to dark. Mixing toward the foreground
+          // moves the same distance in every theme and automatically picks the
+          // right direction: darker on light, lighter on dark. Same reasoning as
+          // the button variants' color-mix ladder.
+          className="gap-1 pr-1 cursor-pointer border-border/60 bg-card text-card-foreground hover:bg-[color-mix(in_oklab,var(--card)_96%,var(--foreground))] transition-colors"
           onClick={() =>
             chip.value === "__range__"
               ? onRemove(chip.key)

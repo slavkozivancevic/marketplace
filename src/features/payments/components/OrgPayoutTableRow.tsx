@@ -7,14 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { formatPrice } from "@/lib/currency";
 import type { Currency } from "@/lib/currency-config";
 import type { OrgPayoutListItem } from "../db/payouts";
-
-// Status column widened (400px, was 180px) to fit up to three text pills on
-// one line - refund state + COD-debt marker + paid/pending/failed - without
-// bleeding into the Amount column. Verified against real data where all
-// three can appear together (a Stripe payout netted against COD debt, later
-// partially refunded). See OrgPayoutTableRow's Status cell.
-export const PAYOUT_COL =
-  "grid-cols-[minmax(120px,1fr)_120px_90px_150px_400px]";
+// Grid template is owned by the skeleton module so the two can never drift.
+// Status is 400px (was 180px) to fit up to three text pills on one line -
+// refund state + COD-debt marker + paid/pending/failed - without bleeding into
+// the Amount column. Verified against real data where all three appear
+// together (a Stripe payout netted against COD debt, later partially refunded).
+import { PAYOUT_COL } from "./OrgPayoutTableSkeleton";
 
 function statusVariant(status: string) {
   return status === "SUCCEEDED"

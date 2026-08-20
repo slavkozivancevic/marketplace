@@ -22,8 +22,8 @@ import { formatPrice, centsToDecimal, decimalToCents } from "@/lib/currency";
 import type { Currency } from "@/lib/currency-config";
 import type { AdminCodBalanceItem } from "../db/payouts";
 import { settleCodBalanceAction } from "../actions/codBalance";
-
-const GRID = "grid grid-cols-[minmax(160px,2fr)_100px_150px_140px] items-center gap-4";
+// Grid template is owned by the skeleton module so the two can never drift.
+import { COD_BALANCES_COLS as GRID } from "./AdminCodBalancesSkeleton";
 
 function SettleDialog({
   item,

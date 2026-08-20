@@ -115,6 +115,9 @@ export function MyProductsPage({
           statusOption("PUBLISHED", t("myProducts.published")),
           statusOption("ARCHIVED", t("myProducts.archived")),
         ],
+        // Fixed option set: stays clickable while counts load, only the
+        // numbers are placeholdered.
+        countsPending: !countsReady,
       },
       {
         type: "range",
@@ -139,7 +142,11 @@ export function MyProductsPage({
               count: brandCounts[b.id] ?? 0,
             }))
             .filter((b) => b.count > 0 || selectedBrands.has(b.value))
+        // Full list while pending: <CheckboxFilter> draws placeholders instead,
+        // but <ActiveFilters> still needs it to label a selected chip.
         : brands.map((b) => ({ value: b.id, label: getBrandName(b, locale) }));
+      // Membership depends on the counts query, so the group is `pending` until
+      // it lands - see CheckboxFilterGroup.pending.
       if (brandOptions.length > 0) {
         groups.push({
           type: "checkbox",
@@ -147,6 +154,8 @@ export function MyProductsPage({
           label: t("products.brand"),
           options: brandOptions,
           maxVisible: FILTER_OPTIONS_VISIBLE_LIMIT,
+          pending: !countsReady,
+          pendingRows: Math.min(brands.length, FILTER_OPTIONS_VISIBLE_LIMIT),
         });
       }
     }
@@ -172,6 +181,8 @@ export function MyProductsPage({
           label: t("products.createdBy"),
           options: memberOptions,
           maxVisible: FILTER_OPTIONS_VISIBLE_LIMIT,
+          pending: !countsReady,
+          pendingRows: Math.min(members.length, FILTER_OPTIONS_VISIBLE_LIMIT),
         });
       }
     }

@@ -23,13 +23,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { AuditLogItem } from "../db/queries";
+// Grid template + row placeholder are owned by the skeleton module so the real
+// table and its loading state can never describe different columns.
+import { AUDIT_COLS as GRID, AuditSkeletonRow as SkeletonRow } from "./AuditTableSkeleton";
 
 // Radix Select can't use an empty-string item value, so "all" is the sentinel.
 const ALL = "__all__";
-const GRID = "grid grid-cols-[100px_80px_minmax(160px,1.2fr)_minmax(230px,1.3fr)_minmax(150px,1fr)_minmax(180px,2fr)] gap-4";
 
 // Action keys we emit and have localized labels for. Unknown (future) keys fall
 // back to the raw identifier so the table never breaks on a missing translation.
@@ -111,19 +112,6 @@ function renderDiff(diff: AuditLogItem["diff"], labels: Labels): string | null {
       return `${labels.field(k)}: ${labels.value(v)}`;
     })
     .join("  ·  ");
-}
-
-function SkeletonRow() {
-  return (
-    <div role="row" className={cn(GRID, "items-center border-b px-3 py-2.5 min-w-fit")}>
-      <Skeleton className="h-3 w-20" />
-      <Skeleton className="h-3 w-14" />
-      <Skeleton className="h-3 w-36" />
-      <Skeleton className="h-5 w-32 rounded-full" />
-      <Skeleton className="h-3 w-24" />
-      <Skeleton className="h-3 w-40" />
-    </div>
-  );
 }
 
 function Row({ row, dl, labels }: { row: AuditLogItem; dl: string; labels: Labels }) {

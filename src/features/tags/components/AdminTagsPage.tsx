@@ -24,9 +24,11 @@ import {
 import { deleteTagAction, duplicateTagAction } from "../actions/tags";
 import type { TagListItem } from "../db/tags";
 import { getTagName, getTagSlug } from "../utils/translations";
+import { TAG_COLS } from "./TagTableSkeleton";
 
-// Column layout: name | slug | products | actions
-const COLS = "minmax(120px,1fr) 160px 90px 116px";
+// Column layout (name | slug | products | actions) is owned by the skeleton
+// module so the two can never drift.
+const COLS = TAG_COLS;
 
 function TagTableHeader() {
   const t = useTranslations();

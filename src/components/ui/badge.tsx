@@ -10,8 +10,30 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+        // Fill is `bg-muted`, NOT `bg-secondary`, plus a real border.
+        //
+        // In the light theme `--secondary` is oklch(0.91) against a
+        // --background of oklch(0.94) - a 3% lightness step - so the fill was
+        // invisible and every "draft"/"pending" status pill in the app read as
+        // bare text. That is the same mis-specified token that made
+        // <SkeletonText> disappear, and it gets the same remedy: `--muted`
+        // (oklch 0.885) sits 0.055 below the page AND 0.09 below a card, so it
+        // reads on both surfaces. In the dark themes --muted and --secondary
+        // are the same lightness, so those are visually unchanged.
+        //
+        // Deliberately not <ActiveFilters>' `bg-card`, even though that chip is
+        // the reference for "this looks like a pill": card-coloured fill works
+        // on the page but vanishes on the many cards that host these badges
+        // (organization card, product details, connect-payouts header, order
+        // detail pages). The border carries the edge the way it does there.
+        //
+        // Costs no layout: the base already reserves `border border-transparent`.
+        //
+        // The link-only hover mixes toward --foreground for the same reason:
+        // the previous `bg-muted/80` just made the fill MORE transparent, which
+        // on the light theme lightens it - a hover that lowers contrast.
         secondary:
-          "bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
+          "bg-muted text-secondary-foreground border-border/60 [a]:hover:bg-[color-mix(in_oklab,var(--muted)_94%,var(--foreground))]",
         destructive:
           "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
         outline:

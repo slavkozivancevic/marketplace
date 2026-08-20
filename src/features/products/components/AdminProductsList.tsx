@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 import { useInfiniteVirtualList } from "@/components/infinite/useInfiniteVirtualList";
 import { ProductTableHeader, ProductTableRow } from "./ProductTable";
-import { SkeletonProductTableRow } from "@/components/ui/skeleton";
+import { ProductTableSkeletonRow } from "./ProductTableSkeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SerializedAdminProductListItem } from "@/types/types";
 import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
@@ -89,11 +89,13 @@ export function AdminProductsList({
   const tableLocked = isPlaceholderData || anyRowBusy;
 
   if (query.status === "pending") {
+    // Real (translated) header over skeleton rows - the header text is already
+    // available client-side, so there's no reason to grey it out.
     return (
       <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
         <ProductTableHeader showActions showCreatedBy />
         {Array.from({ length: 8 }).map((_, i) => (
-          <SkeletonProductTableRow key={i} showActions showCreatedBy />
+          <ProductTableSkeletonRow key={i} showActions showCreatedBy />
         ))}
       </div>
     );
@@ -171,7 +173,7 @@ export function AdminProductsList({
                   transform: `translateY(${vRow.start}px)`,
                 }}
               >
-                <SkeletonProductTableRow showActions showCreatedBy />
+                <ProductTableSkeletonRow showActions showCreatedBy />
               </div>
             );
           }

@@ -125,6 +125,9 @@ export function AdminProductsPage({
           statusOption("PUBLISHED", t("products.published")),
           statusOption("ARCHIVED", t("products.archived")),
         ],
+        // Fixed option set: stays clickable while counts load, only the
+        // numbers are placeholdered.
+        countsPending: !countsReady,
       },
       {
         type: "range",
@@ -139,6 +142,10 @@ export function AdminProductsPage({
       // Brand is a long list: show counts and hide brands with no products in
       // the current result set (Amazon-style), keeping any selected brand
       // visible so it can be cleared.
+      //
+      // Because that membership depends on the counts query, the group is
+      // `pending` until it resolves - see CheckboxFilterGroup.pending. Painting
+      // the unfiltered list first made brands appear and then vanish.
       const selectedBrands = new Set(params.brandId);
       const brandOptions = countsReady
         ? brands
@@ -148,6 +155,9 @@ export function AdminProductsPage({
               count: brandCounts[b.id] ?? 0,
             }))
             .filter((b) => b.count > 0 || selectedBrands.has(b.value))
+        // Still the full list while pending: <CheckboxFilter> ignores it and
+        // draws placeholders, but <ActiveFilters> resolves a selected chip's
+        // label out of `options` and would otherwise print a raw UUID.
         : brands.map((b) => ({ value: b.id, label: getBrandName(b, locale) }));
       if (brandOptions.length > 0) {
         groups.push({
@@ -156,6 +166,8 @@ export function AdminProductsPage({
           label: t("products.brand"),
           options: brandOptions,
           maxVisible: FILTER_OPTIONS_VISIBLE_LIMIT,
+          pending: !countsReady,
+          pendingRows: Math.min(brands.length, FILTER_OPTIONS_VISIBLE_LIMIT),
         });
       }
     }
@@ -180,6 +192,8 @@ export function AdminProductsPage({
           label: t("products.createdBy"),
           options: memberOptions,
           maxVisible: FILTER_OPTIONS_VISIBLE_LIMIT,
+          pending: !countsReady,
+          pendingRows: Math.min(members.length, FILTER_OPTIONS_VISIBLE_LIMIT),
         });
       }
     }

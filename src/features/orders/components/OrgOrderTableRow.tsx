@@ -11,6 +11,9 @@ import { formatPrice } from "@/lib/currency";
 import { getProductTitle } from "@/features/products/utils/translations";
 import { deriveOrderStatus } from "../status";
 import { orderStatusKey, orderStatusVariant } from "../statusBadge";
+import { cn } from "@/lib/utils";
+// Grid template is owned by the skeleton module so the two can never drift.
+import { ORG_ORDER_COLS } from "./OrderTableSkeleton";
 
 function PaymentMethodIcon({ method }: { method: string }) {
   if (method === "COD") return <Truck className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
@@ -45,7 +48,10 @@ export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
     >
       <div
         role="row"
-        className="grid grid-cols-[100px_100px_80px_minmax(180px,2fr)_140px_120px_230px] items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors min-w-fit"
+        className={cn(
+          "grid items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors min-w-fit",
+          ORG_ORDER_COLS,
+        )}
       >
         {/* Order ID */}
         <div role="cell" className="font-mono text-xs text-muted-foreground">

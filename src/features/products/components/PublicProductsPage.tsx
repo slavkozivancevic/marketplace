@@ -285,6 +285,14 @@ export function PublicProductsPage({
         key: "deals",
         label: t("products.deals"),
         options: dealsOptions,
+        // `pending`, not just `countsPending`: both toggles are hide-empty, so
+        // an option that ends up at zero is painted and then pulled back out.
+        // Having only two candidates does NOT make that acceptable - a label
+        // that appears and vanishes is the same glitch whether it is one row or
+        // twelve (spotted on a brand page, where "Digital" flashed in before
+        // the count came back 0).
+        pending: !countsReady,
+        pendingRows: dealsOptions.length,
       });
     }
 
@@ -307,6 +315,10 @@ export function PublicProductsPage({
         key: "isDigital",
         label: t("products.productType"),
         options: typeOptions,
+        // Same as `deals` above - physical/digital is hide-empty too, so a
+        // storefront with no digital products flashed "Digital" and dropped it.
+        pending: !countsReady,
+        pendingRows: typeOptions.length,
       });
     }
 
@@ -314,8 +326,14 @@ export function PublicProductsPage({
     // come from the facet endpoint, which now computes them globally too, so this
     // works on `/products` and brand pages, not just category pages. Hide the
     // group entirely when no brand matches (no orphan "Brand" heading). Hidden
-    // when the page already pins a brand (brand storefront). Until the request
-    // resolves, show the full count-less list to avoid an empty-group flash.
+    // when the page already pins a brand (brand storefront).
+    //
+    // Brand and tag are the two groups where you cannot tell in advance WHICH
+    // of a long list survives the count filter, so they render placeholder rows
+    // until the request resolves (see CheckboxFilterGroup.pending). The short
+    // `deals` / `isDigital` groups above keep painting their real labels: their
+    // candidates are fixed and known, and at most one row drops - a legible
+    // change, unlike a dozen brand names disappearing.
     if (brands.length > 0 && !lockedBrandId) {
       const selectedBrands = new Set(params.brandId);
       const brandOptions = countsReady
@@ -326,6 +344,8 @@ export function PublicProductsPage({
               count: brandCounts[b.id] ?? 0,
             }))
             .filter((b) => b.count > 0 || selectedBrands.has(b.value))
+        // Full list while pending: <CheckboxFilter> draws placeholders instead,
+        // but <ActiveFilters> still needs it to label a selected chip.
         : brands.map((b) => ({ value: b.id, label: getBrandName(b, locale) }));
       if (brandOptions.length > 0) {
         groups.push({
@@ -334,6 +354,8 @@ export function PublicProductsPage({
           label: t("products.brand"),
           options: brandOptions,
           maxVisible: FILTER_OPTIONS_VISIBLE_LIMIT,
+          pending: !countsReady,
+          pendingRows: Math.min(brands.length, FILTER_OPTIONS_VISIBLE_LIMIT),
         });
       }
     }
@@ -357,6 +379,8 @@ export function PublicProductsPage({
           label: t("products.tags"),
           options: tagOptions,
           maxVisible: FILTER_OPTIONS_VISIBLE_LIMIT,
+          pending: !countsReady,
+          pendingRows: Math.min(tags.length, FILTER_OPTIONS_VISIBLE_LIMIT),
         });
       }
     }
