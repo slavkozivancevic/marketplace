@@ -17,6 +17,9 @@ permissions:
 
 jobs:
   remove:
+    # Mirrors preview.yml's opt-in gate: nothing was deployed for an unlabeled
+    # PR, so there is nothing to remove.
+    if: contains(github.event.pull_request.labels.*.name, 'preview')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

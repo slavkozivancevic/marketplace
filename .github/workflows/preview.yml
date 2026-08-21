@@ -5,9 +5,14 @@ name: PR Preview
 # OIDC provider are provisioned by infra/cicd.cfn.yml. Torn down by
 # preview-teardown.yml when the PR closes.
 
+# Opt-in via the `preview` label: a real preview stage needs a per-PR database
+# and its own set of SST secrets (SST has no secret inheritance between stages),
+# so it is not worth paying that on every PR. Add the label to a PR when you
+# actually want a reviewable URL.
+
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, labeled]
 
 concurrency:
   # One in-flight preview deploy per PR; a new push cancels the previous.
@@ -21,6 +26,7 @@ permissions:
 
 jobs:
   deploy:
+    if: contains(github.event.pull_request.labels.*.name, 'preview')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

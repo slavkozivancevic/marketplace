@@ -123,18 +123,30 @@ Result: bad deploys self-heal, and manual rollback is one alias flip.
   Pull Requests): only "Allow squash merging" enabled (merge commit / rebase
   merging off, so nothing bypasses the squash step), and default squash commit
   message = "Pull request title".
-- **`ci.yml`'s `title-lint` job** enforces Conventional Commits on the PR title
-  (runs only on `pull_request`) so a malformed title can't reach `main` as the
-  squash message. It's not a required status check (solo repo, no branch
-  protection) - it just shows red/green on the PR; merging past a red check is
-  still possible.
+- **`pr-title.yml`** enforces Conventional Commits on the PR title so a
+  malformed title can't reach `main` as the squash message. It also **rewrites
+  common aliases** (`feature` -> `feat`, `bugfix`/`hotfix` -> `fix`,
+  `documentation` -> `docs`, ...) through the API before validating - tolerating
+  the alias in the check alone would still put `feature:` on `main`, where
+  release-please doesn't recognize it and would silently skip the bump. It runs
+  on the `edited` event (unlike `ci.yml`) so fixing the title re-runs the check;
+  it is a **required status check** (section 6a).
 - **Which types bump the version**: `feat` -> minor, `fix`/`perf` -> patch,
-  any type with `!` (e.g. `feat!:`) or a `BREAKING CHANGE:` footer -> major.
+  any type with `!` (e.g. `feat!:`) or a `BREAKING CHANGE:` footer -> the next
+  minor while we're pre-1.0 (`bump-minor-pre-major: true`), major after that.
   **Non-releasing types** - `build`, `ci`, `chore`, `docs`, `test`, `style`,
-  `refactor` - never bump the version or touch the Release PR; they merge,
-  deploy to staging like any other merge (section 4), and simply don't appear
-  in the changelog (several are also marked `hidden` in
-  `release-please-config.json`).
+  `refactor` - never bump the version or open a Release PR on their own; they
+  merge and deploy to staging like any other merge (section 4). They are **not
+  hidden**: they sit in the backlog until the next `feat`/`fix` opens a Release
+  PR, and then appear in that release's notes under **Build & Maintenance**
+  (`changelog-sections` in `release-please-config.json`). A run of nothing but
+  non-releasing commits therefore produces no release at all - by design.
+- **App version in the UI**: `src/lib/version.ts` exports `APP_VERSION`, shown in
+  the site footer. release-please rewrites its `x-release-please-version` line
+  in the same commit that bumps `package.json` (via `extra-files`), so the
+  footer always matches the released tag. Note that `main` carries the *last
+  released* version until the Release PR merges, so staging shows the previous
+  `vX.Y.Z` while it already contains newer commits.
 - **release-please** (`.github/workflows/release-please.yml`) maintains a
   rolling Release PR from these commits; merging that PR (a manual, explicit
   action) bumps the version, writes `CHANGELOG.md`, tags `vX.Y.Z`, and cuts a
@@ -150,6 +162,39 @@ Result: bad deploys self-heal, and manual rollback is one alias flip.
 > the `vX.Y.Z` tag / GitHub Release (staging stays continuous from `main`).
 > Deliberately kept as one simpler pipeline for now; wire the split when the
 > pipeline is live on AWS.
+
+---
+
+## 6a. Repo settings this depends on
+
+The workflows above only hold if GitHub is configured to match. These are
+one-time settings in the repo, not code:
+
+**Settings -> General -> Pull Requests**
+
+- Allow squash merging **on**, with *Default commit message* = **Pull request
+  title**. This is the link that makes the PR title become the `main` commit
+  message release-please reads.
+- Allow merge commits **off**, Allow rebase merging **off** - otherwise a merge
+  can bypass the squash step and land raw branch commits on `main`.
+- Automatically delete head branches **on**.
+
+**Settings -> Rules -> Rulesets**, one ruleset targeting `main`:
+
+- Require a pull request before merging (0 required approvals - solo repo).
+- Require status checks to pass, listing exactly:
+  `PR title`, `quality / Lint, typecheck & unit tests`, `Integration tests`,
+  `E2E tests`.
+- Block force pushes.
+
+This is what makes "red checks -> no merge -> no staging deploy" true: the
+staging pipeline's source is `main`, and `main` is only reachable through a
+green PR.
+
+> The `E2E tests` check needs the repo secrets `CLERK_SECRET_KEY` and
+> `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (see `ci.yml`). If they are missing the
+> job fails and blocks *every* merge, so verify them before enabling the
+> ruleset.
 
 ---
 

@@ -21,33 +21,9 @@ permissions:
   contents: read
 
 jobs:
-  title-lint:
-    name: PR title
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
-    steps:
-      # Enforces Conventional Commits on the PR title. We squash-merge with the
-      # default squash message set to the PR title (DEPLOYMENT.md #6), so this
-      # is what release-please reads to decide the version bump.
-      - uses: amannn/action-semantic-pull-request@v5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          types: |
-            feat
-            fix
-            perf
-            refactor
-            revert
-            docs
-            test
-            build
-            ci
-            style
-            chore
-          requireScope: false
+  # The Conventional Commits gate on the PR title lives in its own workflow
+  # (pr-title.yml) because it has to re-run on the `edited` event, which this
+  # workflow's trigger deliberately does not include.
 
   quality:
     uses: ./.github/workflows/reusable-ci.yml

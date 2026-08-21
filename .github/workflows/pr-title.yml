@@ -1,0 +1,127 @@
+name: PR Title
+
+# Conventional Commits gate for the PR title.
+#
+# Why the title and not the commits: we squash-merge with the default squash
+# message set to the PR title (DEPLOYMENT.md #6), so the title is what lands on
+# `main` as the commit message - and that commit message is what release-please
+# reads to decide the version bump and the changelog section.
+#
+# Why its own workflow instead of a job in ci.yml: this must re-run on `edited`.
+# ci.yml uses the default pull_request types (opened/synchronize/reopened), so a
+# fixed title would never re-trigger it and the required check would stay red
+# forever.
+#
+# The job normalizes common aliases (feature -> feat, bugfix -> fix, ...) by
+# rewriting the PR title via the API *before* validating. Rewriting matters:
+# tolerating `feature:` in the check alone would still put `feature:` on `main`,
+# where release-please does not recognize it and would silently skip the bump.
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+concurrency:
+  group: pr-title-${{ github.event.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write # to rewrite an aliased title
+
+jobs:
+  title:
+    name: PR title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Normalize aliases and validate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Types release-please understands. `feat`/`fix`/`perf` release a
+            // new version; the rest only land in the next release's notes.
+            const TYPES = [
+              "feat", "fix", "perf", "revert",
+              "refactor", "build", "ci", "docs", "test", "style", "chore",
+            ];
+
+            // Everything people actually type instead of the canonical form.
+            const ALIASES = {
+              feature: "feat", features: "feat", feats: "feat",
+              bug: "fix", bugfix: "fix", bugfixes: "fix", hotfix: "fix", fixes: "fix",
+              performance: "perf", perfomance: "perf",
+              refactoring: "refactor", refac: "refactor",
+              documentation: "docs", doc: "docs",
+              tests: "test", testing: "test",
+              chores: "chore",
+              builds: "build",
+              styles: "style", formatting: "style",
+              reverts: "revert",
+            };
+
+            const pr = context.payload.pull_request;
+            const original = pr.title ?? "";
+
+            // type(optional-scope)optional-bang: subject
+            const HEADER = /^([A-Za-z]+)(\([^()]+\))?(!)?:[ \t]*(.+)$/s;
+            const match = HEADER.exec(original.trim());
+
+            const fail = (reason) => {
+              core.summary
+                .addHeading("PR title is not a valid Conventional Commit", 3)
+                .addRaw(`\n**Title:** \`${original}\`\n\n${reason}\n\n`)
+                .addRaw(`**Allowed types:** ${TYPES.map((t) => `\`${t}\``).join(", ")}\n\n`)
+                .addRaw("Append `!` for a breaking change (e.g. `feat!: drop legacy checkout`).\n\n")
+                .addRaw("Example: `fix(checkout): keep COD commission out of the buyer total`\n");
+              core.summary.write();
+              core.setFailed(reason);
+            };
+
+            if (!match) {
+              return fail(
+                "Expected `type(optional-scope): subject`, e.g. `feat(admin): add tag bulk actions`.",
+              );
+            }
+
+            const [, rawType, scope = "", bang = "", rawSubject] = match;
+            const lowered = rawType.toLowerCase();
+            const type = ALIASES[lowered] ?? lowered;
+            const subject = rawSubject.trim();
+
+            if (!TYPES.includes(type)) {
+              return fail(`\`${rawType}\` is not a known type and has no alias mapping.`);
+            }
+            if (subject.length < 5) {
+              return fail("The subject is too short - describe the change in a few words.");
+            }
+            if (subject.endsWith(".")) {
+              return fail("Drop the trailing period from the subject.");
+            }
+
+            const normalized = `${type}${scope}${bang}: ${subject}`;
+            if (normalized === original) {
+              core.info(`Title OK: ${original}`);
+              return;
+            }
+
+            // The title needs rewriting (alias, casing, or stray whitespace).
+            try {
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                title: normalized,
+              });
+            } catch (error) {
+              // Fork PRs get a read-only token - we cannot fix it for them.
+              return fail(
+                `The title should be \`${normalized}\`, but it could not be rewritten ` +
+                  `automatically (${error.message}). Please edit it by hand.`,
+              );
+            }
+
+            core.notice(`Rewrote PR title: "${original}" -> "${normalized}"`);
+            core.summary
+              .addHeading("PR title normalized", 3)
+              .addRaw(`\n\`${original}\`\n\n->\n\n\`${normalized}\`\n`);
+            await core.summary.write();
