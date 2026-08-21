@@ -95,11 +95,17 @@ export function StatsSection() {
       {stats.map((stat) => {
         const Icon = stat.icon;
         return (
+          // These tiles are read-only figures, not links. They used to carry
+          // `hover:bg-muted/50` plus a `group-hover` icon colour change, which
+          // reads as "this is clickable" on a plain <div> that does nothing -
+          // a false affordance. There is nowhere sensible for a stat to
+          // navigate to, so the hover states are gone rather than the tiles
+          // being turned into links.
           <div
             key={stat.label}
-            className="group flex flex-col items-center gap-1 rounded-xl p-4 transition-colors hover:bg-muted/50"
+            className="flex flex-col items-center gap-1 rounded-xl p-4"
           >
-            <Icon className="h-5 w-5 text-muted-foreground mb-1 transition-colors group-hover:text-foreground" />
+            <Icon className="h-5 w-5 text-muted-foreground mb-1" />
             <StatCounter
               numericValue={stat.numericValue}
               prefix={stat.prefix}

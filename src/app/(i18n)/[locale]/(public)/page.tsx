@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { safeAuth } from "@/lib/auth/safeAuth";
 import { Link, getPathname } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import { Button } from "@/components/ui/button";
@@ -30,6 +32,54 @@ async function fetchFeaturedDepartments() {
   cacheTag(CacheTags.categories.all());
   cacheTag(CacheTags.products.publicAll());
   return getFeaturedDepartmentsWithImages();
+}
+
+/** Shared so the Suspense fallback and both resolved states stay identical. */
+async function BrowseProductsButton({ primary = false }: { primary?: boolean }) {
+  const t = await getTranslations();
+  return (
+    <Button
+      asChild
+      size="lg"
+      variant={primary ? "default" : "outline"}
+      className={
+        primary
+          ? "h-12 px-8 text-base font-semibold shadow-lg shadow-primary/20"
+          : "h-12 px-8 text-base font-semibold"
+      }
+    >
+      <Link href="/products">{t("home.browseProducts")}</Link>
+    </Button>
+  );
+}
+
+/**
+ * Closing CTA. Signed out gets the sign-up call to action with "Browse
+ * products" as the secondary; signed in gets "Browse products" alone, promoted
+ * to primary so the section still has one clear action instead of a lone
+ * outline button.
+ */
+async function HomeCtaActions() {
+  const { userId } = await safeAuth();
+  const t = await getTranslations();
+
+  if (userId) return <BrowseProductsButton primary />;
+
+  return (
+    <>
+      <Button
+        asChild
+        size="lg"
+        className="h-12 px-8 text-base font-semibold shadow-lg shadow-primary/20 group"
+      >
+        <Link href="/sign-up/[[...sign-up]]">
+          {t("home.createAccount")}
+          <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+        </Link>
+      </Button>
+      <BrowseProductsButton />
+    </>
+  );
 }
 
 /**
@@ -236,19 +286,18 @@ export default async function HomePage() {
                 {t("home.joinThousands")}
               </p>
               <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Button
-                  asChild
-                  size="lg"
-                  className="h-12 px-8 text-base font-semibold shadow-lg shadow-primary/20 group"
-                >
-                  <Link href="/sign-up/[[...sign-up]]">
-                    {t("home.createAccount")}
-                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" size="lg" className="h-12 px-8 text-base font-semibold">
-                  <Link href="/products">{t("home.browseProducts")}</Link>
-                </Button>
+                {/* "Create free account" is nonsense for someone already signed
+                    in, so the pair is resolved from the session. Reading it
+                    needs the request, which would make this whole marketing
+                    page dynamic - hence the Suspense boundary: the page keeps
+                    its prerendered shell and only this button row streams in.
+                    The fallback is the SIGNED-IN variant on purpose, so the
+                    button we're removing is never shown to a signed-in visitor
+                    even for a frame; a guest just sees the sign-up button join
+                    the row. */}
+                <Suspense fallback={<BrowseProductsButton primary />}>
+                  <HomeCtaActions />
+                </Suspense>
               </div>
             </div>
           </div>

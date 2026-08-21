@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Menu, X } from "lucide-react";
+import { useDismissable } from "@/hooks/useDismissable";
 import { BrandMark } from "./brand-mark";
 import { BrandWordmark } from "./brand-wordmark";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,12 @@ interface NavLink {
 export function NotFoundHeader() {
   const t = useTranslations();
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Outside click, Escape and navigation all close the panel - the X
+  // button and the nav links used to be the only ways out.
+  const { triggerRef, panelRef } = useDismissable<HTMLButtonElement, HTMLDivElement>(
+    mobileOpen,
+    () => setMobileOpen(false),
+  );
 
   const navLinks: NavLink[] = [
     { href: "/products", label: t("nav.products") },
@@ -84,9 +91,11 @@ export function NotFoundHeader() {
             {/* Mobile menu button - reveals nav (and auth on phones) once the
                 inline nav/auth collapse below md. */}
             <Button
+              ref={triggerRef}
               variant="outline"
               size="icon"
               className="md:hidden"
+              aria-expanded={mobileOpen}
               onClick={() => setMobileOpen(!mobileOpen)}
             >
               {mobileOpen ? (
@@ -110,6 +119,7 @@ export function NotFoundHeader() {
 
       {/* Mobile menu */}
       <div
+        ref={panelRef}
         className={cn(
           "md:hidden overflow-hidden transition-all duration-300 border-t border-border/50",
           mobileOpen ? "max-h-60" : "max-h-0 border-t-0"

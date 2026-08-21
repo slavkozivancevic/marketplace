@@ -11,6 +11,7 @@ import { CartDrawer } from "@/features/cart/components/CartDrawer";
 import { WishlistHeaderButton } from "@/features/wishlist/components/WishlistHeaderButton";
 import { ChatDrawerTrigger } from "@/features/chat/components/ChatDrawer";
 import { Menu, X } from "lucide-react";
+import { useDismissable } from "@/hooks/useDismissable";
 import { BrandMark } from "./brand-mark";
 import { BrandWordmark } from "./brand-wordmark";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,12 @@ export function PublicHeader({
   const { isLoaded, isSignedIn } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Outside click, Escape and navigation all close the panel - the X
+  // button and the nav links used to be the only ways out.
+  const { triggerRef, panelRef } = useDismissable<HTMLButtonElement, HTMLDivElement>(
+    mobileOpen,
+    () => setMobileOpen(false),
+  );
   // mounted + useAuth pattern: avoids a hydration mismatch (SSR may know the
   // session while the first client render, before clerk-js loads, does not).
   const [mounted, setMounted] = useState(false);
@@ -159,9 +166,11 @@ export function PublicHeader({
               </div>
               {/* Mobile menu button */}
               <Button
+                ref={triggerRef}
                 variant="outline"
                 size="icon"
                 className="lg:hidden"
+                aria-expanded={mobileOpen}
                 onClick={() => setMobileOpen(!mobileOpen)}
               >
                 {mobileOpen ? (
@@ -185,6 +194,7 @@ export function PublicHeader({
             collapse always fits its content (nav links + auth vary with
             sign-in state), never clipping the last row. */}
         <div
+          ref={panelRef}
           className={cn(
             "lg:hidden grid transition-[grid-template-rows] duration-300 ease-in-out border-t border-border/50",
             mobileOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr] border-t-0"

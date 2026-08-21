@@ -7,6 +7,7 @@ import { HeaderAuth } from "./header-auth";
 import { PreferencesPopover } from "./preferences-popover";
 import { ChatDrawerTrigger } from "@/features/chat/components/ChatDrawer";
 import { Menu, X } from "lucide-react";
+import { useDismissable } from "@/hooks/useDismissable";
 import { BrandMark } from "./brand-mark";
 import { BrandWordmark } from "./brand-wordmark";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,12 @@ export function Header() {
   const t = useTranslations();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Outside click, Escape and navigation all close the panel - the X
+  // button and the nav links used to be the only ways out.
+  const { triggerRef, panelRef } = useDismissable<HTMLButtonElement, HTMLDivElement>(
+    mobileOpen,
+    () => setMobileOpen(false),
+  );
 
   useEffect(() => {
     const main = document.querySelector("main");
@@ -74,9 +81,11 @@ export function Header() {
             </div>
             {/* Mobile menu button */}
             <Button
+              ref={triggerRef}
               variant="outline"
               size="icon"
               className="sm:hidden"
+              aria-expanded={mobileOpen}
               onClick={() => setMobileOpen(!mobileOpen)}
             >
               {mobileOpen ? (
@@ -99,6 +108,7 @@ export function Header() {
       {/* Mobile menu - grid-rows[0fr -> 1fr] instead of a fixed max-h so the
           collapse always fits its content instead of clipping the last row. */}
       <div
+        ref={panelRef}
         className={cn(
           "sm:hidden grid transition-[grid-template-rows] duration-300 ease-in-out border-t border-border/50",
           mobileOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr] border-t-0"

@@ -80,6 +80,15 @@ export function ProductImageCarousel({
   const markThumbLoaded = useCallback((index: number) => {
     setLoadedThumbs((prev) => (prev.has(index) ? prev : new Set(prev).add(index)));
   }, []);
+
+  // Tracks the lens's SHARP layer per slide, so it can fade in over the
+  // already-cached soft layer instead of the lens sitting empty while a
+  // fresh, larger image downloads. Same ref-callback `complete` guard as the
+  // slides: a warm image can finish before React attaches `onLoad`.
+  const [zoomHiResLoaded, setZoomHiResLoaded] = useState<Set<number>>(new Set());
+  const markZoomHiResLoaded = useCallback((index: number) => {
+    setZoomHiResLoaded((prev) => (prev.has(index) ? prev : new Set(prev).add(index)));
+  }, []);
   const [zoomState, setZoomState] = useState<{
     index: number;
     x: number;
@@ -434,13 +443,53 @@ export function ProductImageCarousel({
                                     height: containerH * IMAGE_ZOOM_FACTOR,
                                   }}
                                 >
+                                  {/* Two layers on purpose.
+
+                                      The lens used to hold only the sharp
+                                      layer, whose `sizes` differs from the
+                                      slide's - a different `sizes` makes Next
+                                      pick a different srcset candidate, i.e. a
+                                      different URL, which is NOT the one the
+                                      browser already downloaded. So opening the
+                                      lens started a fresh request for a large
+                                      image (200vw on a phone) and, with the
+                                      shimmer off, showed nothing until it
+                                      landed - the ~1s of "square is here but
+                                      nothing is zoomed" after a double tap.
+
+                                      The base layer reuses the slide's exact
+                                      `sizes`, so it is already in cache and
+                                      paints on the same frame the lens opens -
+                                      upscaled, hence soft. The sharp layer then
+                                      fades in on top once it loads. */}
+                                  <RetryImage
+                                    src={item.url}
+                                    alt=""
+                                    fill
+                                    sizes="(max-width: 768px) 100vw, 50vw"
+                                    className="object-cover"
+                                    showShimmer={false}
+                                  />
                                   <RetryImage
                                     src={item.url}
                                     alt=""
                                     fill
                                     sizes="(max-width: 768px) 200vw, 100vw"
-                                    className="object-cover"
+                                    className={cn(
+                                      "object-cover transition-opacity duration-200",
+                                      zoomHiResLoaded.has(index)
+                                        ? "opacity-100"
+                                        : "opacity-0",
+                                    )}
                                     showShimmer={false}
+                                    ref={(img) => {
+                                      if (img?.complete && img.naturalWidth > 0)
+                                        markZoomHiResLoaded(index);
+                                    }}
+                                    onLoad={() => markZoomHiResLoaded(index)}
+                                    onError={(_e, willRetry) => {
+                                      if (!willRetry) markZoomHiResLoaded(index);
+                                    }}
                                   />
                                 </div>
                               </div>
