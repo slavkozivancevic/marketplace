@@ -4,15 +4,20 @@
     ".": {
       "release-type": "node",
       "include-component-in-tag": false,
+      "extra-files": ["src/lib/version.ts"],
+      "bump-minor-pre-major": true,
       "changelog-sections": [
         { "type": "feat", "section": "Features" },
         { "type": "fix", "section": "Bug Fixes" },
         { "type": "perf", "section": "Performance" },
-        { "type": "refactor", "section": "Refactors" },
         { "type": "revert", "section": "Reverts" },
-        { "type": "docs", "section": "Docs", "hidden": true },
-        { "type": "test", "section": "Tests", "hidden": true },
-        { "type": "chore", "section": "Chores", "hidden": true }
+        { "type": "refactor", "section": "Build & Maintenance" },
+        { "type": "build", "section": "Build & Maintenance" },
+        { "type": "ci", "section": "Build & Maintenance" },
+        { "type": "docs", "section": "Build & Maintenance" },
+        { "type": "test", "section": "Build & Maintenance" },
+        { "type": "style", "section": "Build & Maintenance" },
+        { "type": "chore", "section": "Build & Maintenance" }
       ]
     }
   }

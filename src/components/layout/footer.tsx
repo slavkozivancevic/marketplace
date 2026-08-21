@@ -2,6 +2,7 @@
 
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
+import { APP_VERSION } from "@/lib/version";
 import { BrandMark } from "./brand-mark";
 import { BrandWordmark } from "./brand-wordmark";
 
@@ -69,6 +70,10 @@ export function Footer() {
         <div className="border-t border-border/50 py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">
             {t("copyright", { year: new Date().getFullYear() })}
+            <span aria-hidden className="mx-1.5 opacity-50">
+              &middot;
+            </span>
+            <span className="tabular-nums">v{APP_VERSION}</span>
           </p>
           <p className="text-xs text-muted-foreground">
             {t("crafted")}
