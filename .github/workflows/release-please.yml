@@ -19,5 +19,14 @@ jobs:
     steps:
       - uses: googleapis/release-please-action@v5
         with:
+          # A fine-grained PAT, not the default GITHUB_TOKEN. With the built-in
+          # token the Release PR is authored by github-actions[bot], and the
+          # repo's "require approval for first-time contributors" setting checks
+          # the PR author - a bot that never accrues merged commits of its own,
+          # since squash-merging attributes them to the human. Its checks then
+          # sit at "waiting for status to be reported" forever, which the branch
+          # ruleset treats as unmet. Authored by the repo owner instead, the
+          # Release PR runs CI like any other. See DEPLOYMENT.md #6a.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
