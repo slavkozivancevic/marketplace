@@ -138,13 +138,22 @@ Result: bad deploys self-heal, and manual rollback is one alias flip.
   squash message is the PR title alone, so a `BREAKING CHANGE:` footer never
   reaches the commit body. Breaking changes get their own
   `⚠ BREAKING CHANGES` section at the top of the release notes.
-  **Non-releasing types** - `build`, `ci`, `chore`, `docs`, `test`, `style`,
-  `refactor` - never bump the version or open a Release PR on their own; they
-  merge and deploy to staging like any other merge (section 4). They are **not
-  hidden**: they sit in the backlog until the next `feat`/`fix` opens a Release
-  PR, and then appear in that release's notes under **Build & Maintenance**
-  (`changelog-sections` in `release-please-config.json`). A run of nothing but
-  non-releasing commits therefore produces no release at all - by design.
+  Every other type - `build`, `ci`, `chore`, `docs`, `test`, `style`,
+  `refactor` - falls through to a **patch**.
+- **"Appears in the notes" and "triggers a release" are the same switch.**
+  release-please skips a release only when the generated changelog body is
+  empty (`changelogEmpty()` in its `base.ts`), and anything not `feat` and not
+  breaking resolves to `PatchVersionUpdate`. So a type marked `hidden` never
+  releases *and* never shows up; a visible type always does both. There is no
+  config that yields "visible in the notes but not releasable". We chose
+  **visible**: all maintenance types share the **Build & Maintenance** section
+  (`changelog-sections` in `release-please-config.json`).
+- **The Release PR is a proposal, not a release.** Nothing is versioned or
+  tagged until *you* merge it. A maintenance-only run does open a Release PR
+  (e.g. `0.2.1` after a lone `ci:` commit) - leave it sitting. When the next
+  `feat` lands, release-please retitles that same PR (`0.3.0`) and folds the
+  maintenance entries into it. Merge Release PRs when you actually want a
+  release; a dangling one costs nothing.
 - **App version in the UI**: `src/lib/version.ts` exports `APP_VERSION`, shown in
   the site footer. release-please rewrites its `x-release-please-version` line
   in the same commit that bumps `package.json` (via `extra-files`), so the
@@ -200,15 +209,29 @@ green PR.
 > job fails and blocks *every* merge, so verify them before enabling the
 > ruleset.
 
-**Gotcha - the first Release PR after enabling the ruleset.** Settings ->
-Actions -> General defaults to *Require approval for first-time contributors*,
-and `github-actions[bot]` counts as one until it has had a PR merged here. So
-release-please's first Release PR shows "N workflows awaiting approval" and its
-required checks sit at "Expected - waiting for status to be reported" forever.
-Click **Approve workflows to run** once; after that PR merges the bot is no
-longer a first-time contributor and later Release PRs run unattended. Don't
-loosen the Actions setting and don't reach for a PAT/GitHub App - neither is
-needed. Expect this once per repo when rolling the ruleset out to the siblings.
+**Gotcha - Release PRs need workflow approval.** Settings -> Actions -> General
+defaults to *Require approval for first-time contributors*, and
+`github-actions[bot]` never stops counting as one: squash-merging its Release PR
+attributes the commit to the human who merged, so the bot still has no commit of
+its own. Every Release PR therefore opens with "N workflows awaiting approval"
+and its required checks sit at "Expected - waiting for status to be reported"
+until someone clicks **Approve workflows to run** - and release-please re-syncs
+that PR on every merge to `main`, so the click recurs.
+
+Fixed by handing release-please a **fine-grained PAT** instead
+(`token: ${{ secrets.RELEASE_PLEASE_TOKEN }}` in `release-please.yml`), scoped
+to this repo with `Contents`, `Pull requests` and `Issues` all Read and write
+(`Issues` because release-please manages the `autorelease: *` labels, and labels
+go through the Issues API). The Release PR is then authored by the repo owner,
+who is neither first-time nor external, so its checks run unattended. A GitHub
+App was considered and rejected: its bot identity is just as new as
+`github-actions[bot]` and would likely hit the same gate.
+
+> **The PAT expires** - fine-grained tokens cap at 366 days, and release-please
+> goes quiet without an error when it lapses. The symptom is "no Release PR
+> appeared after a `feat` merge". Re-issue the token and update the secret.
+
+Expect this in every repo where the ruleset is rolled out.
 
 ---
 
