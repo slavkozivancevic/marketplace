@@ -200,6 +200,16 @@ green PR.
 > job fails and blocks *every* merge, so verify them before enabling the
 > ruleset.
 
+**Gotcha - the first Release PR after enabling the ruleset.** Settings ->
+Actions -> General defaults to *Require approval for first-time contributors*,
+and `github-actions[bot]` counts as one until it has had a PR merged here. So
+release-please's first Release PR shows "N workflows awaiting approval" and its
+required checks sit at "Expected - waiting for status to be reported" forever.
+Click **Approve workflows to run** once; after that PR merges the bot is no
+longer a first-time contributor and later Release PRs run unattended. Don't
+loosen the Actions setting and don't reach for a PAT/GitHub App - neither is
+needed. Expect this once per repo when rolling the ruleset out to the siblings.
+
 ---
 
 ## 7. Secrets, identity & config
