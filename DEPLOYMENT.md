@@ -131,9 +131,13 @@ Result: bad deploys self-heal, and manual rollback is one alias flip.
   release-please doesn't recognize it and would silently skip the bump. It runs
   on the `edited` event (unlike `ci.yml`) so fixing the title re-runs the check;
   it is a **required status check** (section 6a).
-- **Which types bump the version**: `feat` -> minor, `fix`/`perf` -> patch,
-  any type with `!` (e.g. `feat!:`) or a `BREAKING CHANGE:` footer -> the next
-  minor while we're pre-1.0 (`bump-minor-pre-major: true`), major after that.
+- **Which types bump the version**: plain semver, no pre-1.0 exception - `feat`
+  -> minor, `fix`/`perf` -> patch, any type with `!` (e.g. `feat!:`) -> major.
+  The first breaking change therefore takes us from `0.x` to `1.0.0`, which is
+  the intended signal. `!` is the only breaking marker available to us: the
+  squash message is the PR title alone, so a `BREAKING CHANGE:` footer never
+  reaches the commit body. Breaking changes get their own
+  `⚠ BREAKING CHANGES` section at the top of the release notes.
   **Non-releasing types** - `build`, `ci`, `chore`, `docs`, `test`, `style`,
   `refactor` - never bump the version or open a Release PR on their own; they
   merge and deploy to staging like any other merge (section 4). They are **not
