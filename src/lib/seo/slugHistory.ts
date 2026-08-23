@@ -1,5 +1,5 @@
-import { prisma } from "@/core/db/prisma";
-import { Prisma, SluggedEntityType } from "@/generated/prisma/client";
+import { prisma, type TransactionClient } from "@/core/db/prisma";
+import { SluggedEntityType } from "@/generated/prisma/client";
 import { DEFAULT_LOCALE } from "@/i18n/config";
 
 /**
@@ -19,7 +19,7 @@ import { DEFAULT_LOCALE } from "@/i18n/config";
  * (`newSlugsByLocale`). On create, pass an empty `oldSlugsByLocale`.
  */
 export async function recordSlugChanges(
-  tx: Prisma.TransactionClient,
+  tx: TransactionClient,
   entityType: SluggedEntityType,
   entityId: string,
   oldSlugsByLocale: Map<string, string>,
@@ -53,7 +53,7 @@ export async function recordSlugChanges(
  * retired slugs stop resolving (a deleted product should 404, not redirect).
  */
 export async function clearSlugHistory(
-  tx: Prisma.TransactionClient,
+  tx: TransactionClient,
   entityType: SluggedEntityType,
   entityId: string,
 ): Promise<void> {

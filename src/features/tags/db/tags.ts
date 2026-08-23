@@ -7,7 +7,6 @@ import { refreshProductSearchText } from "@/features/products/db/products";
 import { recordSlugChanges } from "@/lib/seo/slugHistory";
 import { createWithUniqueSlugRetry } from "@/lib/db/uniqueSlugRetry";
 import { DEFAULT_LOCALE, NON_DEFAULT_LOCALES } from "@/i18n/config";
-import { Prisma } from "@/generated/prisma/client";
 import type { TagTranslations } from "../utils/translations";
 
 export type { TagTranslations } from "../utils/translations";
@@ -172,7 +171,7 @@ export async function updateTag(id: string, data: TagMutationData) {
       select: { id: true, organizationId: true },
     });
     for (const p of products) {
-      await refreshProductSearchText(prisma as unknown as Prisma.TransactionClient, p.id);
+      await refreshProductSearchText(prisma, p.id);
     }
     revalidateTagProductCaches(products);
   }

@@ -1,6 +1,6 @@
 # Marketplace Platform
 
-A production-grade, multi-tenant e-commerce platform built as a monorepo of four tightly-integrated services. The core storefront is a full-stack Next.js application; real-time chat, conversation search, and transactional notifications are deployed as independent serverless microservices on AWS, communicating over an event-driven backbone (SNS → SQS → Lambda).
+A production-grade, multi-tenant e-commerce platform built as four tightly-integrated services, each in its own repository with an independent release cadence. The core storefront is a full-stack Next.js application; real-time chat, conversation search, and transactional notifications are deployed as independent serverless microservices on AWS, communicating over an event-driven backbone (SNS → SQS → Lambda).
 
 ---
 
@@ -114,7 +114,7 @@ Defined in [prisma/schema.prisma](prisma/schema.prisma):
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 22+ (CI pins 22; the GitHub Actions themselves run on the Node 24 runtime)
 - Docker (for the bundled PostgreSQL) or an existing PostgreSQL 17 instance
 - A Redis instance
 - Clerk, Stripe, and AWS (S3 + SES) accounts
@@ -207,6 +207,13 @@ Open [http://localhost:3000](http://localhost:3000).
 | `npm run build` | Production build |
 | `npm run start` | Start production server |
 | `npm run lint` | Run ESLint |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run test` | Unit tests (Vitest, single run) |
+| `npm run test:watch` | Unit tests in watch mode |
+| `npm run test:coverage` | Unit tests with V8 coverage |
+| `npm run test:integration` | Integration tests against a real Postgres (`vitest.integration.config.ts`) |
+| `npm run test:e2e` | End-to-end tests (Playwright) |
+| `npm run deploy:staging` / `deploy:prod` | `sst deploy` for the given stage |
 | `npm run db:generate` | Generate Prisma client (output: `src/generated/prisma`) |
 | `npm run db:migrate` | Create and apply a dev migration |
 | `npm run db:migrate:up` | Apply pending migrations (`prisma migrate deploy`) |
@@ -256,23 +263,47 @@ the strategy and [infra/](infra/) for the pipeline IaC.
 - **Hosting:** **SST v4 (Ion)** + **OpenNext** compile the Next.js app to
   **Lambda + CloudFront** (`sst.config.ts`). OpenNext is pinned to **4.0.3** for
   Next.js 16 `proxy`-middleware support (the SST default, 3.9.14, predates it).
+  The staging stage serves **marketverseapp.com** (registered at Namecheap, DNS
+  delegated to Route 53), and CORS is locked to that origin.
 - **Database:** managed serverless **Postgres (Neon)** - the app uses the
   **pooled** endpoint at runtime (PrismaPg adapter); migrations run over the
   **direct** endpoint (advisory locks don't survive PgBouncer).
-- **CI (GitHub Actions):** on every PR/push - lint, typecheck, unit tests, and
-  integration tests against an ephemeral Postgres service container. Shared via a
-  **reusable workflow** referenced by every repo.
+- **CI (GitHub Actions):** on every PR/push - lint, typecheck and unit tests
+  (shared via a **reusable workflow** referenced by every repo), integration
+  tests against an ephemeral Postgres service container, and **Playwright E2E**
+  against a seeded throwaway database.
+- **Merge gate:** a branch ruleset on `main` requires a PR plus four green
+  checks (`PR title`, `quality / Lint, typecheck & unit tests`,
+  `Integration tests`, `E2E tests`), allows **squash merges only**, and blocks
+  force pushes. Since the staging pipeline's source is `main`, nothing reaches
+  staging that has not passed CI.
+- **Conventional Commits, enforced:** `pr-title.yml` validates the PR title and
+  **rewrites common aliases** through the API before validating (`feature` →
+  `feat`, `bugfix`/`hotfix` → `fix`, `documentation` → `docs`, ...). The rewrite
+  is load-bearing rather than cosmetic: the squash message *is* the PR title, so
+  an unmapped `feature:` would land on `main` where release-please does not
+  recognise it.
 - **CD (AWS-native):** **CodePipeline → CodeBuild** (runs `buildspec.yml` →
   `sst deploy` on Linux) with the GitHub source wired through **CodeConnections**.
   Flow: `Source (main) → DeployStaging → manual approval → DeployProduction`.
-- **PR previews:** ephemeral `pr-<n>` stages deployed/torn down by GitHub Actions
-  (`preview.yml`) that assume a scoped AWS role via **GitHub OIDC** (no static
-  keys). OIDC provider + roles are provisioned by `infra/cicd.cfn.yml`.
+- **PR previews (opt-in):** label a PR `preview` and `preview.yml` deploys an
+  ephemeral `pr-<n>` stage, torn down when the PR closes. It assumes a scoped AWS
+  role via **GitHub OIDC** (no static keys); the OIDC provider + roles are
+  provisioned by `infra/cicd.cfn.yml`. Opt-in because each preview stage needs
+  its own database and its own set of SST secrets - SST has no secret
+  inheritance between stages.
 - **Secrets & discovery:** per-stage secrets live in **SSM Parameter Store**
   (`sst secret set`); services discover each other's URLs/ARNs through SSM, never
   hardcoded endpoints.
-- **Releases:** **Conventional Commits** + **release-please** (rolling Release PR
-  → version bump → `vX.Y.Z` tag → GitHub Release).
+- **Releases:** **release-please** maintains a rolling Release PR; merging it
+  bumps the version, writes `CHANGELOG.md`, tags `vX.Y.Z` and cuts a GitHub
+  Release. Notes are grouped into **Features**, **Bug Fixes**, **Performance**
+  and **Build & Maintenance**. The same commit rewrites `src/lib/version.ts`
+  (via `extra-files`), so the version rendered in the site footer always matches
+  the released tag. release-please runs under a scoped fine-grained PAT rather
+  than the default `GITHUB_TOKEN` - otherwise its PRs stall on GitHub's
+  first-time-contributor workflow-approval gate and their required checks never
+  report.
 
 > First-run bootstrap (accounts, DB, secrets, siblings-then-app order) is a
 > click-by-click runbook in [infra/AWS-SETUP.md](infra/AWS-SETUP.md); the

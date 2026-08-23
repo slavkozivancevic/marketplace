@@ -10,5 +10,17 @@ export default defineConfig({
   },
   datasource: {
     url: process.env["DATABASE_URL"],
+
+    // Needed by `npm run db:check-drift` (prisma migrate diff --from-migrations),
+    // which replays the migration history into a scratch database and compares
+    // the result with schema.prisma. Prisma 7 accepts this only here - its
+    // `--shadow-database-url` flag is advertised in the CLI's own error message
+    // but rejected by its argument parser.
+    //
+    // DANGER: whatever this points at gets RESET. Point it at a dedicated
+    // throwaway database (prisma_drift_shadow), never at a dev or stage
+    // database. Left undefined it is inert, and `migrate dev` keeps creating
+    // its own temporary shadow as before.
+    shadowDatabaseUrl: process.env["SHADOW_DATABASE_URL"],
   },
 });

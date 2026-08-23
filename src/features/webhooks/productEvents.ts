@@ -1,8 +1,8 @@
-import { Prisma } from "@/generated/prisma/client";
+import type { TransactionClient } from "@/core/db/prisma";
 import { customNanoId } from "@/utils/idGenerator";
 
 export async function emitProductEvent(
-  tx: Prisma.TransactionClient,
+  tx: TransactionClient,
   type: string,
 ) {
   await tx.webhookEvent.create({

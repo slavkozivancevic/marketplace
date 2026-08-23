@@ -89,6 +89,30 @@ export default $config({
     // (env var carries the param path, not the ARN itself).
     const notificationsTopicArnParam = `/marketplace-notifications/${stage}/SNS_TOPIC_ARN`;
 
+    // ── Log settings shared by every OpenNext function ────────────────────
+    // Retention: SST already defaults to "1 month" (nothing is kept forever),
+    // but 14 days halves the stored volume and matches the window Grafana
+    // Cloud's free tier keeps - beyond it a dashboard could only show gaps.
+    // Ingestion is the metered part and 5 GB/month is free (ROADMAP #23).
+    //
+    // Format: "text" is the default and stays. Worth knowing why, because the
+    // raw log events look like they should break our metric filters:
+    //
+    //   2026-08-23T10:49:21.269Z\t<requestId>\tINFO\t{"msg":"request",...}
+    //
+    // The Node runtime prefixes every console call, so the event does NOT start
+    // with `{`. CloudWatch still parses the embedded JSON: verified against the
+    // live staging log group with `aws logs test-metric-filter`, including that
+    // `{ $.msg = "request" && $.status >= 500 }` matches a 500 and not a 200 -
+    // i.e. real JSON evaluation, not substring matching. Non-JSON lines (Next's
+    // build output, START/END/REPORT) match nothing, as intended.
+    //
+    // Lambda's "json" format would instead nest everything under a `message`
+    // key, so every filter pattern below would have to be rewritten. Changing
+    // this flips a switch under eight metrics that have no compile-time link to
+    // it - so if it ever changes, re-run those test-metric-filter checks first.
+    const fnLogging = { retention: "2 weeks", format: "text" } as const;
+
     // ── The Next.js site (OpenNext -> Lambda + CloudFront) ────────────────
     const web = new sst.aws.Nextjs("Web", {
       // SST pins OpenNext 3.9.14 for Next 15+, which predates full Next.js 16
@@ -167,6 +191,7 @@ export default $config({
         // read sibling SSM params + publish lifecycle events to the notifications
         // SNS topic.
         server: (args) => {
+          args.logging = fnLogging;
           args.permissions = $output(args.permissions ?? []).apply((perms) => [
             ...perms,
             {
@@ -183,8 +208,216 @@ export default $config({
             },
           ]);
         },
+        // The other OpenNext functions get the same log settings. They are far
+        // quieter than `server`, but they share the 5 GB/month free tier.
+        imageOptimizer: (args) => {
+          args.logging = fnLogging;
+        },
+        revalidationSeeder: (args) => {
+          args.logging = fnLogging;
+        },
+        revalidationEventsSubscriber: (args) => {
+          args.logging = fnLogging;
+        },
       },
     });
+
+    // ── Observability: metrics + alarms (ROADMAP #23) ────────────────────
+    //
+    // CloudWatch is the source of truth; Grafana Cloud only reads it. That is
+    // not a preference - CodeDeploy (ROADMAP #31c) can watch CloudWatch alarms
+    // and nothing else, so the metrics that gate a rollback have to live here.
+    //
+    // No custom-metric code runs in the app. Metric filters lift numbers out of
+    // the JSON log lines it already writes (src/lib/logger.ts), which costs the
+    // same as Embedded Metric Format but needs no instrumentation library.
+    //
+    // BUDGET - the free tier is 10 custom metrics and 10 alarm metrics, and we
+    // stay inside it deliberately (see ROADMAP #23): 8 filters, 8 alarms, no
+    // composite alarm (those are $0.50/month and CodeDeploy accepts a plain
+    // list of up to 10 alarms anyway). Dimensions are the trap here: making
+    // `model` or `route` a dimension would multiply one metric into dozens at
+    // $0.30 each. High-cardinality questions ("which model is slow?") are
+    // answered from the logs with Logs Insights instead, for free.
+    //
+    // Real stages only. `sst dev` runs the app locally - there is no deployed
+    // log group to attach to, and alarms for a laptop are noise.
+    if (stage === "staging" || stage === "production") {
+      const namespace = `MarketVerse/${stage}`;
+
+      // Both assertions are safe under the stage guard above. `server` is
+      // optional in the type because `sst dev` runs the app locally instead of
+      // deploying a function, and `logGroup` is absent only when logging is
+      // turned off - which the `fnLogging` transform above explicitly does not
+      // do. Neither case can reach this branch.
+      const server = web.nodes.server!;
+      const logGroupName = server.nodes.logGroup.apply((group) => group!.name);
+      const serverFunctionName = server.nodes.function.name;
+
+      /**
+       * Counts matching log lines. `value: "1"` means "one per match", so the
+       * alarm reads it with SUM.
+       */
+      const countMetric = (name: string, pattern: string) =>
+        new aws.cloudwatch.LogMetricFilter(`Metric${name}`, {
+          logGroupName,
+          pattern,
+          metricTransformation: { namespace, name, value: "1", unit: "Count" },
+        });
+
+      /**
+       * Lifts a number out of the matched line, so CloudWatch keeps the raw
+       * distribution and can answer p95/p99 server-side.
+       *
+       * No `defaultValue` on purpose: it would publish a 0 for every
+       * non-matching log event and drag every percentile toward zero. Alarms
+       * cover the resulting gaps with `treatMissingData: "notBreaching"`.
+       */
+      const valueMetric = (name: string, pattern: string, value: string, unit: string) =>
+        new aws.cloudwatch.LogMetricFilter(`Metric${name}`, {
+          logGroupName,
+          pattern,
+          metricTransformation: { namespace, name, value, unit },
+        });
+
+      // The four numbers carried by the one summary line per observed request.
+      valueMetric("RequestDurationMs", '{ $.msg = "request" }', "$.durationMs", "Milliseconds");
+      valueMetric("DbTimeMs", '{ $.msg = "request" }', "$.dbMs", "Milliseconds");
+      valueMetric("QueriesPerRequest", '{ $.msg = "request" }', "$.dbQueries", "Count");
+      countMetric("Http5xx", '{ $.msg = "request" && $.status >= 500 }');
+
+      // Failure signals. `event` is the stable field the app tags its failure
+      // branches with - see captureError(...) in the checkout actions and the
+      // Stripe webhook.
+      countMetric("AppErrors", '{ $.level = "error" }');
+      countMetric("SlowQueries", '{ $.msg = "slow_query" }');
+      countMetric("CheckoutFailures", '{ $.event = "checkout_failed" }');
+      countMetric("WebhookFailures", '{ $.event = "webhook_failed" }');
+
+      // Alarms notify this topic. The email subscription is deliberately NOT in
+      // IaC: SNS email subscriptions sit in `PendingConfirmation` until a human
+      // clicks the link in the mail, so declaring one here would look
+      // provisioned while delivering nothing. Subscribe once per stage in the
+      // console (SNS -> Topics -> this topic -> Create subscription).
+      const alarms = new aws.sns.Topic("AlarmTopic", {
+        name: `marketplace-${stage}-alarms`,
+      });
+
+      const alarm = (
+        name: string,
+        args: Omit<aws.cloudwatch.MetricAlarmArgs, "alarmName" | "alarmActions" | "okActions">,
+      ) =>
+        new aws.cloudwatch.MetricAlarm(name, {
+          name: `marketplace-${stage}-${name}`,
+          alarmActions: [alarms.arn],
+          okActions: [alarms.arn],
+          // Silence is health: with staging traffic most periods have no data
+          // at all, and the default (INSUFFICIENT_DATA) would make every alarm
+          // permanently amber and useless as a deployment gate.
+          treatMissingData: "notBreaching",
+          ...args,
+        });
+
+      // Money path: one failed webhook can mean a paid order that never ships.
+      alarm("WebhookFailures", {
+        namespace,
+        metricName: "WebhookFailures",
+        statistic: "Sum",
+        comparisonOperator: "GreaterThanOrEqualToThreshold",
+        threshold: 1,
+        period: 300,
+        evaluationPeriods: 1,
+        alarmDescription: "A Stripe webhook failed to process.",
+      });
+
+      alarm("CheckoutFailures", {
+        namespace,
+        metricName: "CheckoutFailures",
+        statistic: "Sum",
+        comparisonOperator: "GreaterThanOrEqualToThreshold",
+        threshold: 1,
+        period: 300,
+        evaluationPeriods: 1,
+        alarmDescription: "Checkout raised a fault (not a business rejection).",
+      });
+
+      alarm("Http5xx", {
+        namespace,
+        metricName: "Http5xx",
+        statistic: "Sum",
+        comparisonOperator: "GreaterThanOrEqualToThreshold",
+        threshold: 3,
+        period: 300,
+        evaluationPeriods: 1,
+        alarmDescription: "Observed routes are returning 5xx.",
+      });
+
+      alarm("AppErrors", {
+        namespace,
+        metricName: "AppErrors",
+        statistic: "Sum",
+        comparisonOperator: "GreaterThanOrEqualToThreshold",
+        threshold: 5,
+        period: 300,
+        evaluationPeriods: 1,
+        alarmDescription: "Error-level log volume is elevated.",
+      });
+
+      // Latency as a percentile, not an average: an average hides the slow tail
+      // that users actually feel.
+      alarm("RequestLatencyP95", {
+        namespace,
+        metricName: "RequestDurationMs",
+        extendedStatistic: "p95",
+        comparisonOperator: "GreaterThanThreshold",
+        threshold: 3000,
+        period: 300,
+        evaluationPeriods: 2,
+        alarmDescription: "p95 request latency above 3s for 10 minutes.",
+      });
+
+      // N+1 detector. Maximum, not average - a single request issuing hundreds
+      // of queries is the bug, and averaging it against healthy traffic buries
+      // it. The threshold lives here rather than in the app precisely so it can
+      // be retuned without a deploy.
+      alarm("QueriesPerRequest", {
+        namespace,
+        metricName: "QueriesPerRequest",
+        statistic: "Maximum",
+        comparisonOperator: "GreaterThanThreshold",
+        threshold: 30,
+        period: 900,
+        evaluationPeriods: 1,
+        alarmDescription: "A request issued an unusual number of queries (N+1 suspect).",
+      });
+
+      // The two AWS-native metrics: free, and they catch what our own logger
+      // cannot - a function that died before it could log (timeout, OOM, a
+      // failed init) never writes an error line.
+      alarm("LambdaErrors", {
+        namespace: "AWS/Lambda",
+        metricName: "Errors",
+        dimensions: { FunctionName: serverFunctionName },
+        statistic: "Sum",
+        comparisonOperator: "GreaterThanOrEqualToThreshold",
+        threshold: 5,
+        period: 300,
+        evaluationPeriods: 1,
+        alarmDescription: "Server function invocations are failing.",
+      });
+
+      alarm("LambdaThrottles", {
+        namespace: "AWS/Lambda",
+        metricName: "Throttles",
+        dimensions: { FunctionName: serverFunctionName },
+        statistic: "Sum",
+        comparisonOperator: "GreaterThanThreshold",
+        threshold: 0,
+        period: 300,
+        evaluationPeriods: 1,
+        alarmDescription: "Server function is being throttled (concurrency limit).",
+      });
+    }
 
     // Close the callback loop: the notifications + conversation-search Lambdas
     // call back into the app's /api/internal/* endpoints, reading the app URL

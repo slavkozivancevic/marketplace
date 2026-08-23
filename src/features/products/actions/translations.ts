@@ -1,8 +1,7 @@
 "use server";
 import { logger } from "@/lib/logger";
 
-import { prisma } from "@/core/db/prisma";
-import { Prisma } from "@/generated/prisma/client";
+import { prisma, type TransactionClient } from "@/core/db/prisma";
 import { slugify } from "@/lib/utils";
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import { requirePermission } from "@/lib/auth/permissions";
@@ -118,7 +117,7 @@ async function resolveProductId(
 
 /** Ensures `(locale, slug)` is unique, ignoring the product we're updating. */
 async function ensureUniqueLocaleSlug(
-  tx: Prisma.TransactionClient,
+  tx: TransactionClient,
   locale: string,
   base: string,
   productId: string,

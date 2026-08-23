@@ -1,4 +1,5 @@
-import { logger } from "@/lib/logger";
+import { logger, captureError } from "@/lib/logger";
+import { observedRoute } from "@/lib/observability/requestContext";
 import { headers } from "next/headers";
 import { stripe } from "@/services/stripe";
 import { env } from "@/env/server";
@@ -15,7 +16,11 @@ import {
 } from "@/features/webhooks/webhookEvents";
 import type Stripe from "stripe";
 
-export async function POST(req: Request) {
+// Observed (ROADMAP #23): the money path. A silent failure here means a paid
+// order that never got fulfilled, so every failure branch tags itself with
+// `event: "webhook_failed"` - that field is what the WebhookFailures metric
+// filter counts, and the alarm on it is the one worth waking up for.
+export const POST = observedRoute("POST /api/webhooks/stripe", async (req: Request) => {
   const body = await req.text();
   const headerPayload = await headers();
   const signature = headerPayload.get("stripe-signature");
@@ -33,7 +38,7 @@ export async function POST(req: Request) {
       env.STRIPE_WEBHOOK_SECRET,
     );
   } catch (err) {
-    logger.error("Stripe webhook signature verification failed:", err);
+    captureError(err, { event: "webhook_failed", provider: "stripe", reason: "signature" });
     return new Response("Invalid signature", { status: 400 });
   }
 
@@ -214,7 +219,12 @@ export async function POST(req: Request) {
     await markWebhookProcessed(event.id, event.type);
     return new Response("OK", { status: 200 });
   } catch (error) {
-    logger.error("Stripe webhook processing error:", error);
+    captureError(error, {
+      event: "webhook_failed",
+      provider: "stripe",
+      stripeEvent: event.type,
+      stripeEventId: event.id,
+    });
     return new Response("Internal Error", { status: 500 });
   }
-}
+});

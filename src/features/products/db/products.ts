@@ -1,3 +1,4 @@
+import type { TransactionClient } from "@/core/db/prisma";
 import { randomUUID } from "crypto";
 import { tenantPrisma } from "@/core/db/tenantPrisma";
 import { revalidateProductCache, revalidateProductHistoryCache } from "./cache";
@@ -154,7 +155,7 @@ function buildProductTranslationRows(
 }
 
 async function syncProductMedia(
-  tx: Prisma.TransactionClient,
+  tx: TransactionClient,
   productId: string,
   media: MediaInput[],
 ): Promise<Map<string, string>> {
@@ -277,7 +278,7 @@ function variantSignature(
 }
 
 async function syncVariants(
-  tx: Prisma.TransactionClient,
+  tx: TransactionClient,
   productId: string,
   variants: ProductVariantInput[],
   mediaIdByKey: Map<string, string>,
@@ -421,7 +422,7 @@ async function syncVariants(
  * column makes `contains` searches fast within each locale.
  */
 export async function refreshProductSearchText(
-  tx: Prisma.TransactionClient,
+  tx: TransactionClient,
   productId: string,
 ): Promise<void> {
   const p = await tx.product.findFirst({
@@ -510,7 +511,7 @@ export async function refreshProductSearchText(
  * the replace-all strategy is worth the few extra writes vs a per-locale diff.
  */
 async function syncProductTranslations(
-  tx: Prisma.TransactionClient,
+  tx: TransactionClient,
   productId: string,
   rows: ProductTranslationRow[],
 ): Promise<void> {
@@ -735,7 +736,7 @@ export type ProductAttributeInput = {
  * single numeric/boolean row. Entries without any value are skipped.
  */
 async function syncProductAttributes(
-  tx: Prisma.TransactionClient,
+  tx: TransactionClient,
   productId: string,
   attributes: ProductAttributeInput[],
 ): Promise<void> {
