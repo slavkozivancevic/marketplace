@@ -1,5 +1,6 @@
 "use server";
-import { logger } from "@/lib/logger";
+import { captureError } from "@/lib/logger";
+import { observeRequest } from "@/lib/observability/requestContext";
 
 import { auth } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
@@ -27,7 +28,23 @@ export type CheckoutCartItem = {
   quantity: number;
 };
 
+// Observed (ROADMAP #23). The wrapper is a separate function purely so the
+// 240-line body below keeps its indentation - `observeRequest` only needs to
+// own the outermost call. A returned error result is reported as 400 (a
+// business rejection: empty cart, signed out); a genuine fault is what tags
+// itself `event: "checkout_failed"` in the catch.
 export async function createCheckoutSession(
+  items: CheckoutCartItem[],
+  couponCode?: string,
+): Promise<{ url: string } | ActionErrorResult> {
+  return observeRequest(
+    "action createCheckoutSession",
+    () => runCheckoutSession(items, couponCode),
+    { statusOf: (result) => ("error" in result ? 400 : 200) },
+  );
+}
+
+async function runCheckoutSession(
   items: CheckoutCartItem[],
   couponCode?: string,
 ): Promise<{ url: string } | ActionErrorResult> {
@@ -271,7 +288,7 @@ export async function createCheckoutSession(
 
     return { url: session.url };
   } catch (error) {
-    logger.error("[createCheckoutSession]", error);
+    captureError(error, { event: "checkout_failed", paymentMethod: "stripe" });
     return handleActionError(error);
   }
 }

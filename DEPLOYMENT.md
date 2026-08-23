@@ -222,14 +222,18 @@ Fixed by handing release-please a **fine-grained PAT** instead
 (`token: ${{ secrets.RELEASE_PLEASE_TOKEN }}` in `release-please.yml`), scoped
 to this repo with `Contents`, `Pull requests` and `Issues` all Read and write
 (`Issues` because release-please manages the `autorelease: *` labels, and labels
-go through the Issues API). The Release PR is then authored by the repo owner,
-who is neither first-time nor external, so its checks run unattended. A GitHub
-App was considered and rejected: its bot identity is just as new as
+go through the Issues API). GitHub checks both the PR author *and the actor of
+the event*, and the PAT makes the owner the actor - so the checks run unattended
+even on a Release PR the bot opened earlier, whose author can never change. A
+GitHub App was considered and rejected: its bot identity is just as new as
 `github-actions[bot]` and would likely hit the same gate.
 
-> **The PAT expires** - fine-grained tokens cap at 366 days, and release-please
-> goes quiet without an error when it lapses. The symptom is "no Release PR
-> appeared after a `feat` merge". Re-issue the token and update the secret.
+> The token is deliberately issued with **no expiration**, so there is no silent
+> lapse to plan around - had it expired, release-please would simply stop
+> producing Release PRs with no error anywhere. The trade-off is a standing
+> credential: it is scoped to this repo with three permissions and nothing
+> revokes it on its own, so revoke and re-issue it (Developer settings ->
+> Fine-grained tokens) if it is ever exposed.
 
 Expect this in every repo where the ruleset is rolled out.
 

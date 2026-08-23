@@ -7,7 +7,6 @@ import { refreshProductSearchText } from "@/features/products/db/products";
 import { recordSlugChanges } from "@/lib/seo/slugHistory";
 import { createWithUniqueSlugRetry } from "@/lib/db/uniqueSlugRetry";
 import { DEFAULT_LOCALE, NON_DEFAULT_LOCALES } from "@/i18n/config";
-import { Prisma } from "@/generated/prisma/client";
 import type { BrandTranslations } from "../utils/translations";
 import type { LogoBackdrop } from "../components/BrandLogo";
 import { analyzeLogoBackdrop } from "../utils/analyzeLogo";
@@ -279,7 +278,7 @@ export async function updateBrand(id: string, data: BrandMutationData) {
 
   if (searchableChanged) {
     for (const p of products) {
-      await refreshProductSearchText(prisma as unknown as Prisma.TransactionClient, p.id);
+      await refreshProductSearchText(prisma, p.id);
     }
   }
 

@@ -69,6 +69,14 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
+      # Replays prisma/migrations into a scratch database and diffs the result
+      # against schema.prisma. Catches the class of bug where the two drift
+      # apart silently and the difference later rides along inside an unrelated
+      # migration - see the header of the script for the incident it comes from.
+      # Runs here because this job already has a Postgres service to borrow.
+      - name: Check migration drift
+        run: npm run db:check-drift
+
       - name: Integration tests
         # globalSetup applies migrations (prisma migrate deploy) to the service DB.
         run: npm run test:integration

@@ -14,6 +14,7 @@
     "sst:secret": "sst secret",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "typecheck:infra": "tsc -p tsconfig.infra.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -27,6 +28,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:create-migration": "prisma migrate dev --name",
+    "db:check-drift": "node scripts/check-migration-drift.mjs",
     "db:reset": "prisma migrate reset --force",
     "db:seed": "npx tsx prisma/seed.ts"
   },

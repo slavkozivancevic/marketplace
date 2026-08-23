@@ -1,5 +1,6 @@
 "use server";
-import { logger } from "@/lib/logger";
+import { logger, captureError } from "@/lib/logger";
+import { observeRequest } from "@/lib/observability/requestContext";
 
 import { auth } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
@@ -27,7 +28,22 @@ export type CodShippingInput = {
   country: string;
 };
 
+// Observed (ROADMAP #23) - see the note on createCheckoutSession. Same shape,
+// tagged `paymentMethod: "cod"` so one alarm covers both rails while the
+// dashboard can still tell them apart.
 export async function createCodCheckout(
+  items: CheckoutCartItem[],
+  shipping: CodShippingInput,
+  couponCode?: string,
+): Promise<{ orderId: string } | ActionErrorResult> {
+  return observeRequest(
+    "action createCodCheckout",
+    () => runCodCheckout(items, shipping, couponCode),
+    { statusOf: (result) => ("error" in result ? 400 : 200) },
+  );
+}
+
+async function runCodCheckout(
   items: CheckoutCartItem[],
   shipping: CodShippingInput,
   couponCode?: string,
@@ -158,7 +174,7 @@ export async function createCodCheckout(
 
     return { orderId: order.id };
   } catch (err) {
-    logger.error("[createCodCheckout]", err);
+    captureError(err, { event: "checkout_failed", paymentMethod: "cod" });
     return handleActionError(err);
   }
 }

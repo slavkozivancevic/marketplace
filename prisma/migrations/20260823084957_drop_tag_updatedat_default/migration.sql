@@ -1,0 +1,12 @@
+-- AlterTable
+--
+-- Removes drift that had been sitting since 20260807011021, where `updatedAt`
+-- was added to an existing `Tag` table and needed `DEFAULT CURRENT_TIMESTAMP`
+-- purely to backfill the rows already there. The default was a migration
+-- mechanic, never a modelling decision - schema.prisma never declared it, and
+-- the other 11 models with `updatedAt` have none.
+--
+-- Safe: `@updatedAt` means Prisma always supplies the value on write, and no
+-- raw SQL inserts into `Tag` exist. Existing rows keep their values; dropping a
+-- default is a catalog change, not a table rewrite.
+ALTER TABLE "Tag" ALTER COLUMN "updatedAt" DROP DEFAULT;

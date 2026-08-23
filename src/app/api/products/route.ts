@@ -1,4 +1,5 @@
-import { logger } from "@/lib/logger";
+import { captureError } from "@/lib/logger";
+import { observedRoute } from "@/lib/observability/requestContext";
 import { decimalToCents } from "@/lib/currency";
 import { NextResponse, type NextRequest } from "next/server";
 import { connection } from "next/server";
@@ -23,7 +24,10 @@ function parseOptionalFloat(value: string | null): number | undefined {
   return isNaN(n) ? undefined : n;
 }
 
-export async function GET(req: NextRequest) {
+// Observed (ROADMAP #23): the heaviest read path in the app - faceted search
+// with attribute filters. Its `dbQueries` count is the N+1 canary for the
+// catalog, and its duration is what a slow-index regression shows up in first.
+export const GET = observedRoute("GET /api/products", async (req: NextRequest) => {
   await connection();
 
   const limited = await rateLimitResponse("search", await getClientIp());
@@ -86,10 +90,10 @@ export async function GET(req: NextRequest) {
     });
     return NextResponse.json(result);
   } catch (error) {
-    logger.error("[/api/products] failed", error);
+    captureError(error);
     return NextResponse.json(
       { error: "Failed to load products" },
       { status: 500 },
     );
   }
-}
+});

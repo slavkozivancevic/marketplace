@@ -11,8 +11,14 @@ generator client {
 }
 
 datasource db {
-  provider   = "postgresql"
-  extensions = [pgTrgm(map: "pg_trgm")]
+  provider = "postgresql"
+  // `postgresqlExtensions` is on, so Prisma OWNS this list: an extension that
+  // exists in the database but is missing here gets a DROP in the next
+  // generated migration. pgStatStatements is therefore declared even though
+  // nothing in the schema references it - it is the query-cost view behind our
+  // slow-query work (ROADMAP #23), and dropping it would silently remove the
+  // only place that shows a fast-but-called-a-thousand-times query.
+  extensions = [pgTrgm(map: "pg_trgm"), pgStatStatements(map: "pg_stat_statements")]
 }
 
 enum UserRole {

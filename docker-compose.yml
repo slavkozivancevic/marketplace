@@ -4,6 +4,18 @@ services:
 
     container_name: marketplace-postgres
 
+    # `pg_stat_statements` needs its library loaded at server start - CREATE
+    # EXTENSION alone leaves the view unreadable ("must be loaded via
+    # shared_preload_libraries"). Neon preloads it for us; the stock postgres
+    # image does not, so local would silently lack the one tool that shows a
+    # query's *total* cost across calls (ROADMAP #23).
+    #
+    # Takes effect on the next `docker compose up -d`, which recreates the
+    # container - data survives, it lives in the named volume below.
+    command: postgres -c shared_preload_libraries=pg_stat_statements
+
+
+
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres

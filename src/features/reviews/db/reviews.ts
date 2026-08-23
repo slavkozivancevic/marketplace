@@ -1,8 +1,8 @@
-import { prisma } from "@/core/db/prisma";
+import { prisma, type TransactionClient } from "@/core/db/prisma";
 import { cacheTag } from "next/cache";
 import { CacheTags } from "@/lib/cache/tags";
 import { SerializedProductReview } from "@/types/types";
-import { Prisma, ReviewStatus } from "@/generated/prisma/client";
+import { ReviewStatus } from "@/generated/prisma/client";
 import { revalidateReviewCache } from "./cache";
 
 /**
@@ -11,7 +11,7 @@ import { revalidateReviewCache } from "./cache";
  * caller's transaction so the review change and the aggregate stay consistent.
  */
 async function recomputeRating(
-  tx: Prisma.TransactionClient,
+  tx: TransactionClient,
   productId: string,
 ): Promise<void> {
   const aggregate = await tx.productReview.aggregate({

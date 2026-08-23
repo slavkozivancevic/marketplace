@@ -7,7 +7,6 @@ import { refreshProductSearchText } from "@/features/products/db/products";
 import { recordSlugChanges } from "@/lib/seo/slugHistory";
 import { createWithUniqueSlugRetry } from "@/lib/db/uniqueSlugRetry";
 import { DEFAULT_LOCALE, NON_DEFAULT_LOCALES } from "@/i18n/config";
-import { Prisma } from "@/generated/prisma/client";
 
 // ---------- Translation types & helpers ----------
 
@@ -478,7 +477,7 @@ export async function updateCategory(id: string, data: CategoryMutationData) {
       select: { productId: true },
     });
     for (const pc of productCategories) {
-      await refreshProductSearchText(prisma as unknown as Prisma.TransactionClient, pc.productId);
+      await refreshProductSearchText(prisma, pc.productId);
     }
   }
 
