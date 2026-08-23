@@ -20,6 +20,10 @@ export const MAX_FILES = 10;
 
 export const IMAGE_ZOOM_FACTOR = 2.5;
 export const IMAGE_ZOOM_LENS_SIZE = 180;
+// How long the touch zoom hint keeps its text label before collapsing to the
+// bare icon. Long enough to notice and read mid-scroll, short enough that it
+// isn't sitting on top of the product photo while someone studies it.
+export const IMAGE_ZOOM_HINT_LABEL_MS = 4500;
 
 // S3 object tag used by the bucket lifecycle rule to sweep abandoned uploads
 // after 24h. Shared between server (presigned URL + processors) and client

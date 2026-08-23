@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { Maximize2, PlayCircle } from "lucide-react";
 import { RetryImage } from "@/components/RetryImage";
 import {
@@ -12,6 +13,7 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { MediaLightbox, type VideoHandoff } from "@/components/product/MediaLightbox";
+import { ZoomHint, useZoomHint } from "@/components/product/ZoomHint";
 import { cn } from "@/lib/utils";
 import { IMAGE_ZOOM_FACTOR, IMAGE_ZOOM_LENS_SIZE } from "@/constants/constants";
 import type { MediaType } from "@/generated/prisma/client";
@@ -53,6 +55,7 @@ export function ProductImageCarousel({
   jumpToMediaId,
   jumpTicket,
 }: ProductImageCarouselProps) {
+  const t = useTranslations("products");
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -122,6 +125,9 @@ export function ProductImageCarousel({
   // the check stays in sync without waiting on a re-render) to keep embla
   // from also treating that same drag as a slide change.
   const [zoomedIndex, setZoomedIndex] = useState<number | null>(null);
+  // Touch-only badge that advertises that double-tap, since there is no
+  // cursor here to do it. See ZoomHint.
+  const zoomHint = useZoomHint();
   const zoomedIndexRef = useRef<number | null>(null);
   useEffect(() => {
     zoomedIndexRef.current = zoomedIndex;
@@ -215,6 +221,9 @@ export function ProductImageCarousel({
     if (isDoubleTap) {
       clearTapTimer();
       lastTapRef.current = null;
+      // The gesture just got used, so the hint has served its purpose -
+      // drop the label for good rather than waiting out its timer.
+      zoomHint.dismiss();
       setZoomedIndex(index);
       setZoomFromPoint(e.currentTarget, touch.clientX, touch.clientY, index);
       return;
@@ -495,6 +504,17 @@ export function ProductImageCarousel({
                               </div>
                             );
                           })()}
+                        {/* Held back until the photo is actually painted -
+                            advertising a zoom over a blank shimmer points at
+                            nothing, and waiting lets the badge's entrance
+                            animation land with the image. */}
+                        {zoomHint.visible && loadedImages.has(index) && (
+                          <ZoomHint
+                            label={t("doubleTapToZoom")}
+                            expanded={zoomHint.expanded}
+                            muted={zoomedIndex === index}
+                          />
+                        )}
                       </>
                     )}
                   </div>
