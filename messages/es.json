@@ -220,6 +220,7 @@
     "createdBy": "Creado por",
     "actions": "Acciones",
     "noImage": "Sin imagen",
+    "doubleTapToZoom": "Toca dos veces para ampliar",
     "deleteConfirm": "¿Eliminar \"{title}\"?",
     "cannotUndo": "Esta acción no se puede deshacer.",
     "duplicated": "Producto duplicado",

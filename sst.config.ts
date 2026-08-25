@@ -240,6 +240,10 @@ export default $config({
     // $0.30 each. High-cardinality questions ("which model is slow?") are
     // answered from the logs with Logs Insights instead, for free.
     //
+    // Declared out here so its ARN can be surfaced as a stack output - it is
+    // the one value that has to be pasted back into Grafana by hand.
+    let grafanaReader: aws.iam.Role | undefined;
+
     // Real stages only. `sst dev` runs the app locally - there is no deployed
     // log group to attach to, and alarms for a laptop are noise.
     if (stage === "staging" || stage === "production") {
@@ -417,6 +421,93 @@ export default $config({
         evaluationPeriods: 1,
         alarmDescription: "Server function is being throttled (concurrency limit).",
       });
+
+      // ── Grafana Cloud read access ──────────────────────────────────────
+      //
+      // Grafana Cloud is the dashboard layer only; it reads CloudWatch and
+      // stores nothing. It authenticates by assuming this role - no access key
+      // ever leaves AWS, and nothing here can write.
+      //
+      // The external ID is the guard against the confused-deputy problem: the
+      // role ARN is not a secret, and without this condition anyone else's
+      // Grafana stack could ask Grafana's shared AWS account to assume it. Both
+      // values below come from the data source's own setup panel and are
+      // specific to the `marketverse` stack - recreating that stack issues a new
+      // external ID, and this must be updated to match or the connection dies.
+      const GRAFANA_CLOUD_AWS_ACCOUNT_ID = "008923505280";
+      const GRAFANA_STACK_EXTERNAL_ID = "1805821";
+
+      const accountId = aws.getCallerIdentityOutput().accountId;
+
+      grafanaReader = new aws.iam.Role("GrafanaCloudWatchReader", {
+        name: `marketplace-${stage}-grafana-cloudwatch-reader`,
+        description: "Read-only CloudWatch access for the Grafana Cloud data source.",
+        assumeRolePolicy: JSON.stringify({
+          Version: "2012-10-17",
+          Statement: [
+            {
+              Effect: "Allow",
+              Principal: { AWS: `arn:aws:iam::${GRAFANA_CLOUD_AWS_ACCOUNT_ID}:root` },
+              Action: "sts:AssumeRole",
+              Condition: { StringEquals: { "sts:ExternalId": GRAFANA_STACK_EXTERNAL_ID } },
+            },
+          ],
+        }),
+      });
+
+      new aws.iam.RolePolicy("GrafanaCloudWatchReaderPolicy", {
+        role: grafanaReader.id,
+        policy: accountId.apply((id) =>
+          JSON.stringify({
+            Version: "2012-10-17",
+            Statement: [
+              {
+                // CloudWatch metrics and alarms have no resource-level
+                // permissions to scope to - these actions are all-or-nothing on
+                // "*". They are read-only, so the blast radius is visibility.
+                Sid: "ReadMetricsAndAlarms",
+                Effect: "Allow",
+                Action: [
+                  "cloudwatch:ListMetrics",
+                  "cloudwatch:GetMetricData",
+                  "cloudwatch:GetMetricStatistics",
+                  "cloudwatch:DescribeAlarms",
+                  "cloudwatch:DescribeAlarmHistory",
+                  "cloudwatch:DescribeAlarmsForMetric",
+                  "tag:GetResources",
+                ],
+                Resource: "*",
+              },
+              {
+                // Listing has to be account-wide for the log-group picker to
+                // enumerate anything at all...
+                Sid: "ListLogGroups",
+                Effect: "Allow",
+                Action: ["logs:DescribeLogGroups"],
+                Resource: "*",
+              },
+              {
+                // ...but actually reading log CONTENT is scoped to this app's
+                // own log groups. Grafana can query our Lambdas and nothing
+                // else in the account.
+                Sid: "QueryOwnLogs",
+                Effect: "Allow",
+                Action: [
+                  "logs:GetLogGroupFields",
+                  "logs:StartQuery",
+                  "logs:StopQuery",
+                  "logs:GetQueryResults",
+                  "logs:GetLogEvents",
+                ],
+                Resource: [
+                  `arn:aws:logs:eu-central-1:${id}:log-group:/aws/lambda/marketplace-${stage}-*`,
+                  `arn:aws:logs:eu-central-1:${id}:log-group:/aws/lambda/marketplace-${stage}-*:*`,
+                ],
+              },
+            ],
+          }),
+        ),
+      });
     }
 
     // Close the callback loop: the notifications + conversation-search Lambdas
@@ -437,6 +528,7 @@ export default $config({
     return {
       url: web.url,
       mediaBucket: media.name,
+      ...(grafanaReader ? { grafanaRoleArn: grafanaReader.arn } : {}),
     };
   },
 });

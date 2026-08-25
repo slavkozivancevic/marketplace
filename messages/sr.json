@@ -220,6 +220,7 @@
     "createdBy": "Kreirao",
     "actions": "Akcije",
     "noImage": "Nema slike",
+    "doubleTapToZoom": "Dvaput dodirnite za uvećanje",
     "deleteConfirm": "Obriši \"{title}\"?",
     "cannotUndo": "Ova akcija se ne može poništiti.",
     "duplicated": "Proizvod dupliran",

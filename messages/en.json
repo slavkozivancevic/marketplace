@@ -220,6 +220,7 @@
     "createdBy": "Created by",
     "actions": "Actions",
     "noImage": "No image",
+    "doubleTapToZoom": "Double-tap to zoom",
     "deleteConfirm": "Delete \"{title}\"?",
     "cannotUndo": "This action cannot be undone.",
     "duplicated": "Product duplicated",
