@@ -1,0 +1,517 @@
+{
+  "title": "MarketVerse - Service health",
+  "uid": "marketverse-service-health",
+  "description": "Reads CloudWatch only (ROADMAP #23). Metrics come from metric filters over the app's JSON log lines; the routes table comes from Logs Insights, because route is deliberately not a metric dimension - each one would be a separate custom metric at $0.30/month.",
+  "tags": ["marketverse", "staging"],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "5m",
+  "timezone": "browser",
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "CloudWatch",
+        "type": "datasource",
+        "query": "cloudwatch",
+        "hide": 0,
+        "refresh": 1,
+        "current": {}
+      },
+      {
+        "name": "serverFn",
+        "label": "Server function",
+        "description": "Lambda function name. Pulumi appends a random suffix, so this changes if the function is ever replaced.",
+        "type": "constant",
+        "hide": 2,
+        "query": "marketplace-staging-WebServerEucentral1Function-hertbxvr",
+        "current": {
+          "text": "marketplace-staging-WebServerEucentral1Function-hertbxvr",
+          "value": "marketplace-staging-WebServerEucentral1Function-hertbxvr"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Request latency (p50 / p95 / p99)",
+      "description": "Three questions asked of one metric, not three metrics. p50 is the typical request; p99 is the one nobody talks about until it is a support ticket. Log scale on purpose - a single cold start would otherwise flatten normal traffic to a line at zero.",
+      "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "auto",
+            "scaleDistribution": { "type": "log", "log": 10 }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": ["lastNotNull", "max"]
+        },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "default",
+          "namespace": "MarketVerse/staging",
+          "metricName": "RequestDurationMs",
+          "dimensions": {},
+          "matchExact": false,
+          "statistic": "p50",
+          "period": "",
+          "label": "p50"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "default",
+          "namespace": "MarketVerse/staging",
+          "metricName": "RequestDurationMs",
+          "dimensions": {},
+          "matchExact": false,
+          "statistic": "p95",
+          "period": "",
+          "label": "p95"
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "default",
+          "namespace": "MarketVerse/staging",
+          "metricName": "RequestDurationMs",
+          "dimensions": {},
+          "matchExact": false,
+          "statistic": "p99",
+          "period": "",
+          "label": "p99"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Where the time goes: total vs database (p95)",
+      "description": "The gap between the two lines is everything that is NOT the database - rendering, serialization, external calls. When they move together the database is the bottleneck; when only the top line rises, it is our code.",
+      "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "scaleDistribution": { "type": "log", "log": 10 }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": ["lastNotNull", "max"]
+        },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "default",
+          "namespace": "MarketVerse/staging",
+          "metricName": "RequestDurationMs",
+          "dimensions": {},
+          "matchExact": false,
+          "statistic": "p95",
+          "period": "",
+          "label": "total p95"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "default",
+          "namespace": "MarketVerse/staging",
+          "metricName": "DbTimeMs",
+          "dimensions": {},
+          "matchExact": false,
+          "statistic": "p95",
+          "period": "",
+          "label": "database p95"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Queries per request (N+1 detector)",
+      "description": "Maximum, not average: one request issuing hundreds of queries is the bug, and averaging it against healthy traffic buries it. The red line is the alarm threshold (30) defined in sst.config.ts.",
+      "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "thresholdsStyle": { "mode": "line" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 30 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": ["lastNotNull", "max"]
+        },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "default",
+          "namespace": "MarketVerse/staging",
+          "metricName": "QueriesPerRequest",
+          "dimensions": {},
+          "matchExact": false,
+          "statistic": "Maximum",
+          "period": "",
+          "label": "worst request"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "default",
+          "namespace": "MarketVerse/staging",
+          "metricName": "QueriesPerRequest",
+          "dimensions": {},
+          "matchExact": false,
+          "statistic": "Average",
+          "period": "",
+          "label": "average"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Failures",
+      "description": "Bars, not lines: these are counts of discrete events, and a line between two failures implies failures in between that never happened. CheckoutFailures and WebhookFailures alarm at 1 - a single one means money moved and the order may not have. 'slow queries' here excludes database wake-ups, which have their own panel.",
+      "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 70,
+            "barAlignment": 0,
+            "stacking": { "mode": "normal", "group": "A" }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "webhook failures" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "dark-red" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "checkout failures" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "slow queries" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } }]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": ["sum"]
+        },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "default",
+          "namespace": "MarketVerse/staging",
+          "metricName": "WebhookFailures",
+          "dimensions": {},
+          "matchExact": false,
+          "statistic": "Sum",
+          "period": "",
+          "label": "webhook failures"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "default",
+          "namespace": "MarketVerse/staging",
+          "metricName": "CheckoutFailures",
+          "dimensions": {},
+          "matchExact": false,
+          "statistic": "Sum",
+          "period": "",
+          "label": "checkout failures"
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "default",
+          "namespace": "MarketVerse/staging",
+          "metricName": "Http5xx",
+          "dimensions": {},
+          "matchExact": false,
+          "statistic": "Sum",
+          "period": "",
+          "label": "http 5xx"
+        },
+        {
+          "refId": "D",
+          "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "default",
+          "namespace": "MarketVerse/staging",
+          "metricName": "AppErrors",
+          "dimensions": {},
+          "matchExact": false,
+          "statistic": "Sum",
+          "period": "",
+          "label": "app errors"
+        },
+        {
+          "refId": "E",
+          "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "default",
+          "namespace": "MarketVerse/staging",
+          "metricName": "SlowQueries",
+          "dimensions": {},
+          "matchExact": false,
+          "statistic": "Sum",
+          "period": "",
+          "label": "slow queries"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Lambda: cold start vs warm duration",
+      "description": "The blind spot of our own instrumentation. observeRequest starts timing inside the handler, but InitDuration happens BEFORE that - module loading, Node bootstrap. A user waiting 6s while our metric reports 2s is looking at this panel's gap.",
+      "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "scaleDistribution": { "type": "log", "log": 10 }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": ["lastNotNull", "max"]
+        },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "default",
+          "namespace": "AWS/Lambda",
+          "metricName": "InitDuration",
+          "dimensions": { "FunctionName": "$serverFn" },
+          "matchExact": true,
+          "statistic": "p95",
+          "period": "",
+          "label": "cold start p95"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "default",
+          "namespace": "AWS/Lambda",
+          "metricName": "Duration",
+          "dimensions": { "FunctionName": "$serverFn" },
+          "matchExact": true,
+          "statistic": "p95",
+          "period": "",
+          "label": "invocation p95"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Database wake-ups",
+      "description": "How often a request paid for Neon resuming a suspended compute. Neither a bug nor fixable under the Free plan: scale-to-zero is fixed at 5 minutes and cannot be disabled, and keeping the compute awake would burn the 100 CU-hour monthly allowance and suspend the database outright. Split out of SlowQueries so that signal means 'this query needs optimising' again - a wake was reporting an indexed findUnique at 796ms.",
+      "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 4, "x": 8, "y": 16 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "fixed", "fixedColor": "purple" },
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 70,
+            "barAlignment": 0
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": ["sum"]
+        },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+          "queryMode": "Metrics",
+          "metricQueryType": 0,
+          "metricEditorMode": 0,
+          "region": "default",
+          "namespace": "MarketVerse/staging",
+          "metricName": "DbColdStarts",
+          "dimensions": {},
+          "matchExact": false,
+          "statistic": "Sum",
+          "period": "",
+          "label": "wake-ups"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Routes (from logs, not metrics)",
+      "description": "route is NOT a metric dimension - each value would be a separate custom metric at $0.30/month. High-cardinality questions are answered from the log lines instead, at the cost of a Logs Insights scan. This is the cheap half of the design.",
+      "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "avg_ms" },
+            "properties": [{ "id": "unit", "value": "ms" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "p95_ms" },
+            "properties": [{ "id": "unit", "value": "ms" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "avg_db_ms" },
+            "properties": [{ "id": "unit", "value": "ms" }]
+          }
+        ]
+      },
+      "options": { "showHeader": true },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "cloudwatch", "uid": "${datasource}" },
+          "queryMode": "Logs",
+          "region": "default",
+          "id": "",
+          "logGroups": [
+            {
+              "arn": "arn:aws:logs:eu-central-1:134619647375:log-group:/aws/lambda/marketplace-staging-WebServerEucentral1Function-bbmwmtzw:*",
+              "name": "/aws/lambda/marketplace-staging-WebServerEucentral1Function-bbmwmtzw",
+              "accountId": "134619647375"
+            }
+          ],
+          "expression": "filter msg = \"request\"\n| stats count(*) as requests, avg(durationMs) as avg_ms, pct(durationMs, 95) as p95_ms, avg(dbMs) as avg_db_ms, max(dbQueries) as max_queries by route\n| sort requests desc",
+          "statsGroups": ["route"]
+        }
+      ]
+    }
+  ]
+}

@@ -233,7 +233,7 @@ export default $config({
     // same as Embedded Metric Format but needs no instrumentation library.
     //
     // BUDGET - the free tier is 10 custom metrics and 10 alarm metrics, and we
-    // stay inside it deliberately (see ROADMAP #23): 8 filters, 8 alarms, no
+    // stay inside it deliberately (see ROADMAP #23): 9 filters, 8 alarms, no
     // composite alarm (those are $0.50/month and CodeDeploy accepts a plain
     // list of up to 10 alarms anyway). Dimensions are the trap here: making
     // `model` or `route` a dimension would multiply one metric into dozens at
@@ -294,9 +294,18 @@ export default $config({
       // branches with - see captureError(...) in the checkout actions and the
       // Stripe webhook.
       countMetric("AppErrors", '{ $.level = "error" }');
-      countMetric("SlowQueries", '{ $.msg = "slow_query" }');
       countMetric("CheckoutFailures", '{ $.event = "checkout_failed" }');
       countMetric("WebhookFailures", '{ $.event = "webhook_failed" }');
+
+      // A query worth optimising...
+      countMetric("SlowQueries", '{ $.msg = "slow_query" }');
+      // ...versus the price of Neon resuming a suspended compute. Same symptom
+      // (a slow query), completely different response: one is a bug, the other
+      // is a property of the Free plan, where scale-to-zero cannot be turned
+      // off and keeping the compute awake would exhaust the monthly CU-hour
+      // allowance and suspend the database outright. Counted separately so the
+      // slow-query signal means what it says - see src/lib/observability/idleGap.ts.
+      countMetric("DbColdStarts", '{ $.msg = "db_cold_start" }');
 
       // Alarms notify this topic. The email subscription is deliberately NOT in
       // IaC: SNS email subscriptions sit in `PendingConfirmation` until a human
