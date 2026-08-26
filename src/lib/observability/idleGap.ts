@@ -29,6 +29,37 @@
  */
 export const COLD_GAP_MS = 60_000;
 
+/**
+ * A resume is not one slow query, it is a slow few seconds.
+ *
+ * Measured on staging, every single cluster looked like this - one query
+ * carrying the resume, then a tail of queries still paying for connections and
+ * caches that had not settled yet:
+ *
+ *   23:56:36  COLD  3150ms  Category.findMany
+ *   23:56:36        203ms   Product.findMany
+ *   23:56:36        204ms   Product.findMany
+ *   23:56:36        205ms   Product.findMany
+ *   ...77 minutes of silence...
+ *
+ * The same `Product.findMany` runs in 12-20ms once warm, so the tail is not a
+ * property of the query. Tagging only the first one left the rest looking like
+ * genuine slow queries, which is the exact confusion this module exists to
+ * remove. Ten seconds covers every cluster observed (the longest ran nine).
+ */
+export const COLD_TAIL_MS = 10_000;
+
+/**
+ * Still inside the warm-up wake left behind by a recent resume?
+ *
+ * Kept separate from the gap rule because they answer different questions:
+ * the gap asks "was anything asleep before this query", the tail asks "are we
+ * still recovering from something that was".
+ */
+export function isWithinColdTail(coldUntil: number, now: number): boolean {
+  return now < coldUntil;
+}
+
 export function isAfterIdleGap(
   lastQueryEndedAt: number | undefined,
   now: number,

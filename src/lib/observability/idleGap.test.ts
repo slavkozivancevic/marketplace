@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isAfterIdleGap, COLD_GAP_MS } from "./idleGap";
+import { isAfterIdleGap, isWithinColdTail, COLD_GAP_MS, COLD_TAIL_MS } from "./idleGap";
 
 /**
  * This heuristic decides whether a slow query gets reported as a performance
@@ -37,5 +37,31 @@ describe("isAfterIdleGap", () => {
   it("accepts an explicit gap so the rule can be tuned without touching callers", () => {
     expect(isAfterIdleGap(now - 500, now, 100)).toBe(true);
     expect(isAfterIdleGap(now - 50, now, 100)).toBe(false);
+  });
+});
+
+describe("isWithinColdTail", () => {
+  const now = 1_000_000;
+
+  it("is inside the tail before the window expires", () => {
+    expect(isWithinColdTail(now + 1, now)).toBe(true);
+  });
+
+  it("is outside once the window has passed", () => {
+    expect(isWithinColdTail(now - 1, now)).toBe(false);
+  });
+
+  it("is inert when no resume has been seen (window at zero)", () => {
+    expect(isWithinColdTail(0, now)).toBe(false);
+  });
+
+  it("covers the warm-up clusters actually observed on staging", () => {
+    // The longest measured cluster ran nine seconds from the resume to its
+    // last straggler. A shorter window would let that tail be reported as a
+    // genuine slow query again, which is the bug this exists to prevent.
+    expect(COLD_TAIL_MS).toBeGreaterThanOrEqual(9_000);
+    // ...but it must stay well under the idle gap, or a resume would be
+    // indistinguishable from ordinary traffic.
+    expect(COLD_TAIL_MS).toBeLessThan(COLD_GAP_MS);
   });
 });

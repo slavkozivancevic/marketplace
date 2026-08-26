@@ -2,7 +2,8 @@ import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { logger } from "@/lib/logger";
 import { recordDbQuery } from "@/lib/observability/requestContext";
-import { isAfterIdleGap } from "@/lib/observability/idleGap";
+import { isAfterIdleGap, isWithinColdTail, COLD_TAIL_MS } from "@/lib/observability/idleGap";
+import { isReadOperation, isTransientDbError, RETRY_DELAYS_MS } from "./transientErrors";
 
 /**
  * A query slower than this is worth a line in the log. 200ms is a starting
@@ -19,6 +20,13 @@ const SLOW_QUERY_MS = 200;
  * meaningful question. See `idleGap.ts` for why this matters.
  */
 let lastQueryEndedAt: number | undefined;
+
+/**
+ * Timestamp until which queries are still considered part of a resume. Extended
+ * every time a slow query is attributed to one, so a cluster of warm-up queries
+ * stays labelled as what it is instead of only its first member.
+ */
+let coldUntil = 0;
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL!,
@@ -42,10 +50,62 @@ function createPrismaClient() {
       async $allOperations({ model, operation, args, query }) {
         // Decided BEFORE the query runs: afterwards the gap is zero by
         // definition, because this query has just updated the marker.
-        const cold = isAfterIdleGap(lastQueryEndedAt, Date.now());
+        const issuedAt = Date.now();
+        const idleMs = lastQueryEndedAt === undefined ? null : issuedAt - lastQueryEndedAt;
+        const cold =
+          isAfterIdleGap(lastQueryEndedAt, issuedAt) || isWithinColdTail(coldUntil, issuedAt);
         const startedAt = performance.now();
         try {
-          return await query(args);
+          // Retry loop, not a plain call: a read that fails because Neon is
+          // still resuming becomes a 500 for whoever happened to arrive first,
+          // and that is a waking database rather than a broken one. Writes are
+          // never retried - see transientErrors.ts for why.
+          for (let attempt = 0; ; attempt++) {
+            try {
+              return await query(args);
+            } catch (error) {
+              const canRetry =
+                attempt < RETRY_DELAYS_MS.length &&
+                isReadOperation(operation) &&
+                isTransientDbError(error);
+              if (!canRetry) throw error;
+
+              const delayMs = RETRY_DELAYS_MS[attempt];
+              logger.warn("db_retry", {
+                model: model ?? "raw",
+                operation,
+                attempt: attempt + 1,
+                delayMs,
+                idleMs,
+                cold,
+                reason: ((error as { message?: string })?.message ?? "").slice(0, 120),
+              });
+              await new Promise((resolve) => setTimeout(resolve, delayMs));
+            }
+          }
+        } catch (error) {
+          // A query that THROWS was previously invisible here - the block below
+          // only ever reported slow ones. That gap cost us: staging returned
+          // 500s on cold starts and the cause could not be identified, because
+          // React masks Server Component errors in production ("the specific
+          // message is omitted...") and the underlying database failure was
+          // never logged anywhere.
+          //
+          // Deliberately name/code/truncated-message only. Prisma error text can
+          // carry field names, and there is no reason to risk row values
+          // reaching CloudWatch to diagnose a connection failure.
+          const err = error as { name?: string; code?: string; message?: string };
+          logger.error("db_query_failed", {
+            model: model ?? "raw",
+            operation,
+            durationMs: Math.round(performance.now() - startedAt),
+            idleMs,
+            cold,
+            errorName: err?.name ?? "Unknown",
+            prismaCode: err?.code ?? null,
+            reason: (err?.message ?? "").slice(0, 200),
+          });
+          throw error;
         } finally {
           const durationMs = Math.round(performance.now() - startedAt);
           lastQueryEndedAt = Date.now();
@@ -58,11 +118,22 @@ function createPrismaClient() {
             // will fix. Counting them together made the slow-query signal
             // useless - see idleGap.ts.
             //
+            // A resume is a slow few seconds, not one slow query, so being
+            // cold extends the window over the queries that follow it. Only a
+            // slow one extends it: once queries come back fast the window
+            // lapses on its own and the next genuine regression is visible.
+            if (cold) coldUntil = lastQueryEndedAt + COLD_TAIL_MS;
+
+            // `idleMs` is the evidence behind the label - null on the very
+            // first query of a process. Logging it keeps the classification
+            // auditable instead of asking anyone to trust the heuristic.
+            //
             // `model` is undefined for raw queries ($queryRaw / $executeRaw).
             logger.warn(cold ? "db_cold_start" : "slow_query", {
               model: model ?? "raw",
               operation,
               durationMs,
+              idleMs,
             });
           }
         }
