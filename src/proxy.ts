@@ -7,6 +7,11 @@ import { SluggedEntityType } from "@/generated/prisma/client";
 import { notFoundResponse } from "@/lib/seo/notFoundResponse";
 import { resolveRetiredSlug } from "@/lib/seo/slugHistory";
 import { isScannerPath } from "@/lib/security/scannerPaths";
+import {
+  type EntityDetail,
+  isUnservableStorefrontPath,
+  parseEntityDetail,
+} from "@/lib/seo/storefrontPaths";
 import { THEME_COOKIE_NAME } from "@/providers/theme/constants";
 
 const intlMiddleware = createIntlMiddleware(routing);
@@ -38,53 +43,15 @@ function isSameOriginRequest(req: Parameters<typeof intlMiddleware>[0]): boolean
   }
 }
 
-// First URL segment (across locale aliases) -> entity whose slug we verify.
-const ENTITY_SEGMENTS: Record<string, "product" | "category" | "brand"> = {
-  products: "product", proizvodi: "product", produkte: "product", productos: "product",
-  brands: "brand", brendovi: "brand", marken: "brand", marcas: "brand",
-  categories: "category", kategorije: "category", kategorien: "category", categorias: "category",
-};
-
-const ENTITY_UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /**
- * True when the URL is an entity-detail page (`/{locale}/{products|...}/{slug}`)
- * whose slug resolves to nothing the page would render - i.e. a genuine 404.
- *
- * Why this lives in middleware: with `cacheComponents` (PPR) the prerendered
- * shell flushes a 200 before the page's deep `notFound()` runs, so notFound()
- * can never set a 404 status. Verifying existence up here lets us return a real
- * 404 while keeping PPR on for every valid page. Fail-open: any error resolves
- * to `false`, so a DB hiccup never turns a real page into a 404.
+ * Prisma's discriminator for the slug-history lookup, keyed by the kind that
+ * `parseEntityDetail` reports.
  */
 const ENTITY_TYPE: Record<"product" | "category" | "brand", SluggedEntityType> = {
   product: "PRODUCT",
   category: "CATEGORY",
   brand: "BRAND",
 };
-
-interface EntityDetail {
-  kind: "product" | "category" | "brand";
-  locale: string;
-  segment: string; // the localized URL segment as typed (e.g. "proizvodi")
-  slug: string;
-}
-
-/**
- * Parses an entity-detail URL (`/{locale}/{products|...}/{slug}`) into its
- * parts, or null when the path isn't one (so the request flows on normally).
- * Legacy `/{segment}/<uuid>` URLs are excluded - the page 308-redirects those.
- */
-function parseEntityDetail(pathname: string): EntityDetail | null {
-  const parts = pathname.split("/").filter(Boolean); // [locale, segment, slug]
-  if (parts.length !== 3) return null;
-  const kind = ENTITY_SEGMENTS[parts[1]];
-  if (!kind) return null;
-  const slug = decodeURIComponent(parts[2]);
-  if (ENTITY_UUID_RE.test(slug)) return null;
-  return { kind, locale: parts[0], segment: parts[1], slug };
-}
 
 /** True when the slug resolves to something the page would actually render. */
 async function entityExists(entity: EntityDetail): Promise<boolean> {
@@ -197,6 +164,16 @@ export default clerkMiddleware(async (auth, req) => {
       return new NextResponse("Cross-origin request blocked", { status: 403 });
     }
     return NextResponse.next();
+  }
+
+  // Storefront URLs whose shape no route can serve - extra path depth under
+  // `/products`, `/brands`, `/categories`, or a bare `/categories` that has no
+  // listing page. `publicRoutes` matches those prefixes with `(.*)`, so they
+  // clear auth, match no page, and used to land on the `[...rest]` catch-all,
+  // which answers 200 under PPR. Decided on the URL alone, so no DB round-trip.
+  if (isUnservableStorefrontPath(pathname)) {
+    const locale = pathname.split("/").filter(Boolean)[0];
+    return notFoundResponse(locale, req.cookies.get(THEME_COOKIE_NAME)?.value);
   }
 
   // Entity-detail URLs whose slug doesn't resolve are handled here, before the
