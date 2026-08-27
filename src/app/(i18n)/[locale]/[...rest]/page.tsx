@@ -1,4 +1,3 @@
-import { connection } from "next/server";
 import { notFound } from "next/navigation";
 
 /**
@@ -12,22 +11,16 @@ import { notFound } from "next/navigation";
  * By catching unmatched paths here and explicitly calling notFound(), we
  * force Next to render [locale]/not-found.tsx with the full locale layout
  * chain (provider + chrome) wrapped around it.
+ *
+ * This renders 404 CONTENT under a 200 STATUS, and cannot be made to do
+ * otherwise. Under `cacheComponents` (PPR) the layout chain's prerendered
+ * shell is flushed - status line included - before this component runs, so
+ * notFound() has nothing left to change. An `await connection()` here was
+ * deployed to staging to test exactly that and made no difference: the page
+ * still answered 200, because the shell being flushed comes from the layout
+ * above, not from this page. Real 404 statuses are produced in the proxy
+ * instead - see `isUnservableStorefrontPath` and `notFoundResponse`.
  */
-export default async function LocaleCatchAll() {
-  // Opts this route out of the prerendered shell so the miss can answer with a
-  // real 404 status, not just 404 content.
-  //
-  // Under `cacheComponents` (PPR) Next flushes the static shell - headers and
-  // all - before the dynamic boundary runs, so by the time notFound() executes
-  // the response has already committed 200. Measured on staging: /foo/bar and
-  // /en/nepostojeca-stranica both rendered the correct not-found page, with its
-  // `noindex`, under HTTP 200. Search engines honour noindex regardless of
-  // status, so nothing was being indexed - but a 404 that reports 200 is
-  // invisible to link checkers, uptime monitors and our own Http5xx-style
-  // signals, and it is simply not what the protocol says.
-  //
-  // `connection()` marks the render as request-time, which keeps the shell from
-  // being flushed early. Same mechanism /api/health relies on.
-  await connection();
+export default function LocaleCatchAll() {
   notFound();
 }
