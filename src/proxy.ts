@@ -6,6 +6,7 @@ import { prisma } from "@/core/db/prisma";
 import { SluggedEntityType } from "@/generated/prisma/client";
 import { notFoundResponse } from "@/lib/seo/notFoundResponse";
 import { resolveRetiredSlug } from "@/lib/seo/slugHistory";
+import { isScannerPath } from "@/lib/security/scannerPaths";
 import { THEME_COOKIE_NAME } from "@/providers/theme/constants";
 
 const intlMiddleware = createIntlMiddleware(routing);
@@ -173,11 +174,21 @@ const LOCALE_AGNOSTIC_FILES = new Set([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+  const { pathname } = req.nextUrl;
+
+  // Vulnerability scanners, answered before anything else runs. Every error
+  // logged on staging in 24h came from these paths and none from a real page;
+  // letting them through renders a page, which can wake Neon (metered on the
+  // Free plan) and fills the AppErrors metric whose alarm pages a human.
+  // 404 rather than 403: it tells the scanner nothing it did not already know.
+  if (isScannerPath(pathname)) {
+    return new NextResponse(null, { status: 404 });
+  }
+
   if (!publicRoutes(req)) {
     await auth.protect();
   }
 
-  const { pathname } = req.nextUrl;
   if (pathname.startsWith("/api/") || LOCALE_AGNOSTIC_FILES.has(pathname)) {
     // CSRF: reject cross-site state-changing calls to API route handlers.
     // Webhooks (signature-verified) and internal APIs (x-api-key) carry no
