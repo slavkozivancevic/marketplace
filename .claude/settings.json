@@ -28,11 +28,7 @@
       "PowerShell(git diff *)",
       "PowerShell(git log *)",
       "PowerShell(git show *)",
-      "PowerShell(git branch *)",
-      "Read(//d/SourceCode/marketplace-notifications/**)",
-      "Read(//d/SourceCode/marketplace-messaging/**)",
-      "Read(//d/SourceCode/marketplace-conversation-search/**)",
-      "Read(//d/SourceCode/Roadmap/**)"
+      "PowerShell(git branch *)"
     ],
     "deny": [
       "Bash(git commit *)",
@@ -70,12 +66,7 @@
       "Edit(./sst.config.ts)",
       "Edit(./prisma/schema.prisma)"
     ],
-    "additionalDirectories": [
-      "d:/SourceCode/marketplace-notifications",
-      "d:/SourceCode/marketplace-messaging",
-      "d:/SourceCode/marketplace-conversation-search",
-      "d:/SourceCode/Roadmap"
-    ]
+    "_comment": "Machine-specific paths belong in .claude/settings.local.json, which is gitignored. This file is shared, so every rule in it must be true on any checkout."
   },
   "hooks": {
     "PreToolUse": [
