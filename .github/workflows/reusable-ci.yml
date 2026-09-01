@@ -42,3 +42,9 @@ jobs:
 
       - name: Unit tests
         run: npm run test --if-present
+
+      # Set comparison over messages/*.json. A key present in en but missing in
+      # de renders the raw dotted path in the UI, which typecheck cannot see.
+      # Cheap and deterministic, so it belongs here rather than in any review.
+      - name: Locale key parity
+        run: npm run check:locales --if-present

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { DEFAULT_LOCALE, isLocale } from "@/i18n/config";
+import { localizedSegment } from "@/lib/seo/storefrontPaths";
 import { HERO_IMAGE_URL } from "@/components/layout/hero-image";
 
 /**
@@ -146,15 +147,6 @@ const COPY: Record<string, Copy> = {
       copyright: "© {year} MarketVerse. Todos los derechos reservados.",
     },
   },
-};
-
-// Localized URL segments for the storefront list pages, so the header/footer
-// links point at the visitor's locale (mirrors routing.pathnames).
-const NAV_SEGMENTS: Record<string, { products: string; brands: string }> = {
-  en: { products: "products", brands: "brands" },
-  sr: { products: "proizvodi", brands: "brendovi" },
-  de: { products: "produkte", brands: "marken" },
-  es: { products: "productos", brands: "marcas" },
 };
 
 // App design tokens (see globals.css) inlined so this standalone page matches
@@ -315,7 +307,14 @@ function escapeHtml(value: string): string {
 export function notFoundResponse(locale: string, theme?: string): NextResponse {
   const lang = isLocale(locale) ? locale : DEFAULT_LOCALE;
   const t = COPY[lang] ?? COPY[DEFAULT_LOCALE];
-  const seg = NAV_SEGMENTS[lang] ?? NAV_SEGMENTS[DEFAULT_LOCALE];
+  // Localized URL segments for the storefront list pages, so the header/footer
+  // links point at the visitor's locale. Read from routing.pathnames rather
+  // than a copy of it: a hand-mirrored table here silently pointed one locale
+  // at a dead link after any segment rename.
+  const seg = {
+    products: localizedSegment("product", lang),
+    brands: localizedSegment("brand", lang),
+  };
   const home = `/${lang}`;
   const copyright = t.footer.copyright.replace("{year}", String(new Date().getFullYear()));
 

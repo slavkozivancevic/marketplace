@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { isUnservableStorefrontPath, parseEntityDetail } from "./storefrontPaths";
+import {
+  ENTITY_SEGMENTS,
+  isUnservableStorefrontPath,
+  localizedSegment,
+  parseEntityDetail,
+} from "./storefrontPaths";
 
 describe("isUnservableStorefrontPath", () => {
   it("rejects extra depth under a storefront segment", () => {
@@ -18,6 +23,15 @@ describe("isUnservableStorefrontPath", () => {
 
   it("rejects a bare categories path, which has no listing page", () => {
     for (const path of ["/en/categories", "/sr/kategorije", "/de/kategorien", "/es/categorias"]) {
+      expect(isUnservableStorefrontPath(path), path).toBe(true);
+    }
+  });
+
+  it("rejects a detail slug with malformed percent-encoding", () => {
+    // decodeURIComponent throws URIError on these. Handling them on the URL
+    // alone keeps them out of the database path and out of the 500s that an
+    // uncaught throw in the proxy would produce.
+    for (const path of ["/en/products/%", "/sr/proizvodi/caf%C3", "/de/marken/%E0%A4%A"]) {
       expect(isUnservableStorefrontPath(path), path).toBe(true);
     }
   });
@@ -66,6 +80,16 @@ describe("isUnservableStorefrontPath", () => {
       expect(isUnservableStorefrontPath(path), path).toBe(false);
     }
   });
+
+  it("does not treat inherited Object members as storefront segments", () => {
+    // `ENTITY_SEGMENTS[segment]` would resolve these off the prototype, hand
+    // back a truthy kind outside the union, and buy a needless Neon-waking
+    // query. `/en/valueOf` must be an ordinary unknown path, not a bare
+    // listing miss.
+    for (const path of ["/en/valueOf", "/en/constructor/x", "/en/toString/a/b"]) {
+      expect(isUnservableStorefrontPath(path), path).toBe(false);
+    }
+  });
 });
 
 describe("parseEntityDetail", () => {
@@ -75,6 +99,7 @@ describe("parseEntityDetail", () => {
       locale: "sr",
       segment: "proizvodi",
       slug: "neki-slug",
+      isId: false,
     });
   });
 
@@ -82,15 +107,59 @@ describe("parseEntityDetail", () => {
     expect(parseEntityDetail("/en/brands/caf%C3%A9")?.slug).toBe("café");
   });
 
-  it("skips legacy uuid URLs, which the page 308-redirects itself", () => {
-    expect(
-      parseEntityDetail("/en/products/3f2504e0-4f89-11d3-9a0c-0305e82c3301"),
-    ).toBeNull();
+  it("returns null for malformed percent-encoding instead of throwing", () => {
+    // parseEntityDetail runs in the proxy outside any try/catch, so a throw
+    // here is a 500 on exactly the junk URLs this module answers with a 404.
+    for (const path of ["/en/products/%", "/sr/proizvodi/caf%C3", "/de/marken/%E0%A4%A"]) {
+      expect(() => parseEntityDetail(path), path).not.toThrow();
+      expect(parseEntityDetail(path), path).toBeNull();
+    }
+  });
+
+  it("flags legacy uuid URLs so they get an existence check keyed by id", () => {
+    // The page 308-redirects these only when the id resolves; otherwise it
+    // calls notFound(), which is a soft 200. So they still need checking.
+    const parsed = parseEntityDetail("/en/products/3f2504e0-4f89-11d3-9a0c-0305e82c3301");
+    expect(parsed?.isId).toBe(true);
+    expect(parsed?.slug).toBe("3f2504e0-4f89-11d3-9a0c-0305e82c3301");
   });
 
   it("returns null for anything that is not a three-part storefront URL", () => {
     for (const path of ["/en/products", "/en/products/a/b", "/en/dashboard/orders"]) {
       expect(parseEntityDetail(path), path).toBeNull();
     }
+  });
+
+  it("returns null for inherited Object members used as a segment", () => {
+    for (const path of ["/en/valueOf/x", "/en/constructor/x", "/en/hasOwnProperty/x"]) {
+      expect(parseEntityDetail(path), path).toBeNull();
+    }
+  });
+});
+
+describe("derivation from routing.pathnames", () => {
+  it("covers every localized alias of all three entity kinds", () => {
+    expect(ENTITY_SEGMENTS).toEqual({
+      products: "product",
+      proizvodi: "product",
+      produkte: "product",
+      productos: "product",
+      brands: "brand",
+      brendovi: "brand",
+      marken: "brand",
+      marcas: "brand",
+      categories: "category",
+      kategorije: "category",
+      kategorien: "category",
+      categorias: "category",
+    });
+  });
+
+  it("resolves the localized listing segment per locale", () => {
+    expect(localizedSegment("product", "sr")).toBe("proizvodi");
+    expect(localizedSegment("brand", "de")).toBe("marken");
+    expect(localizedSegment("category", "es")).toBe("categorias");
+    // Junk locale falls back to the default rather than emitting a dead link.
+    expect(localizedSegment("product", "xx")).toBe("products");
   });
 });

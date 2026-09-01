@@ -1,4 +1,5 @@
-import { isLocale } from "@/i18n/config";
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES, isLocale } from "@/i18n/config";
+import { routing } from "@/i18n/routing";
 
 /**
  * Shape analysis for public storefront URLs, done in the proxy before a page
@@ -13,51 +14,143 @@ import { isLocale } from "@/i18n/config";
  * straight from the proxy carries the status we set, so this is the only place
  * a real 404 can be produced while PPR stays on for every valid page.
  *
- * Only storefront segments are examined here. Everything else that misses
- * (`/{locale}/dashboard/...`, `/{locale}/admin/...`) sits behind
- * `auth.protect()`, which answers with a 307 to sign-in - not a page, so not a
- * soft 200 - and no route table has to be mirrored in middleware. That matters:
- * enumerating the app's 50+ routes up here would silently 404 every new route
- * somebody adds.
+ * SCOPE. This module settles storefront shapes only - the ones decidable from
+ * the URL alone, plus one existence query for detail URLs. It is NOT the
+ * general "does this route exist" check; that lives in `./appRoutes`, which
+ * derives the whole route table from `routing.pathnames`. Both are needed.
+ * An earlier version of this comment claimed non-storefront misses were already
+ * covered because they sit behind `auth.protect()`. That holds only for
+ * signed-out requests: a signed-in user hitting `/en/dashboard/typo` clears
+ * `auth.protect()` and lands on the `[...rest]` catch-all under HTTP 200.
+ * `appRoutes` is what closes that, not this file.
+ *
+ * EVERYTHING BELOW IS DERIVED FROM `routing.pathnames`. It used to be a
+ * hand-copied table. Renaming a localized segment there (say `es: "/productos"`
+ * to `"/articulos"`) left this file stale with every check still green, and for
+ * that entire locale the soft-200 came back, `entityExists` stopped running,
+ * and the SlugHistory 308 silently stopped firing.
  */
 
-// First URL segment (across locale aliases) -> entity whose slug we verify.
-export const ENTITY_SEGMENTS: Record<string, "product" | "category" | "brand"> = {
-  products: "product", proizvodi: "product", produkte: "product", productos: "product",
-  brands: "brand", brendovi: "brand", marken: "brand", marcas: "brand",
-  categories: "category", kategorije: "category", kategorien: "category", categorias: "category",
-};
+export type EntityKind = "product" | "category" | "brand";
 
 /**
- * Storefront kinds that have a listing page at `/{locale}/{segment}`.
- * Categories deliberately have none - they exist only as `[slug]` detail pages
- * - so a bare `/{locale}/categories` is a miss, not a listing.
+ * The `routing.pathnames` keys each entity kind is served by. A kind has a
+ * bare-listing URL only if its `listing` key is actually present in the table -
+ * categories have detail pages only, so `/{locale}/categories` is a miss.
  */
-const KINDS_WITH_LISTING = new Set(["product", "brand"]);
+const ENTITY_ROUTE_KEYS: Record<EntityKind, { listing: string; detail: string }> = {
+  product: { listing: "/products", detail: "/products/[slug]" },
+  brand: { listing: "/brands", detail: "/brands/[slug]" },
+  category: { listing: "/categories", detail: "/categories/[slug]" },
+};
+
+// `routing.pathnames` is typed as a literal map, so asking about a key that may
+// legitimately not be there (there is no `/categories` listing today) is a type
+// error. Read it through one widened view rather than casting at every call.
+const PATHNAMES = routing.pathnames as Record<string, string | Record<string, string>>;
+
+/** Every localized form of one pathnames key, across all locales. */
+export function localizedTemplates(key: string): string[] {
+  const entry = PATHNAMES[key];
+  if (!entry) return [];
+  if (typeof entry === "string") return [entry];
+  return SUPPORTED_LOCALES.map((locale) => entry[locale]).filter(Boolean);
+}
+
+function firstSegment(template: string): string {
+  return template.split("/").filter(Boolean)[0] ?? "";
+}
+
+const ENTITY_KINDS = Object.keys(ENTITY_ROUTE_KEYS) as EntityKind[];
+
+/** First URL segment (across locale aliases) -> entity whose slug we verify. */
+export const ENTITY_SEGMENTS: Record<string, EntityKind> = Object.fromEntries(
+  ENTITY_KINDS.flatMap((kind) =>
+    localizedTemplates(ENTITY_ROUTE_KEYS[kind].detail).map(
+      (template) => [firstSegment(template), kind] as const,
+    ),
+  ),
+);
+
+/** Storefront kinds that have a listing page at `/{locale}/{segment}`. */
+const KINDS_WITH_LISTING = new Set<EntityKind>(
+  ENTITY_KINDS.filter((kind) => localizedTemplates(ENTITY_ROUTE_KEYS[kind].listing).length > 0),
+);
+
+/**
+ * The localized first segment for one kind, e.g. `("brand", "de") -> "marken"`.
+ * Falls back to the default locale so a junk locale still yields a real link.
+ */
+export function localizedSegment(kind: EntityKind, locale: string): string {
+  const entry = PATHNAMES[ENTITY_ROUTE_KEYS[kind].detail];
+  const lang = isLocale(locale) ? locale : DEFAULT_LOCALE;
+  if (typeof entry === "string") return firstSegment(entry);
+  return firstSegment(entry?.[lang] ?? entry?.[DEFAULT_LOCALE] ?? "");
+}
+
+/**
+ * `ENTITY_SEGMENTS` is indexed with an arbitrary URL segment, so a plain
+ * property read would resolve inherited members: `/en/valueOf/x` would hand
+ * back a truthy `kind` outside the union and buy a pointless database query -
+ * the Neon wake-up cost `isScannerPath` exists to avoid.
+ */
+function segmentKind(segment: string): EntityKind | null {
+  return Object.hasOwn(ENTITY_SEGMENTS, segment) ? ENTITY_SEGMENTS[segment] : null;
+}
 
 const ENTITY_UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * `decodeURIComponent` throws URIError on a lone or truncated escape
+ * (`/en/products/%`, `/de/marken/%E0%A4`). This runs in the proxy, outside any
+ * try/catch, so an uncaught throw answers 500 on exactly the malformed URLs
+ * this module exists to answer with a 404 - and scanners send those in bursts,
+ * which is enough to trip the AppErrors alarm and page a human.
+ */
+function decodeSlug(raw: string): string | null {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+}
+
 export interface EntityDetail {
-  kind: "product" | "category" | "brand";
+  kind: EntityKind;
   locale: string;
   segment: string; // the localized URL segment as typed (e.g. "proizvodi")
   slug: string;
+  /**
+   * The `[slug]` segment is a UUID, i.e. a legacy `/{segment}/<uuid>` link.
+   * The page 308-redirects those when the id resolves and calls `notFound()`
+   * when it does not - and that `notFound()` is a soft 200 like any other. So
+   * they still need an existence check, just one keyed by id instead of slug,
+   * with no slug-history lookup afterwards: a UUID was never a retired slug.
+   */
+  isId: boolean;
 }
 
 /**
  * Parses an entity-detail URL (`/{locale}/{products|...}/{slug}`) into its
  * parts, or null when the path isn't one (so the request flows on normally).
- * Legacy `/{segment}/<uuid>` URLs are excluded - the page 308-redirects those.
+ * A malformed percent-encoded slug is null too - `isUnservableStorefrontPath`
+ * has already answered those with a 404 by the time this runs.
  */
 export function parseEntityDetail(pathname: string): EntityDetail | null {
   const parts = pathname.split("/").filter(Boolean); // [locale, segment, slug]
   if (parts.length !== 3) return null;
-  const kind = ENTITY_SEGMENTS[parts[1]];
+  const kind = segmentKind(parts[1]);
   if (!kind) return null;
-  const slug = decodeURIComponent(parts[2]);
-  if (ENTITY_UUID_RE.test(slug)) return null;
-  return { kind, locale: parts[0], segment: parts[1], slug };
+  const slug = decodeSlug(parts[2]);
+  if (slug === null) return null;
+  return {
+    kind,
+    locale: parts[0],
+    segment: parts[1],
+    slug,
+    isId: ENTITY_UUID_RE.test(slug),
+  };
 }
 
 /**
@@ -79,10 +172,13 @@ export function isUnservableStorefrontPath(pathname: string): boolean {
   if (parts.length < 2) return false;
   if (!isLocale(parts[0])) return false;
 
-  const kind = ENTITY_SEGMENTS[parts[1]];
+  const kind = segmentKind(parts[1]);
   if (!kind) return false;
 
   if (parts.length > 3) return true;
   if (parts.length === 2) return !KINDS_WITH_LISTING.has(kind);
-  return false;
+  // A slug that cannot be decoded names no entity, so it is unservable on the
+  // URL alone - same class as extra depth, and it keeps the malformed case out
+  // of the database path entirely.
+  return decodeSlug(parts[2]) === null;
 }
