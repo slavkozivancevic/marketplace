@@ -2,16 +2,19 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import createIntlMiddleware from "next-intl/middleware";
 import { NextResponse } from "next/server";
 import { routing } from "@/i18n/routing";
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from "@/i18n/config";
 import { prisma } from "@/core/db/prisma";
 import { SluggedEntityType } from "@/generated/prisma/client";
 import { notFoundResponse } from "@/lib/seo/notFoundResponse";
 import { resolveRetiredSlug } from "@/lib/seo/slugHistory";
 import { isScannerPath } from "@/lib/security/scannerPaths";
 import {
+  ENTITY_SEGMENTS,
   type EntityDetail,
   isUnservableStorefrontPath,
   parseEntityDetail,
 } from "@/lib/seo/storefrontPaths";
+import { isUnknownLocalePath } from "@/lib/seo/appRoutes";
 import { THEME_COOKIE_NAME } from "@/providers/theme/constants";
 
 const intlMiddleware = createIntlMiddleware(routing);
@@ -53,10 +56,27 @@ const ENTITY_TYPE: Record<"product" | "category" | "brand", SluggedEntityType> =
   brand: "BRAND",
 };
 
-/** True when the slug resolves to something the page would actually render. */
+/**
+ * True when the slug resolves to something the page would actually render.
+ *
+ * For a legacy `/{segment}/<uuid>` URL (`entity.isId`) this mirrors the
+ * lookup the page's own UUID branch does - translation row for the active
+ * locale, falling back to the default one - so the proxy 404s exactly when the
+ * page would have called `notFound()`, and stays out of the way when the page
+ * has a 308 to issue.
+ */
 async function entityExists(entity: EntityDetail): Promise<boolean> {
-  const { kind, slug } = entity;
+  const { kind, slug, isId, locale } = entity;
+  const byId = { in: [locale, DEFAULT_LOCALE] };
+
   if (kind === "product") {
+    if (isId) {
+      const row = await prisma.productTranslation.findFirst({
+        where: { productId: slug, locale: byId },
+        select: { productId: true },
+      });
+      return !!row;
+    }
     const row = await prisma.product.findFirst({
       where: { status: "PUBLISHED", deletedAt: null, translations: { some: { slug } } },
       select: { id: true },
@@ -65,27 +85,34 @@ async function entityExists(entity: EntityDetail): Promise<boolean> {
   }
   if (kind === "category") {
     const row = await prisma.categoryTranslation.findFirst({
-      where: { slug },
+      where: isId ? { categoryId: slug, locale: byId } : { slug },
       select: { categoryId: true },
     });
     return !!row;
   }
   const row = await prisma.brandTranslation.findFirst({
-    where: { slug },
+    where: isId ? { brandId: slug, locale: byId } : { slug },
     select: { brandId: true },
   });
   return !!row;
 }
 
+// `(en|sr|de|es)` built from the locale list rather than typed out, so adding
+// a locale cannot leave half the auth rules behind.
+const LOCALES_GROUP = `(${SUPPORTED_LOCALES.join("|")})`;
+
 /**
  * Routes that don't require authentication. Matched against the URL the
  * browser sent (before next-intl rewrites localized segments back to the
  * canonical path), so localized aliases like `/sr/proizvodi/...`,
- * `/de/produkte/...`, and `/es/productos/...` each need their own entry.
+ * `/de/produkte/...`, and `/es/productos/...` each need their own entry -
+ * generated from `ENTITY_SEGMENTS`, which is itself derived from
+ * `routing.pathnames`. Renaming a segment there used to leave this list stale,
+ * which 307'd anonymous visitors to sign-in on a public product page.
  */
 const publicRoutes = createRouteMatcher([
   "/",
-  "/(en|sr|de|es)",
+  `/${LOCALES_GROUP}`,
   // Non-locale-prefixed sign-in/up too: Clerk's `auth.protect()` redirects
   // using `NEXT_PUBLIC_CLERK_SIGN_IN_URL` which is set to `/sign-in` (locale-
   // agnostic). Without these, the unprefixed URL would re-trigger
@@ -93,24 +120,11 @@ const publicRoutes = createRouteMatcher([
   // middleware redirect to `/<locale>/sign-in`.
   "/sign-in(.*)",
   "/sign-up(.*)",
-  "/(en|sr|de|es)/sign-in(.*)",
-  "/(en|sr|de|es)/sign-up(.*)",
+  `/${LOCALES_GROUP}/sign-in(.*)`,
+  `/${LOCALES_GROUP}/sign-up(.*)`,
   "/api(.*)",
-  // Storefront across every localized URL alias.
-  "/(en|sr|de|es)/products(.*)",
-  "/(en|sr|de|es)/proizvodi(.*)",
-  "/(en|sr|de|es)/produkte(.*)",
-  "/(en|sr|de|es)/productos(.*)",
-  // Brand pages across every localized alias.
-  "/(en|sr|de|es)/brands(.*)",
-  "/(en|sr|de|es)/brendovi(.*)",
-  "/(en|sr|de|es)/marken(.*)",
-  "/(en|sr|de|es)/marcas(.*)",
-  // Category pages across every localized alias.
-  "/(en|sr|de|es)/categories(.*)",
-  "/(en|sr|de|es)/kategorije(.*)",
-  "/(en|sr|de|es)/kategorien(.*)",
-  "/(en|sr|de|es)/categorias(.*)",
+  // Storefront (products / brands / categories) across every localized alias.
+  ...Object.keys(ENTITY_SEGMENTS).map((segment) => `/${LOCALES_GROUP}/${segment}(.*)`),
   // Crawler-facing static routes that Next serves directly (no locale,
   // no auth). Keeping them out of `auth.protect()` so search engines can
   // fetch them anonymously.
@@ -150,6 +164,18 @@ export default clerkMiddleware(async (auth, req) => {
   // 404 rather than 403: it tells the scanner nothing it did not already know.
   if (isScannerPath(pathname)) {
     return new NextResponse(null, { status: 404 });
+  }
+
+  // Locale-prefixed URLs that match no route in any locale. Deliberately
+  // ahead of `auth.protect()`: a URL that does not exist should 404 for
+  // everyone, not 307 signed-out visitors (and Googlebot, and uptime monitors)
+  // to a sign-in page while answering signed-in users with a soft 200. The
+  // route table is generated from `routing.pathnames` and guarded by
+  // `appRoutes.test.ts`, so an unregistered new route fails CI rather than
+  // 404ing in production - see appRoutes.ts.
+  if (isUnknownLocalePath(pathname)) {
+    const locale = pathname.split("/").filter(Boolean)[0];
+    return notFoundResponse(locale, req.cookies.get(THEME_COOKIE_NAME)?.value);
   }
 
   if (!publicRoutes(req)) {
@@ -192,11 +218,14 @@ export default clerkMiddleware(async (auth, req) => {
       exists = true;
     }
     if (!exists) {
-      const currentSlug = await resolveRetiredSlug(
-        ENTITY_TYPE[entity.kind],
-        entity.locale,
-        entity.slug,
-      ).catch(() => null);
+      // A UUID was never a slug, so there is no slug history to consult.
+      const currentSlug = entity.isId
+        ? null
+        : await resolveRetiredSlug(
+            ENTITY_TYPE[entity.kind],
+            entity.locale,
+            entity.slug,
+          ).catch(() => null);
       if (currentSlug) {
         const url = req.nextUrl.clone();
         url.pathname = `/${entity.locale}/${entity.segment}/${encodeURIComponent(currentSlug)}`;

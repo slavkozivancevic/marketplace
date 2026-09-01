@@ -29,6 +29,7 @@
     "db:studio": "prisma studio",
     "db:create-migration": "prisma migrate dev --name",
     "db:check-drift": "node scripts/check-migration-drift.mjs",
+    "check:locales": "node scripts/check-locale-keys.mjs",
     "db:reset": "prisma migrate reset --force",
     "db:seed": "npx tsx prisma/seed.ts"
   },

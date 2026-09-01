@@ -61,3 +61,6 @@ coverage/
 playwright-report/
 test-results/
 /e2e/.auth/
+
+# claude code local overrides (personal, never committed)
+.claude/settings.local.json

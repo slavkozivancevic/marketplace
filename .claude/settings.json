@@ -1,25 +1,110 @@
 {
   "permissions": {
     "allow": [
-      "Bash(timeout 120 bash -c 'sleep 3 *)",
-      "PowerShell(\"ready\")",
-      "Bash(timeout 130 bash -c 'sleep 3 *)",
-      "Bash(echo \"exit=$?\")",
-      "PowerShell(\"deleted\")",
-      "PowerShell(\"deleted orphan BrandProductCardPrice\")",
-      "Bash(mkdir -p \"\\(i18n\\)\" \"\\(fallback\\)\")",
-      "Bash(mv \"[locale]\" \"\\(i18n\\)/[locale]\")",
-      "Bash(mv not-found.tsx \"\\(fallback\\)/not-found.tsx\")",
-      "Bash(node -e ' *)",
-      "Read(//d/SourceCode/marketplace-notifications/**)",
-      "Bash(echo \"EXIT:$?\")",
-      "Read(//d/SourceCode/Roadmap/**)"
+      "Bash(npm run typecheck)",
+      "Bash(npm run typecheck:infra)",
+      "Bash(npm run lint)",
+      "Bash(npm test *)",
+      "Bash(npm run test:*)",
+      "Bash(npm run db:check-drift)",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(npx vitest *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git branch *)",
+      "PowerShell(npm run typecheck)",
+      "PowerShell(npm run typecheck:infra)",
+      "PowerShell(npm run lint)",
+      "PowerShell(npm test *)",
+      "PowerShell(npm run test:*)",
+      "PowerShell(npm run db:check-drift)",
+      "PowerShell(npx tsc *)",
+      "PowerShell(npx eslint *)",
+      "PowerShell(npx vitest *)",
+      "PowerShell(git status *)",
+      "PowerShell(git diff *)",
+      "PowerShell(git log *)",
+      "PowerShell(git show *)",
+      "PowerShell(git branch *)"
     ],
-    "additionalDirectories": [
-      "d:\\SourceCode\\marketplace-notifications\\functions",
-      "d:\\SourceCode\\marketplace-notifications",
-      "d:\\SourceCode\\marketplace-messaging",
-      "d:\\SourceCode\\marketplace-conversation-search"
+    "deny": [
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(npx prisma migrate *)",
+      "Bash(npx prisma db push *)",
+      "Bash(npm run db:migrate *)",
+      "Bash(npm run db:reset *)",
+      "Bash(npm run db:push *)",
+      "Bash(npm run db:create-migration *)",
+      "Bash(npx sst deploy *)",
+      "Bash(npx sst remove *)",
+      "Bash(npm run deploy:*)",
+      "Bash(npm run remove:*)",
+      "PowerShell(git commit *)",
+      "PowerShell(git push *)",
+      "PowerShell(npx prisma migrate *)",
+      "PowerShell(npx prisma db push *)",
+      "PowerShell(npm run db:migrate *)",
+      "PowerShell(npm run db:reset *)",
+      "PowerShell(npm run db:push *)",
+      "PowerShell(npm run db:create-migration *)",
+      "PowerShell(npx sst deploy *)",
+      "PowerShell(npx sst remove *)",
+      "PowerShell(npm run deploy:*)",
+      "PowerShell(npm run remove:*)",
+      "Read(./.env)",
+      "Read(./.env.*)"
+    ],
+    "ask": [
+      "Edit(./.claude/**)",
+      "Write(./.claude/**)",
+      "Edit(./.github/workflows/**)",
+      "Write(./.github/workflows/**)",
+      "Edit(./sst.config.ts)",
+      "Edit(./prisma/schema.prisma)"
+    ],
+    "_comment": "Machine-specific paths belong in .claude/settings.local.json, which is gitignored. This file is shared, so every rule in it must be true on any checkout."
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/guard-forbidden-commands.mjs",
+            "timeout": 10,
+            "statusMessage": "Checking command guardrails"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/locale-drift-check.mjs",
+            "timeout": 20,
+            "statusMessage": "Checking locale keys"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/session-context.mjs",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

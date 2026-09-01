@@ -102,6 +102,10 @@ export const routing = defineRouting({
     "/dashboard/my-products/[id]/edit": "/dashboard/my-products/[id]/edit",
     "/dashboard/orders": "/dashboard/orders",
     "/dashboard/orders/[id]": "/dashboard/orders/[id]",
+    // A route handler (invoice PDF), not a page. Registered here anyway
+    // because the proxy derives its route table from this map - see
+    // lib/seo/appRoutes.ts - and an unregistered URL is answered with a 404.
+    "/dashboard/orders/[id]/invoice": "/dashboard/orders/[id]/invoice",
     "/dashboard/organization": "/dashboard/organization",
     "/dashboard/organization/orders": "/dashboard/organization/orders",
     "/dashboard/organization/orders/[id]": "/dashboard/organization/orders/[id]",
