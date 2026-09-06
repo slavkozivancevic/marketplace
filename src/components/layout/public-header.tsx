@@ -161,7 +161,14 @@ export function PublicHeader({
                 <WishlistHeaderButton />
               </div>
               <CartButton />
-              <div className="hidden lg:flex items-center gap-2 ml-1">
+              {/* ml-1 on top of the rail's own gap-2 = 12px in front of the
+                  auth cluster, against 8px inside it. That ratio plus the
+                  cluster's own leading rule (rendered by <HeaderAuth>, only
+                  when the sign-in/sign-up buttons are the ones showing) is
+                  what groups the pair. The bug being fixed was the ratio the
+                  wrong way round: the two buttons sat further from each other
+                  (gap-4) than from the cart icon (12px). */}
+              <div className="hidden lg:flex items-center ml-1">
                 <HeaderAuth mode="modal" showDashboardLink={false} signedIn={signedIn} />
               </div>
               {/* Mobile menu button */}
@@ -225,12 +232,16 @@ export function PublicHeader({
               {/* hideAvatarWhenSignedIn: the avatar's already always visible
                   in the header row (see avatarOnly above) - this only needs
                   to offer sign-in/sign-up to a signed-out visitor. */}
-              <div className="pt-2 px-3 lg:hidden">
+              {/* ...which means that for a signed-in visitor this slot renders
+                  an empty div. `has-[>div:empty]` collapses the padding with
+                  it, so the panel doesn't end in a dead strip of whitespace. */}
+              <div className="pt-3 px-3 lg:hidden has-[>div:empty]:hidden">
                 <HeaderAuth
                   mode="modal"
                   showDashboardLink={false}
                   signedIn={signedIn}
                   hideAvatarWhenSignedIn
+                  layout="panel"
                 />
               </div>
             </div>

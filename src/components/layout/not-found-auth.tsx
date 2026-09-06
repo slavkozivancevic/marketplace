@@ -13,6 +13,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { User } from "lucide-react";
+import { HeaderDivider } from "./header-divider";
+import { cn } from "@/lib/utils";
 
 /**
  * Auth controls for the 404 page. Mirrors HeaderAuth visually but never
@@ -31,7 +33,14 @@ import { User } from "lucide-react";
 export function NotFoundAuth({
   avatarOnly = false,
   hideAvatarWhenSignedIn = false,
-}: { avatarOnly?: boolean; hideAvatarWhenSignedIn?: boolean } = {}) {
+  layout = "row",
+}: {
+  avatarOnly?: boolean;
+  hideAvatarWhenSignedIn?: boolean;
+  /** Mirrors `HeaderAuth`'s prop of the same name - see its doc comment. */
+  layout?: "row" | "panel";
+} = {}) {
+  const panel = layout === "panel";
   const t = useTranslations("auth");
   const locale = useLocale();
   const [mounted, setMounted] = useState(false);
@@ -43,7 +52,7 @@ export function NotFoundAuth({
   if (!mounted) {
     return (
       <div
-        className="flex items-center gap-2"
+        className={cn("flex items-center gap-2", panel && "w-full max-w-lg")}
         aria-hidden
         suppressHydrationWarning
       />
@@ -51,16 +60,18 @@ export function NotFoundAuth({
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className={cn("flex items-center gap-2", panel && "w-full max-w-lg")}>
       {/* `avatarOnly` has nothing to show for a signed-out visitor - the
           sign-in/sign-up buttons stay exclusive to the full instance a
           caller renders at wider widths. */}
       {!avatarOnly && (
         <SignedOut>
-          <Button variant="outline" asChild>
+          {/* Divider belongs to the buttons - see HeaderAuth's copy of this. */}
+          {!panel && <HeaderDivider className="mr-1" />}
+          <Button variant="outline" asChild className={cn(panel && "flex-1")}>
             <a href={`/${locale}/sign-in`}>{t("signIn")}</a>
           </Button>
-          <Button asChild>
+          <Button asChild className={cn(panel && "flex-1")}>
             <a href={`/${locale}/sign-up`}>{t("signUp")}</a>
           </Button>
         </SignedOut>

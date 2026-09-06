@@ -76,7 +76,10 @@ export function Header() {
                   boot loader instead of popping in once clerk-js settles. */}
               <ChatDrawerTrigger signedIn />
             </div>
-            <div className="hidden sm:flex items-center gap-2 ml-1">
+            {/* 12px in front of the account controls, as on every other
+                shell. No divider ever renders here: dashboard is auth-gated,
+                so this is always the avatar branch. */}
+            <div className="hidden sm:flex items-center ml-1">
               <HeaderAuth mode="redirect" showDashboardLink={false} signedIn />
             </div>
             {/* Mobile menu button */}

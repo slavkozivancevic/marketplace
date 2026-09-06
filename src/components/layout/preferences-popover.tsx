@@ -87,6 +87,16 @@ export function PreferencesPopover() {
     setMounted(true);
   }, []);
 
+  // Close on navigation. Radix dismisses this menu on an outside click or
+  // Escape, but not on a route change - and a Back/Forward gesture also
+  // collapses the header's mobile panel (see useDismissable), which is where
+  // this trigger lives on narrow screens. Left open, the menu would be
+  // anchored to a trigger that is no longer on screen and hang over the page.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOpen(false);
+  }, [pathname]);
+
   function handleLocale(newLocale: string) {
     // Clicking the already-active language is a no-op - just close the menu
     // (otherwise the switch overlay would flash for nothing).
