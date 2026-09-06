@@ -22,7 +22,12 @@ import {
 import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
 import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
+import {
+  useHasFormErrors,
+  useSaveBlockedReason,
+} from "@/lib/forms/useSaveBlockedReason";
 import { FormSaveBar } from "@/components/forms/FormSaveBar";
+import { SaveBlockedNotice } from "@/components/forms/SaveBlockedNotice";
 import { RequiredFieldsNote } from "@/components/forms/RequiredFieldsNote";
 import { ChangedHint } from "@/components/forms/ChangedHint";
 import { useCurrencyStore } from "@/store/currency";
@@ -96,7 +101,13 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
 
   // Block saving while any field is invalid. Error-based (not `!isValid`) so a
   // freshly-loaded valid coupon isn't disabled before the first validation runs.
-  const hasErrors = Object.keys(errors).length > 0;
+  // `Object.keys(errors)` reads the WHOLE error object, whose identity never
+  // changes (react-hook-form mutates it in place), so under the React Compiler
+  // it memoizes to its first result and the flag freezes at `false`. Reading it
+  // through the hook keeps it live. See useSaveBlockedReason for the details.
+  const hasErrors = useHasFormErrors(control);
+
+  const saveBlockedReason = useSaveBlockedReason(control);
 
   // `value` means different things per type (a percent vs a dollar amount), so
   // remember each type's value separately. Flipping PERCENT <-> FIXED restores
@@ -136,7 +147,10 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
     clearErrors("value");
   };
 
-  useUnsavedChangesWarning(Boolean(coupon) && isDirty);
+  // Not gated on edit mode: a half-filled create form is exactly as easy to
+  // lose to a stray nav click, and `isDirty` compares against the empty
+  // defaults, so an untouched form still never prompts.
+  useUnsavedChangesWarning(isDirty);
 
   // Next.js can keep this route's React tree warm, so without an explicit reset
   // unsaved edits survive navigating away from the form and back. Resetting to
@@ -231,6 +245,7 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
           <Label htmlFor="value" required>{type === "PERCENT" ? t("form.valuePercent") : t("form.valueFixed")}</Label>
           {type === "PERCENT" ? (
             <NumberStepper
+              aria-invalid={!!errors.value}
               id="value"
               min={0}
               max={100}
@@ -239,6 +254,7 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
             />
           ) : (
             <PriceInput
+              aria-invalid={!!errors.value}
               value={Number.isFinite(value) ? value : 0}
               onChange={(usd) => setValue("value", usd, { shouldValidate: true, shouldDirty: true })}
               rates={rates}
@@ -257,6 +273,7 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
         <div className="space-y-1.5">
           <Label>{t("form.minOrder")}</Label>
           <PriceInput
+            aria-invalid={!!errors.minOrder}
             value={minOrder ?? 0}
             // `usd || null`: 0 means "no minimum" (null); a negative is kept so
             // the schema's nonnegative check rejects it and shows an error -
@@ -281,6 +298,7 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
         <div className="space-y-1.5">
           <Label htmlFor="usageLimit">{t("form.usageLimit")}</Label>
           <NumberStepper
+            aria-invalid={!!errors.usageLimit}
             id="usageLimit"
             min={1}
             allowEmpty
@@ -299,6 +317,7 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
         <div className="space-y-1.5">
           <Label htmlFor="perUserLimit">{t("form.perUserLimit")}</Label>
           <NumberStepper
+            aria-invalid={!!errors.perUserLimit}
             id="perUserLimit"
             min={1}
             allowEmpty
@@ -358,12 +377,16 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
           onDiscard={() => reset()}
           saveLabel={t("form.save")}
           saveDisabled={hasErrors}
+          saveDisabledReason={saveBlockedReason}
         />
       ) : (
-        <Button type="submit" disabled={isPending || hasErrors}>
-          {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          {isPending ? t("form.creating") : t("form.create")}
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" disabled={isPending || hasErrors}>
+            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            {isPending ? t("form.creating") : t("form.create")}
+          </Button>
+          <SaveBlockedNotice blocked={hasErrors} reason={saveBlockedReason} />
+        </div>
       )}
     </form>
   );

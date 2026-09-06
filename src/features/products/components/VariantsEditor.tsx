@@ -473,6 +473,7 @@ export function VariantsEditor({
               <div className="space-y-1">
                 <Label className="text-xs font-medium" required>{t("sku")}</Label>
                 <Input
+                  aria-invalid={!!errMsg(i, "sku")}
                   placeholder={t("skuPlaceholder")}
                   value={v.sku}
                   onChange={(e) => setField(i, { sku: e.target.value })}
@@ -487,6 +488,7 @@ export function VariantsEditor({
               <div className="space-y-1">
                 <Label className="text-xs font-medium" required>{t("price")}</Label>
                 <PriceInput
+                  aria-invalid={!!errMsg(i, "price")}
                   value={v.price}
                   onChange={(usd) => setField(i, { price: usd })}
                   rates={rates}
@@ -506,6 +508,7 @@ export function VariantsEditor({
               <div className="space-y-1">
                 <Label className="text-xs font-medium">{t("stock")}</Label>
                 <NumberStepper
+                  aria-invalid={!!errMsg(i, "stock")}
                   min={0}
                   value={v.stock}
                   onChange={(val) => setField(i, { stock: val ?? 0 })}

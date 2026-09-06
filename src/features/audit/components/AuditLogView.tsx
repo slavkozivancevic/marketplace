@@ -213,6 +213,8 @@ export function AuditLogView({
     taxable: t("columns.taxable"),
     requiresShipping: t("columns.requiresShipping"),
     isDigital: t("columns.isDigital"),
+    warrantyMonths: t("columns.warrantyMonths"),
+    countryOfOrigin: t("columns.countryOfOrigin"),
     stock: t("columns.stock"),
     categories: t("columns.categories"),
   };

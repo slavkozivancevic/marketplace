@@ -41,6 +41,18 @@ export type BulkFilter = {
   taxable?: boolean;
   requiresShipping?: boolean;
   isDigital?: boolean;
+  /** Origin must be one of these ISO 3166-1 alpha-2 codes. */
+  countryOfOrigin?: string[];
+  /** Only products with no origin recorded. */
+  noCountryOfOrigin?: boolean;
+  /**
+   * Only products with no warranty recorded. Distinct from `warrantyMonths: 0`,
+   * which is a deliberate "no warranty" - this is the missing-data sweep.
+   */
+  noWarranty?: boolean;
+  /** Warranty bounds, in months. */
+  minWarrantyMonths?: number;
+  maxWarrantyMonths?: number;
   /** Case-insensitive substring match on title. */
   titleContains?: string;
 };
@@ -75,6 +87,10 @@ export type BulkUpdateFields = {
   taxable?: boolean;
   requiresShipping?: boolean;
   isDigital?: boolean;
+  /** Months of warranty, or null to clear it back to "unspecified". */
+  warrantyMonths?: number | null;
+  /** ISO 3166-1 alpha-2 code, or null to clear it. */
+  countryOfOrigin?: string | null;
   /** Absolute stock value, or null to mark "untracked". */
   stock?: number | null;
   /** Category set / add / remove operation. */

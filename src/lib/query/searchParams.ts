@@ -12,6 +12,15 @@ import {
 // Note: "title" sort was removed when title moved to ProductTranslation.
 // Sorting by a per-locale field across cursor-paginated pages requires either
 // a denormalized column or post-fetch sort - both add complexity for an
+/**
+ * Warranty thresholds the storefront filter offers, in months. A floor filter
+ * needs a fixed ladder rather than the distinct values in the data: a product
+ * with 24 months belongs to the "12+" bucket as much as to the "24+" one, so
+ * counts per bucket only mean something against a stable set. Shared by the
+ * facet query and the filter UI so the two can never drift.
+ */
+export const WARRANTY_BUCKETS = [6, 12, 24, 36, 60] as const;
+
 // admin-only convenience. UI can sort the current page client-side if needed.
 export const productSearchParams = {
   search: parseAsString.withDefault(""),
@@ -22,6 +31,12 @@ export const productSearchParams = {
   onSale: parseAsBoolean,
   bestseller: parseAsBoolean,
   isDigital: parseAsBoolean,
+  // Minimum warranty in months. Buyers filter "at least N" - nobody shops for
+  // a shorter warranty, so this is a floor rather than a range.
+  // Offered thresholds live in WARRANTY_BUCKETS below.
+  minWarranty: parseAsInteger,
+  // ISO 3166-1 alpha-2 codes, multi-select ("Made in").
+  origin: parseAsArrayOf(parseAsString).withDefault([]),
   brandId: parseAsArrayOf(parseAsString).withDefault([]),
   tagId: parseAsArrayOf(parseAsString).withDefault([]),
   minRating: parseAsInteger,
@@ -43,6 +58,8 @@ export type ProductFilters = {
   onSale: boolean | null;
   bestseller: boolean | null;
   isDigital: boolean | null;
+  minWarranty: number | null;
+  origin: string[];
   brandId: string[];
   tagId: string[];
   minRating: number | null;

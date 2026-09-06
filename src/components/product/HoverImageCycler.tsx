@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { registerTouchFocusCycle } from "./touchFocusCycle";
+import { claimTouchCycle, releaseTouchCycle } from "./touchCycleCoordinator";
 import { useSupportsHover } from "@/hooks/useSupportsHover";
 import { ImageUnavailable } from "@/components/ImageUnavailable";
 
@@ -26,6 +26,10 @@ interface HoverImageCyclerProps {
 // Remounting the <Image> (key bump) forces a fresh attempt.
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1500;
+
+// How far a finger must travel before a touch counts as the start of a swipe
+// rather than a tap - the touch equivalent of the cursor landing on a card.
+const TOUCH_ACTIVATE_PX = 8;
 
 export function HoverImageCycler({
   images,
@@ -56,10 +60,18 @@ export function HoverImageCycler({
   const [retryCounts, setRetryCounts] = useState<Record<string, number>>({});
   // Devices whose primary input has no hover (touch/stylus) never fire
   // mouseenter, so the cycle - and the vignette that's meant to lift while
-  // "hovered" - would otherwise be stuck at rest forever.
+  // "hovered" - is driven by the finger instead (see the touch handlers).
   const supportsHover = useSupportsHover();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const retryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // Mirrors `index` for the interval callback, which needs the frame showing
+  // right now without being re-created on every advance.
+  const indexRef = useRef(0);
+  // Set once the finger lifts mid-cycle: keep going, but stop on the wrap
+  // back to the first image.
+  const finishingRef = useRef(false);
+  // Where the current touch started, until it either becomes a swipe or ends.
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // Mirror for the interval closure (state there would be stale).
   const loadedUrlsRef = useRef(loadedUrls);
@@ -101,52 +113,98 @@ export function HoverImageCycler({
 
   useEffect(() => {
     const retryTimers = retryTimersRef.current;
+    const container = containerRef.current;
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       for (const t of retryTimers) clearTimeout(t);
+      // Never leave the shared slot pointing at an unmounted card.
+      if (container) releaseTouchCycle(container);
     };
   }, []);
 
-  const handleEnter = useCallback(() => {
-    setIsHovered(true);
-    if (images.length <= 1) return;
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setIndex((i) => {
-        // Advance to the nearest loaded frame; hold the current one if no
-        // other frame is ready yet (it joins the cycle once it loads).
-        for (let step = 1; step <= images.length; step++) {
-          const next = (i + step) % images.length;
-          if (loadedUrlsRef.current.has(images[next])) return next;
-        }
-        return i;
-      });
-    }, intervalMs);
-  }, [images, intervalMs]);
-
-  const handleLeave = useCallback(() => {
-    setIsHovered(false);
+  const stopCycle = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    finishingRef.current = false;
+    setIsHovered(false);
+    indexRef.current = 0;
     setIndex(0);
+    if (containerRef.current) releaseTouchCycle(containerRef.current);
   }, []);
 
-  // Touch/stylus devices have no hover to drive the cycle or lift the
-  // vignette, so on those a shared scroll-position coordinator stands in for
-  // "hovered" instead - only the single card nearest the vertical center of
-  // the viewport cycles (and clears its shadow) at any given time, instead
-  // of every visible card animating at once.
-  useEffect(() => {
-    if (supportsHover) return;
-    const el = containerRef.current;
-    if (!el) return;
-    return registerTouchFocusCycle(el, {
-      onFocus: handleEnter,
-      onBlur: handleLeave,
-    });
-  }, [supportsHover, handleEnter, handleLeave]);
+  const handleEnter = useCallback(() => {
+    setIsHovered(true);
+    finishingRef.current = false;
+    if (images.length <= 1) return;
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      // Advance to the nearest loaded frame; hold the current one if no
+      // other frame is ready yet (it joins the cycle once it loads).
+      const current = indexRef.current;
+      let next = current;
+      for (let step = 1; step <= images.length; step++) {
+        const candidate = (current + step) % images.length;
+        if (loadedUrlsRef.current.has(images[candidate])) {
+          next = candidate;
+          break;
+        }
+      }
+      if (next === current) return;
+      indexRef.current = next;
+      setIndex(next);
+      // Wrapped back to the first frame after the finger was lifted: the lap
+      // the touch started has shown every image, so the card settles here.
+      if (finishingRef.current && next === 0) stopCycle();
+    }, intervalMs);
+  }, [images, intervalMs, stopCycle]);
+
+  // Touch/stylus devices never fire mouseenter, so the finger stands in for
+  // the cursor: a touch that turns into a swipe (any direction - typically
+  // the page scroll the user was starting anyway) activates that one card,
+  // the same way moving the mouse onto a card does. A plain tap is left
+  // alone so it still opens the product.
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (supportsHover || images.length <= 1) return;
+      const touch = e.touches[0];
+      touchStartRef.current = touch
+        ? { x: touch.clientX, y: touch.clientY }
+        : null;
+    },
+    [supportsHover, images.length],
+  );
+
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      const start = touchStartRef.current;
+      const touch = e.touches[0];
+      if (!start || !touch) return;
+      if (
+        Math.hypot(touch.clientX - start.x, touch.clientY - start.y) <
+        TOUCH_ACTIVATE_PX
+      ) {
+        return;
+      }
+      // Activate once per touch, not on every subsequent move.
+      touchStartRef.current = null;
+      // The cycle outlives the touch (see below), so claiming the shared slot
+      // stops whichever card was still finishing its lap - one card animates
+      // at a time, exactly like a cursor moving between cards.
+      if (containerRef.current) claimTouchCycle(containerRef.current, stopCycle);
+      handleEnter();
+    },
+    [handleEnter, stopCycle],
+  );
+
+  // Lifting the finger doesn't cut the cycle short - it lets it run to the
+  // end of the lap (back to the first image) and stop there, so a quick swipe
+  // is enough to see every image of the card you touched.
+  const handleTouchEnd = useCallback(() => {
+    touchStartRef.current = null;
+    if (timerRef.current) finishingRef.current = true;
+  }, []);
 
   if (images.length === 0) return null;
 
@@ -180,7 +238,11 @@ export function HoverImageCycler({
         className,
       )}
       onMouseEnter={handleEnter}
-      onMouseLeave={handleLeave}
+      onMouseLeave={stopCycle}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
       {!firstSettled && (
         <div className="absolute inset-0 z-10 skeleton-shimmer" />

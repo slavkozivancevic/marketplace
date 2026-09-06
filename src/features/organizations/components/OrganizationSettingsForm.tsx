@@ -8,6 +8,10 @@ import { useZodResolver } from "@/i18n/useZodResolver";
 import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
 import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
+import {
+  useHasFormErrors,
+  useSaveBlockedReason,
+} from "@/lib/forms/useSaveBlockedReason";
 import { FormSaveBar } from "@/components/forms/FormSaveBar";
 import { RequiredFieldsNote } from "@/components/forms/RequiredFieldsNote";
 import { FieldChangedHint } from "@/components/forms/FieldChangedHint";
@@ -65,12 +69,18 @@ export function OrganizationSettingsForm({
   // `form.formState.x` is a proxy getter, unsafe to read during render under
   // the React Compiler (it treats `form` as a stable dependency and can
   // cache a stale snapshot - see the identical fix in VariantsEditor.tsx).
-  const { isDirty, errors } = useFormState({ control: form.control });
+  const { isDirty } = useFormState({ control: form.control });
 
   useUnsavedChangesWarning(isDirty);
 
   // Block saving while the name is invalid (consistent with all admin forms).
-  const hasErrors = Object.keys(errors).length > 0;
+  // `Object.keys(errors)` reads the WHOLE error object, whose identity never
+  // changes (react-hook-form mutates it in place), so under the React Compiler
+  // it memoizes to its first result and the flag freezes at `false`. Reading it
+  // through the hook keeps it live. See useSaveBlockedReason for the details.
+  const hasErrors = useHasFormErrors(form.control);
+
+  const saveBlockedReason = useSaveBlockedReason(form.control);
 
   const onSubmit = (data: UpdateOrganizationNameInput) => {
     startTransition(async () => {
@@ -119,6 +129,7 @@ export function OrganizationSettingsForm({
             onDiscard={() => form.reset()}
             saveLabel={t("saveChanges")}
             saveDisabled={hasErrors}
+          saveDisabledReason={saveBlockedReason}
           />
         )}
       </form>

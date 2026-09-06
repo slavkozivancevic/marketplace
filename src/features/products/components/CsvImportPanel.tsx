@@ -10,6 +10,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { bulkCreateProducts, type BulkCreateRow, type BulkCreateResult } from "@/features/products/actions/products";
 import { detectDelimiter, parseCsv, csvEscape } from "@/features/products/utils/csv";
+import { normalizeCountryCode } from "@/lib/i18n/countries";
+import { MAX_WARRANTY_MONTHS } from "@/features/products/schema/products";
 import type { ProductStatus } from "@/generated/prisma/client";
 
 // ---------------------------------------------------------------------------
@@ -32,6 +34,8 @@ const CSV_COLUMNS = [
   "taxCode",
   "requiresShipping",
   "isDigital",
+  "warrantyMonths",
+  "countryOfOrigin",
   "weight",
   "weightUnit",
   "length",
@@ -136,6 +140,23 @@ function parseRow(
   if (status && !VALID_STATUS_VALUES.has(status as ProductStatus))
     errors.push("status must be DRAFT, PUBLISHED, or ARCHIVED");
 
+  // 0 is a valid warranty ("no warranty"), so an empty cell - not a zero - is
+  // what means "unspecified".
+  const rawWarranty = get("warrantyMonths");
+  let warrantyMonths: number | undefined;
+  if (rawWarranty) {
+    const parsed = Number(rawWarranty);
+    if (!Number.isInteger(parsed) || parsed < 0 || parsed > MAX_WARRANTY_MONTHS) {
+      errors.push(`warrantyMonths must be a whole number between 0 and ${MAX_WARRANTY_MONTHS}`);
+    } else {
+      warrantyMonths = parsed;
+    }
+  }
+
+  const rawCountry = get("countryOfOrigin");
+  if (rawCountry && normalizeCountryCode(rawCountry) === null)
+    errors.push("countryOfOrigin must be an ISO 3166-1 alpha-2 code, e.g. DE");
+
   const parseBool = (v: string, def: boolean) => {
     if (!v) return def;
     return v.toLowerCase() === "true";
@@ -167,6 +188,8 @@ function parseRow(
       taxCode: get("taxCode") || undefined,
       requiresShipping: parseBool(get("requiresShipping"), true),
       isDigital: parseBool(get("isDigital"), false),
+      warrantyMonths,
+      countryOfOrigin: get("countryOfOrigin") || undefined,
       weight,
       weightUnit,
       length,
@@ -217,6 +240,8 @@ export function CsvImportPanel() {
     /* taxCode            */ "",
     /* requiresShipping   */ "true",
     /* isDigital          */ "false",
+    /* warrantyMonths     */ "24",
+    /* countryOfOrigin    */ "DE",
     /* weight             */ "",
     /* weightUnit         */ "",
     /* length             */ "",
@@ -348,6 +373,8 @@ export function CsvImportPanel() {
             <li><strong>weightUnit</strong> - G, KG, LB, OZ</li>
             <li><strong>dimensionUnit</strong> - CM, IN</li>
             <li><strong>taxable, requiresShipping, isDigital</strong> - true / false</li>
+            <li><strong>countryOfOrigin</strong> - {t("hintCountryOfOrigin")}</li>
+            <li><strong>warrantyMonths</strong> - {t("hintWarrantyMonths")}</li>
             <li><strong>slug</strong> - {t("hintSlug")}</li>
           </ul>
         </details>

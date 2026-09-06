@@ -15,6 +15,8 @@ import { getCategoryName } from "@/features/categories/utils/translations";
 import { getTagName } from "@/features/tags/utils/translations";
 import { getLabel } from "@/features/attributes/utils/translations";
 import { getBrandName } from "@/features/brands/utils/translations";
+import { countryName } from "@/lib/i18n/countries";
+import { buildAttributeSpecRows } from "./ProductSpecifications";
 import {
   getProductTitle,
   getProductSlug,
@@ -42,6 +44,8 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
 
   const rate = currentRate();
   const fmt = (cents: number) => formatPrice(convertCents(cents, currency, rate), currency);
+  // Same rows, same order, same formatting the storefront shows the buyer.
+  const attributeRows = buildAttributeSpecRows(product.attributeValues ?? [], locale, t);
 
   const localTitle = getProductTitle(product, locale);
   const localSlug = getProductSlug(product, locale);
@@ -221,6 +225,45 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
       </Card>
 
       <Separator />
+
+      {/* ── SPECIFICATIONS ──
+          Mirrors what the storefront's Specifications tab shows the buyer:
+          the platform-owned rows plus the category-driven attribute values.
+          The seller could previously see variant attribute values but never
+          the product's own, so there was no way to check this from here. */}
+      {(product.warrantyMonths != null ||
+        product.countryOfOrigin ||
+        attributeRows.length > 0) && (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>{tf("specificationsSection")}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {product.warrantyMonths != null && (
+                <Row
+                  label={tf("warrantyMonths")}
+                  value={
+                    product.warrantyMonths === 0
+                      ? tf("noWarranty")
+                      : tf("warrantyMonthsValue", { count: product.warrantyMonths })
+                  }
+                />
+              )}
+              {product.countryOfOrigin && (
+                <Row
+                  label={tf("countryOfOrigin")}
+                  value={countryName(product.countryOfOrigin, locale)}
+                />
+              )}
+              {attributeRows.map((row) => (
+                <Row key={row.key} label={row.label} value={row.value} />
+              ))}
+            </CardContent>
+          </Card>
+          <Separator />
+        </>
+      )}
 
       {/* ── SEO ── */}
       {(localMetaTitle || localMetaDescription) && (

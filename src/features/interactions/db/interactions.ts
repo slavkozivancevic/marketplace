@@ -31,6 +31,13 @@ export type InteractionIdentity = { userId?: string; sessionId?: string };
 const VIEW_DEDUPE_WINDOW_MS = 30 * 60 * 1000;
 
 /**
+ * How many recent VIEW rows `getRecentlyViewed` reads before de-duplicating
+ * them into a product list. See the comment at the query for why the scan is
+ * bounded here rather than by a `groupBy`.
+ */
+const RECENT_VIEW_SCAN_ROWS = 500;
+
+/**
  * Records a VIEW or ADD_TO_CART event. Best-effort: never throws (a logging
  * failure must not affect the page or the cart). VIEW events are deduped within
  * a 30-minute window per identity so refreshes/scrolls don't flood the table.
@@ -106,20 +113,46 @@ export async function getRecentlyViewed(params: {
   const { userId, sessionId } = identity;
   if (!userId && !sessionId) return [];
 
-  // Latest VIEW timestamp per product, newest first. Overfetch so unpublished /
-  // deleted products can be filtered out without shrinking the result below limit.
-  const grouped = await prisma.interactionEvent.groupBy({
-    by: ["productId"],
+  // The newest VIEW rows for this identity, then de-duplicated here.
+  //
+  // NOT a `groupBy productId` with `orderBy _max.createdAt` any more. That
+  // shape cannot be answered from an index: grouping and taking a MAX forces
+  // Postgres to read EVERY matching row, aggregate, sort the groups, and only
+  // then apply the limit. The cost therefore grows with the identity's whole
+  // view history, on a table that only ever grows and is written on every
+  // product page. Measured at 733ms locally, and this query runs uncached on
+  // every product page because the result is personalized.
+  //
+  // This form is a plain backwards walk of `@@index([userId, type, createdAt])`
+  // (or the sessionId twin) with a LIMIT, so the work is capped no matter how
+  // large the table gets. `take` here bounds ROWS SCANNED, not products
+  // returned - the same product reappears once per 30-minute dedupe window
+  // (see VIEW_DEDUPE_WINDOW_MS), so the scan has to be wide enough to still
+  // surface enough distinct products. 500 rows covers months of ordinary
+  // browsing; the only case it under-fills is an identity that hammered a
+  // handful of products hundreds of times, where showing exactly those is a
+  // fair answer for "recently viewed" anyway.
+  const events = await prisma.interactionEvent.findMany({
     where: {
       type: "VIEW",
       ...(userId ? { userId } : { sessionId }),
       ...(excludeProductId ? { productId: { not: excludeProductId } } : {}),
     },
-    _max: { createdAt: true },
-    orderBy: { _max: { createdAt: "desc" } },
-    take: limit * 2,
+    select: { productId: true },
+    orderBy: { createdAt: "desc" },
+    take: RECENT_VIEW_SCAN_ROWS,
   });
-  const ids = grouped.map((g) => g.productId);
+
+  // Distinct ids, newest first. Overfetch so unpublished / deleted products can
+  // be filtered out below without shrinking the result under `limit`.
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const { productId } of events) {
+    if (seen.has(productId)) continue;
+    seen.add(productId);
+    ids.push(productId);
+    if (ids.length >= limit * 2) break;
+  }
   if (ids.length === 0) return [];
 
   const rows = await prisma.product.findMany({

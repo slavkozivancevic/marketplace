@@ -35,8 +35,18 @@ const searchParamsCache = createSearchParamsCache(productSearchParams);
  * canonical index across thousands of filter combinations. hreflang
  * mirrors the canonical across locales for shared discovery weight.
  */
-export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getLocale();
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  // Locale comes from the route segment, not `getLocale()`. Under
+  // `cacheComponents`, reading request data (headers/cookies, which is what
+  // getLocale does) inside generateMetadata makes the page's metadata
+  // ambiguous: everything else here is static, so Next warns that the page
+  // could have been prerendered entirely. The segment carries the same value
+  // and costs nothing.
+  const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "products" });
 
   const languages: Record<string, string> = {};
@@ -132,6 +142,8 @@ export default async function ProductsRoute({
     onSale: params.onSale,
     bestseller: params.bestseller,
     isDigital: params.isDigital,
+    minWarranty: params.minWarranty,
+    origin: params.origin,
     brandId: params.brandId,
     tagId: params.tagId,
     minRating: params.minRating,
@@ -153,6 +165,8 @@ export default async function ProductsRoute({
         onSale: filters.onSale,
         bestseller: filters.bestseller,
         isDigital: filters.isDigital,
+        minWarranty: filters.minWarranty ?? undefined,
+        origin: filters.origin.length ? filters.origin : undefined,
         brandId: filters.brandId.length ? filters.brandId : undefined,
         tagId: filters.tagId.length ? filters.tagId : undefined,
         minRating: filters.minRating ?? undefined,

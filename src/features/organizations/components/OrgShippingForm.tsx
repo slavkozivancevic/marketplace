@@ -9,6 +9,10 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
 import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
+import {
+  useHasFormErrors,
+  useSaveBlockedReason,
+} from "@/lib/forms/useSaveBlockedReason";
 import { FormSaveBar } from "@/components/forms/FormSaveBar";
 import { useCurrencyStore } from "@/store/currency";
 import { convertCents, formatPrice } from "@/lib/currency";
@@ -56,7 +60,13 @@ export function OrgShippingForm({
   useUnsavedChangesWarning(isDirty);
 
   // Block saving while any field is invalid (consistent across all admin forms).
-  const hasErrors = Object.keys(errors).length > 0;
+  // `Object.keys(errors)` reads the WHOLE error object, whose identity never
+  // changes (react-hook-form mutates it in place), so under the React Compiler
+  // it memoizes to its first result and the flag freezes at `false`. Reading it
+  // through the hook keeps it live. See useSaveBlockedReason for the details.
+  const hasErrors = useHasFormErrors(control);
+
+  const saveBlockedReason = useSaveBlockedReason(control);
 
   // Each PriceInput has its own currency selector; mirror it so the saved-value
   // hint reads in the same currency the field is currently showing (no mental
@@ -99,6 +109,7 @@ export function OrgShippingForm({
           )}
         </Label>
         <PriceInput
+          aria-invalid={!!errors.shippingFlatRate}
           value={Number.isFinite(flat) ? flat : 0}
           onChange={(usd) =>
             setValue("shippingFlatRate", usd, { shouldValidate: true, shouldDirty: true })
@@ -155,6 +166,7 @@ export function OrgShippingForm({
             )}
           </Label>
           <PriceInput
+            aria-invalid={!!errors.shippingFreeThreshold}
             value={threshold ?? 0}
             onChange={(usd) =>
               setValue("shippingFreeThreshold", usd, { shouldValidate: true, shouldDirty: true })
@@ -186,6 +198,7 @@ export function OrgShippingForm({
           onDiscard={() => reset()}
           saveLabel={t("saveChanges")}
           saveDisabled={hasErrors}
+          saveDisabledReason={saveBlockedReason}
         />
       ) : (
         <p className="text-xs text-muted-foreground">{t("editRestricted")}</p>

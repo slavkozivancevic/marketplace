@@ -205,11 +205,18 @@ export type ProductWithRelations = Prisma.ProductGetPayload<{
       };
     };
     attributeValues: {
-      select: {
-        attributeId: true;
-        optionId: true;
-        valueNumeric: true;
-        valueBool: true;
+      include: {
+        attribute: {
+          select: {
+            id: true;
+            key: true;
+            type: true;
+            unit: true;
+            order: true;
+            translations: true;
+          };
+        };
+        option: { select: { id: true; value: true; order: true; translations: true } };
       };
     };
   };
@@ -310,16 +317,34 @@ export type SerializedProductHistory = Omit<ProductHistory, "price"> & {
 // storefront serialization below projects these into a back-compat
 // `options` + `variants[].optionValues` shape so the existing detail / cart /
 // purchase UI keeps working unchanged.
+// Kept in sync by hand with `publicProductInclude` in
+// features/products/db/variantCompat.ts - this is a literal, not a derivation
+// of it, so a field added there must be added here too.
 export type PublicProductRaw = Prisma.ProductGetPayload<{
   include: {
     translations: true;
     media: true;
+    attributeValues: {
+      include: {
+        attribute: {
+          select: {
+            id: true;
+            key: true;
+            type: true;
+            unit: true;
+            order: true;
+            translations: true;
+          };
+        };
+        option: { select: { id: true; value: true; order: true; translations: true } };
+      };
+    };
     variants: {
       include: {
         attributeValues: {
           include: {
-            attribute: { select: { id: true; key: true; translations: true } };
-            option: { select: { id: true; value: true; translations: true } };
+            attribute: { select: { id: true; key: true; order: true; translations: true } };
+            option: { select: { id: true; value: true; order: true; translations: true } };
           };
         };
         media: { include: { media: true } };

@@ -315,18 +315,29 @@ export default async function PublicProductPage({
           </div>
         </div>
 
+        {/*
+          Strip order is deliberate, narrowest relevance first: what people buy
+          WITH this exact product, then what this visitor already looked at,
+          then the broad catch-all that closes the page.
+
+          "You may also like" is also the only strip that autoplays. One moving
+          element on a page reads as a deliberate accent; three read as noise,
+          and each one steals the click target from under whoever is reading.
+          Anything added here should default to `autoplay={false}`.
+        */}
         <RelatedProductsCarousel
           products={frequentlyBoughtTogether}
           eyebrow={tInteractions("frequentlyBoughtTogetherEyebrow")}
           title={tInteractions("frequentlyBoughtTogether")}
           showViewAll={false}
+          autoplay={false}
         />
-
-        <RelatedProductsCarousel products={relatedProducts} />
 
         <Suspense fallback={null}>
           <RecentlyViewedCarousel excludeProductId={product.id} />
         </Suspense>
+
+        <RelatedProductsCarousel products={relatedProducts} />
 
         <Footer />
       </div>

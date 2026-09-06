@@ -808,101 +808,324 @@ export function SkeletonActiveFiltersSpacer() {
   );
 }
 
-function SkeletonTranslatableSection() {
-  // English (default) + one per non-default locale all render the same box:
-  // rounded-md border, a locale label, then title / slug / short-desc / desc.
+/**
+ * The row shapes an admin form field can take.
+ *
+ * `input` covers <Input>, <Select> and <NumberStepper> alike - all three are
+ * h-8 rounded-lg. `input-hint` adds the FormDescription line under it.
+ * `slug` is the compound slug control: the input shares a `flex gap-2` row with
+ * a `size="sm"` regenerate button, and the line underneath is a
+ * `justify-between` pair of the description and the availability indicator.
+ * `key` is the same control without the availability half - AttributeForm's key
+ * field regenerates like a slug but has nothing to check for collisions.
+ * `textarea` is the taller control.
+ */
+export type SkeletonFormRowKind =
+  | "input"
+  | "input-hint"
+  | "slug"
+  | "key"
+  | "textarea";
+
+/**
+ * One label + control pair inside an admin form section.
+ *
+ * Heights are the real component tokens, not eyeballed: <Input>, <SelectTrigger>
+ * and the default <Button> are all `h-8 rounded-lg` (h-9/rounded-md, the earlier
+ * guess here, overshot every field by 4px and rounded the wrong corner radius).
+ * <Textarea> is `min-h-16 rounded-lg`, which is what an empty one collapses to
+ * under `field-sizing-content` - `textareaHeight` overrides it for the forms
+ * that pass their own `min-h-*` (ProductForm uses `min-h-30`).
+ *
+ * `spacing` follows the wrapper: <FormItem> is `space-y-2`, while the forms that
+ * use a raw <Label> + control (CouponForm) are `space-y-1.5`.
+ */
+export function SkeletonFormRow({
+  labelWidth = "w-24",
+  kind = "input",
+  textareaHeight = "h-16",
+  spacing = "space-y-2",
+}: {
+  labelWidth?: string;
+  kind?: SkeletonFormRowKind;
+  textareaHeight?: string;
+  spacing?: string;
+}) {
   return (
-    <div className="rounded-md border border-border/60 p-4 space-y-4">
-      <div className="flex h-4 items-center">
-        <Skeleton className="h-3 w-24" />
-      </div>
-      {/* Title */}
-      <div className="space-y-2">
-        <Skeleton className="h-3.5 w-16" />
-        <Skeleton className="h-9 w-full rounded-md" />
-      </div>
-      {/* Slug (with a description row) */}
-      <div className="space-y-2">
-        <Skeleton className="h-3.5 w-12" />
-        <Skeleton className="h-9 w-full rounded-md" />
-        <Skeleton className="h-3 w-64" />
-      </div>
-      {/* Short description */}
-      <div className="space-y-2">
-        <Skeleton className="h-3.5 w-32" />
-        <Skeleton className="h-9 w-full rounded-md" />
-      </div>
-      {/* Description (Textarea, min-h-30) */}
-      <div className="space-y-2">
-        <Skeleton className="h-3.5 w-24" />
-        <Skeleton className="h-30 w-full rounded-md" />
-      </div>
+    <div className={spacing}>
+      {/* <Label> is `text-sm leading-none`, so its box is exactly 14px. */}
+      <Skeleton className={cn("h-3.5", labelWidth)} />
+
+      {kind === "slug" || kind === "key" ? (
+        <>
+          <div className="flex gap-2">
+            <Skeleton className="h-8 flex-1 rounded-lg" />
+            {/* Regenerate button: variant="outline" size="sm" -> h-7. */}
+            <Skeleton className="h-7 w-9 rounded-lg" />
+          </div>
+          {kind === "slug" ? (
+            <div className="flex items-center justify-between">
+              {/* FormDescription is text-[0.8rem]; the indicator is a text-xs
+                  span with a 12px icon beside it. */}
+              <Skeleton className="h-3 w-40" />
+              <Skeleton className="h-3 w-20" />
+            </div>
+          ) : (
+            <Skeleton className="h-3 w-40" />
+          )}
+        </>
+      ) : (
+        <Skeleton
+          className={cn(
+            "w-full rounded-lg",
+            kind === "textarea" ? textareaHeight : "h-8",
+          )}
+        />
+      )}
+
+      {kind === "input-hint" && <Skeleton className="h-3 w-64" />}
     </div>
   );
 }
 
-export function SkeletonProductForm() {
-  // Mirrors <ProductForm>: a compact `bg-muted` TabsList (p-[3px], ~h-6 pill
-  // triggers) then the Details tab, whose translatable fields sit inside a
-  // `rounded-md border border-border/60 p-4` section (the "separating line" the
-  // bare-field version was missing).
+/**
+ * What a form's footer collapses to while it loads.
+ *
+ * A create form ends in a plain `min-w-32` submit button. An edit form ends in
+ * <FormSaveBar>, and a freshly loaded edit form is not dirty yet - so the bar is
+ * in its quiet "all changes saved" state: a 16px check icon beside a `text-sm`
+ * line, NOT a button. Drawing a button there was wrong in both directions: too
+ * tall, and it promised an action the loaded form does not show.
+ */
+export function SkeletonFormFooter({
+  mode = "create",
+  submitWidth = "w-32",
+}: {
+  mode?: "create" | "edit";
+  submitWidth?: string;
+}) {
+  if (mode === "edit") {
+    return (
+      <div className="flex items-center gap-1.5">
+        <Skeleton className="size-4 rounded" />
+        <Skeleton className="h-3.5 w-36" />
+      </div>
+    );
+  }
+  return <SkeletonButton className={submitWidth} />;
+}
+
+/**
+ * One bordered per-locale block from a translatable admin form. The product,
+ * brand, tag and category forms all render the same box - a locale caption
+ * ("🇬🇧 English"), then that locale's fields - so `fields` describes which rows
+ * this particular form has instead of each feature owning a near-identical copy.
+ *
+ * `radius` follows the real form: ProductForm's sections are `rounded-md`, the
+ * brand / tag / category ones `rounded-lg`.
+ */
+export function SkeletonLocaleSection({
+  fields = ["input", "slug", "input", "textarea"],
+  labelWidths = ["w-16", "w-12", "w-32", "w-24"],
+  radius = "md",
+  textareaHeight = "h-16",
+}: {
+  fields?: SkeletonFormRowKind[];
+  labelWidths?: string[];
+  radius?: "md" | "lg";
+  textareaHeight?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "border border-border/60 p-4 space-y-4",
+        radius === "md" ? "rounded-md" : "rounded-lg",
+      )}
+    >
+      {/* Locale caption: `text-xs font-semibold uppercase tracking-widest`. */}
+      <div className="flex h-4 items-center">
+        <Skeleton className="h-3 w-24" />
+      </div>
+      {fields.map((kind, i) => (
+        <SkeletonFormRow
+          key={i}
+          kind={kind}
+          labelWidth={labelWidths[i % labelWidths.length]}
+          textareaHeight={textareaHeight}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The per-locale blocks a translatable admin form renders: the default locale
+ * plus one per non-default locale. SUPPORTED_LOCALES is en/sr/de/es, so four
+ * identical boxes - a single-box placeholder leaves everything below it
+ * mismatched and the page visibly shifts when the real form streams in.
+ */
+export function SkeletonLocaleSections(
+  props: Parameters<typeof SkeletonLocaleSection>[0],
+) {
+  return (
+    <>
+      {Array.from({ length: 4 }, (_, i) => (
+        <SkeletonLocaleSection key={i} {...props} />
+      ))}
+    </>
+  );
+}
+
+/**
+ * The shell every admin form shares: the <RequiredFieldsNote /> legend line,
+ * the caller's sections, then the submit button. Defaults match the
+ * `space-y-6 max-w-2xl` form element used by the brand / tag / category /
+ * attribute forms; CouponForm is `max-w-lg space-y-5`.
+ */
+export function SkeletonAdminForm({
+  maxWidth = "max-w-2xl",
+  spacing = "space-y-6",
+  submitWidth = "w-32",
+  mode = "create",
+  children,
+}: {
+  maxWidth?: string;
+  spacing?: string;
+  submitWidth?: string;
+  mode?: "create" | "edit";
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn(spacing, maxWidth)}>
+      {/* <RequiredFieldsNote /> is a single `text-xs` line. */}
+      <Skeleton className="h-3 w-56" />
+      {children}
+      <SkeletonFormFooter mode={mode} submitWidth={submitWidth} />
+    </div>
+  );
+}
+
+export function SkeletonProductForm({
+  mode = "create",
+}: {
+  mode?: "create" | "edit";
+} = {}) {
+  // Mirrors <ProductForm>'s Details tab in order: four translatable sections,
+  // categories, tags, a separator, the specifications block (its own heading
+  // plus warranty / country of origin / brand), another separator, then media.
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* <RequiredFieldsNote /> - text-xs line sitting directly above <Tabs>,
           no gap class between them on the form element itself. */}
       <Skeleton className="h-3 w-56 shrink-0" />
 
-      {/* <Tabs> is `flex flex-col gap-2` - the 8px gap between the tab list and
-          its content must be reproduced or the fields sit 8px too high. */}
+      {/* <Tabs> is `flex gap-2 data-horizontal:flex-col` - the 8px gap between
+          the tab list and its content must be reproduced or the fields sit 8px
+          too high. */}
       <div className="flex-1 min-h-0 flex flex-col gap-2">
-        {/* TabsList (bg-muted pill, compact ~h-6 triggers) */}
+        {/* TabsList: `w-full ... p-[3px] gap-1 rounded-lg bg-muted` with
+            `*:h-7.75!` triggers. TabsTrigger carries `flex-1` in its base, so
+            with a `w-full` list all five come out the SAME width - fixed pill
+            widths here left a gap on the right the real list never has. */}
         <div className="shrink-0 flex w-full flex-wrap items-center gap-1 rounded-lg bg-muted p-0.75">
-          <Skeleton className="h-6 w-14 rounded-md" />
-          <Skeleton className="h-6 w-14 rounded-md" />
-          <Skeleton className="h-6 w-16 rounded-md" />
-          <Skeleton className="h-6 w-10 rounded-md" />
-          <Skeleton className="h-6 w-16 rounded-md" />
+          {Array.from({ length: 5 }, (_, i) => (
+            <Skeleton key={i} className="h-7.75 flex-1 rounded-md" />
+          ))}
         </div>
 
-        {/* Details tab content. `[scrollbar-gutter:stable]` reserves the same
-            width the real form's scrollbar takes, so nothing nudges left. */}
-        <div className="flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable] space-y-6 pt-4 pb-6">
-          {/* Translatable sections: default locale + one per other locale.
-              SUPPORTED_LOCALES = en/sr/de/es -> 4 identical bordered boxes.
-              (The bare single-box version left the sr/de/es sections mismatched
-              against categories/brand below, causing a shift.) */}
-          {Array.from({ length: 4 }).map((_, i) => (
-            <SkeletonTranslatableSection key={i} />
-          ))}
+        {/* TabsContent: `space-y-6 pt-4 overflow-y-auto min-h-0 pb-6`. */}
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-6 pt-4 pb-6">
+          {/* Default locale + one section per non-default locale. The product
+              description passes `min-h-30`, unlike the other forms. */}
+          <SkeletonLocaleSections textareaHeight="h-30" />
 
-          {/* Categories */}
-          <div className="space-y-2">
-            <Skeleton className="h-3.5 w-28" />
-            <Skeleton className="h-9 w-full rounded-md" />
-          </div>
+          {/* Categories (CategoryPicker) and tags (TagPicker). */}
+          <SkeletonFormRow labelWidth="w-28" />
+          <SkeletonFormRow labelWidth="w-12" />
 
-          {/* Brand */}
-          <div className="space-y-2">
-            <Skeleton className="h-3.5 w-16" />
-            <Skeleton className="h-9 w-full rounded-md" />
-          </div>
-
-          {/* Separator */}
           <div className="h-px bg-border" />
 
-          {/* Media (label is text-base font-semibold, 16px) */}
+          {/* Specifications: a `text-base font-semibold` heading over warranty,
+              country of origin and brand. */}
+          <div className="space-y-4">
+            <div className="flex h-4 items-center">
+              <Skeleton className="h-4 w-32" />
+            </div>
+            <SkeletonFormRow labelWidth="w-20" />
+            <SkeletonFormRow labelWidth="w-28" />
+            <SkeletonFormRow labelWidth="w-16" />
+          </div>
+
+          <div className="h-px bg-border" />
+
+          {/* Media: `space-y-2`, a text-base font-semibold label, the uploader. */}
           <div className="space-y-2">
             <div className="flex h-4 items-center">
               <Skeleton className="h-4 w-20" />
             </div>
-            <Skeleton className="h-36 w-full rounded-md" />
+            <Skeleton className="h-36 w-full rounded-lg" />
           </div>
         </div>
       </div>
 
-      {/* Save bar (form.tsx: shrink-0 pt-4 pb-6 border-t) */}
+      {/* Footer (ProductForm: `shrink-0 pt-4 pb-6 border-t`). Create ends in a
+          `min-w-36` submit; update ends in a non-sticky <FormSaveBar>, which on
+          a freshly loaded form is the quiet "all changes saved" line. */}
       <div className="shrink-0 pt-4 pb-6 border-t">
-        <SkeletonButton className="w-36" />
+        <SkeletonFormFooter mode={mode} submitWidth="w-36" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Placeholder for the navigation card grids on the admin and dashboard home
+ * pages: a `md:grid-cols-2` grid of <Card>s, each a 40px icon tile beside a
+ * title and description.
+ *
+ * Both pages call `await connection()` and then query the user before rendering
+ * anything, so they are fully dynamic and this is what fills the gap.
+ */
+export function SkeletonNavCardGrid({ cards = 6 }: { cards?: number }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <SkeletonArray amount={cards}>
+        <div className="flex h-full flex-col gap-4 overflow-hidden rounded-xl bg-card py-4 ring-1 ring-foreground/10">
+          <div className="flex items-center gap-3 px-4">
+            <Skeleton className="h-10 w-10 shrink-0 rounded-lg" />
+            <div className="flex-1 space-y-1.5">
+              {/* CardTitle is `text-base leading-snug`, CardDescription text-sm. */}
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-48" />
+            </div>
+          </div>
+        </div>
+      </SkeletonArray>
+    </div>
+  );
+}
+
+/**
+ * The greeting header the admin and dashboard home pages use instead of
+ * <PageHeader>: a breadcrumb trail, an `text-2xl font-bold` h1 and a `text-sm`
+ * subtitle, in a `px-6 sticky-header-bg` box with `pt-2` / `pb-4`.
+ *
+ * The real heading interpolates the user's name, which is exactly what the page
+ * is still waiting on, so it stays a placeholder bar here.
+ */
+export function SkeletonGreetingHeader() {
+  return (
+    <div className="shrink-0 px-6 sticky-header-bg">
+      <div className="pt-2">
+        <SkeletonBreadcrumbs />
+      </div>
+      <div className="pb-4">
+        <div className="flex h-8 items-center">
+          <Skeleton className="h-6 w-64" />
+        </div>
+        <div className="mt-0.5 flex h-5 items-center">
+          <Skeleton className="h-3.5 w-80" />
+        </div>
       </div>
     </div>
   );

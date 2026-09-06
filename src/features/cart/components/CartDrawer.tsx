@@ -147,6 +147,12 @@ export function CartDrawer() {
                             variant="outline"
                             size="icon"
                             className="h-6 w-6"
+                            // Removing a line is the trash button's job only
+                            // (same rule as QuantityStepper): stepping down
+                            // to zero would delete the item from behind a
+                            // non-destructive control.
+                            disabled={item.quantity <= 1}
+                            aria-label={t("decreaseQty")}
                             onClick={() =>
                               updateQuantity(
                                 item.productId,
@@ -168,6 +174,7 @@ export function CartDrawer() {
                               item.maxStock !== null &&
                               item.quantity >= item.maxStock
                             }
+                            aria-label={t("increaseQty")}
                             onClick={() =>
                               updateQuantity(
                                 item.productId,
@@ -182,6 +189,7 @@ export function CartDrawer() {
                             variant="ghost"
                             size="icon"
                             className="h-6 w-6 ml-auto text-destructive hover:text-destructive"
+                            aria-label={t("removeItem")}
                             onClick={() =>
                               removeItem(item.productId, item.variantId)
                             }

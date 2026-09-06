@@ -88,8 +88,13 @@ async function HomeCtaActions() {
  * indexable entity in Google's eyes - each with the language-appropriate
  * canonical URL.
  */
-export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getLocale();
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  // Route segment, not getLocale() - see the products list page for why.
+  const { locale } = await params;
   const t = await getTranslations({ locale });
 
   const languages: Record<string, string> = {};

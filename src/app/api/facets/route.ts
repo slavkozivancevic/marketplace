@@ -37,6 +37,9 @@ export async function GET(req: NextRequest) {
   const bestseller = bestsellerParam === "true" ? true : bestsellerParam === "false" ? false : null;
   const isDigitalParam = searchParams.get("isDigital");
   const isDigital = isDigitalParam === "true" ? true : isDigitalParam === "false" ? false : null;
+  const minWarrantyRaw = searchParams.get("minWarranty");
+  const minWarranty = minWarrantyRaw ? parseInt(minWarrantyRaw, 10) : undefined;
+  const origin = searchParams.getAll("origin");
   const brandId = searchParams.getAll("brandId");
   const tagId = searchParams.getAll("tagId");
   const minRatingRaw = searchParams.get("minRating");
@@ -59,6 +62,8 @@ export async function GET(req: NextRequest) {
           onSaleCount: 0,
           bestsellerCount: 0,
           isDigitalCounts: { true: 0, false: 0 },
+          originCounts: {},
+          warrantyCounts: {},
         });
       }
     }
@@ -74,6 +79,8 @@ export async function GET(req: NextRequest) {
         onSale,
         bestseller,
         isDigital,
+        minWarranty,
+        origin,
         brandId,
         tagId,
         minRating,

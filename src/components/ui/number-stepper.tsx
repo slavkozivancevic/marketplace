@@ -25,6 +25,7 @@ export function NumberStepper({
   placeholder,
   allowEmpty = false,
   className,
+  "aria-invalid": ariaInvalid,
 }: {
   value: number | null;
   onChange: (value: number | null) => void;
@@ -35,6 +36,8 @@ export function NumberStepper({
   placeholder?: string;
   allowEmpty?: boolean;
   className?: string;
+  /** Forwarded to the inner input so an invalid value gets the red border. */
+  "aria-invalid"?: boolean | "true" | "false";
 }) {
   const clamp = (n: number) => {
     let v = n;
@@ -75,6 +78,12 @@ export function NumberStepper({
         // stepper arrows still clamp via the `min`/`max` props.
         placeholder={placeholder}
         value={value ?? ""}
+        aria-invalid={ariaInvalid}
+        // Typing into a field that already reads "0" otherwise prepends to it -
+        // you aim for 65 and get 065, then have to go back and delete the zero.
+        // Selecting on focus makes the first keystroke replace the value, which
+        // is what every native spinner does.
+        onFocus={(e) => e.currentTarget.select()}
         onChange={(e) => {
           const raw = e.target.value;
           if (raw === "") {
