@@ -9,8 +9,13 @@ import { useZodResolver } from "@/i18n/useZodResolver";
 import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
 import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
+import {
+  useHasFormErrors,
+  useSaveBlockedReason,
+} from "@/lib/forms/useSaveBlockedReason";
 import { useBoolFormat } from "@/lib/forms/changedFormatters";
 import { FormSaveBar } from "@/components/forms/FormSaveBar";
+import { SaveBlockedNotice } from "@/components/forms/SaveBlockedNotice";
 import { RequiredFieldsNote } from "@/components/forms/RequiredFieldsNote";
 import { FieldChangedHint, ChangedHintScope } from "@/components/forms/FieldChangedHint";
 import {
@@ -330,7 +335,7 @@ function CategoryFormInner(props: CategoryFormProps & { onDiscard: () => void })
   // is a real hook call - the compiler tracks it correctly - and is the
   // react-hook-form-documented way to read formState reactively (see the
   // identical fix in VariantsEditor.tsx).
-  const { errors, defaultValues: savedValues } = useFormState({ control: form.control });
+  const { defaultValues: savedValues } = useFormState({ control: form.control });
 
   // NOT react-hook-form's `isDirty`: that flag is only recomputed inside the
   // write that triggered it, so the auto-derived slug (written in a follow-up
@@ -383,11 +388,20 @@ function CategoryFormInner(props: CategoryFormProps & { onDiscard: () => void })
   );
   const canRegenerateSlug = slugManuallyEdited && (slugValue ?? "") !== autoSlug;
 
-  useUnsavedChangesWarning(props.mode === "edit" && isDirty);
+  // Not gated on edit mode: a half-filled create form is exactly as easy to
+  // lose to a stray nav click, and `isDirty` compares against the empty
+  // defaults, so an untouched form still never prompts.
+  useUnsavedChangesWarning(isDirty);
 
   // Block saving while any field is invalid (error-based, so a freshly-loaded
   // valid category isn't disabled before the first validation runs).
-  const hasErrors = Object.keys(errors).length > 0;
+  // `Object.keys(errors)` reads the WHOLE error object, whose identity never
+  // changes (react-hook-form mutates it in place), so under the React Compiler
+  // it memoizes to its first result and the flag freezes at `false`. Reading it
+  // through the hook keeps it live. See useSaveBlockedReason for the details.
+  const hasErrors = useHasFormErrors(form.control);
+
+  const saveBlockedReason = useSaveBlockedReason(form.control);
 
   const onSubmit = (data: CategoryInput) => {
     startTransition(async () => {
@@ -695,18 +709,22 @@ function CategoryFormInner(props: CategoryFormProps & { onDiscard: () => void })
             onDiscard={props.onDiscard}
             saveLabel={t("saveChanges")}
             saveDisabled={hasErrors}
+          saveDisabledReason={saveBlockedReason}
           />
         ) : (
-          <Button type="submit" disabled={isPending || hasErrors} className="min-w-32">
-            {isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {t("creating")}
-              </>
-            ) : (
-              t("create")
-            )}
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="submit" disabled={isPending || hasErrors} className="min-w-32">
+              {isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t("creating")}
+                </>
+              ) : (
+                t("create")
+              )}
+            </Button>
+            <SaveBlockedNotice blocked={hasErrors} reason={saveBlockedReason} />
+          </div>
         )}
       </form>
       </ChangedHintScope>

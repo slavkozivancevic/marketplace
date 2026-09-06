@@ -1,10 +1,10 @@
 "use client";
 
 import { useTranslations, useLocale } from "next-intl";
-import { Award } from "lucide-react";
+import { Award, ShieldCheck } from "lucide-react";
 import { BrandLogo } from "@/features/brands/components/BrandLogo";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AddToCart } from "@/features/cart/components/AddToCart";
 import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
@@ -13,8 +13,6 @@ import { cn } from "@/lib/utils";
 import { SerializedPublicProduct } from "@/types/types";
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
-import { getOptionValue } from "@/features/products/utils/optionTranslations";
-import { getProductDescription } from "@/features/products/utils/translations";
 import { getBrandName } from "@/features/brands/utils/translations";
 import { getTagName } from "@/features/tags/utils/translations";
 
@@ -36,19 +34,12 @@ export function ProductPurchaseSection({
   isOwnProduct,
 }: ProductPurchaseSectionProps) {
   const t = useTranslations("products");
-  const tCart = useTranslations("cart");
   const locale = useLocale();
   const { currency, currentRate } = useCurrencyStore();
   const activeVariant = activeVariantId
     ? product.variants.find((v) => v.id === activeVariantId)
     : null;
 
-  const optionById = new Map(product.options.map((o) => [o.id, o]));
-  const translateOptionValue = (optionId: string, value: string) => {
-    const opt = optionById.get(optionId);
-    if (!opt) return value;
-    return getOptionValue(opt, value, locale);
-  };
   const localBrandName = product.brand ? getBrandName(product.brand, locale) : "";
 
   const displayPrice = activeVariant ? activeVariant.price : product.price;
@@ -80,6 +71,14 @@ export function ProductPurchaseSection({
     </div>
   );
 
+  // The per-SKU table used to be the only place a buyer could see that other
+  // variants cost less. One line says the same thing without listing every SKU.
+  const variantPrices = product.variants.map((v) => v.price);
+  const minVariantPrice = variantPrices.length ? Math.min(...variantPrices) : null;
+  const maxVariantPrice = variantPrices.length ? Math.max(...variantPrices) : null;
+  const showPriceRange =
+    minVariantPrice != null && maxVariantPrice != null && maxVariantPrice > minVariantPrice;
+
   return (
     <div className="space-y-6">
       <Card>
@@ -94,6 +93,14 @@ export function ProductPurchaseSection({
             </div>
           ) : (
             priceRow
+          )}
+          {showPriceRange && (
+            <p className="text-sm text-muted-foreground">
+              {t("variantPriceRange", {
+                min: formatPrice(convertCents(minVariantPrice!, currency, currentRate()), currency),
+                max: formatPrice(convertCents(maxVariantPrice!, currency, currentRate()), currency),
+              })}
+            </p>
           )}
           {product.brand && (
             <div className="flex items-center gap-2 text-sm">
@@ -119,9 +126,18 @@ export function ProductPurchaseSection({
               ))}
             </div>
           )}
-          <p className="text-muted-foreground">
-            {getProductDescription(product, locale)}
-          </p>
+          {/* One trust line, not a spec strip: warranty next to the buy button
+              is a conversion signal, everything else lives in the
+              specifications tab below. Skipped when warranty is 0 - "no
+              warranty" is a fact for the table, not a selling point here. */}
+          {product.warrantyMonths != null && product.warrantyMonths > 0 && (
+            <p className="flex items-center gap-1.5 text-sm">
+              <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">
+                {t("warrantyValue", { count: product.warrantyMonths })}
+              </span>
+            </p>
+          )}
           <AddToCart
             product={product}
             onActiveVariantChange={onActiveVariantChange}
@@ -159,73 +175,6 @@ export function ProductPurchaseSection({
         </Card>
       )} */}
 
-      {product.variants.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("variantsTitle")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {product.variants.map((variant) => {
-              const isSelected = variant.id === activeVariantId;
-              const variantOnSale =
-                variant.compareAtPrice != null &&
-                variant.compareAtPrice > variant.price;
-
-              return (
-                <div
-                  key={variant.id}
-                  className={cn(
-                    "flex items-center justify-between border rounded p-2 text-sm transition-all",
-                    isSelected
-                      ? "border-primary bg-primary/5 ring-1 ring-primary"
-                      : "border-input",
-                  )}
-                >
-                  <div className="flex flex-wrap gap-1">
-                    {variant.optionValues.map((ov) => (
-                      <Badge
-                        key={ov.id}
-                        variant={isSelected ? "default" : "secondary"}
-                      >
-                        {translateOptionValue(ov.optionId, ov.value)}
-                      </Badge>
-                    ))}
-                  </div>
-                  <div
-                    className={cn(
-                      "flex items-center gap-4",
-                      isSelected
-                        ? "text-foreground font-medium"
-                        : "text-muted-foreground",
-                    )}
-                  >
-                    {variantOnSale ? (
-                      <span className="flex items-baseline gap-1.5">
-                        <span className="text-red-500 font-semibold">
-                          {formatPrice(convertCents(variant.price, currency, currentRate()), currency)}
-                        </span>
-                        <span className="text-xs line-through text-muted-foreground">
-                          {formatPrice(convertCents(variant.compareAtPrice!, currency, currentRate()), currency)}
-                        </span>
-                        <Badge className="bg-red-500 text-white hover:bg-red-600 text-xs py-0">
-                          -{discountPct(variant.price, variant.compareAtPrice!)}%
-                        </Badge>
-                      </span>
-                    ) : (
-                      <span>{formatPrice(convertCents(variant.price, currency, currentRate()), currency)}</span>
-                    )}
-                    <span>
-                      {variant.stock > 0
-                        ? tCart("inStock", { count: variant.stock })
-                        : tCart("outOfStock")}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      )}
 
       {product.variants.length === 0 && (
         <Alert>

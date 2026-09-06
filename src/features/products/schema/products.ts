@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+import { isCountryCode } from "@/lib/i18n/countries";
+
+/**
+ * 50 years. High enough for the longest real consumer warranties (lifetime
+ * cookware, structural guarantees) and low enough that a mistyped year count
+ * ("2026") is rejected rather than stored.
+ */
+export const MAX_WARRANTY_MONTHS = 600;
+
 export const weightUnitSchema = z.enum(["G", "KG", "LB", "OZ"]);
 export const dimensionUnitSchema = z.enum(["CM", "IN"]);
 
@@ -128,6 +137,26 @@ export const createProductSchema = z
     // Shipping
     requiresShipping: z.boolean().default(true),
     isDigital: z.boolean().default(false),
+
+    // Warranty and origin. `null` means "not specified"; warrantyMonths 0 is a
+    // real value meaning "explicitly no warranty", so the empty-string
+    // preprocess must not collapse it to null.
+    warrantyMonths: z
+      .preprocess(
+        (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
+        z.number().int().min(0).max(MAX_WARRANTY_MONTHS).nullable(),
+      )
+      .default(null),
+    countryOfOrigin: z
+      .preprocess(
+        (v) =>
+          typeof v === "string" && v.trim() !== "" ? v.trim().toUpperCase() : null,
+        z
+          .string()
+          .refine(isCountryCode, { message: "unknownCountryCode" })
+          .nullable(),
+      )
+      .default(null),
     weight: z.preprocess(
       (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
       z.number().positive().nullable(),

@@ -15,6 +15,32 @@ describe("isScannerPath", () => {
     }
   });
 
+  it("catches the burst that tripped the AppErrors alarm", () => {
+    // Verbatim from the CloudWatch error logs, 2026-09-01 08:21:50 UTC. Every
+    // one of these missed the original patterns and rendered a page.
+    for (const path of [
+      "/wp-config.php.bak",
+      "/wp-config.php.swp",
+      "/env",
+      "/storage/logs/laravel.log",
+      "/_ignition/health-check",
+      "/actuator/configprops",
+    ]) {
+      expect(isScannerPath(path), path).toBe(true);
+    }
+  });
+
+  it("catches backup and dump files at any depth", () => {
+    for (const path of [
+      "/config.old",
+      "/db/dump.sql",
+      "/.env.orig",
+      "/en/products/anything.bak",
+    ]) {
+      expect(isScannerPath(path), path).toBe(true);
+    }
+  });
+
   it("catches the usual credential and source-control probes", () => {
     for (const path of [
       "/.env",
@@ -43,6 +69,12 @@ describe("isScannerPath", () => {
       "/admin/audit",
       "/invite/abc123",
       "/sign-in",
+      // `/env` is exact-matched, so longer real paths starting with it stay
+      // servable, as does anything merely containing the debug words.
+      "/environment",
+      "/en/environment",
+      "/en/products/actuator-valve-kit",
+      "/en/brands/storage-logistics",
     ]) {
       expect(isScannerPath(path), path).toBe(false);
     }

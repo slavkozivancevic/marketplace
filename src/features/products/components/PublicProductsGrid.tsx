@@ -40,6 +40,8 @@ function buildFetcher(filters: ProductFilters, searchLocale: string) {
     if (filters.onSale === true) params.set("onSale", "true");
     if (filters.bestseller === true) params.set("bestseller", "true");
     if (filters.isDigital != null) params.set("isDigital", String(filters.isDigital));
+    if (filters.minWarranty != null) params.set("minWarranty", String(filters.minWarranty));
+    for (const code of filters.origin) params.append("origin", code);
     for (const id of filters.brandId) params.append("brandId", id);
     for (const id of filters.tagId) params.append("tagId", id);
     if (filters.minRating != null) params.set("minRating", String(filters.minRating));

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Check, Loader2 } from "lucide-react";
+import { SaveBlockedNotice } from "./SaveBlockedNotice";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useMobileBottomBarStore } from "@/store/mobileBottomBar";
@@ -17,8 +18,10 @@ import { useMobileBottomBarStore } from "@/store/mobileBottomBar";
  *
  * `Save` is a real `type="submit"`, so the parent `<form onSubmit>` handles it.
  * `onDiscard` should reset the form back to its saved baseline (`form.reset()`).
- * `saveDisabled` blocks saving while the form is invalid (the reason is shown by
- * the per-field messages).
+ * `saveDisabled` blocks saving while the form is invalid. Pass
+ * `saveDisabledReason` with it: a disabled button with no explanation reads as
+ * a broken app, especially when the offending field is on a tab the user
+ * cannot currently see.
  */
 export function FormSaveBar({
   isDirty,
@@ -26,6 +29,7 @@ export function FormSaveBar({
   onDiscard,
   saveLabel,
   saveDisabled = false,
+  saveDisabledReason,
   sticky = true,
   className,
 }: {
@@ -34,6 +38,8 @@ export function FormSaveBar({
   onDiscard: () => void;
   saveLabel?: string;
   saveDisabled?: boolean;
+  /** Why saving is blocked. Shown in place of the "unsaved changes" label. */
+  saveDisabledReason?: string;
   /** When false, renders inline (no floating/sticky card) - use when the form
    *  already has its own pinned footer. */
   sticky?: boolean;
@@ -72,13 +78,17 @@ export function FormSaveBar({
         className,
       )}
     >
-      <span className="flex items-center gap-2 text-sm font-medium">
-        <span
-          className="size-2 shrink-0 rounded-full bg-amber-500"
-          aria-hidden
-        />
-        {t("unsavedChanges")}
-      </span>
+      {saveDisabled && saveDisabledReason ? (
+        <SaveBlockedNotice blocked={saveDisabled} reason={saveDisabledReason} />
+      ) : (
+        <span className="flex items-center gap-2 text-sm font-medium">
+          <span
+            className="size-2 shrink-0 rounded-full bg-amber-500"
+            aria-hidden
+          />
+          {t("unsavedChanges")}
+        </span>
+      )}
       <div className="flex items-center gap-2">
         <Button
           type="button"

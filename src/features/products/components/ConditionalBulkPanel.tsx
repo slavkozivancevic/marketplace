@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition, useId } from "react";
-import { useTranslations } from "next-intl";
-import { Plus, Trash2, Search, AlertCircle, CheckCircle2, Loader2, ChevronDown } from "lucide-react";
+import { useTranslations, useLocale } from "next-intl";
+import { Plus, Trash2, Search, AlertCircle, CheckCircle2, Loader2, ChevronDown, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
+import { SaveBlockedNotice } from "@/components/forms/SaveBlockedNotice";
 import { Input } from "@/components/ui/input";
 import { NumberStepper } from "@/components/ui/number-stepper";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +41,9 @@ import { toast } from "@/components/ui/sonner";
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
 import { PriceInput } from "./PriceInput";
+import { CountrySelect } from "./CountrySelect";
+import { countryName } from "@/lib/i18n/countries";
+import { MAX_WARRANTY_MONTHS } from "@/features/products/schema/products";
 
 import {
   previewBulkFilter,
@@ -85,6 +89,11 @@ type ConditionType =
   | "taxable"
   | "requiresShipping"
   | "isDigital"
+  | "countryOfOrigin"
+  | "noCountryOfOrigin"
+  | "minWarrantyMonths"
+  | "maxWarrantyMonths"
+  | "noWarranty"
   | "titleContains";
 
 type Condition =
@@ -103,6 +112,11 @@ type Condition =
   | { type: "taxable"; value: boolean }
   | { type: "requiresShipping"; value: boolean }
   | { type: "isDigital"; value: boolean }
+  | { type: "countryOfOrigin"; codes: string[] }
+  | { type: "noCountryOfOrigin" }
+  | { type: "minWarrantyMonths"; value: number }
+  | { type: "maxWarrantyMonths"; value: number }
+  | { type: "noWarranty" }
   | { type: "titleContains"; value: string };
 
 // The action to apply to matching products.
@@ -125,7 +139,11 @@ type ActionType =
   | "setStock"
   | "setTaxable"
   | "setRequiresShipping"
-  | "setIsDigital";
+  | "setIsDigital"
+  | "setWarrantyMonths"
+  | "clearWarrantyMonths"
+  | "setCountryOfOrigin"
+  | "clearCountryOfOrigin";
 
 // Mutually-exclusive condition pairs. Map is symmetric: looking up either
 // member yields the other(s). Shared between the add-menu (to disable
@@ -140,7 +158,50 @@ const MUTEX_PARTNERS: Partial<Record<ConditionType, ConditionType[]>> = {
   minStock: ["outOfStock"],
   maxStock: ["outOfStock"],
   outOfStock: ["minStock", "maxStock"],
+  countryOfOrigin: ["noCountryOfOrigin"],
+  noCountryOfOrigin: ["countryOfOrigin"],
+  minWarrantyMonths: ["noWarranty"],
+  maxWarrantyMonths: ["noWarranty"],
+  noWarranty: ["minWarrantyMonths", "maxWarrantyMonths"],
 };
+
+/**
+ * The message key for a value that has been entered but is not usable, or null
+ * when the value is fine (or simply not filled in yet - "not ready" is not an
+ * error).
+ *
+ * Gated on the action type, not just the value: each action carries a value of
+ * its own shape ("DRAFT", a brand id, an array), and running a numeric check
+ * over all of them made `Number("DRAFT")` NaN and reported "fix the value" for
+ * a perfectly valid status change.
+ */
+function actionValueError(
+  actionType: ActionType,
+  value: unknown,
+): "warrantyOutOfRange" | "pricePositive" | "priceNonNegative" | "stockNonNegative" | null {
+  if (value == null || value === "") return null;
+
+  if (actionType === "setWarrantyMonths") {
+    const months = Number(value);
+    return !Number.isInteger(months) || months < 0 || months > MAX_WARRANTY_MONTHS
+      ? "warrantyOutOfRange"
+      : null;
+  }
+  // The selling price cannot be zero; compare-at and cost can (0 clears them).
+  if (actionType === "setPrice") {
+    const n = Number(value);
+    return !Number.isFinite(n) || n <= 0 ? "pricePositive" : null;
+  }
+  if (actionType === "setCompareAtPrice" || actionType === "setCostPrice") {
+    const n = Number(value);
+    return !Number.isFinite(n) || n < 0 ? "priceNonNegative" : null;
+  }
+  if (actionType === "setStock") {
+    const n = Number(value);
+    return !Number.isInteger(n) || n < 0 ? "stockNonNegative" : null;
+  }
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Helper: build BulkFilter from conditions array
@@ -194,6 +255,21 @@ function conditionsToFilter(conditions: Condition[]): BulkFilter {
         break;
       case "isDigital":
         filter.isDigital = c.value;
+        break;
+      case "countryOfOrigin":
+        if (c.codes.length > 0) filter.countryOfOrigin = c.codes;
+        break;
+      case "noCountryOfOrigin":
+        filter.noCountryOfOrigin = true;
+        break;
+      case "minWarrantyMonths":
+        filter.minWarrantyMonths = c.value;
+        break;
+      case "maxWarrantyMonths":
+        filter.maxWarrantyMonths = c.value;
+        break;
+      case "noWarranty":
+        filter.noWarranty = true;
         break;
       case "titleContains":
         if (c.value) filter.titleContains = c.value;
@@ -269,6 +345,7 @@ function ConditionRow({
   onRemove: () => void;
 }) {
   const t = useTranslations("bulkProducts");
+  const locale = useLocale();
   const id = useId();
   const { rates, currency } = useCurrencyStore();
 
@@ -294,6 +371,11 @@ function ConditionRow({
     taxable: t("condTaxable"),
     requiresShipping: t("condRequiresShipping"),
     isDigital: t("condIsDigital"),
+    countryOfOrigin: t("condCountryOfOrigin"),
+    noCountryOfOrigin: t("condNoCountryOfOrigin"),
+    minWarrantyMonths: t("condMinWarrantyMonths"),
+    maxWarrantyMonths: t("condMaxWarrantyMonths"),
+    noWarranty: t("condNoWarranty"),
     titleContains: t("condTitleContains"),
   };
 
@@ -476,6 +558,67 @@ function ConditionRow({
           </Select>
         )}
 
+        {(condition.type === "minWarrantyMonths" ||
+          condition.type === "maxWarrantyMonths") && (
+          <NumberStepper
+            id={id}
+            min={0}
+            max={MAX_WARRANTY_MONTHS}
+            className="h-8 text-sm w-36"
+            value={condition.value as number}
+            onChange={(v) =>
+              onUpdate({
+                type: condition.type as "minWarrantyMonths" | "maxWarrantyMonths",
+                value: v ?? 0,
+              })
+            }
+          />
+        )}
+
+        {condition.type === "noWarranty" && (
+          <span className="text-sm text-muted-foreground">{t("noWarrantyDesc")}</span>
+        )}
+
+        {condition.type === "countryOfOrigin" && (
+          <div className="flex flex-col gap-2">
+            <CountrySelect
+              value={null}
+              onChange={(code) => {
+                if (!code || condition.codes.includes(code)) return;
+                onUpdate({ type: "countryOfOrigin", codes: [...condition.codes, code] });
+              }}
+            />
+            {condition.codes.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {condition.codes.map((code) => (
+                  <Badge key={code} variant="secondary" className="gap-1">
+                    {countryName(code, locale)}
+                    <button
+                      type="button"
+                      aria-label={t("removeCountry", { country: countryName(code, locale) })}
+                      className="cursor-pointer"
+                      onClick={() =>
+                        onUpdate({
+                          type: "countryOfOrigin",
+                          codes: condition.codes.filter((c) => c !== code),
+                        })
+                      }
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {condition.type === "noCountryOfOrigin" && (
+          <span className="text-sm text-muted-foreground">
+            {t("noCountryOfOriginDesc")}
+          </span>
+        )}
+
         {condition.type === "titleContains" && (
           <Input
             id={id}
@@ -538,6 +681,10 @@ function ActionEditor({
     setTaxable: t("actSetTaxable"),
     setRequiresShipping: t("actSetRequiresShipping"),
     setIsDigital: t("actSetIsDigital"),
+    setWarrantyMonths: t("actSetWarrantyMonths"),
+    clearWarrantyMonths: t("actClearWarrantyMonths"),
+    setCountryOfOrigin: t("actSetCountryOfOrigin"),
+    clearCountryOfOrigin: t("actClearCountryOfOrigin"),
   };
 
   const isCategoryMultiSelectAction =
@@ -549,6 +696,8 @@ function ActionEditor({
     action.type === "setTagsReplace" ||
     action.type === "addTags" ||
     action.type === "removeTags";
+
+  const valueError = actionValueError(action.type, action.value);
 
   const isBoolAction =
     action.type === "setTaxable" ||
@@ -703,7 +852,11 @@ function ActionEditor({
             rates={rates}
             defaultCurrency={currency}
             onChange={(usd) => onChangeValue(usd)}
+            aria-invalid={!!valueError}
           />
+          {valueError && (
+            <p className="text-xs text-destructive">{t(valueError)}</p>
+          )}
         </div>
       )}
 
@@ -715,8 +868,46 @@ function ActionEditor({
             className="h-8 text-sm w-36"
             value={(action.value as number) ?? 0}
             onChange={(v) => onChangeValue(v ?? 0)}
+            aria-invalid={!!valueError}
           />
-          <p className="text-xs text-muted-foreground">{t("stockSimpleOnlyHint")}</p>
+          {valueError ? (
+            <p className="text-xs text-destructive">{t(valueError)}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">{t("stockSimpleOnlyHint")}</p>
+          )}
+        </div>
+      )}
+
+      {action.type === "setWarrantyMonths" && (
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs text-muted-foreground">{t("newWarrantyMonths")}</Label>
+          <NumberStepper
+            min={0}
+            max={MAX_WARRANTY_MONTHS}
+            allowEmpty
+            placeholder={t("newWarrantyPlaceholder")}
+            className="h-8 text-sm w-36"
+            value={(action.value as number | null) ?? null}
+            onChange={(v) => onChangeValue(v)}
+            aria-invalid={!!valueError}
+          />
+          {valueError ? (
+            <p className="text-xs text-destructive">
+              {t("warrantyOutOfRange", { max: MAX_WARRANTY_MONTHS })}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">{t("warrantyZeroHint")}</p>
+          )}
+        </div>
+      )}
+
+      {action.type === "setCountryOfOrigin" && (
+        <div className="flex flex-col gap-1.5 w-64">
+          <Label className="text-xs text-muted-foreground">{t("newCountryOfOrigin")}</Label>
+          <CountrySelect
+            value={(action.value as string) ?? null}
+            onChange={(code) => onChangeValue(code)}
+          />
         </div>
       )}
 
@@ -820,6 +1011,11 @@ function makeDefaultCondition(type: ConditionType): Condition {
     case "taxable": return { type: "taxable", value: true };
     case "requiresShipping": return { type: "requiresShipping", value: true };
     case "isDigital": return { type: "isDigital", value: true };
+    case "countryOfOrigin": return { type: "countryOfOrigin", codes: [] };
+    case "noCountryOfOrigin": return { type: "noCountryOfOrigin" };
+    case "minWarrantyMonths": return { type: "minWarrantyMonths", value: 0 };
+    case "maxWarrantyMonths": return { type: "maxWarrantyMonths", value: 0 };
+    case "noWarranty": return { type: "noWarranty" };
     case "titleContains": return { type: "titleContains", value: "" };
   }
 }
@@ -853,6 +1049,11 @@ export function ConditionalBulkPanel({
     { type: "taxable", label: t("condTaxable") },
     { type: "requiresShipping", label: t("condRequiresShipping") },
     { type: "isDigital", label: t("condIsDigital") },
+    { type: "countryOfOrigin", label: t("condCountryOfOrigin") },
+    { type: "noCountryOfOrigin", label: t("condNoCountryOfOrigin") },
+    { type: "minWarrantyMonths", label: t("condMinWarrantyMonths") },
+    { type: "maxWarrantyMonths", label: t("condMaxWarrantyMonths") },
+    { type: "noWarranty", label: t("condNoWarranty") },
     { type: "titleContains", label: t("condTitleContains") },
   ];
 
@@ -947,6 +1148,16 @@ export function ConditionalBulkPanel({
         return { requiresShipping: action.value as boolean };
       case "setIsDigital":
         return { isDigital: action.value as boolean };
+      case "setWarrantyMonths":
+        return { warrantyMonths: action.value as number };
+      // Clearing is its own action rather than "set to empty": 0 months is a
+      // real value ("no warranty"), so it cannot double as "unspecified".
+      case "clearWarrantyMonths":
+        return { warrantyMonths: null };
+      case "setCountryOfOrigin":
+        return { countryOfOrigin: action.value as string };
+      case "clearCountryOfOrigin":
+        return { countryOfOrigin: null };
       default:
         return {};
     }
@@ -975,6 +1186,16 @@ export function ConditionalBulkPanel({
     if (action.type === "setTaxable" || action.type === "setRequiresShipping" || action.type === "setIsDigital") {
       return action.value !== undefined;
     }
+    if (action.type === "setWarrantyMonths") {
+      const months = action.value as number;
+      return (
+        action.value !== undefined &&
+        Number.isInteger(months) &&
+        months >= 0 &&
+        months <= MAX_WARRANTY_MONTHS
+      );
+    }
+    if (action.type === "setCountryOfOrigin") return typeof action.value === "string" && !!action.value;
     return true;
   };
 
@@ -1041,6 +1262,7 @@ export function ConditionalBulkPanel({
   const canExecute =
     hasConditions &&
     isActionValid() &&
+    actionValueError(action.type, action.value) === null &&
     preview !== null &&
     effectivePreviewCount > 0 &&
     !exceedsBulkCategoryLimit;
@@ -1168,20 +1390,30 @@ export function ConditionalBulkPanel({
       <div className="flex flex-col gap-3">
         <h3 className="text-sm font-semibold">{t("previewExecute")}</h3>
 
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-fit gap-2"
-          onClick={handlePreview}
-          disabled={isPreviewing}
-        >
-          {isPreviewing ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Search className="h-3.5 w-3.5" />
-          )}
-          {isPreviewing ? t("previewing") : t("previewBtn")}
-        </Button>
+        {/* Gated on having conditions: without them the preview would count the
+            whole catalogue, which reads as "this is what I am about to change"
+            while executing is in fact blocked (`canExecute` needs a condition).
+            Disabled + a reason instead, same contract as every admin form. */}
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-fit gap-2"
+            onClick={handlePreview}
+            disabled={isPreviewing || !hasConditions}
+          >
+            {isPreviewing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Search className="h-3.5 w-3.5" />
+            )}
+            {isPreviewing ? t("previewing") : t("previewBtn")}
+          </Button>
+          <SaveBlockedNotice
+            blocked={!hasConditions}
+            reason={t("addConditionFirst")}
+          />
+        </div>
 
         {preview && <PreviewCard preview={preview} />}
 
@@ -1228,8 +1460,12 @@ export function ConditionalBulkPanel({
                 ) : null}
                 {isExecuting
                   ? t("executing")
+                  : !hasConditions
+                  ? t("addConditionFirst")
                   : effectivePreviewCount === 0
                   ? t("noProductsToUpdate")
+                  : actionValueError(action.type, action.value)
+                  ? t("fixActionValue")
                   : !isActionValid()
                   ? t("selectActionValue")
                   : confirmLabel()}

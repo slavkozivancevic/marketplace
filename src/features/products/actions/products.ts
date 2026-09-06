@@ -10,7 +10,9 @@ import {
   updateProductSchema,
   CreateProductInput,
   UpdateProductInput,
+  MAX_WARRANTY_MONTHS,
 } from "../schema/products";
+import { normalizeCountryCode } from "@/lib/i18n/countries";
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import { ProductStatus } from "@/generated/prisma/client";
 import { productRepository } from "../db/products";
@@ -54,6 +56,9 @@ export type BulkCreateRow = {
   taxCode?: string;
   requiresShipping?: boolean;
   isDigital?: boolean;
+  warrantyMonths?: number;
+  /** ISO 3166-1 alpha-2. Unknown codes are rejected per row on import. */
+  countryOfOrigin?: string;
   weight?: number;
   weightUnit?: string;
   length?: number;
@@ -548,6 +553,29 @@ export async function bulkCreateProducts(
           throw new CsvRowError("csvInvalidStatus", { status: row.status });
         }
 
+        // Fails the row rather than silently importing a blank origin: a
+        // typo'd code in a customs-relevant column is worth stopping on.
+        const countryOfOrigin = row.countryOfOrigin
+          ? normalizeCountryCode(row.countryOfOrigin)
+          : null;
+        if (row.countryOfOrigin && countryOfOrigin === null) {
+          throw new CsvRowError("csvInvalidCountryOfOrigin", {
+            code: row.countryOfOrigin,
+          });
+        }
+
+        if (
+          row.warrantyMonths != null &&
+          (!Number.isInteger(row.warrantyMonths) ||
+            row.warrantyMonths < 0 ||
+            row.warrantyMonths > MAX_WARRANTY_MONTHS)
+        ) {
+          throw new CsvRowError("csvInvalidWarrantyMonths", {
+            value: String(row.warrantyMonths),
+            max: MAX_WARRANTY_MONTHS,
+          });
+        }
+
         await repo.create({
           title: row.title,
           slug: row.slug,
@@ -562,6 +590,8 @@ export async function bulkCreateProducts(
           taxCode: row.taxCode,
           requiresShipping: row.requiresShipping ?? true,
           isDigital: row.isDigital ?? false,
+          warrantyMonths: row.warrantyMonths ?? null,
+          countryOfOrigin,
           weight: row.weight ?? null,
           weightUnit: weightUnit ?? null,
           length: row.length ?? null,

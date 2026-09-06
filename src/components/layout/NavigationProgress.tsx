@@ -22,7 +22,9 @@ import { onNavigationStart } from "@/lib/navigation/navigationProgressSignal";
  *     runs before React's delegated handler calls `preventDefault()` for the
  *     client navigation, so the click is still inspectable. Skipped when the
  *     unsaved-changes guard is armed - that click won't navigate yet (a
- *     confirm dialog decides), so starting here would be premature.
+ *     confirm dialog decides), so starting here would be premature. Skipped
+ *     too when the pointer moved between press and release: that is a drag
+ *     (a carousel swipe over its cards), not a navigating click.
  *   - START (deferred navigations): the unsaved-changes guard (and anything
  *     else that navigates programmatically after its own gate) calls
  *     `emitNavigationStart()` right before the real `router.push`, so the bar
@@ -39,6 +41,9 @@ import { onNavigationStart } from "@/lib/navigation/navigationProgressSignal";
 const TRICKLE_MS = 300;
 const SAFETY_MS = 12_000;
 const DONE_HOLD_MS = 320;
+// Pointer travel between press and release beyond which the gesture is a drag
+// (carousel swipe, text selection) rather than a click that navigates.
+const DRAG_SLOP_PX = 10;
 
 export function NavigationProgress() {
   const pathname = usePathname();
@@ -51,6 +56,8 @@ export function NavigationProgress() {
   const runningRef = useRef(false);
   const timersRef = useRef<number[]>([]);
   const trickleRef = useRef<number | null>(null);
+  // Where the last pointer press landed, to tell a click from a drag.
+  const pressRef = useRef<{ x: number; y: number } | null>(null);
 
   const clearTimers = () => {
     timersRef.current.forEach((t) => window.clearTimeout(t));
@@ -90,8 +97,25 @@ export function NavigationProgress() {
 
   // Bind the navigation-start detector once.
   useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      pressRef.current = { x: e.clientX, y: e.clientY };
+    };
+
     const onClick = (e: MouseEvent) => {
       if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      // A pointer that travelled before release was a drag, not a click:
+      // carousels (embla) let you drag a slide strip by its cards, and they
+      // swallow the resulting click on their own root - too late for this
+      // capture-phase listener, which would otherwise start a bar for a
+      // navigation that never happens. Distance tells the two apart before
+      // anyone gets to preventDefault(). Keyboard-activated links report no
+      // preceding press and are unaffected.
+      // `detail === 0` is a keyboard/programmatic click with no press behind
+      // it, so the distance check would compare against a stale press.
+      const press = e.detail > 0 ? pressRef.current : null;
+      if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > DRAG_SLOP_PX) {
+        return;
+      }
       const target = e.target as HTMLElement | null;
       const anchor = target?.closest?.("a");
       if (!anchor) return;
@@ -129,8 +153,10 @@ export function NavigationProgress() {
       start();
     };
 
+    document.addEventListener("pointerdown", onPointerDown, { capture: true });
     document.addEventListener("click", onClick, { capture: true });
     return () => {
+      document.removeEventListener("pointerdown", onPointerDown, { capture: true });
       document.removeEventListener("click", onClick, { capture: true });
       clearTimers();
     };

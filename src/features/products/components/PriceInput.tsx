@@ -32,6 +32,7 @@ export function PriceInput({
   inputClassName,
   onCurrencyChange,
   disabled = false,
+  "aria-invalid": ariaInvalid,
 }: {
   value: number;
   onChange: (usd: number) => void;
@@ -48,6 +49,13 @@ export function PriceInput({
   onCurrencyChange?: (currency: Currency) => void;
   /** Read-only mode: locks both the amount input and the currency selector. */
   disabled?: boolean;
+  /**
+   * Set by `FormControl` when the field has an error. Forwarded to the inner
+   * input so an invalid price gets the same red border a plain `Input` gets -
+   * without it the component swallowed the flag, so a negative price showed
+   * only a message while every other field also turned red.
+   */
+  "aria-invalid"?: boolean | "true" | "false";
 }) {
   // Guard against an invalid/empty currency reaching the selector (e.g. the
   // store mid-hydration or a stale persisted value) - it would render a blank
@@ -176,6 +184,7 @@ export function PriceInput({
             onChange={handleChange}
             onBlur={onBlur}
             disabled={disabled}
+            aria-invalid={ariaInvalid}
           />
         </div>
         <Select value={inputCurrency} onValueChange={(v) => handleCurrencyChange(v as Currency)} disabled={disabled}>

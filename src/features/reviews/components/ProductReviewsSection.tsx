@@ -61,12 +61,15 @@ export async function ProductReviewsSection({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
+      {/* Wraps as a whole rating group rather than letting "2.0 (1 recenzija)"
+          split across lines mid-phrase, which is what a plain flex row did on a
+          narrow column. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <h2 className="text-xl font-semibold">{t("heading")}</h2>
         {ratingCount > 0 && (
           <div className="flex items-center gap-2">
             <StarRating rating={avgRating} size={18} />
-            <span className="text-sm text-muted-foreground">
+            <span className="whitespace-nowrap text-sm text-muted-foreground">
               {avgRating.toFixed(1)} ({t("countLabel", { count: ratingCount })})
             </span>
           </div>

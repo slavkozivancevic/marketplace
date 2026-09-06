@@ -53,6 +53,8 @@ export type PublicProductWhereParams = {
   onSale?: boolean | null;
   bestseller?: boolean | null;
   isDigital?: boolean | null;
+  minWarranty?: number | null;
+  origin?: string[];
   brandId?: string[];
   minRating?: number | null;
   categoryId?: string[];
@@ -189,6 +191,12 @@ export function buildPublicProductWhere(
   if (p.onSale === true) where.compareAtPrice = { not: null };
   if (p.bestseller === true) where.isBestseller = true;
   if (p.isDigital != null) where.isDigital = p.isDigital;
+  // "At least N months" - products with no warranty recorded are excluded
+  // rather than treated as zero, since null means unknown, not none.
+  if (p.minWarranty != null && p.minWarranty > 0) {
+    where.warrantyMonths = { gte: p.minWarranty };
+  }
+  if (p.origin?.length) where.countryOfOrigin = { in: p.origin };
   if (p.brandId?.length) where.brandId = { in: p.brandId };
   if (p.minRating != null && p.minRating > 0) where.avgRating = { gte: p.minRating };
   if (p.categoryId?.length) {
@@ -227,6 +235,8 @@ export async function getPublicProductsPage({
   onSale,
   bestseller,
   isDigital,
+  minWarranty,
+  origin,
   brandId,
   minRating,
   categoryId,
@@ -244,6 +254,8 @@ export async function getPublicProductsPage({
   onSale?: boolean | null;
   bestseller?: boolean | null;
   isDigital?: boolean | null;
+  minWarranty?: number | null;
+  origin?: string[];
   brandId?: string[];
   minRating?: number | null;
   categoryId?: string[];
@@ -258,6 +270,8 @@ export async function getPublicProductsPage({
     onSale,
     bestseller,
     isDigital,
+    minWarranty,
+    origin,
     brandId,
     minRating,
     categoryId,

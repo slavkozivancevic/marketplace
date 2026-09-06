@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getPathname } from "@/i18n/navigation";
 import { ReviewTableSkeleton } from "@/features/reviews/components/ReviewTableSkeleton";
 
-/** See ../coupons/loading.tsx - same shape, `sm:min-w-44` status select. */
+/** See ../coupons/(list)/loading.tsx - same shape, `sm:min-w-44` status select. */
 export default async function AdminReviewsLoading() {
   const t = await getTranslations("admin.reviews");
   const tCrumbs = await getTranslations("breadcrumbs");

@@ -23,8 +23,10 @@ import {
 import { useQueryStates } from "nuqs";
 import {
   productSearchParams,
+  WARRANTY_BUCKETS,
   type ProductFilters,
 } from "@/lib/query/searchParams";
+import { countryName } from "@/lib/i18n/countries";
 import {
   FilterSidebar,
   FILTER_OPTIONS_VISIBLE_LIMIT,
@@ -162,6 +164,10 @@ export function PublicProductsPage({
       onSale: boolParam("onSale"),
       bestseller: boolParam("bestseller"),
       isDigital: boolParam("isDigital"),
+      minWarranty: urlSearchParams.get("minWarranty")
+        ? parseInt(urlSearchParams.get("minWarranty")!, 10)
+        : null,
+      origin: urlSearchParams.get("origin")?.split(",").filter(Boolean) ?? [],
       brandId: urlSearchParams.get("brandId")?.split(",").filter(Boolean) ?? [],
       tagId: urlSearchParams.get("tagId")?.split(",").filter(Boolean) ?? [],
       minRating: urlSearchParams.get("minRating") ? parseInt(urlSearchParams.get("minRating")!, 10) : null,
@@ -187,6 +193,8 @@ export function PublicProductsPage({
       params.onSale,
       params.bestseller,
       params.isDigital,
+      params.minWarranty,
+      params.origin.join(","),
       params.minRating,
       lockedOrParamBrand.join(","),
       params.tagId.join(","),
@@ -205,6 +213,8 @@ export function PublicProductsPage({
       if (params.onSale === true) sp.set("onSale", "true");
       if (params.bestseller === true) sp.set("bestseller", "true");
       if (params.isDigital != null) sp.set("isDigital", String(params.isDigital));
+      if (params.minWarranty != null) sp.set("minWarranty", String(params.minWarranty));
+      for (const code of params.origin) sp.append("origin", code);
       for (const id of lockedOrParamBrand) sp.append("brandId", id);
       for (const id of params.tagId) sp.append("tagId", id);
       if (params.minRating != null) sp.set("minRating", String(params.minRating));
@@ -236,6 +246,14 @@ export function PublicProductsPage({
   const bestsellerCount = facetsQuery.data?.bestsellerCount ?? 0;
   const isDigitalCounts = useMemo(
     () => facetsQuery.data?.isDigitalCounts ?? { true: 0, false: 0 },
+    [facetsQuery.data],
+  );
+  const originCounts = useMemo(
+    () => facetsQuery.data?.originCounts ?? {},
+    [facetsQuery.data],
+  );
+  const warrantyCounts = useMemo(
+    () => facetsQuery.data?.warrantyCounts ?? {},
     [facetsQuery.data],
   );
 
@@ -319,6 +337,53 @@ export function PublicProductsPage({
         // storefront with no digital products flashed "Digital" and dropped it.
         pending: !countsReady,
         pendingRows: typeOptions.length,
+      });
+    }
+
+    // Warranty: a floor ladder, not a value set. Buckets with no products are
+    // dropped (unless selected) exactly like the other hide-empty groups, so a
+    // catalogue with no long warranties does not advertise a "60+ months"
+    // option that can only ever return nothing.
+    const warrantyOptions: { value: string; label: string; count?: number }[] = countsReady
+      ? WARRANTY_BUCKETS.map((months) => ({
+          value: String(months),
+          label: t("products.warrantyAtLeast", { count: months }),
+          count: warrantyCounts[months] ?? 0,
+        })).filter((o) => (o.count ?? 0) > 0 || params.minWarranty === Number(o.value))
+      : WARRANTY_BUCKETS.map((months) => ({
+          value: String(months),
+          label: t("products.warrantyAtLeast", { count: months }),
+        }));
+    if (warrantyOptions.length > 0) {
+      groups.push({
+        type: "checkbox",
+        key: "minWarranty",
+        label: t("products.warranty"),
+        options: warrantyOptions,
+        pending: !countsReady,
+        pendingRows: warrantyOptions.length,
+      });
+    }
+
+    // Origin: driven entirely by what the current result set actually contains,
+    // so the list is never the full ISO table - only countries with products.
+    // Sorted by count, then by localized name for a stable order.
+    const originOptions = Object.entries(originCounts)
+      .filter(([code, count]) => count > 0 || params.origin.includes(code))
+      .map(([code, count]) => ({
+        value: code,
+        label: countryName(code, locale),
+        count,
+      }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, locale));
+    if (originOptions.length > 0) {
+      groups.push({
+        type: "checkbox",
+        key: "origin",
+        label: t("products.countryOfOrigin"),
+        options: originOptions,
+        pending: !countsReady,
+        pendingRows: Math.min(originOptions.length, 8),
       });
     }
 
@@ -434,6 +499,10 @@ export function PublicProductsPage({
     onSaleCount,
     bestsellerCount,
     isDigitalCounts,
+    originCounts,
+    warrantyCounts,
+    params.minWarranty,
+    params.origin,
     params.brandId,
     params.tagId,
     params.onSale,
@@ -451,6 +520,8 @@ export function PublicProductsPage({
       ...(params.bestseller === true ? ["bestseller"] : []),
     ],
     isDigital: params.isDigital != null ? [String(params.isDigital)] : [],
+    minWarranty: params.minWarranty != null ? [String(params.minWarranty)] : [],
+    origin: params.origin,
     brandId: params.brandId,
     tagId: params.tagId,
   };
@@ -509,6 +580,15 @@ export function PublicProductsPage({
       const vals = value as string[];
       if (vals.length === 0 || vals.length === 2) setParams({ isDigital: null }, NOW);
       else setParams({ isDigital: vals[0] === "true" }, NOW);
+    } else if (key === "minWarranty") {
+      // Single-choice ladder rendered as checkboxes: the last box ticked wins,
+      // so picking "24+" after "12+" replaces it instead of intersecting to
+      // something unsatisfiable.
+      const vals = value as string[];
+      const picked = vals.find((v) => v !== String(params.minWarranty)) ?? vals[0];
+      setParams({ minWarranty: picked ? parseInt(picked, 10) : null }, NOW);
+    } else if (key === "origin") {
+      setParams({ origin: value as string[] }, NOW);
     } else if (key === "brandId") {
       setParams({ brandId: value as string[] }, NOW);
     } else if (key === "tagId") {
@@ -524,6 +604,8 @@ export function PublicProductsPage({
       onSale: null,
       bestseller: null,
       isDigital: null,
+      minWarranty: null,
+      origin: [],
       brandId: [],
       tagId: [],
       minRating: null,
@@ -549,6 +631,10 @@ export function PublicProductsPage({
       else if (value === "bestseller") setParams({ bestseller: null }, NOW);
     }
     else if (key === "isDigital") setParams({ isDigital: null }, NOW);
+    else if (key === "minWarranty") setParams({ minWarranty: null }, NOW);
+    else if (key === "origin") {
+      setParams({ origin: value ? params.origin.filter((v) => v !== value) : [] }, NOW);
+    }
     else if (key === "brandId") {
       setParams({ brandId: value ? params.brandId.filter((v) => v !== value) : [] }, NOW);
     } else if (key === "tagId") {
@@ -566,6 +652,8 @@ export function PublicProductsPage({
     onSale: params.onSale,
     bestseller: params.bestseller,
     isDigital: params.isDigital,
+    minWarranty: params.minWarranty,
+    origin: params.origin,
     // Locked dimensions take precedence so the visitor can't unlock the
     // brand storefront / category page via URL tampering.
     brandId: lockedBrandId ? [lockedBrandId] : params.brandId,

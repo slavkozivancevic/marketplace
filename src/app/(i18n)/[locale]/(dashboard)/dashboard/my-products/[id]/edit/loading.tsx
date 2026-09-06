@@ -1,9 +1,16 @@
-import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/PageHeader";
-import { Button } from "@/components/ui/button";
-import { SkeletonBreadcrumbs, SkeletonProductForm } from "@/components/ui/skeleton";
+import {
+  SkeletonBreadcrumbs,
+  SkeletonButton,
+  SkeletonProductForm,
+} from "@/components/ui/skeleton";
 
+/**
+ * Back action is a placeholder - see the note in
+ * ../../../../../admin/products/[id]/edit/loading.tsx. The real button reads
+ * "Back to product" and needs the id to build its href.
+ */
 export default async function MyProductEditLoadingPage() {
   const t = await getTranslations();
   return (
@@ -14,13 +21,11 @@ export default async function MyProductEditLoadingPage() {
           title={t("myProducts.edit")}
           description={t("myProducts.editDesc")}
         >
-          <Button asChild variant="outline">
-            <Link href="/dashboard/my-products">{t("myProducts.backTo")}</Link>
-          </Button>
+          <SkeletonButton className="w-32" />
         </PageHeader>
       </div>
       <div className="flex-1 flex flex-col min-h-0 px-6">
-        <SkeletonProductForm />
+        <SkeletonProductForm mode="edit" />
       </div>
     </div>
   );

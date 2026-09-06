@@ -5,7 +5,7 @@ import { getPathname } from "@/i18n/navigation";
 import { AdminCodBalancesSkeleton } from "@/features/payments/components/AdminCodBalancesSkeleton";
 
 /**
- * See the note in ../brands/loading.tsx. This route benefits the most of the
+ * See the note in ../brands/(list)/loading.tsx. This route benefits the most of the
  * three: `getAllCodBalances()` is a live DB aggregate with no `"use cache"`,
  * so the wait is real on every visit.
  */

@@ -328,6 +328,32 @@ model Product {
   // Digital
   isDigital Boolean @default(false)
 
+  // Warranty and origin
+  //
+  // Both are operational, not descriptive: warranty drives the claims window,
+  // invoice text and order emails; origin drives customs paperwork and the
+  // "Made in" filter. That is why they are columns rather than entries in the
+  // Attribute dictionary.
+  //
+  // warrantyMonths: null = unspecified, 0 = explicitly no warranty (rendered
+  // as its own label, not as a blank). Validated 0..600 in the Zod schema.
+  //
+  // countryOfOrigin: ISO 3166-1 alpha-2, uppercase, validated against
+  // src/lib/i18n/countries.ts. The code is stored, never a name - names are a
+  // display concern and there are four of them per country, resolved at render
+  // time through Intl.DisplayNames. Indexed because the "Made in" facet counts
+  // group by it.
+  //
+  // VarChar(8) rather than (2) on purpose: alpha-2 is what the app validates,
+  // but customs work brings codes the ISO list does not cover - alpha-3
+  // (DEU), UN M49 numeric (276), EU geonomenclature specials like XI for
+  // Northern Ireland. Widening a column later is a migration; the extra bytes
+  // cost nothing in Postgres, where varchar(n) and text are the same storage
+  // and the length is only a constraint. Validation stays in Zod, which is
+  // where it can actually produce a good error message.
+  warrantyMonths  Int?
+  countryOfOrigin String? @db.VarChar(8)
+
   // Amazon-style algorithmic badge, recomputed daily by the
   // marketplace-notifications EventBridge cron (POST /api/internal/
   // recompute-bestsellers) - NOT a manually-assigned Tag. See
@@ -375,6 +401,8 @@ model Product {
   @@index([brandId])
   @@index([featuredAt])
   @@index([isBestseller])
+  @@index([countryOfOrigin])
+  @@index([warrantyMonths])
 }
 
 // Per-locale translations for a product. Every supported locale has exactly

@@ -651,6 +651,21 @@ function buildBulkFilterWhere(
   if (filter.requiresShipping !== undefined) where.requiresShipping = filter.requiresShipping;
   if (filter.isDigital !== undefined) where.isDigital = filter.isDigital;
 
+  if (filter.countryOfOrigin?.length) {
+    where.countryOfOrigin = { in: filter.countryOfOrigin };
+  }
+  // "Not set" sweeps - the data-quality pass a seller runs before a customs or
+  // warranty audit. Explicit `null` checks, so a product with warranty 0
+  // ("no warranty", deliberately recorded) is not swept up as missing data.
+  if (filter.noCountryOfOrigin) where.countryOfOrigin = null;
+  if (filter.noWarranty) where.warrantyMonths = null;
+  if (filter.minWarrantyMonths != null || filter.maxWarrantyMonths != null) {
+    const bound: Prisma.IntFilter = {};
+    if (filter.minWarrantyMonths != null) bound.gte = filter.minWarrantyMonths;
+    if (filter.maxWarrantyMonths != null) bound.lte = filter.maxWarrantyMonths;
+    where.warrantyMonths = bound;
+  }
+
   if (filter.titleContains) {
     where.translations = {
       some: { title: { contains: filter.titleContains, mode: "insensitive" } },
@@ -822,12 +837,23 @@ const productWithRelationsInclude = {
       },
     },
   },
+  // Labels ride along (not just ids) so the detail view can render the same
+  // specification rows the buyer sees, without a second lookup. This is a
+  // single-product include - the list includes stay lean. `option.order` is
+  // what keeps a MULTI_SELECT row's joined labels in the configured order.
   attributeValues: {
-    select: {
-      attributeId: true,
-      optionId: true,
-      valueNumeric: true,
-      valueBool: true,
+    include: {
+      attribute: {
+        select: {
+          id: true,
+          key: true,
+          type: true,
+          unit: true,
+          order: true,
+          translations: true,
+        },
+      },
+      option: { select: { id: true, value: true, order: true, translations: true } },
     },
   },
 } satisfies Prisma.ProductInclude;
@@ -1020,6 +1046,8 @@ export function productRepository(
       taxCode?: string;
       requiresShipping?: boolean;
       isDigital?: boolean;
+      warrantyMonths?: number | null;
+      countryOfOrigin?: string | null;
       weight?: number | null;
       weightUnit?: string | null;
       length?: number | null;
@@ -1055,6 +1083,8 @@ export function productRepository(
               taxCode: data.taxCode,
               requiresShipping: data.requiresShipping ?? true,
               isDigital: data.isDigital ?? false,
+              warrantyMonths: data.warrantyMonths ?? null,
+              countryOfOrigin: data.countryOfOrigin ?? null,
               weight: data.weight ?? null,
               weightUnit: (data.weightUnit as never) ?? null,
               length: data.length ?? null,
@@ -1175,6 +1205,8 @@ export function productRepository(
         taxCode?: string;
         requiresShipping?: boolean;
         isDigital?: boolean;
+        warrantyMonths?: number | null;
+        countryOfOrigin?: string | null;
         weight?: number | null;
         weightUnit?: string | null;
         length?: number | null;
@@ -1686,6 +1718,8 @@ export function productRepository(
           taxCode: source.taxCode ?? undefined,
           requiresShipping: source.requiresShipping,
           isDigital: source.isDigital,
+          warrantyMonths: source.warrantyMonths ?? undefined,
+          countryOfOrigin: source.countryOfOrigin ?? undefined,
           weight: source.weight ?? undefined,
           weightUnit: source.weightUnit ?? undefined,
           length: source.length ?? undefined,
@@ -1837,6 +1871,8 @@ export function productRepository(
         taxable,
         requiresShipping,
         isDigital,
+        warrantyMonths,
+        countryOfOrigin,
         stock,
         categories,
         tags,
@@ -1866,6 +1902,8 @@ export function productRepository(
       if (taxable !== undefined) scalarUpdates.taxable = taxable;
       if (requiresShipping !== undefined) scalarUpdates.requiresShipping = requiresShipping;
       if (isDigital !== undefined) scalarUpdates.isDigital = isDigital;
+      if (warrantyMonths !== undefined) scalarUpdates.warrantyMonths = warrantyMonths;
+      if (countryOfOrigin !== undefined) scalarUpdates.countryOfOrigin = countryOfOrigin;
 
       const onlyStockChange =
         stockUpdateRequested &&
@@ -1877,6 +1915,8 @@ export function productRepository(
         taxable === undefined &&
         requiresShipping === undefined &&
         isDigital === undefined &&
+        warrantyMonths === undefined &&
+        countryOfOrigin === undefined &&
         categories === undefined &&
         tags === undefined;
       if (onlyStockChange && stockIds.length === 0) {
@@ -1910,7 +1950,9 @@ export function productRepository(
           costPrice !== undefined ||
           taxable !== undefined ||
           requiresShipping !== undefined ||
-          isDigital !== undefined;
+          isDigital !== undefined ||
+          warrantyMonths !== undefined ||
+          countryOfOrigin !== undefined;
 
         if (hasNonStockScalarUpdate || categoryMutationRequested || tagMutationRequested) {
           await tx.product.updateMany({

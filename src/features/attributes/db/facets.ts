@@ -5,6 +5,7 @@ import {
   type PublicProductWhereParams,
 } from "@/features/products/db/publicProducts";
 import type { AttributeFilter } from "@/lib/query/attrs";
+import { WARRANTY_BUCKETS } from "@/lib/query/searchParams";
 
 type LabelRow = { locale: string; label: string };
 
@@ -47,6 +48,10 @@ export type CategoryFacetsResult = {
   onSaleCount: number;
   bestsellerCount: number;
   isDigitalCounts: { true: number; false: number };
+  /** Product count per ISO country code, for the "Made in" facet. */
+  originCounts: Record<string, number>;
+  /** Product count per warranty floor, keyed by the bucket's month value. */
+  warrantyCounts: Record<number, number>;
 };
 
 /**
@@ -225,7 +230,12 @@ export async function getCategoryFacets(params: {
   // narrows within it. Scoped to the category branch (empty branch = global,
   // which is what the `/products` and `/brands/[slug]` pages pass).
   const whereWithout = (
-    omit: Partial<Record<"brandId" | "tagId" | "onSale" | "bestseller" | "isDigital", true>>,
+    omit: Partial<
+      Record<
+        "brandId" | "tagId" | "onSale" | "bestseller" | "isDigital" | "origin" | "minWarranty",
+        true
+      >
+    >,
   ) =>
     buildPublicProductWhere({
       ...params.base,
@@ -234,11 +244,26 @@ export async function getCategoryFacets(params: {
       ...(omit.onSale && { onSale: null }),
       ...(omit.bestseller && { bestseller: null }),
       ...(omit.isDigital && { isDigital: null }),
+      ...(omit.origin && { origin: undefined }),
+      ...(omit.minWarranty && { minWarranty: null }),
       categoryId: params.deptDescendantIds,
       attributeFilters: params.attributeFilters,
     });
 
-  const [groupedBrands, groupedTags, onSaleCount, bestsellerCount, groupedType] = await Promise.all([
+  // Warranty is a floor, not a set of values, so its "facet" is one count per
+  // offered threshold rather than a groupBy - a product with 24 months belongs
+  // to the 12+ bucket as much as to the 24+ one.
+  const warrantyWhere = whereWithout({ minWarranty: true });
+
+  const [
+    groupedBrands,
+    groupedTags,
+    onSaleCount,
+    bestsellerCount,
+    groupedType,
+    groupedOrigin,
+    warrantyBucketCounts,
+  ] = await Promise.all([
     prisma.product.groupBy({
       by: ["brandId"],
       where: { AND: [whereWithout({ brandId: true }), { brandId: { not: null } }] },
@@ -263,6 +288,20 @@ export async function getCategoryFacets(params: {
       where: whereWithout({ isDigital: true }),
       _count: { _all: true },
     }),
+    prisma.product.groupBy({
+      by: ["countryOfOrigin"],
+      where: {
+        AND: [whereWithout({ origin: true }), { countryOfOrigin: { not: null } }],
+      },
+      _count: { _all: true },
+    }),
+    Promise.all(
+      WARRANTY_BUCKETS.map((months) =>
+        prisma.product.count({
+          where: { AND: [warrantyWhere, { warrantyMonths: { gte: months } }] },
+        }),
+      ),
+    ),
   ]);
 
   const brandCounts: Record<string, number> = {};
@@ -281,5 +320,24 @@ export async function getCategoryFacets(params: {
     else isDigitalCounts.false = g._count._all;
   }
 
-  return { facets, brandCounts, tagCounts, onSaleCount, bestsellerCount, isDigitalCounts };
+  const originCounts: Record<string, number> = {};
+  for (const g of groupedOrigin) {
+    if (g.countryOfOrigin) originCounts[g.countryOfOrigin] = g._count._all;
+  }
+
+  const warrantyCounts: Record<number, number> = {};
+  WARRANTY_BUCKETS.forEach((months, i) => {
+    warrantyCounts[months] = warrantyBucketCounts[i];
+  });
+
+  return {
+    facets,
+    brandCounts,
+    tagCounts,
+    onSaleCount,
+    bestsellerCount,
+    isDigitalCounts,
+    originCounts,
+    warrantyCounts,
+  };
 }

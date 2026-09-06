@@ -13,8 +13,13 @@ import { Footer } from "@/components/layout/footer";
 import { absoluteUrl } from "@/lib/seo/jsonLd";
 import { BrandLogo, type LogoBackdrop } from "@/features/brands/components/BrandLogo";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getLocale();
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  // Route segment, not getLocale() - see the products list page for why.
+  const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "brands" });
 
   const languages: Record<string, string> = {};

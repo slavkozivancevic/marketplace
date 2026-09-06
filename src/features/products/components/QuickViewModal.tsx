@@ -34,6 +34,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton, SkeletonArray } from "@/components/ui/skeleton";
 import { StarRating } from "@/features/reviews/components/StarRating";
+import {
+  ProductSpecifications,
+  buildSpecRows,
+} from "./ProductSpecifications";
 import { AddToCart } from "@/features/cart/components/AddToCart";
 import { QuantityStepper } from "@/features/cart/components/QuantityStepper";
 import { buildCartVariantOptions, buildLocalizedText } from "@/features/cart/utils/variantOptions";
@@ -46,6 +50,11 @@ import { cn } from "@/lib/utils";
 type QuickViewProduct = SerializedPublicProduct & {
   ratingBreakdown: Record<number, number>;
 };
+
+// How many specification rows the popup shows before deferring to the product
+// page. Enough to answer "is this the right thing?", without turning the popup
+// into a second product page.
+const QUICK_VIEW_SPEC_ROWS = 5;
 
 async function fetchProduct(id: string): Promise<QuickViewProduct> {
   const { data } = await axios.get(`/api/products/${id}`);
@@ -98,6 +107,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
 
   const media = product?.media ?? [];
   const activeVariant = product?.variants.find((v) => v.id === activeVariantId);
+  const specRows = product ? buildSpecRows(product, locale, t) : [];
   const localTitle = product ? getProductTitle(product, locale) : "";
   const localShortDescription = product ? getProductShortDescription(product, locale) : null;
   const localBrandName = product?.brand ? getBrandName(product.brand, locale) : "";
@@ -134,6 +144,12 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
     : (product?.compareAtPrice ?? null);
   const isOnSale = displayCompareAt != null && displayCompareAt > displayPrice;
   const salePct = isOnSale ? Math.round(((displayCompareAt! - displayPrice) / displayCompareAt!) * 100) : 0;
+
+  const variantPrices = product?.variants.map((v) => v.price) ?? [];
+  const minVariantPrice = variantPrices.length ? Math.min(...variantPrices) : null;
+  const maxVariantPrice = variantPrices.length ? Math.max(...variantPrices) : null;
+  const showPriceRange =
+    minVariantPrice != null && maxVariantPrice != null && maxVariantPrice > minVariantPrice;
 
   const hasVariants = (product?.variants?.length ?? 0) > 0;
   const isAllSelected = !hasVariants || activeVariantId !== null;
@@ -271,16 +287,28 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
           "source of truth" for the dialog height on desktop.
           Right panel stretches (items-stretch) to match and its variants
           section fills whatever space is left between header and footer.
+
+          The `max-h` matters on mobile, where there is no fixed row height:
+          without it the stacked content grows past the dialog and
+          `DialogContent`'s `overflow-hidden` CLIPS the tail (observed: the
+          footer row under the Add-to-cart button was cut off). With it, this
+          flex container has a definite main size, so the one section marked
+          shrinkable - the selectors/specs scroller - absorbs the overflow and
+          everything else stays on screen. The popup itself never scrolls, at
+          any width.
         */}
-        <div className="flex flex-col sm:flex-row sm:h-[min(85svh,360px)]">
+        <div className="flex flex-col max-h-[90svh] overflow-hidden sm:flex-row sm:h-[min(85svh,520px)]">
 
           {/* ── Left: images ── */}
           <div className="shrink-0 sm:w-[44%] flex flex-col border-b sm:border-b-0 sm:border-r border-border/50 bg-muted/10">
 
-            {/* Embla carousel */}
+            {/* Embla carousel. The media box is viewport-relative on mobile
+                (capped at the old fixed 11rem) so a short phone spends its
+                height on the selectors rather than on a picture the popup can
+                no longer scroll past. */}
             {isLoading ? (
               <div className="shrink-0">
-                <Skeleton className="w-full h-44 sm:h-52 rounded-none" />
+                <Skeleton className="w-full h-[22svh] max-h-44 sm:h-72 sm:max-h-none rounded-none" />
                 {/* Thumbnail strip placeholder - same box as the real strip
                     (h-9 thumbs + px-1.5 py-1 + border-t) so the left panel
                     doesn't grow when the thumbs stream in. */}
@@ -303,7 +331,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                         {/* cursor-pointer - purely a swipe affordance hint (this
                             slide has no click handler), matching the drag-to-
                             navigate carousel it sits in. */}
-                        <div className="relative w-full h-44 sm:h-52 bg-muted/10 cursor-pointer">
+                        <div className="relative w-full h-[22svh] max-h-44 sm:h-72 sm:max-h-none bg-muted/10 cursor-pointer">
                           {m.mediaType === "VIDEO" ? (
                             <video
                               src={m.url}
@@ -350,7 +378,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                 </Carousel>
               </div>
             ) : (
-              <div className="shrink-0 w-full h-44 sm:h-52 flex items-center justify-center text-muted-foreground/40">
+              <div className="shrink-0 w-full h-[22svh] max-h-44 sm:h-72 sm:max-h-none flex items-center justify-center text-muted-foreground/40">
                 <ImageOff className="h-8 w-8" />
               </div>
             )}
@@ -426,7 +454,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
           </div>
 
           {/* ── Right: product info ── */}
-          <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex-1 min-w-0 min-h-0 flex flex-col">
 
             {/* Fixed header: title, brand, rating, price */}
             <div className="px-3.5 pt-3 pb-2.5 border-b border-border/50 space-y-1 shrink-0">
@@ -481,7 +509,11 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                       </span>
                     </div>
                   )}
-                  <div className="flex items-baseline gap-1.5">
+                  {/* flex-wrap: on a narrow dialog the sale price, the struck
+                      original and the -N% badge do not fit on one line, and the
+                      dialog clips rather than scrolls - the badge lost its right
+                      edge. Wrapping keeps all three readable. */}
+                  <div className="flex flex-wrap items-baseline gap-1.5">
                     {isOnSale ? (
                       <>
                         <span className="text-lg font-bold text-red-500">
@@ -500,26 +532,57 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                       </span>
                     )}
                   </div>
+                  {showPriceRange && (
+                    <p className="text-[11px] text-muted-foreground">
+                      {t("variantPriceRange", {
+                        min: formatPrice(convertCents(minVariantPrice!, currency, currentRate()), currency),
+                        max: formatPrice(convertCents(maxVariantPrice!, currency, currentRate()), currency),
+                      })}
+                    </p>
+                  )}
                 </>
               ) : null}
             </div>
 
-            {/* Scrollable: variant selectors + stock indicator.
-                On mobile uses max-h since there's no fixed parent height;
-                on desktop uses flex-1 to fill space between header and footer. */}
-            <div className="overflow-y-auto max-h-[30svh] sm:max-h-none sm:flex-1 sm:min-h-0 px-4 py-2.5">
+            {/* Variant selectors + stock indicator + key specs. The only
+                scrolling region in the dialog, at every width: it takes the
+                space left between the fixed header and footer and gives the
+                rest back by scrolling. `min-h-0` is what lets it shrink below
+                its content - a flex item defaults to `min-height:auto`, which
+                would push the footer out of the dialog instead. */}
+            <div className="overflow-y-auto flex-1 min-h-0 sm:min-h-36 px-4 py-2.5">
               {isLoading ? (
                 <div className="space-y-2">
                   <Skeleton className="h-7 w-full" />
                   <Skeleton className="h-7 w-full" />
                 </div>
               ) : product ? (
-                <AddToCart
-                  product={product}
-                  onActiveVariantChange={setActiveVariantId}
-                  selectMode
-                  hideButton
-                />
+                <>
+                  <AddToCart
+                    product={product}
+                    onActiveVariantChange={setActiveVariantId}
+                    selectMode
+                    hideButton
+                  />
+                  {/* Key facts, not a second product page: the first few rows
+                      of the same specification list the product page renders,
+                      in the same order, with a link out for the rest. A modal
+                      opened to add something to the cart should not hide
+                      content behind its own tabs. */}
+                  {specRows.length > 0 && (
+                    <div className="mt-3 border-t border-border/50 pt-2">
+                      {/* No "view all details" link here: the modal already
+                          renders one per breakpoint - desktop under the media
+                          column, mobile in the footer next to Cancel. */}
+                      <ProductSpecifications
+                        rows={specRows}
+                        limit={QUICK_VIEW_SPEC_ROWS}
+                        dense
+                        className="text-xs"
+                      />
+                    </div>
+                  )}
+                </>
               ) : null}
             </div>
 
@@ -544,21 +607,39 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                       />
                     </div>
                   )}
+                  {/*
+                    The label carries a formatted price, so the button's content
+                    width is not known up front. The button centres its content
+                    and the dialog clips the overflow, so on a narrow dialog the
+                    icon lost its left half and the badge its right half.
+
+                    Nothing is hidden to fix that - the width is recovered
+                    instead. The button's own size class already supplies
+                    `gap-1.5` and `px-2.5`, so the icon's `mr-1.5` and the
+                    badge's `ml-1.5` were doubling the spacing (12px wasted),
+                    and a smaller type size on mobile frees ~30px more. That is
+                    more than the overflow was. `flex-wrap` plus a `min-h` is
+                    the graceful floor: on a truly tiny width the badge drops to
+                    a second line inside the button rather than being cut, and
+                    the label wraps instead of truncating a price.
+                  */}
                   <Button
-                    className="w-full h-8 text-sm relative"
+                    className="w-full min-h-8 h-auto py-1 flex-wrap gap-y-0.5 text-xs sm:text-sm relative min-w-0"
                     onClick={handleAdd}
                     disabled={isOutOfStock || !isAllSelected}
                   >
-                    <ShoppingCart className="mr-1.5 h-3.5 w-3.5" />
-                    {!isAllSelected
-                      ? tCart("selectAllOptions")
-                      : isOutOfStock
-                        ? tCart("outOfStockBtn")
-                        : tCart("addToCart", {
-                            price: formatPrice(convertCents(displayPrice * qty, currency, currentRate()), currency),
-                          })}
+                    <ShoppingCart className="h-3.5 w-3.5" />
+                    <span className="min-w-0 whitespace-normal">
+                      {!isAllSelected
+                        ? tCart("selectAllOptions")
+                        : isOutOfStock
+                          ? tCart("outOfStockBtn")
+                          : tCart("addToCart", {
+                              price: formatPrice(convertCents(displayPrice * qty, currency, currentRate()), currency),
+                            })}
+                    </span>
                     {isOnSale && !isOutOfStock && isAllSelected && (
-                      <span className="ml-1.5 bg-primary-foreground/20 text-primary-foreground text-[10px] font-bold px-1 py-0.5 rounded-full">
+                      <span className="shrink-0 bg-primary-foreground/20 text-primary-foreground text-[10px] font-bold px-1 py-0.5 rounded-full">
                         -{salePct}%
                       </span>
                     )}

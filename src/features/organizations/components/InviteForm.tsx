@@ -4,7 +4,9 @@ import { useEffect, useTransition } from "react";
 import { useNavigationGeneration } from "@/lib/navigation/navGeneration";
 import { useTranslations } from "next-intl";
 import { Loader2, X } from "lucide-react";
-import { useForm, useFormState, useWatch } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
+
+import { useHasFormErrors } from "@/lib/forms/useSaveBlockedReason";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
@@ -62,11 +64,11 @@ export function InviteForm() {
   // shows the localized error. Submit stays gated on a non-empty value below.
   const email = useWatch({ control: form.control, name: "email" });
 
-  // `form.formState.x` is a proxy getter, unsafe to read during render under
-  // the React Compiler (it treats `form` as a stable dependency and can
-  // cache a stale snapshot - see the identical fix in VariantsEditor.tsx).
-  const { errors } = useFormState({ control: form.control });
-  const hasErrors = Object.keys(errors).length > 0;
+  // Not `Object.keys(form.formState.errors)`: that reads the whole error object,
+  // whose identity never changes (react-hook-form mutates it in place), so the
+  // React Compiler memoizes the flag to its first result and it freezes at
+  // `false`. See useSaveBlockedReason for the details.
+  const hasErrors = useHasFormErrors(form.control);
 
   const onSubmit = (data: SendInviteInput) => {
     startTransition(async () => {

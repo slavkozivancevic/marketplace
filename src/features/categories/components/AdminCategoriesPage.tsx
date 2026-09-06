@@ -34,13 +34,15 @@ import type { CategoryListItem } from "../db/categories";
 import { getCategoryName } from "../utils/translations";
 import { cn } from "@/lib/utils";
 import { TruncatedTooltip } from "@/components/TruncatedTooltip";
+import { CATEGORY_COLS } from "./CategoryTableSkeleton";
 
-// Name carries a depth indent plus icons/badges on top of the text, so it
-// needs an explicit floor like every other table's `minmax(Npx,1fr)` - a
-// bare `1fr` can collapse toward 0 alongside the container's `min-w-fit`,
-// letting the row's icons/text visually spill past the column edge into
-// the Slug column instead of being clipped to the track's own width.
-const COLS = "minmax(200px,1fr) 140px 90px 70px 116px";
+// Column layout (name | slug | products | status | actions) is owned by the
+// skeleton module so the two can never drift. Name carries a depth indent plus
+// icons/badges on top of the text, so it needs an explicit floor like every
+// other table's `minmax(Npx,1fr)` - a bare `1fr` can collapse toward 0
+// alongside the container's `min-w-fit`, letting the row's icons/text visually
+// spill past the column edge into the Slug column instead of being clipped.
+const COLS = CATEGORY_COLS;
 
 /** Sort flat list into tree order: root → its children → next root → its children */
 function toTreeOrder(categories: CategoryListItem[]): Array<CategoryListItem & { depth: number }> {

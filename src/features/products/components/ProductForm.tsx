@@ -38,8 +38,11 @@ import {
   updateProductSchema,
   CreateProductInput,
   UpdateProductInput,
+  MAX_WARRANTY_MONTHS,
 } from "../schema/products";
 import { createProduct, updateProduct } from "../actions/products";
+import { CountrySelect } from "./CountrySelect";
+import { countryName, normalizeCountryCode, type CountryCode } from "@/lib/i18n/countries";
 import {
   ProductTranslationsInput,
   SerializedProductWithRelations,
@@ -65,6 +68,11 @@ import { getTagName } from "@/features/tags/utils/translations";
 import type { TagListItem } from "@/features/tags/db/tags";
 import { consumeLanguageSwitch, setPreserveAcrossLocaleSwitch } from "@/lib/i18n/localeSwitch";
 import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
+import {
+  useHasFormErrors,
+  useSaveBlockedReason,
+} from "@/lib/forms/useSaveBlockedReason";
+import { SaveBlockedNotice } from "@/components/forms/SaveBlockedNotice";
 import { useBoolFormat } from "@/lib/forms/changedFormatters";
 import { FormSaveBar } from "@/components/forms/FormSaveBar";
 import { RequiredFieldsNote } from "@/components/forms/RequiredFieldsNote";
@@ -201,6 +209,8 @@ type ProductFormData = {
   taxCode: string;
   requiresShipping: boolean;
   isDigital: boolean;
+  warrantyMonths: number | null;
+  countryOfOrigin: CountryCode | null;
   weight: number | null;
   weightUnit: "G" | "KG" | "LB" | "OZ" | null;
   length: number | null;
@@ -772,6 +782,8 @@ export function ProductForm({
         taxCode: "",
         requiresShipping: true,
         isDigital: false,
+        warrantyMonths: null,
+        countryOfOrigin: null,
         weight: null,
         weightUnit: null,
         length: null,
@@ -812,6 +824,11 @@ export function ProductForm({
       taxCode: product.taxCode ?? "",
       requiresShipping: product.requiresShipping ?? true,
       isDigital: product.isDigital ?? false,
+      warrantyMonths: product.warrantyMonths ?? null,
+      // Normalized rather than cast: the column is deliberately wider than the
+      // picker's list, so a code from outside it (an import, a future customs
+      // code) must not seed the form with a value the picker cannot show.
+      countryOfOrigin: normalizeCountryCode(product.countryOfOrigin),
       weight: product.weight ?? null,
       weightUnit: (product.weightUnit ?? null) as ProductFormData["weightUnit"],
       length: product.length ?? null,
@@ -1101,7 +1118,14 @@ export function ProductForm({
   const isDirty = useIsFormDirty(form.control);
 
   // Tab error indicators
-  const detailsHasError = !!(errors.title || errors.slug || errors.description || errors.shortDescription);
+  const detailsHasError = !!(
+    errors.title ||
+    errors.slug ||
+    errors.description ||
+    errors.shortDescription ||
+    errors.warrantyMonths ||
+    errors.countryOfOrigin
+  );
   const pricingHasError = !!(errors.price || errors.compareAtPrice || errors.costPrice || errors.stock || errors.barcode || errors.taxCode);
   const shippingHasError = !!(errors.weight || errors.length || errors.width || errors.height);
   const seoHasError = !!(errors.metaTitle || errors.metaDescription);
@@ -1111,7 +1135,13 @@ export function ProductForm({
   // dirty against empty defaults, so the dots would be meaningless).
   // Block saving while any field is invalid. Error-based (not `!isValid`) so a
   // freshly-loaded valid product isn't disabled before the first validation runs.
-  const hasErrors = Object.keys(errors).length > 0;
+  // Read through the hook, not `Object.keys(errors)`: react-hook-form mutates
+  // the error object in place, so a boolean derived from it inside this
+  // (compiler-memoized) component freezes at its first value - which left the
+  // Create button enabled and hid `<SaveBlockedNotice>` while the reason string
+  // was already correct. See useSaveBlockedReason for the full story.
+  const hasErrors = useHasFormErrors(form.control);
+  const saveBlockedReason = useSaveBlockedReason(form.control);
   const showChanges = mode === "update";
   // Translations are a single nested object spanning multiple tabs (Details owns
   // title/slug/short/description, SEO owns metaTitle/metaDescription). Check the
@@ -1134,6 +1164,8 @@ export function ProductForm({
       dirty.tagIds ||
       dirty.brandId ||
       dirty.attributes ||
+      dirty.warrantyMonths ||
+      dirty.countryOfOrigin ||
       dirty.media ||
       translationsDirty(["title", "slug", "shortDescription", "description"])
     );
@@ -1203,7 +1235,10 @@ export function ProductForm({
     savedOptionSelection,
   ]);
 
-  useUnsavedChangesWarning(showChanges && isDirty);
+  // Not gated on edit mode: a half-filled create form is exactly as easy to
+  // lose to a stray nav click, and `isDirty` compares against the empty
+  // defaults, so an untouched form still never prompts.
+  useUnsavedChangesWarning(isDirty);
 
   // Discard: restore the form, its media and the per-locale sections back to
   // the saved server baseline. Anything living in React state rather than in
@@ -1259,6 +1294,17 @@ export function ProductForm({
     return v.map((id) => tagNameById.get(id as string) ?? String(id)).join(", ");
   };
 
+  const fmtWarrantyMonths = (v: unknown) => {
+    if (v == null || v === "") return "-";
+    const months = Number(v);
+    if (!Number.isFinite(months)) return "-";
+    // 0 is a deliberate value ("no warranty"), not a blank.
+    return months === 0 ? t("noWarranty") : t("warrantyMonthsValue", { count: months });
+  };
+
+  const fmtCountryOfOrigin = (v: unknown) =>
+    typeof v === "string" && v ? countryName(v, locale) : "-";
+
   const fmtBrandId = (v: unknown) => {
     const b = brands.find((x) => x.id === v);
     if (!b) return "-";
@@ -1301,6 +1347,8 @@ export function ProductForm({
           taxCode: data.taxCode || undefined,
           requiresShipping: data.requiresShipping,
           isDigital: data.isDigital,
+          warrantyMonths: data.warrantyMonths,
+          countryOfOrigin: data.countryOfOrigin,
           weight: data.weight,
           weightUnit: data.weightUnit,
           length: data.length,
@@ -1342,7 +1390,14 @@ export function ProductForm({
 
   const onSubmitInvalid = (formErrors: FieldErrors<ProductFormData>) => {
     const tabs: string[] = [];
-    if (formErrors.title || formErrors.slug || formErrors.description || formErrors.shortDescription) tabs.push(t("tabDetails"));
+    if (
+      formErrors.title ||
+      formErrors.slug ||
+      formErrors.description ||
+      formErrors.shortDescription ||
+      formErrors.warrantyMonths ||
+      formErrors.countryOfOrigin
+    ) tabs.push(t("tabDetails"));
     if (formErrors.price || formErrors.compareAtPrice || formErrors.costPrice || formErrors.stock || formErrors.barcode || formErrors.taxCode) tabs.push(t("tabPricing"));
     if (formErrors.weight || formErrors.length || formErrors.width || formErrors.height) tabs.push(t("tabShipping"));
     if (formErrors.metaTitle || formErrors.metaDescription) tabs.push(t("tabSeo"));
@@ -1420,7 +1475,7 @@ export function ProductForm({
           </TabsList>
 
           {/* ── DETAILS TAB ── */}
-          <TabsContent value="details" className="space-y-6 pt-4 overflow-y-auto min-h-0 pb-6">
+          <TabsContent value="details" className="space-y-6 pt-4 overflow-y-auto overflow-x-clip min-h-0 pb-6 px-1 -mx-1">
             {/* English (default) */}
             <div className="rounded-md border border-border/60 p-4 space-y-4">
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -1583,6 +1638,64 @@ export function ProductForm({
               />
             )}
 
+            <Separator />
+
+            {/* Specifications. These three edit exactly what the storefront's
+                Specifications tab renders, so they live together: warranty and
+                origin are platform-owned rows, the attributes below are the
+                category-driven ones. Full width and stacked - they are product
+                facts, not a pair of related numbers like width/height. */}
+            <div className="space-y-4">
+              <FormLabel className="text-base font-semibold">
+                {t("specificationsSection")}
+              </FormLabel>
+              <FormField
+                control={form.control}
+                name="warrantyMonths"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("warrantyMonths")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="1"
+                        min={0}
+                        max={MAX_WARRANTY_MONTHS}
+                        placeholder={t("warrantyMonthsPlaceholder")}
+                        value={field.value ?? ""}
+                        onChange={(e) => {
+                          if (e.target.value === "") return field.onChange(null);
+                          const months = parseInt(e.target.value, 10);
+                          field.onChange(Number.isNaN(months) ? null : months);
+                        }}
+                      />
+                    </FormControl>
+                    <FormDescription>{t("warrantyMonthsDesc")}</FormDescription>
+                    <FieldChangedHint format={fmtWarrantyMonths} />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="countryOfOrigin"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("countryOfOrigin")}</FormLabel>
+                    <FormControl>
+                      <CountrySelect
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormDescription>{t("countryOfOriginDesc")}</FormDescription>
+                    <FieldChangedHint format={fmtCountryOfOrigin} />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <ProductAttributesField
               form={form}
               attributeLibrary={attributeLibrary}
@@ -1623,7 +1736,7 @@ export function ProductForm({
           </TabsContent>
 
           {/* ── PRICING & INVENTORY TAB ── */}
-          <TabsContent value="pricing" className="space-y-6 pt-4 overflow-y-auto min-h-0 pb-6">
+          <TabsContent value="pricing" className="space-y-6 pt-4 overflow-y-auto overflow-x-clip min-h-0 pb-6 px-1 -mx-1">
             <p className="text-xs text-muted-foreground">{t("pricingCurrencyNote")}</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <FormField
@@ -1786,7 +1899,7 @@ export function ProductForm({
           </TabsContent>
 
           {/* ── SHIPPING TAB ── */}
-          <TabsContent value="shipping" className="space-y-6 pt-4 overflow-y-auto min-h-0 pb-6">
+          <TabsContent value="shipping" className="space-y-6 pt-4 overflow-y-auto overflow-x-clip min-h-0 pb-6 px-1 -mx-1">
             <div className="space-y-4">
               <FormField
                 control={form.control}
@@ -1969,10 +2082,11 @@ export function ProductForm({
                 </div>
               </>
             )}
+
           </TabsContent>
 
           {/* ── SEO TAB ── */}
-          <TabsContent value="seo" className="space-y-6 pt-4 overflow-y-auto min-h-0 pb-6">
+          <TabsContent value="seo" className="space-y-6 pt-4 overflow-y-auto overflow-x-clip min-h-0 pb-6 px-1 -mx-1">
             <p className="text-sm text-muted-foreground">
               {t("seoHint")}
             </p>
@@ -2141,7 +2255,7 @@ export function ProductForm({
           {/* No pt-4 here: the VariantsEditor header is sticky and owns the top
               spacing, so the scroll container must have no top padding (a
               padding-top gap would let scrolled content show above the header). */}
-          <TabsContent value="variants" className="space-y-6 overflow-y-auto min-h-0 pb-6">
+          <TabsContent value="variants" className="space-y-6 overflow-y-auto overflow-x-clip min-h-0 pb-6 px-1 -mx-1">
             <VariantsEditor
               form={form}
               attributeLibrary={attributeLibrary}
@@ -2160,19 +2274,23 @@ export function ProductForm({
               onDiscard={handleDiscard}
               saveLabel={t("update")}
               saveDisabled={hasErrors}
+              saveDisabledReason={saveBlockedReason}
               sticky={false}
             />
           ) : (
-            <Button type="submit" disabled={isPending || hasErrors} className="min-w-36">
-              {isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {t("saving")}
-                </>
-              ) : (
-                t("create")
-              )}
-            </Button>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="submit" disabled={isPending || hasErrors} className="min-w-36">
+                {isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {t("saving")}
+                  </>
+                ) : (
+                  t("create")
+                )}
+              </Button>
+              <SaveBlockedNotice blocked={hasErrors} reason={saveBlockedReason} />
+            </div>
           )}
         </div>
       </form>

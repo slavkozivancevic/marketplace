@@ -15,6 +15,26 @@ import type {
  */
 export const publicProductInclude = {
   translations: true,
+  // Product-level attribute values (the specification table), as opposed to
+  // the variant axis values below. Labels come along so the storefront can
+  // render without a second lookup; `attribute.order` drives row order,
+  // `option.order` the order of the labels joined inside a MULTI_SELECT row,
+  // and `unit` the suffix on RANGE values.
+  attributeValues: {
+    include: {
+      attribute: {
+        select: {
+          id: true,
+          key: true,
+          type: true,
+          unit: true,
+          order: true,
+          translations: true,
+        },
+      },
+      option: { select: { id: true, value: true, order: true, translations: true } },
+    },
+  },
   // `id` breaks ties so equal `order` values sort deterministically (legacy
   // rows written before the insert-order fix could share an `order`).
   media: { orderBy: [{ order: "asc" }, { id: "asc" }] },
@@ -23,8 +43,11 @@ export const publicProductInclude = {
     include: {
       attributeValues: {
         include: {
-          attribute: { select: { id: true, key: true, translations: true } },
-          option: { select: { id: true, value: true, translations: true } },
+          // `order` on both sides drives the axis and chip order in
+          // `buildCompatOptions`. Without it the storefront has nothing to sort
+          // by and falls back to the order variants happen to be stored in.
+          attribute: { select: { id: true, key: true, order: true, translations: true } },
+          option: { select: { id: true, value: true, order: true, translations: true } },
         },
       },
       media: { orderBy: { order: "asc" }, include: { media: true } },
@@ -62,17 +85,30 @@ export function buildCompatOptions(
     }
   }
 
+  // Display order comes from the attribute library (`Attribute.order` for the
+  // axes, `AttributeOption.order` for the chips), never from the order the
+  // variants were collected in above. Variant rows carry whatever order they
+  // were created in - seeded and script-written products get an arbitrary
+  // permutation - which is how sizes ended up rendering as "XL, L, M".
+  // `key` / `value` break ties so equal `order` values still sort
+  // deterministically instead of drifting between requests.
   const result: CompatProductOption[] = [];
-  for (const [attrId, { attr, options }] of attrs) {
+  const sortedAttrs = [...attrs.values()].sort(
+    (a, b) => a.attr.order - b.attr.order || a.attr.key.localeCompare(b.attr.key),
+  );
+  for (const { attr, options } of sortedAttrs) {
+    const sortedOptions = [...options.values()].sort(
+      (a, b) => a.order - b.order || a.value.localeCompare(b.value),
+    );
     const translations = SUPPORTED_LOCALES.map((loc) => {
       const values: Record<string, string> = {};
-      for (const [val, opt] of options) values[val] = getLabel(opt.translations, loc);
+      for (const opt of sortedOptions) values[opt.value] = getLabel(opt.translations, loc);
       return { locale: loc, name: getLabel(attr.translations, loc), values };
     });
     result.push({
-      id: attrId,
+      id: attr.id,
       translations,
-      values: [...options.keys()].map((value) => ({ value })),
+      values: sortedOptions.map((opt) => ({ value: opt.value })),
     });
   }
   return result;

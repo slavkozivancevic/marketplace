@@ -1,10 +1,11 @@
 import { getTranslations } from "next-intl/server";
+import { Link } from "@/i18n/navigation";
 import { PageHeader } from "@/components/PageHeader";
+import { Button } from "@/components/ui/button";
 import { Footer } from "@/components/layout/footer";
 import {
   SkeletonArray,
   SkeletonBreadcrumbs,
-  SkeletonButton,
   SkeletonProductGridCard,
 } from "@/components/ui/skeleton";
 
@@ -18,7 +19,11 @@ export default async function WishlistLoading() {
           title={t("wishlist.title")}
           description={t("wishlist.savedPlaceholder")}
         >
-          <SkeletonButton className="w-40" />
+          {/* Static href and label, so render the real button - a
+              placeholder here would resize on handoff. */}
+          <Button asChild variant="outline">
+            <Link href="/products">{t("wishlist.continueShopping")}</Link>
+          </Button>
         </PageHeader>
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">

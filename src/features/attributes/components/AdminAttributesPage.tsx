@@ -28,12 +28,14 @@ import type { AttributeListItem } from "../db/attributes";
 import { getAttributeLabel } from "../utils/translations";
 import { cn } from "@/lib/utils";
 import { TruncatedTooltip } from "@/components/TruncatedTooltip";
+import { ATTRIBUTE_COLS } from "./AttributeTableSkeleton";
 
-// Label needs an explicit floor like every other table's `minmax(Npx,1fr)` -
-// a bare `1fr` can collapse toward 0 alongside the container's `min-w-fit`,
-// letting the row's text visually spill past the column edge into the Key
-// column instead of being clipped to the track's own width.
-const GRID = "minmax(140px,1fr) 130px 80px 90px 116px";
+// Column layout (label | key | type | usage | actions) is owned by the
+// skeleton module so the two can never drift. It needs an explicit floor like
+// every other table's `minmax(Npx,1fr)` - a bare `1fr` can collapse toward 0
+// alongside the container's `min-w-fit`, letting the row's text visually spill
+// past the column edge into the Key column instead of being clipped.
+const GRID = ATTRIBUTE_COLS;
 
 export function AdminAttributesPage({
   attributes,

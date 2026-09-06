@@ -211,31 +211,35 @@ function ReviewItem({
     <Card>
       <CardContent className="pt-4">
         <div className="flex items-start justify-between gap-2">
-          <div className="space-y-1 min-w-0">
-            <div className="flex items-center gap-2">
+          {/* Stars, author and timestamp used to share one row, so on a narrow
+              column the name truncated to two letters and the date wrapped
+              under it. The timestamp gets its own line instead, which leaves
+              the name the full width of the card. */}
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <StarRating rating={review.rating} size={14} />
-              <span className="text-sm font-medium truncate">
+              <span className="min-w-0 truncate text-sm font-medium">
                 {review.user.name ?? "Anonymous"}
               </span>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="text-xs text-muted-foreground cursor-default">
-                    {isEdited && review.editedAt
-                      ? formatRelativeTime(new Date(review.editedAt))
-                      : formatRelativeTime(new Date(review.createdAt))}
-                    {isEdited && ` ${t("edited")}`}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{new Date(review.createdAt).toLocaleString(dl)}</p>
-                  {isEdited && review.editedAt && (
-                    <p className="text-muted-foreground">
-                      Edited: {new Date(review.editedAt).toLocaleString(dl)}
-                    </p>
-                  )}
-                </TooltipContent>
-              </Tooltip>
             </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="block text-xs text-muted-foreground cursor-default">
+                  {isEdited && review.editedAt
+                    ? formatRelativeTime(new Date(review.editedAt))
+                    : formatRelativeTime(new Date(review.createdAt))}
+                  {isEdited && ` ${t("edited")}`}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{new Date(review.createdAt).toLocaleString(dl)}</p>
+                {isEdited && review.editedAt && (
+                  <p className="text-muted-foreground">
+                    Edited: {new Date(review.editedAt).toLocaleString(dl)}
+                  </p>
+                )}
+              </TooltipContent>
+            </Tooltip>
             {review.comment && (
               <p className="text-sm text-muted-foreground">{review.comment}</p>
             )}
@@ -254,13 +258,16 @@ function ReviewItem({
             )}
           </div>
           {isOwner && (
-            <div className="flex shrink-0 gap-1">
+            // Pulled into the card's own padding so two icon buttons do not eat
+            // ~70px of a narrow card's text width.
+            <div className="-mr-2 -mt-1 flex shrink-0 gap-0.5">
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
                 onClick={handleEdit}
                 disabled={isDeleting}
+                aria-label={tCommon("edit")}
               >
                 <Pencil className="h-4 w-4" />
               </Button>

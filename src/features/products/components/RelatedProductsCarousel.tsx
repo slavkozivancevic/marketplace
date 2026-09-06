@@ -77,7 +77,11 @@ export function RelatedProductsCarousel({
   title?: string;
   /** Hide the "View all" link (e.g. for personalized strips). */
   showViewAll?: boolean;
-  /** Disable carousel autoplay (used for personalized strips). */
+  /**
+   * Disable carousel autoplay. Defaults to on for historical reasons, but the
+   * product page passes `false` everywhere except "You may also like": exactly
+   * one strip on a page should move on its own. New call sites should opt out.
+   */
   autoplay?: boolean;
 }) {
   const t = useTranslations("relatedProducts");
@@ -111,8 +115,29 @@ export function RelatedProductsCarousel({
         </div>
 
         {/* Carousel */}
+        {/*
+          Drag behaviour, and why it is this exact pair of options.
+
+          `dragFree` is OFF: with it a swipe kept its momentum and stopped
+          wherever friction ran out, leaving cards half-cut at the left edge, a
+          different result every time and nothing like what the arrows do.
+          Snapping plus `align: "start"` lands the slide flush left, so a swipe
+          and an arrow click finish in the same place.
+
+          `skipSnaps` is ON because snapping alone felt like the carousel bit
+          down the instant you let go. That is not the settle animation - it is
+          embla's `allowedForce`, which without this flag clamps the release to
+          exactly ONE slide no matter how hard you flick. Over that distance
+          there is no room for deceleration to be visible. With it, force
+          carries across several slides and the glide reads as momentum, still
+          landing on a snap.
+
+          The settle speed itself is not tunable: embla hardcodes
+          `baseSpeed = dragFree ? 43 : 25` and `friction = 0.68`, and the
+          `duration` option applies only to programmatic scrolls (the arrows).
+        */}
         <Carousel
-          opts={{ loop: true, align: "start", dragFree: true }}
+          opts={{ loop: true, align: "start", skipSnaps: true }}
           plugins={enableAutoplay ? [autoplayRef.current] : []}
           className="w-full"
         >
