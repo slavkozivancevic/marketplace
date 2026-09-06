@@ -85,7 +85,10 @@ export function NotFoundHeader() {
               content width, leaving the rest for the logo/tagline rail. */}
           <div className="flex flex-none md:flex-1 items-center justify-end gap-1 sm:gap-2">
             <PreferencesPopover />
-            <div className="hidden md:flex items-center gap-2 ml-1">
+            {/* 12px in front of the account controls, as on every other
+                shell; <NotFoundAuth> brings its own leading rule when it is
+                the sign-in/sign-up buttons that render. */}
+            <div className="hidden md:flex items-center ml-1">
               <NotFoundAuth />
             </div>
             {/* Mobile menu button - reveals nav (and auth on phones) once the
@@ -141,8 +144,11 @@ export function NotFoundHeader() {
               offer sign-in/sign-up to a signed-out visitor. md:hidden to
               match avatarOnly's breakpoint above (not sm - this dropdown
               itself only exists below md anyway). */}
-          <div className="pt-2 px-3 md:hidden">
-            <NotFoundAuth hideAvatarWhenSignedIn />
+          {/* ...which means that for a signed-in visitor this slot renders an
+              empty div. `has-[>div:empty]` collapses the padding with it, so
+              the panel doesn't end in a dead strip of whitespace. */}
+          <div className="pt-3 px-3 md:hidden has-[>div:empty]:hidden">
+            <NotFoundAuth hideAvatarWhenSignedIn layout="panel" />
           </div>
         </div>
       </div>

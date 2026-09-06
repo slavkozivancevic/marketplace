@@ -247,7 +247,19 @@ export function DepartmentCarousel({
           </Link>
         </div>
 
-        <Carousel opts={{ loop: true, align: "start", dragFree: true }} className="w-full">
+        {/*
+          Same drag contract as <RelatedProductsCarousel>, and for the same
+          reason: `dragFree` let a swipe coast to wherever friction ran out, so
+          it stopped at a random offset with a column half-cut at the left edge.
+          Snapping plus `align: "start"` lands the column flush left, so a swipe
+          finishes exactly where an arrow click would. `skipSnaps` keeps the
+          flick feeling like momentum - without it embla clamps the release to
+          one slide and the glide has no room to decelerate.
+        */}
+        <Carousel
+          opts={{ loop: true, align: "start", skipSnaps: true }}
+          className="w-full"
+        >
           <CarouselContent className="-ml-4">
             {columns.map((col, i) => (
               <CarouselItem key={i} className="pl-4 basis-auto">

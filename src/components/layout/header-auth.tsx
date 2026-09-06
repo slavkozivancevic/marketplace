@@ -12,6 +12,7 @@ import {
   useAuth,
 } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
+import { HeaderDivider } from "./header-divider";
 import { cn } from "@/lib/utils";
 
 interface HeaderAuthProps {
@@ -41,6 +42,21 @@ interface HeaderAuthProps {
    * the one already visible outside the dropdown.
    */
   hideAvatarWhenSignedIn?: boolean;
+  /**
+   * How the sign-in/sign-up pair is laid out.
+   *
+   * `row` (default) is the header rail: the pair sits on the icon rail's own
+   * 8px rhythm behind a `<HeaderDivider>`, which is rendered as part of the
+   * signed-out branch so it shows up with the buttons and never next to a
+   * lone avatar. The rule marks the boundary and the spacing ratio backs it
+   * up - 8px inside the pair against 12px either side of the rule.
+   *
+   * `panel` is the mobile dropdown: the two buttons split the row evenly
+   * (`flex-1`) so they read as one block aligned with the nav rows above,
+   * capped at `max-w-lg` so a wide dropdown (tablet, landscape phone) never
+   * stretches them into two banners.
+   */
+  layout?: "row" | "panel";
 }
 
 /**
@@ -59,7 +75,9 @@ export function HeaderAuth({
   signedIn = false,
   avatarOnly = false,
   hideAvatarWhenSignedIn = false,
+  layout = "row",
 }: HeaderAuthProps) {
+  const panel = layout === "panel";
   const t = useTranslations("auth");
   const locale = useLocale();
   // After Clerk completes auth, send the user to the same-locale home page
@@ -77,19 +95,28 @@ export function HeaderAuth({
 
   const signedOutUI = (
     <>
+      {/* The divider belongs to the buttons, not to the header, so it lives
+          in this branch: it appears exactly when sign-in/sign-up do and is
+          gone for a signed-in visitor, where there is only an avatar and
+          nothing to divide off. `mr-1` on top of the row's gap-2 puts 12px
+          on this side to match the 12px the caller's ml-1 puts on the other,
+          so the rule sits centered in its own gutter. */}
+      {!panel && <HeaderDivider className="mr-1" />}
       <SignInButton
         mode={mode}
         fallbackRedirectUrl={localeHome}
         signUpFallbackRedirectUrl={localeHome}
       >
-        <Button variant="outline">{t("signIn")}</Button>
+        <Button variant="outline" className={cn(panel && "flex-1")}>
+          {t("signIn")}
+        </Button>
       </SignInButton>
       <SignUpButton
         mode={mode}
         fallbackRedirectUrl={localeHome}
         signInFallbackRedirectUrl={localeHome}
       >
-        <Button>{t("signUp")}</Button>
+        <Button className={cn(panel && "flex-1")}>{t("signUp")}</Button>
       </SignUpButton>
     </>
   );
@@ -176,8 +203,18 @@ export function HeaderAuth({
     ? null
     : signedInPlaceholder;
 
+  // gap-2, not gap-4: the header rail spaces its own icons `gap-1 sm:gap-2`,
+  // so a 16px gap here left sign-in and sign-up further apart from each other
+  // than either was from the cart icon beside them - the pair read as two
+  // unrelated controls. At 8px inside and 12px out to the caller's divider
+  // the ratio is the right way round and they read as one cluster.
   return (
-    <div className="flex items-center gap-4">
+    <div
+      className={cn(
+        "flex items-center gap-2",
+        panel && "w-full max-w-lg",
+      )}
+    >
       {clerkReady ? (
         <>
           <SignedOut>{effectiveSignedOutUI}</SignedOut>
