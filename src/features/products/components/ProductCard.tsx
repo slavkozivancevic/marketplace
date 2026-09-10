@@ -32,8 +32,7 @@ import {
 import { getBrandName } from "@/features/brands/utils/translations";
 import { StarRating } from "@/features/reviews/components/StarRating";
 import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
-import { useCurrencyStore } from "@/store/currency";
-import { formatPrice, convertCents } from "@/lib/currency";
+import { useMoney } from "@/lib/useMoney";
 
 // ---------- Rating breakdown popover ----------
 
@@ -172,7 +171,8 @@ export function ProductCard({
   product: SerializedProductListItem;
   onQuickView?: (id: string) => void;
 }) {
-  const { currency, currentRate } = useCurrencyStore();
+  // Stored per-currency amounts. No rate on the display path.
+  const { format, amount: moneyAmount } = useMoney();
   const locale = useLocale();
   const tCart = useTranslations("cart");
   const tProducts = useTranslations("products");
@@ -247,7 +247,11 @@ export function ProductCard({
               <div className="absolute top-3 left-0 flex flex-col items-start gap-1 pointer-events-none">
                 {isOnSale && (
                   <span className="bg-linear-to-r from-red-500 to-rose-600 text-white text-sm font-black px-4 py-1.5 rounded-r-full shadow-lg shadow-red-500/50 tracking-wider uppercase">
-                    -{Math.round(((product.compareAtPrice! - product.price) / product.compareAtPrice!) * 100)}%
+                    -{(() => {
+                      const was = moneyAmount(product.compareAtPriceMoney, product.compareAtPrice);
+                      const now = moneyAmount(product.priceMoney, product.price);
+                      return was > 0 ? Math.round(((was - now) / was) * 100) : 0;
+                    })()}%
                   </span>
                 )}
                 {product.isBestseller && (
@@ -303,15 +307,15 @@ export function ProductCard({
               {isOnSale ? (
                 <div className="flex items-baseline gap-2 mt-2">
                   <p className="text-lg font-semibold text-red-500">
-                    {formatPrice(convertCents(product.price, currency, currentRate()), currency)}
+                    {format(product.priceMoney, product.price)}
                   </p>
                   <p className="text-sm text-muted-foreground line-through">
-                    {formatPrice(convertCents(product.compareAtPrice!, currency, currentRate()), currency)}
+                    {format(product.compareAtPriceMoney, product.compareAtPrice)}
                   </p>
                 </div>
               ) : (
                 <p className="text-lg font-semibold mt-2">
-                  {formatPrice(convertCents(product.price, currency, currentRate()), currency)}
+                  {format(product.priceMoney, product.price)}
                 </p>
               )}
             </div>

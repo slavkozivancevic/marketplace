@@ -26,8 +26,7 @@ import { BrandLogo } from "@/features/brands/components/BrandLogo";
 import { RetryImage } from "@/components/RetryImage";
 import { deleteProduct, duplicateProduct } from "@/features/products/actions/products";
 import { SerializedAdminProductListItem } from "@/types/types";
-import { useCurrencyStore } from "@/store/currency";
-import { formatPrice, convertCents } from "@/lib/currency";
+import { useMoney } from "@/lib/useMoney";
 import {
   getProductTitle,
   getProductDescription,
@@ -112,7 +111,8 @@ export function ProductTableRow({
   const [isDeleting, startDelete] = useTransition();
   const [isDuplicating, startDuplicate] = useTransition();
   const [isNavigating, startNavigate] = useTransition();
-  const { currency, currentRate } = useCurrencyStore();
+  // Stored per-currency amounts; no rate on the display path.
+  const { format } = useMoney();
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const localTitle = getProductTitle(product, locale);
@@ -240,7 +240,7 @@ export function ProductTableRow({
         </div>
       </TruncatedTooltip>
       <div role="cell" className="text-right tabular-nums">
-        {formatPrice(convertCents(product.price, currency, currentRate()), currency)}
+        {format(product.priceMoney, product.price)}
       </div>
       <div role="cell" className="flex justify-center">
         <Badge variant={getStatusVariant(product.status)}>

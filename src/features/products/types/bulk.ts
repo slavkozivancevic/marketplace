@@ -1,3 +1,5 @@
+import type { MoneySet } from "@/lib/money";
+import type { MoneyInput } from "@/lib/money-input";
 /**
  * Shared types for filter-based bulk operations.
  * Kept in a standalone file (no "use server" / "use client") so they can be
@@ -30,6 +32,9 @@ export type BulkFilter = {
   noTag?: boolean;
   /** Product status must be one of these values. */
   status?: string[];
+  /** Price bounds, in USD cents against the indexed mirror column. Bounds are
+   *  a search range, not a price: a dinar of slack at the edge is harmless, so
+   *  these stay a plain converted number rather than a MoneySet. */
   minPrice?: number;
   maxPrice?: number;
   /** Inventory bounds. */
@@ -81,9 +86,11 @@ export type BulkUpdateFields = {
   status?: string;
   /** Pass null to remove the brand assignment. */
   brandId?: string | null;
-  price?: number;
-  compareAtPrice?: number | null;
-  costPrice?: number | null;
+  /** Prices set on every matched product. MoneyInput on the way in from the
+   *  panel, resolved to a MoneySet by the action before it reaches the repo. */
+  price?: MoneyInput;
+  compareAtPrice?: MoneyInput | null;
+  costPrice?: MoneyInput | null;
   taxable?: boolean;
   requiresShipping?: boolean;
   isDigital?: boolean;
@@ -99,12 +106,29 @@ export type BulkUpdateFields = {
   tags?: BulkTagUpdate;
 };
 
+/**
+ * What the repository actually writes. The panel sends MoneyInputs; the action
+ * resolves them into MoneySets with server-read rates before they get anywhere
+ * near a column, so the repo never has to know about exchange rates.
+ */
+export type BulkUpdateResolved = Omit<
+  BulkUpdateFields,
+  "price" | "compareAtPrice" | "costPrice"
+> & {
+  price?: MoneySet;
+  compareAtPrice?: MoneySet | null;
+  costPrice?: MoneySet | null;
+};
+
 export type PreviewResult = {
   count: number;
   samples: {
     id: string;
     title: string;
+    /** USD-cent mirror plus the stored set, so the preview can show the price
+     *  in the currency the operator is browsing in. */
     price: number;
+    priceMoney: MoneySet | null;
     status: string;
     brand: { name: string } | null;
   }[];

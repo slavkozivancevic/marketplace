@@ -9,8 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { SerializedProductWithRelations } from "@/types/types";
 import { ProductStatusActions } from "./ProductStatusActions";
 import { ProductImageCarousel } from "@/components/product/ProductImageCarousel";
-import { useCurrencyStore } from "@/store/currency";
-import { formatPrice, convertCents } from "@/lib/currency";
+import { useMoney } from "@/lib/useMoney";
 import { getCategoryName } from "@/features/categories/utils/translations";
 import { getTagName } from "@/features/tags/utils/translations";
 import { getLabel } from "@/features/attributes/utils/translations";
@@ -40,10 +39,9 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
   const t = useTranslations("products");
   const tf = useTranslations("productForm");
   const locale = useLocale();
-  const { currency, currentRate } = useCurrencyStore();
-
-  const rate = currentRate();
-  const fmt = (cents: number) => formatPrice(convertCents(cents, currency, rate), currency);
+  // Reads the stored amount for the active currency - no rate involved, so
+  // what the seller typed is what this panel shows.
+  const { format: fmt } = useMoney();
   // Same rows, same order, same formatting the storefront shows the buyer.
   const attributeRows = buildAttributeSpecRows(product.attributeValues ?? [], locale, t);
 
@@ -149,12 +147,12 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
           <CardTitle>{tf("tabPricing")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <Row label={t("priceLabel")} value={fmt(product.price)} />
+          <Row label={t("priceLabel")} value={fmt(product.priceMoney, product.price)} />
           {product.compareAtPrice != null && (
-            <Row label={tf("compareAtPrice")} value={fmt(product.compareAtPrice)} />
+            <Row label={tf("compareAtPrice")} value={fmt(product.compareAtPriceMoney, product.compareAtPrice)} />
           )}
           {product.costPrice != null && (
-            <Row label={tf("costPrice")} value={fmt(product.costPrice)} />
+            <Row label={tf("costPrice")} value={fmt(product.costPriceMoney, product.costPrice)} />
           )}
           {product.variants?.length === 0 && (
             <Row
@@ -296,12 +294,12 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
               <div key={variant.id} className="border p-3 rounded space-y-1.5">
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
                   <span><strong>{t("sku")}</strong> {variant.sku}</span>
-                  <span><strong>{t("priceLabel")}</strong> {fmt(variant.price)}</span>
+                  <span><strong>{t("priceLabel")}</strong> {fmt(variant.priceMoney, variant.price)}</span>
                   {variant.compareAtPrice != null && (
-                    <span><strong>{tf("compareAtPrice")}</strong> {fmt(variant.compareAtPrice)}</span>
+                    <span><strong>{tf("compareAtPrice")}</strong> {fmt(variant.compareAtPriceMoney, variant.compareAtPrice)}</span>
                   )}
                   {variant.costPrice != null && (
-                    <span><strong>{tf("costPrice")}</strong> {fmt(variant.costPrice)}</span>
+                    <span><strong>{tf("costPrice")}</strong> {fmt(variant.costPriceMoney, variant.costPrice)}</span>
                   )}
                   <span><strong>{t("stockLabel")}</strong> {variant.stock}</span>
                   {variant.barcode && (

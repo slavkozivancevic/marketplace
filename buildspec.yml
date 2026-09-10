@@ -40,6 +40,12 @@ phases:
       # failure (timeout-guarded): a migration that doesn't apply must block
       # the deploy, not silently ship app code against the wrong schema.
       - timeout 120 node scripts/migrate-stage.mjs --stage "$STAGE"
+      # Data migrations belong IN the migration history, not as extra steps
+      # here: `_prisma_migrations` is what guarantees they run exactly once, in
+      # order, and stay reproducible. A standing backfill step in the build
+      # would re-run on every deploy, hold a build container open on a
+      # long-running UPDATE, and quietly truncate at whatever timeout it was
+      # given. See 20260906_backfill_money_sets.
       # Build (OpenNext) + deploy. CodeDeploy handles the canary alias shift +
       # CloudWatch-alarm rollback (configured on the Lambda alias, see DEPLOYMENT.md).
       - npx sst deploy --stage "$STAGE"

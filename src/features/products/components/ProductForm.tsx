@@ -81,9 +81,9 @@ import { ProductAttributesField } from "./ProductAttributesField";
 import { VariantsEditor } from "./VariantsEditor";
 import type { AttributeSelectorItem } from "@/features/attributes/db/attributes";
 import { useCurrencyStore } from "@/store/currency";
-import { PriceInput } from "./PriceInput";
-import { formatPrice, convertCents, decimalToCents } from "@/lib/currency";
-import type { Currency } from "@/lib/currency-config";
+import { MoneyField } from "@/components/forms/MoneyField";
+import { formatPrice } from "@/lib/currency";
+import { emptyMoneyInput, toMoneyInput, type MoneyInput } from "@/lib/money-input";
 
 // ── Translation form shape ───────────────────────────────────────────────
 //
@@ -200,9 +200,11 @@ type ProductFormData = {
   slug: string;
   description: string;
   shortDescription: string;
-  price: number;
-  compareAtPrice: number | null;
-  costPrice: number | null;
+  // MoneyInputs, not dollars: the amount plus the currency it was typed in, in
+  // that currency's minor units. See src/lib/money-input.ts.
+  price: MoneyInput;
+  compareAtPrice: MoneyInput | null;
+  costPrice: MoneyInput | null;
   stock: number | null;
   barcode: string;
   taxable: boolean;
@@ -237,9 +239,9 @@ type ProductFormData = {
   options: { attributeId: string; optionIds: string[] }[];
   variants: {
     sku: string;
-    price: number;
-    compareAtPrice: number | null;
-    costPrice: number | null;
+    price: MoneyInput;
+    compareAtPrice: MoneyInput | null;
+    costPrice: MoneyInput | null;
     stock: number;
     barcode: string;
     weight: number | null;
@@ -714,13 +716,6 @@ export function ProductForm({
   const { rates, currency } = useCurrencyStore();
   const [isPending, startTransition] = useTransition();
 
-  // Each PriceInput has its own inline currency selector, independent of the
-  // other price fields - track what each is currently showing so the
-  // saved-value hint below it can match (see PriceInput's onCurrencyChange).
-  const [priceCurrency, setPriceCurrency] = useState<Currency>(currency);
-  const [compareAtCurrency, setCompareAtCurrency] = useState<Currency>(currency);
-  const [costCurrency, setCostCurrency] = useState<Currency>(currency);
-
   // The client Router Cache can serve a stale RSC payload when the user
   // returns to the edit page after a prior save (e.g. they changed the slug,
   // navigated away, and came back). That stale payload carries an outdated
@@ -773,7 +768,7 @@ export function ProductForm({
         slug: "",
         description: "",
         shortDescription: "",
-        price: 0,
+        price: emptyMoneyInput(currency),
         compareAtPrice: null,
         costPrice: null,
         stock: null,
@@ -813,9 +808,17 @@ export function ProductForm({
       slug: defaultProductT?.slug ?? "",
       description: defaultProductT?.description ?? "",
       shortDescription: defaultProductT?.shortDescription ?? "",
-      price: product.price / 100,
-      compareAtPrice: product.compareAtPrice != null ? product.compareAtPrice / 100 : null,
-      costPrice: product.costPrice != null ? product.costPrice / 100 : null,
+      // The value exactly as authored, never the currency the header happens to
+      // be on: that is a view concern and lives inside MoneyField. Seeding the
+      // form with it instead made the form look edited on open and rewrote
+      // which currency the price is exact in on the next unrelated save.
+      price: product.priceMoney
+        ? toMoneyInput(product.priceMoney)
+        : emptyMoneyInput(currency),
+      compareAtPrice: product.compareAtPriceMoney
+        ? toMoneyInput(product.compareAtPriceMoney)
+        : null,
+      costPrice: product.costPriceMoney ? toMoneyInput(product.costPriceMoney) : null,
       // Prefer the live stock once fetched, so the baseline matches reality and
       // the form doesn't open pre-dirtied when the cached page stock is stale.
       stock: liveStock ? liveStock.stock : (product.stock ?? null),
@@ -852,9 +855,9 @@ export function ProductForm({
           .filter((k): k is string => Boolean(k));
         return {
           sku: v.sku,
-          price: v.price / 100,
-          compareAtPrice: v.compareAtPrice != null ? v.compareAtPrice / 100 : null,
-          costPrice: v.costPrice != null ? v.costPrice / 100 : null,
+          price: v.priceMoney ? toMoneyInput(v.priceMoney) : emptyMoneyInput(currency),
+          compareAtPrice: v.compareAtPriceMoney ? toMoneyInput(v.compareAtPriceMoney) : null,
+          costPrice: v.costPriceMoney ? toMoneyInput(v.costPriceMoney) : null,
           stock: liveStock?.variants[v.id] ?? v.stock,
           barcode: v.barcode ?? "",
           weight: v.weight ?? null,
@@ -872,7 +875,11 @@ export function ProductForm({
     // `attributeLibrary` is a dependency because the option-pill baseline is
     // ordered by it; it's server-supplied and stable per page load, so this
     // doesn't add churn.
-  }, [product, liveStock, attributeLibrary]);
+    // `currency` participates only because a product with no stored set opens
+    // its blank price field in whatever currency the screen is showing, and the
+    // currency store rehydrates from the cookie after the first client render.
+    // Stored amounts do not depend on it - MoneyField handles the view.
+  }, [product, liveStock, attributeLibrary, currency]);
 
   // When a draft is restored after a language switch (see the draft block below)
   // this holds the restored values and becomes the controlled `values` source, so
@@ -1189,9 +1196,9 @@ export function ProductForm({
     const mediaKeyById = new Map(product.media.map((m) => [m.id, m.key]));
     return product.variants.map((v) => ({
       sku: v.sku,
-      price: v.price / 100,
-      compareAtPrice: v.compareAtPrice != null ? v.compareAtPrice / 100 : null,
-      costPrice: v.costPrice != null ? v.costPrice / 100 : null,
+      price: v.priceMoney ? toMoneyInput(v.priceMoney) : emptyMoneyInput(currency),
+      compareAtPrice: v.compareAtPriceMoney ? toMoneyInput(v.compareAtPriceMoney) : null,
+      costPrice: v.costPriceMoney ? toMoneyInput(v.costPriceMoney) : null,
       // Mirrors `derivedValues`' live-stock preference so this only diverges
       // from `watchedVariants` on a real user edit, not on the async refresh.
       stock: liveStock?.variants[v.id] ?? v.stock,
@@ -1206,7 +1213,23 @@ export function ProductForm({
         optionId: av.optionId,
       })),
     }));
-  }, [product, liveStock]);
+    // See the note on derivedValues - this baseline must be built identically
+    // or every variant would read as edited the moment the form opens.
+  }, [product, liveStock, currency]);
+  // The stored price set per saved variant. The form value only carries the
+  // authoring, so the variant rows need this to show stored amounts for the
+  // other currencies rather than converting one at today's rate.
+  const savedVariantPriceMoney = useMemo(
+    () =>
+      (product?.variants ?? []).map((v) => ({
+        options: v.attributeValues.map((av) => ({
+          attributeId: av.attributeId,
+          optionId: av.optionId,
+        })),
+        price: v.priceMoney,
+      })),
+    [product],
+  );
   // Baseline for the option pills, mirroring `derivedValues.options`.
   const savedOptionSelection = useMemo(
     () => (product ? buildOptionSelection(product.variants, attributeLibrary) : []),
@@ -1314,16 +1337,14 @@ export function ProductForm({
     return getBrandName(b, locale) || "-";
   };
 
-  // Product prices live in USD-base dollars in the form, but the saved-value
-  // hint should match whatever currency that field's PriceInput is currently
-  // showing (tracked above via onCurrencyChange) - not raw USD, which read
-  // as a mismatch against the input and its own inline "≈ USD" helper line
-  // whenever the display currency wasn't USD.
-  const fmtPrice = (fieldCurrency: Currency) => (v: unknown) =>
-    formatPrice(
-      convertCents(decimalToCents(Number(v)), fieldCurrency, rates[fieldCurrency] ?? 1),
-      fieldCurrency,
-    );
+  // The hint reads in whatever currency the field is showing. `v` is the form's
+  // MoneyInput, so this formats the exact amount that will be stored - no
+  // conversion, and therefore no way for the hint to disagree with the input.
+  const fmtPrice = () => (v: unknown) => {
+    const input = v as MoneyInput | null | undefined;
+    if (!input) return "-";
+    return formatPrice(input.amount, input.currency, locale);
+  };
   const fmtStock = (v: unknown) => (v == null ? t("unlimited") : String(v));
 
   const onSubmit = (data: ProductFormData) => {
@@ -1746,9 +1767,9 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel required>{t("price")}</FormLabel>
                     <FormControl>
-                      <PriceInput value={field.value} onChange={field.onChange} onBlur={field.onBlur} rates={rates} defaultCurrency={currency} onCurrencyChange={setPriceCurrency} />
+                      <MoneyField value={field.value ?? emptyMoneyInput(currency)} onChange={field.onChange} onBlur={field.onBlur} rates={rates} stored={product?.priceMoney} preferredCurrency={currency} showDerived />
                     </FormControl>
-                    <FieldChangedHint format={fmtPrice(priceCurrency)} />
+                    <FieldChangedHint format={fmtPrice()} />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1761,10 +1782,10 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>{t("compareAtPrice")}</FormLabel>
                     <FormControl>
-                      <PriceInput value={field.value ?? 0} onChange={(v) => field.onChange(v || null)} onBlur={field.onBlur} rates={rates} defaultCurrency={currency} onCurrencyChange={setCompareAtCurrency} />
+                      <MoneyField value={field.value ?? emptyMoneyInput(currency)} onChange={(v) => field.onChange(v.amount === 0 ? null : v)} onBlur={field.onBlur} rates={rates} stored={product?.compareAtPriceMoney} preferredCurrency={currency} showDerived />
                     </FormControl>
                     <FormDescription>{t("compareAtDesc")}</FormDescription>
-                    <FieldChangedHint format={fmtPrice(compareAtCurrency)} />
+                    <FieldChangedHint format={fmtPrice()} />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1777,10 +1798,10 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>{t("costPrice")}</FormLabel>
                     <FormControl>
-                      <PriceInput value={field.value ?? 0} onChange={(v) => field.onChange(v || null)} onBlur={field.onBlur} rates={rates} defaultCurrency={currency} onCurrencyChange={setCostCurrency} />
+                      <MoneyField value={field.value ?? emptyMoneyInput(currency)} onChange={(v) => field.onChange(v.amount === 0 ? null : v)} onBlur={field.onBlur} rates={rates} stored={product?.costPriceMoney} preferredCurrency={currency} showDerived="readonly" />
                     </FormControl>
                     <FormDescription>{t("costDesc")}</FormDescription>
-                    <FieldChangedHint format={fmtPrice(costCurrency)} />
+                    <FieldChangedHint format={fmtPrice()} />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -2262,6 +2283,7 @@ export function ProductForm({
               categoryAttributeMap={categoryAttributeMap}
               categoryTree={categoryTree}
               uploadedMedia={uploadedMedia}
+              savedPriceMoney={savedVariantPriceMoney}
             />
           </TabsContent>
         </Tabs>

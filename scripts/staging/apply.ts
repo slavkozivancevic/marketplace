@@ -746,6 +746,15 @@ async function main() {
   await applyProtonExtras(org.id);
   await rebuildSearchText();
   console.log(`\n✅ Done. ${warnings.length} warning(s).`);
+
+  // Prices written here land in the USD-cent mirror columns only. Until the
+  // MoneySets are materialized, non-USD prices are derived at read time and so
+  // still move with the daily rate - the exact drift the money layer removes.
+  console.log(
+    "\n[!] Run the money backfill against this same database next:" +
+      "\n    DATABASE_URL=<direct-neon-url> npx tsx scripts/backfill-money-sets.ts",
+  );
+
   if (warnings.length) {
     console.log("Warnings:");
     for (const w of warnings) console.log(` - ${w}`);

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useTransition } from "react";
 import { useNavigationGeneration } from "@/lib/navigation/navGeneration";
 import { useForm, useFormState } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,9 +31,11 @@ import { SaveBlockedNotice } from "@/components/forms/SaveBlockedNotice";
 import { RequiredFieldsNote } from "@/components/forms/RequiredFieldsNote";
 import { ChangedHint } from "@/components/forms/ChangedHint";
 import { useCurrencyStore } from "@/store/currency";
-import { convertCents, formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/currency";
+import { moneyIn, type MoneySet } from "@/lib/money";
+import { emptyMoneyInput, toMoneyInput } from "@/lib/money-input";
 import type { Currency } from "@/lib/currency-config";
-import { PriceInput } from "@/features/products/components/PriceInput";
+import { MoneyField } from "@/components/forms/MoneyField";
 import { couponSchema, type CouponInput } from "../schema/coupons";
 import { createCouponAction, updateCouponAction } from "../actions/coupons";
 
@@ -41,8 +43,12 @@ type CouponRow = {
   id: string;
   code: string;
   type: "PERCENT" | "FIXED";
+  /** PERCENT: the percent. FIXED: the USD-cent mirror of `valueMoney`. */
   value: number;
+  /** FIXED only - the exact discount per currency. Null on a PERCENT coupon. */
+  valueMoney: MoneySet | null;
   minOrder: number | null;
+  minOrderMoney: MoneySet | null;
   usageLimit: number | null;
   perUserLimit: number | null;
   expiresAt: string | null;
@@ -51,6 +57,7 @@ type CouponRow = {
 
 export function CouponForm({ coupon }: { coupon?: CouponRow }) {
   const t = useTranslations("coupons");
+  const locale = useLocale();
   const onInvalid = useInvalidToast();
   const { rates, currency } = useCurrencyStore();
   const [isPending, start] = useTransition();
@@ -63,16 +70,35 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
         ? {
             code: coupon.code,
             type: coupon.type,
-            // FIXED value + minOrder are stored in cents; the form works in dollars.
-            value: coupon.type === "FIXED" ? coupon.value / 100 : coupon.value,
-            minOrder: coupon.minOrder != null ? coupon.minOrder / 100 : null,
+            // `percent` and `amount` both always exist; only the one matching
+            // `type` is validated and saved. A FIXED coupon therefore still
+            // shows a sensible percent if you flip the type, and vice versa.
+            percent: coupon.type === "PERCENT" ? coupon.value : 10,
+            amount:
+              coupon.type === "FIXED" && coupon.valueMoney
+                ? toMoneyInput(coupon.valueMoney)
+                : emptyMoneyInput(currency),
+            minOrder: coupon.minOrderMoney ? toMoneyInput(coupon.minOrderMoney) : null,
             usageLimit: coupon.usageLimit,
             perUserLimit: coupon.perUserLimit,
             expiresAt: coupon.expiresAt ? coupon.expiresAt.slice(0, 10) : null,
             active: coupon.active,
           }
-        : { code: "", type: "PERCENT", value: 10, minOrder: null, usageLimit: null, perUserLimit: null, expiresAt: null, active: true },
-    [coupon],
+        : {
+            code: "",
+            type: "PERCENT",
+            percent: 10,
+            amount: emptyMoneyInput(currency),
+            minOrder: null,
+            usageLimit: null,
+            perUserLimit: null,
+            expiresAt: null,
+            active: true,
+          },
+    // `currency` participates: a blank amount field opens in whatever currency
+    // the screen is showing, and the store rehydrates to the cookie value after
+    // the first client render.
+    [coupon, currency],
   );
 
   const navGeneration = useNavigationGeneration();
@@ -109,42 +135,13 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
 
   const saveBlockedReason = useSaveBlockedReason(control);
 
-  // `value` means different things per type (a percent vs a dollar amount), so
-  // remember each type's value separately. Flipping PERCENT <-> FIXED restores
-  // what you last had for the type you're switching to - a fixed $50 never
-  // bleeds across as an invalid "50%", but it's also not lost when you flip back.
-  const lastPercentRef = useRef<number>(
-    coupon?.type === "PERCENT" ? coupon.value : 10,
-  );
-  const lastFixedRef = useRef<number>(
-    coupon?.type === "FIXED" ? coupon.value / 100 : 10,
-  );
-
-  // Re-seed the per-type memory from a baseline (form values are already in the
-  // form's units). Called whenever the form resets - navigating away and back
-  // (discard) or after a save - so a later type flip reflects the saved value
-  // instead of a stale pre-reset edit. The non-baseline type falls back to its
-  // default, exactly as a fresh load would show it.
-  const reseedTypeMemory = (vals: CouponInput) => {
-    lastPercentRef.current = vals.type === "PERCENT" ? vals.value : 10;
-    lastFixedRef.current = vals.type === "FIXED" ? vals.value : 10;
-  };
-
+  // Percent and amount are separate fields now, so flipping the type no longer
+  // needs to stash and restore one shared value - each keeps its own, and the
+  // schema only validates the one the current type uses. All that is left is
+  // clearing the stale error from the field being left behind.
   const handleTypeChange = (next: "PERCENT" | "FIXED") => {
-    const prevType = watch("type");
-    const prevValue = watch("value");
-    // Stash the current value under the type we're leaving.
-    if (Number.isFinite(prevValue)) {
-      if (prevType === "PERCENT") lastPercentRef.current = prevValue;
-      else lastFixedRef.current = prevValue;
-    }
-    setValue("type", next, { shouldDirty: true });
-    setValue(
-      "value",
-      next === "PERCENT" ? lastPercentRef.current : lastFixedRef.current,
-      { shouldDirty: true, shouldValidate: true },
-    );
-    clearErrors("value");
+    setValue("type", next, { shouldDirty: true, shouldValidate: true });
+    clearErrors(next === "PERCENT" ? "amount" : "percent");
   };
 
   // Not gated on edit mode: a half-filled create form is exactly as easy to
@@ -161,33 +158,31 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
   // It's stable while the form is on screen, so active editing is never disrupted.
   useEffect(() => {
     reset(derivedValues);
-    reseedTypeMemory(derivedValues);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navGeneration]);
 
   const type = watch("type");
-  const value = watch("value");
+  const percent = watch("percent");
+  const amount = watch("amount");
   const minOrder = watch("minOrder");
   const usageLimit = watch("usageLimit");
   const perUserLimit = watch("perUserLimit");
   const expiresAt = watch("expiresAt");
   const active = watch("active");
 
-  // Each PriceInput carries its own currency selector; mirror it so the saved
-  // amounts read in the same currency the field currently shows.
-  const [valueCurrency, setValueCurrency] = useState<Currency>(currency);
-  const [minOrderCurrency, setMinOrderCurrency] = useState<Currency>(currency);
-  const fmtMoney = (cents: number, cur: Currency) => {
-    const rate = cur === "usd" ? 1 : (rates[cur] ?? 1);
-    return formatPrice(convertCents(cents, cur, rate), cur);
-  };
+  // The saved amount, read in whichever currency the field is currently showing.
+  // A stored amount, not a conversion, which is why it stays put as rates move.
+  const fmtMoney = (set: MoneySet, cur: Currency) =>
+    formatPrice(moneyIn(set, cur, rates), cur, locale);
 
   // Saved (active) values, formatted for the changed-field hints. Only present
   // in edit mode (there is nothing "saved" yet when creating).
   const savedValueText = coupon
     ? coupon.type === "PERCENT"
       ? `${coupon.value}%`
-      : fmtMoney(coupon.value, valueCurrency)
+      : coupon.valueMoney
+        ? fmtMoney(coupon.valueMoney, amount?.currency ?? currency)
+        : null
     : null;
 
   const onSubmit = (data: CouponInput) => {
@@ -201,7 +196,6 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
         // Adopt the just-saved values as the new baseline so the form is no
         // longer "dirty" (the save bar clears and the nav guard stops prompting).
         reset(data);
-        reseedTypeMemory(data);
       }
     });
   };
@@ -245,26 +239,40 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
           <Label htmlFor="value" required>{type === "PERCENT" ? t("form.valuePercent") : t("form.valueFixed")}</Label>
           {type === "PERCENT" ? (
             <NumberStepper
-              aria-invalid={!!errors.value}
+              aria-invalid={!!errors.percent}
               id="value"
               min={0}
               max={100}
-              value={Number.isFinite(value) ? value : 0}
-              onChange={(v) => setValue("value", v ?? 0, { shouldValidate: true, shouldDirty: true })}
+              value={Number.isFinite(percent) ? percent : 0}
+              onChange={(v) =>
+                setValue("percent", v ?? 0, { shouldValidate: true, shouldDirty: true })
+              }
             />
           ) : (
-            <PriceInput
-              aria-invalid={!!errors.value}
-              value={Number.isFinite(value) ? value : 0}
-              onChange={(usd) => setValue("value", usd, { shouldValidate: true, shouldDirty: true })}
+            <MoneyField
+              aria-invalid={!!errors.amount?.amount}
+              value={amount ?? emptyMoneyInput(currency)}
+              onChange={(next) =>
+                setValue("amount", next, { shouldValidate: true, shouldDirty: true })
+              }
               rates={rates}
-              defaultCurrency={currency}
-              onCurrencyChange={setValueCurrency}
+              stored={coupon?.type === "FIXED" ? coupon.valueMoney : null}
+              preferredCurrency={currency}
+              showDerived
             />
           )}
-          {errors.value && <p className="text-xs text-destructive">{errors.value.message}</p>}
+          {type === "PERCENT"
+            ? errors.percent && (
+                <p className="text-xs text-destructive">{errors.percent.message}</p>
+              )
+            : errors.amount?.amount && (
+                <p className="text-xs text-destructive">{errors.amount.amount.message}</p>
+              )}
           {coupon && (
-            <ChangedHint changed={!!dirtyFields.value} savedText={savedValueText} />
+            <ChangedHint
+              changed={type === "PERCENT" ? !!dirtyFields.percent : !!dirtyFields.amount}
+              savedText={savedValueText}
+            />
           )}
         </div>
       </div>
@@ -272,24 +280,35 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
         <div className="space-y-1.5">
           <Label>{t("form.minOrder")}</Label>
-          <PriceInput
-            aria-invalid={!!errors.minOrder}
-            value={minOrder ?? 0}
-            // `usd || null`: 0 means "no minimum" (null); a negative is kept so
-            // the schema's nonnegative check rejects it and shows an error -
-            // matching every other number input (no silent reset to 0).
-            onChange={(usd) => setValue("minOrder", usd || null, { shouldValidate: true, shouldDirty: true })}
+          <MoneyField
+            aria-invalid={!!errors.minOrder?.amount}
+            value={minOrder ?? emptyMoneyInput(currency)}
+            // Amount 0 means "no minimum" and is stored as null. A negative is
+            // kept so the schema rejects it and shows an error, matching every
+            // other number input (no silent reset to 0).
+            onChange={(next) =>
+              setValue("minOrder", next.amount === 0 ? null : next, {
+                shouldValidate: true,
+                shouldDirty: true,
+              })
+            }
             rates={rates}
-            defaultCurrency={currency}
-            onCurrencyChange={setMinOrderCurrency}
+            stored={coupon?.minOrderMoney}
+            preferredCurrency={currency}
+            // The buyer sees this amount: a rejected coupon quotes the minimum
+            // back in their own currency, so the seller has to be able to see
+            // and pin what it comes to there.
+            showDerived
           />
-          {errors.minOrder && <p className="text-xs text-destructive">{errors.minOrder.message}</p>}
+          {errors.minOrder?.amount && (
+            <p className="text-xs text-destructive">{errors.minOrder.amount.message}</p>
+          )}
           {coupon && (
             <ChangedHint
               changed={!!dirtyFields.minOrder}
               savedText={
-                coupon.minOrder != null
-                  ? fmtMoney(coupon.minOrder, minOrderCurrency)
+                coupon.minOrderMoney
+                  ? fmtMoney(coupon.minOrderMoney, minOrder?.currency ?? currency)
                   : t("form.none")
               }
             />

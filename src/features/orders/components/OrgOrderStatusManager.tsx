@@ -44,7 +44,7 @@ function CancelOrderButton({
           size="sm"
           variant="outline"
           disabled={disabled}
-          className="border-destructive text-destructive hover:bg-destructive/10"
+          className="border-destructive text-destructive pointer-fine:hover:bg-destructive/10 pointer-fine:hover:text-destructive"
         >
           <XCircle className="mr-2 h-4 w-4" />
           {t("cancelOrder")}
@@ -157,10 +157,10 @@ export function OrgOrderStatusManager({
         <div className="flex flex-wrap gap-3">
           {showPaymentReceived && (
             <Button
+              variant="successSolid"
               size="sm"
               onClick={handlePaymentReceived}
               disabled={busy}
-              className="bg-green-600 hover:bg-green-700 text-white"
             >
               {activeAction === "paid" ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

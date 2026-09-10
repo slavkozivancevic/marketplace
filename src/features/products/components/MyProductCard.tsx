@@ -12,8 +12,8 @@ import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ActionButton";
 import { toast } from "@/components/ui/sonner";
 import { deleteProduct, duplicateProduct } from "@/features/products/actions/products";
-import { useCurrencyStore } from "@/store/currency";
-import { formatPrice, convertCents } from "@/lib/currency";
+import { useMoney } from "@/lib/useMoney";
+import type { MoneySet } from "@/lib/money";
 import {
   getProductTitle,
   getProductDescription,
@@ -42,8 +42,11 @@ interface MyProductCardProps {
   product: {
     id: string;
     translations: ProductTranslationRow[];
+    // USD-cent mirrors plus the stored sets - the card renders from the sets.
     price: number;
+    priceMoney: MoneySet | null;
     compareAtPrice: number | null;
+    compareAtPriceMoney: MoneySet | null;
     status: string;
     imageUrls: string[];
     hasVideo?: boolean;
@@ -66,7 +69,8 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
   const [isDeleting, startDelete] = useTransition();
   const [isDuplicating, startDuplicate] = useTransition();
 
-  const { currency, currentRate } = useCurrencyStore();
+  // Stored per-currency amounts; no rate on the display path.
+  const { format, amount: moneyAmount } = useMoney();
   const localTitle = getProductTitle(product, locale);
   const localDescription = getProductDescription(product, locale);
   const localBrandName = product.brand ? getBrandName(product.brand, locale) : "";
@@ -137,7 +141,11 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
         {isOnSale && (
           <div className="absolute top-3 left-0 flex flex-col items-start gap-1 pointer-events-none">
             <span className="bg-linear-to-r from-red-500 to-rose-600 text-white text-sm font-black px-4 py-1.5 rounded-r-full shadow-lg shadow-red-500/50 tracking-wider uppercase">
-              -{Math.round(((product.compareAtPrice! - product.price) / product.compareAtPrice!) * 100)}%
+              -{(() => {
+                const was = moneyAmount(product.compareAtPriceMoney, product.compareAtPrice);
+                const now = moneyAmount(product.priceMoney, product.price);
+                return was > 0 ? Math.round(((was - now) / was) * 100) : 0;
+              })()}%
             </span>
           </div>
         )}
@@ -166,11 +174,11 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
         <div className="flex items-center justify-between">
           {isOnSale ? (
             <div className="flex items-baseline gap-1.5">
-              <p className="text-sm font-medium text-red-500">{formatPrice(convertCents(product.price, currency, currentRate()), currency)}</p>
-              <p className="text-xs text-muted-foreground line-through">{formatPrice(convertCents(product.compareAtPrice!, currency, currentRate()), currency)}</p>
+              <p className="text-sm font-medium text-red-500">{format(product.priceMoney, product.price)}</p>
+              <p className="text-xs text-muted-foreground line-through">{format(product.compareAtPriceMoney, product.compareAtPrice)}</p>
             </div>
           ) : (
-            <p className="text-sm font-medium">{formatPrice(convertCents(product.price, currency, currentRate()), currency)}</p>
+            <p className="text-sm font-medium">{format(product.priceMoney, product.price)}</p>
           )}
           <Badge
             variant={

@@ -13,8 +13,9 @@ import { handleActionError } from "@/features/common/errors/domainErrors";
 import { enforceRateLimit, getClientIp } from "@/lib/rateLimit/guard";
 import { getCurrencyRate } from "@/features/currency/db/currencyRates";
 import { convertCents } from "@/lib/currency";
+import { moneyIn, parseMoney, type MoneySet } from "@/lib/money";
 import { VALID_CURRENCIES, type Currency } from "@/lib/currency-config";
-import { asLocale } from "@/i18n/config";
+import { asLocale, type Locale } from "@/i18n/config";
 import { getProductTitle } from "@/features/products/utils/translations";
 import { getPathname } from "@/i18n/navigation";
 import { validateCoupon } from "@/features/coupons/db/coupons";
@@ -43,6 +44,26 @@ export async function createCheckoutSession(
     { statusOf: (result) => ("error" in result ? 400 : 200) },
   );
 }
+
+/**
+ * The app locale, translated into one Stripe's hosted page actually accepts.
+ *
+ * Stripe does not support Serbian, so `sr` cannot be honoured: the hosted page
+ * has no Serbian text to render. The fallback is English rather than Croatian -
+ * `hr` would at least write dinars the right way round (9.949,41 RSD instead of
+ * RSD 9,949.41), but showing a Croatian page to a buyer on a Serbian
+ * marketplace was judged worse than showing a plainly foreign one.
+ *
+ * Typed as a total Record, so adding a locale to the app fails here until
+ * someone decides what Stripe should do with it, rather than silently falling
+ * back to whatever the browser happens to ask for.
+ */
+const STRIPE_LOCALE: Record<Locale, Stripe.Checkout.SessionCreateParams.Locale> = {
+  en: "en",
+  de: "de",
+  es: "es",
+  sr: "en",
+};
 
 async function runCheckoutSession(
   items: CheckoutCartItem[],
@@ -91,6 +112,10 @@ async function runCheckoutSession(
 
     let needsShipping = false;
     let subtotalUsd = 0;
+    // The cart total in the buyer's currency, accumulated from the same
+    // per-line amounts Stripe is charged. Coupon minimums and the discount cap
+    // are judged against this, not against a conversion of `subtotalUsd`.
+    let subtotalInCurrency = 0;
 
     for (const item of items) {
       const product = await prisma.product.findFirst({
@@ -142,6 +167,9 @@ async function runCheckoutSession(
         getProductTitle(product, locale);
 
       let unitPriceUsdCents: number;
+      // The USD mirror above drives the coupon subtotal; this is what Stripe
+      // actually charges.
+      let unitMoney: MoneySet | null;
       let itemName = productTitle;
 
       if (item.variantId) {
@@ -155,10 +183,12 @@ async function runCheckoutSession(
             message: t("notEnoughStockFor", { title: productTitle }),
           };
         }
-        unitPriceUsdCents = Number(variant.price); // Int after migration; Number() is safe for both Decimal and Int
+        unitPriceUsdCents = Number(variant.price);
+        unitMoney = parseMoney(variant.priceMoney, unitPriceUsdCents);
         itemName = `${productTitle} (${variant.sku})`;
       } else {
-        unitPriceUsdCents = Number(product.price); // Int after migration
+        unitPriceUsdCents = Number(product.price);
+        unitMoney = parseMoney(product.priceMoney, unitPriceUsdCents);
       }
 
       if (!product.isDigital && product.requiresShipping) {
@@ -167,8 +197,11 @@ async function runCheckoutSession(
 
       subtotalUsd += unitPriceUsdCents * item.quantity;
 
-      // Convert from USD cents to target currency's smallest unit
-      const unitAmountInCurrency = convertCents(unitPriceUsdCents, currency, exchangeRate);
+      // The exact amount stored for the buyer's currency - the same number the
+      // product page showed. Not a conversion of the USD mirror.
+      const unitAmountInCurrency = unitMoney
+        ? moneyIn(unitMoney, currency, { [currency]: exchangeRate })
+        : convertCents(unitPriceUsdCents, currency, exchangeRate);
 
       const variantMedia = item.variantId
         ? product.variants.find((v) => v.id === item.variantId)?.media[0]?.media
@@ -178,6 +211,8 @@ async function runCheckoutSession(
           ? (variantMedia.thumbUrl ?? variantMedia.url)
           : undefined;
       const imageUrl = variantImageUrl ?? product.media[0]?.url;
+
+      subtotalInCurrency += unitAmountInCurrency * item.quantity;
 
       lineItems.push({
         price_data: {
@@ -199,13 +234,20 @@ async function runCheckoutSession(
     let discounts: Stripe.Checkout.SessionCreateParams.Discount[] | undefined;
     const couponMeta: Record<string, string> = {};
     if (couponCode) {
-      const res = await validateCoupon(couponCode, subtotalUsd, user.id);
+      const res = await validateCoupon(couponCode, subtotalUsd, user.id, {
+        currency,
+        rates: { [currency]: exchangeRate },
+        subtotal: subtotalInCurrency,
+      });
       if (res.ok && res.discountUsd > 0) {
         const stripeCoupon = await stripe.coupons.create(
           res.type === CouponType.PERCENT
             ? { percent_off: res.value, duration: "once", max_redemptions: 1 }
             : {
-                amount_off: convertCents(res.value, currency, exchangeRate),
+                // Already resolved in the buyer's currency and capped at the
+                // cart, so a "500 RSD off" coupon takes off exactly 500 RSD
+                // rather than 499 or 501 depending on the day's rate.
+                amount_off: res.discount,
                 currency,
                 duration: "once",
                 max_redemptions: 1,
@@ -221,14 +263,18 @@ async function runCheckoutSession(
     // added on top of the line items - Stripe coupons only discount line items,
     // so shipping is never reduced. Snapshot the per-org split for payouts via
     // metadata; the webhook stores it on the order.
-    const shipLines = await cartShippingLines(items);
+    const shipLines = await cartShippingLines(items, {
+      currency,
+      rates: { [currency]: exchangeRate },
+    });
     const shippingByOrg: Record<string, number> = {};
     let shippingTotal = 0;
     for (const l of shipLines) {
-      if (l.shippingUsd > 0) {
-        const c = convertCents(l.shippingUsd, currency, exchangeRate);
-        shippingByOrg[l.orgId] = c;
-        shippingTotal += c;
+      // `l.shipping` is already the seller's exact fee in the buyer's currency,
+      // with the free-shipping rule applied in that same currency.
+      if (l.shipping > 0) {
+        shippingByOrg[l.orgId] = l.shipping;
+        shippingTotal += l.shipping;
       }
     }
     const tCheckout = await getTranslations("checkout");
@@ -258,6 +304,13 @@ async function runCheckoutSession(
           allowed_countries: ["US", "CA", "GB", "DE", "FR", "AU", "NL", "SE", "NO", "DK", "FI", "IT", "ES", "PT", "BE", "AT", "CH", "PL", "RS", "HR", "BA", "ME", "SI", "MK", "AL"],
         },
       }),
+      // The buyer's own language on the hosted page. Without it Stripe falls back
+      // to `auto`, guesses from the browser and served an English page - which
+      // also formatted the total as "RSD 9,949.41" rather than "9.949,41 RSD".
+      // `metadata.locale` below deliberately stays the real app locale: the
+      // webhook and the order row need what the buyer actually browsed in, not
+      // what Stripe was able to render.
+      locale: STRIPE_LOCALE[locale],
       metadata: {
         userId: user.id,
         locale,

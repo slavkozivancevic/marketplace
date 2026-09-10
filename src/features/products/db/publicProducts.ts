@@ -1,3 +1,4 @@
+import { serializeMoneyFields } from "@/lib/money";
 import { prisma } from "@/core/db/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { SerializedProductListItem } from "@/types/types";
@@ -35,13 +36,11 @@ export const listItemInclude = {
 
 type ListItemRow = Prisma.ProductGetPayload<{ include: typeof listItemInclude }>;
 
-/** Serializes a raw card row's Decimal money fields to plain numbers. */
+/** Projects a raw card row's money columns into the display set + USD mirror. */
 export function serializeListItem(p: ListItemRow): SerializedProductListItem {
   return {
     ...p,
-    price: Number(p.price),
-    compareAtPrice: p.compareAtPrice != null ? Number(p.compareAtPrice) : null,
-    costPrice: p.costPrice != null ? Number(p.costPrice) : null,
+    ...serializeMoneyFields(p),
   };
 }
 

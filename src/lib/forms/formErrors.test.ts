@@ -19,21 +19,25 @@ describe("collectFormErrorMessages", () => {
     return (result as { errors: Record<string, unknown> }).errors;
   };
 
+  // `price` is a MoneyInput, so an invalid amount lands one level down at
+  // `price.amount` - which is exactly the nesting the collector has to walk.
+  const money = (amount: number) => ({ currency: "usd", amount });
+
   it("finds the message behind a single invalid field", async () => {
-    const errors = await resolve({ title: "t", description: "d", price: -5 });
+    const errors = await resolve({ title: "t", description: "d", price: money(-5) });
     expect(Object.keys(errors)).toEqual(["price"]);
     expect(collectFormErrorMessages(errors)).toHaveLength(1);
     expect(collectFormErrorMessages(errors)[0]).toBeTruthy();
   });
 
   it("finds one message per invalid field", async () => {
-    const errors = await resolve({ price: -5 });
+    const errors = await resolve({ price: money(-5) });
     expect(Object.keys(errors).length).toBeGreaterThan(1);
     expect(collectFormErrorMessages(errors).length).toBe(Object.keys(errors).length);
   });
 
   it("returns nothing for a valid form, so the notice stays hidden", async () => {
-    const errors = await resolve({ title: "t", description: "d", price: 10 });
+    const errors = await resolve({ title: "t", description: "d", price: money(1000) });
     expect(errors).toEqual({});
     expect(collectFormErrorMessages(errors)).toEqual([]);
   });

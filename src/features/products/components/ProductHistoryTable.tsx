@@ -11,8 +11,7 @@ import { ActionButton } from "@/components/ActionButton";
 import { toast } from "@/components/ui/sonner";
 import { rollbackProductVersion } from "@/features/products/actions/products";
 import { SerializedProductHistory } from "@/types/types";
-import { useCurrencyStore } from "@/store/currency";
-import { formatPrice, convertCents } from "@/lib/currency";
+import { useMoney } from "@/lib/useMoney";
 // Grid template is owned by the skeleton module so the two can never drift.
 import { HISTORY_COLS as GRID_COLS } from "./ProductHistoryTableSkeleton";
 
@@ -70,7 +69,8 @@ function HistoryRow({
   isLatest: boolean;
 }) {
   const t = useTranslations("products");
-  const { currency, currentRate } = useCurrencyStore();
+  // Stored per-currency amounts; no rate on the display path.
+  const { format } = useMoney();
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const locale = useLocale();
@@ -103,7 +103,7 @@ function HistoryRow({
       <div role="cell" className="truncate">{entry.title}</div>
       <div role="cell" className="truncate text-muted-foreground">{entry.description}</div>
       <div role="cell" className="text-right tabular-nums">
-        {formatPrice(convertCents(entry.price, currency, currentRate()), currency)}
+        {format(entry.priceMoney, entry.price)}
       </div>
       <div role="cell" className="flex justify-center">
         <Badge variant={getStatusVariant(entry.status)}>

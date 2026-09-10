@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Wallet, ChevronDown } from "lucide-react";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ export function CodBalanceAlert({
   balances: { currency: string; owedAmount: number }[];
 }) {
   const t = useTranslations("payouts");
+  const locale = useLocale();
   // The owed amount is the only thing worth seeing at a glance - the
   // explanation paragraph stays collapsed by default so this banner doesn't
   // compete with the payout table for vertical space on short screens.
@@ -43,7 +44,7 @@ export function CodBalanceAlert({
           <div className="space-y-1">
             {balances.map((b) => (
               <div key={b.currency} className="font-semibold">
-                {formatPrice(b.owedAmount, b.currency as Currency)}
+                {formatPrice(b.owedAmount, b.currency as Currency, locale)}
               </div>
             ))}
           </div>

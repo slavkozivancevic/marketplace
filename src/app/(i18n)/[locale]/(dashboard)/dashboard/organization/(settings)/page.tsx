@@ -18,6 +18,7 @@ import { getPathname } from "@/i18n/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MembershipRole } from "@/generated/prisma/client";
+import { parseMoney } from "@/lib/money";
 
 export default async function OrganizationPage() {
   await connection();
@@ -83,10 +84,18 @@ export default async function OrganizationPage() {
             <p className="text-sm text-muted-foreground">{t("organization.shippingDesc")}</p>
           </CardHeader>
           <CardContent>
+            {/* MoneySets, not bare cents: the fee the seller typed is carried
+                through per currency. Rows saved before this existed have no
+                Json yet, so parseMoney rebuilds a USD set from the mirror. */}
             <OrgShippingForm
               key={crypto.randomUUID()}
-              flatRate={organization.shippingFlatRate}
-              freeThreshold={organization.shippingFreeThreshold}
+              flatRate={
+                parseMoney(organization.shippingFlatRateMoney, organization.shippingFlatRate)!
+              }
+              freeThreshold={parseMoney(
+                organization.shippingFreeThresholdMoney,
+                organization.shippingFreeThreshold,
+              )}
               canEdit={canEdit}
             />
           </CardContent>

@@ -108,7 +108,7 @@ function RowActions({
         <Button
           size="icon"
           variant="ghost"
-          className="h-8 w-8 text-emerald-600 hover:text-emerald-600"
+          className="h-8 w-8 text-emerald-600 pointer-fine:hover:text-emerald-600"
           disabled={busy}
           title={t("approve")}
           onClick={() => onApprove(review.id)}
@@ -134,8 +134,8 @@ function RowActions({
           <AlertDialogTrigger asChild>
             <Button
               size="icon"
-              variant="ghost"
-              className="h-8 w-8 text-destructive hover:text-destructive"
+              variant="ghostDestructive"
+              className="h-8 w-8"
               disabled={busy}
               title={t("reject")}
             >

@@ -1,19 +1,36 @@
 import type { Currency } from "@/lib/currency-config";
+import { intlLocale } from "@/lib/i18n/dateLocale";
 
 export interface CurrencyConfig {
   code: Currency;
   label: string;
   symbol: string;
-  /** BCP 47 locale used for Intl.NumberFormat */
-  locale: string;
-  /** Number of decimal places (e.g. 2 for USD/EUR/RSD) */
+  /** ISO 4217 minor-unit exponent (2 for USD/EUR/RSD). Storage and Stripe both
+   *  use this scale, so it is not a presentation choice. */
   decimalPlaces: number;
+  /**
+   * Granularity, in minor units, that a DERIVED amount is rounded to. One minor
+   * unit everywhere: a conversion is rounded to the smallest amount the currency
+   * has and nothing beyond that is thrown away.
+   *
+   * RSD used to be rounded to a whole dinar here, on the argument that nobody
+   * shelves a price of "15.313,70". That cost up to 50 para of accuracy on every
+   * converted price to tidy up a number the seller never typed, and a seller who
+   * wants a round dinar price can always author one - authored amounts are never
+   * touched by this at all.
+   *
+   * Never applied to an amount a human typed: what the seller enters is stored
+   * verbatim, para included.
+   */
+  derivedStep: number;
 }
 
+// No per-currency `locale` here any more: how a number is written down follows
+// the reader, so `formatPrice` takes the app locale instead.
 export const CURRENCIES: CurrencyConfig[] = [
-  { code: "usd", label: "USD", symbol: "$",   locale: "en-US", decimalPlaces: 2 },
-  { code: "eur", label: "EUR", symbol: "€",   locale: "de-DE", decimalPlaces: 2 },
-  { code: "rsd", label: "RSD", symbol: "RSD", locale: "sr-RS", decimalPlaces: 2 },
+  { code: "usd", label: "USD", symbol: "$",   decimalPlaces: 2, derivedStep: 1 },
+  { code: "eur", label: "EUR", symbol: "€",   decimalPlaces: 2, derivedStep: 1 },
+  { code: "rsd", label: "RSD", symbol: "RSD", decimalPlaces: 2, derivedStep: 1 },
 ];
 
 const currencyMap = new Map(CURRENCIES.map((c) => [c.code, c]));
@@ -24,23 +41,42 @@ export function getCurrencyConfig(currency: Currency): CurrencyConfig {
 
 /**
  * Formats an amount stored in the smallest unit (cents/para) into a
- * human-readable string for the given currency.
+ * human-readable string, grouped and punctuated the way `locale` writes numbers.
+ *
+ * `locale` is the APP locale (the reader), not the currency's home locale. Which
+ * currency the money is in decides the symbol; how a number is written down is a
+ * property of who is reading it. Formatting every RSD amount in `sr-RS` meant an
+ * English-speaking buyer saw "3.253,92 RSD", where "3.253" reads as three point
+ * something - the one combination here that is genuinely misread.
+ *
+ * The two non-default `Intl` options are what make that switch free of
+ * regressions:
+ * - `narrowSymbol`, or USD outside en turns into "29,99 US$" instead of "29,99 $"
+ * - `useGrouping: "always"`, or es-ES drops the separator on four digits and
+ *   renders "3253,92"
  *
  * @example
- *   formatPrice(2999, "usd")  // "$29.99"
- *   formatPrice(2761, "eur")  // "27,61 €"
- *   formatPrice(325392, "rsd") // "3.253,92 RSD"
+ *   formatPrice(2999, "usd", "en")   // "$29.99"
+ *   formatPrice(2999, "usd", "sr")   // "29,99 $"
+ *   formatPrice(325392, "rsd", "en") // "RSD 3,253.92"
+ *   formatPrice(325392, "rsd", "sr") // "3.253,92 RSD"
  */
-export function formatPrice(amountInSmallestUnit: number, currency: Currency): string {
+export function formatPrice(
+  amountInSmallestUnit: number,
+  currency: Currency,
+  locale: string,
+): string {
   const config = getCurrencyConfig(currency);
   const divisor = Math.pow(10, config.decimalPlaces);
   const amount = amountInSmallestUnit / divisor;
-  return new Intl.NumberFormat(config.locale, {
+  return new Intl.NumberFormat(intlLocale(locale), {
     style: "currency",
     // Use the resolved config's code (getCurrencyConfig falls back to a valid
     // currency) - never the raw param, which could be an empty/unknown string
     // (e.g. a stale persisted value) and would throw "Invalid currency code".
     currency: config.code.toUpperCase(),
+    currencyDisplay: "narrowSymbol",
+    useGrouping: "always",
     minimumFractionDigits: config.decimalPlaces,
     maximumFractionDigits: config.decimalPlaces,
   }).format(amount);
@@ -49,6 +85,16 @@ export function formatPrice(amountInSmallestUnit: number, currency: Currency): s
 /**
  * Converts a price from USD cents to the smallest unit of the target currency
  * using the provided exchange rate (1 USD = `rate` of target currency).
+ *
+ * @deprecated for anything a user sees as a price. Live conversion on the
+ * display path is what made a saved "1.000,05 RSD" read back as "1.000,37 RSD",
+ * and made every price move on its own whenever the daily rate updated. Prices,
+ * shipping fees and coupon amounts now store one exact amount per currency -
+ * see `MoneySet` in `src/lib/money.ts` and read them with `moneyIn()`.
+ *
+ * Still correct for the remaining USD-only quantities that are thresholds
+ * rather than prices (a coupon minimum, a free-shipping target) when they are
+ * being rendered as a hint, where being a dinar off is harmless.
  *
  * @example
  *   convertCents(2999, "eur", 0.921)  // 2762 (EUR cents)

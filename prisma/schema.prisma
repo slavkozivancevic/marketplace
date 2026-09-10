@@ -11,7 +11,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
   // `postgresqlExtensions` is on, so Prisma OWNS this list: an extension that
   // exists in the database but is missing here gets a DROP in the next
   // generated migration. pgStatStatements is therefore declared even though
@@ -69,21 +69,26 @@ model Organization {
 
   // Per-seller delivery rule. `shippingFlatRate` is charged once per order for
   // this org's items; waived when the org's subtotal reaches
-  // `shippingFreeThreshold` (null = never free). Both in USD base cents
-  // (converted to the order currency at checkout, like product prices). Flat
-  // rate 0 = always free. Shipping goes fully to the seller - no platform fee,
-  // and coupons never reduce it.
-  shippingFlatRate      Int  @default(0)
-  shippingFreeThreshold Int?
+  // `shippingFreeThreshold` (null = never free). Flat rate 0 = always free.
+  // Shipping goes fully to the seller - no platform fee, and coupons never
+  // reduce it.
+  //
+  // The Int columns are USD-cent MIRRORS of the `*Money` sets below: they exist
+  // so threshold comparisons stay plain integer SQL/JS. The amount actually
+  // charged and shown comes from the MoneySet - see the note on Product.price.
+  shippingFlatRate           Int   @default(0)
+  shippingFlatRateMoney      Json?
+  shippingFreeThreshold      Int?
+  shippingFreeThresholdMoney Json?
 
-  members          Membership[]
-  products         Product[]
-  invites          Invite[]
-  connectedAccount ConnectedAccount?
+  members            Membership[]
+  products           Product[]
+  invites            Invite[]
+  connectedAccount   ConnectedAccount?
   payoutTransactions PaymentTransaction[]
-  returns          Return[]
-  shipments        Shipment[]
-  balances         OrgBalance[]
+  returns            Return[]
+  shipments          Shipment[]
+  balances           OrgBalance[]
 }
 
 // A seller organization's Stripe Connect (Express) account. Created during
@@ -183,18 +188,18 @@ enum LogoBackdrop {
 }
 
 model Brand {
-  id          String       @id @default(uuid())
-  logoUrl     String?
+  id               String       @id @default(uuid())
+  logoUrl          String?
   /// Optional second asset designed for dark surfaces (theme-following render).
-  logoUrlDark String?
+  logoUrlDark      String?
   /// Backdrop for `logoUrl`. Computed on save from that image; admins may
   /// override AUTO manually.
-  logoBackdrop LogoBackdrop @default(AUTO)
+  logoBackdrop     LogoBackdrop @default(AUTO)
   /// Backdrop for `logoUrlDark`, computed from that image independently so each
   /// asset gets the tile its own luminance needs.
   logoBackdropDark LogoBackdrop @default(AUTO)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   translations BrandTranslation[]
   products     Product[]
@@ -304,10 +309,28 @@ model ProductTag {
 model Product {
   id String @id @default(uuid())
 
-  price          Int
-  compareAtPrice Int?
-  costPrice      Int?
-  stock          Int?
+  // MONEY INVARIANT. `*Money` is a MoneySet (src/lib/money.ts): one exact
+  // integer amount per supported currency, in that currency's ISO 4217 minor
+  // unit, plus which currency the seller actually typed. It is the source of
+  // truth for every price a human sees or pays, and reading it never touches an
+  // exchange rate - that is what keeps a saved "1.000,05 RSD" from reading back
+  // as "1.000,37 RSD", and what stops prices moving on their own when the daily
+  // rate updates.
+  //
+  // The bare Int columns are USD-cent MIRRORS of `amounts.usd`, written in the
+  // same transaction. They exist ONLY so price filters (`where.price`), sorting
+  // and cross-currency thresholds stay indexed integer SQL. Never render one:
+  // display and checkout go through moneyIn(parseMoney(priceMoney, price), cur).
+  price               Int
+  priceMoney          Json?
+  compareAtPrice      Int?
+  compareAtPriceMoney Json?
+  // Seller-internal margin figure. Never shown to a buyer and never summed
+  // across products, but it carries a MoneySet like the others so the seller
+  // sees back exactly the number they typed.
+  costPrice           Int?
+  costPriceMoney      Json?
+  stock               Int?
 
   status ProductStatus @default(DRAFT)
 
@@ -449,7 +472,10 @@ model ProductHistory {
   // Per-locale snapshot of translatable fields at this version. Shape:
   //   { [locale]: { title, slug, description, shortDescription, metaTitle, metaDescription } }
   translationsSnap Json?
+  // USD-cent mirror + the MoneySet as it stood at this version, so history
+  // renders each entry in the currency it was actually priced in.
   price            Int
+  priceMoney       Json?
   status           ProductStatus
   updatedById      String?
   createdAt        DateTime      @default(now())
@@ -462,19 +488,23 @@ model ProductHistory {
 }
 
 model ProductVariant {
-  id             String      @id @default(uuid())
-  productId      String
-  sku            String
-  price          Int
-  compareAtPrice Int?
-  costPrice      Int?
-  stock          Int         @default(0)
-  barcode        String?
-  weight         Float?
-  weightUnit     WeightUnit?
-  order          Int         @default(0)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  id                  String      @id @default(uuid())
+  productId           String
+  sku                 String
+  // Same money contract as Product - see the invariant note there.
+  price               Int
+  priceMoney          Json?
+  compareAtPrice      Int?
+  compareAtPriceMoney Json?
+  costPrice           Int?
+  costPriceMoney      Json?
+  stock               Int         @default(0)
+  barcode             String?
+  weight              Float?
+  weightUnit          WeightUnit?
+  order               Int         @default(0)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
 
   product         Product                        @relation(fields: [productId], references: [id], onDelete: Cascade)
   media           ProductVariantMedia[]
@@ -655,34 +685,34 @@ enum ReturnStatus {
 }
 
 model Order {
-  id              String          @id @default(uuid())
-  userId          String
-  stripeSessionId String?         @unique
-  paymentMethod   PaymentMethod   @default(STRIPE)
+  id                String            @id @default(uuid())
+  userId            String
+  stripeSessionId   String?           @unique
+  paymentMethod     PaymentMethod     @default(STRIPE)
   // Two orthogonal axes are the source of truth; `status` is derived from them.
   paymentStatus     PaymentStatus     @default(UNPAID)
   fulfillmentStatus FulfillmentStatus @default(UNFULFILLED)
   cancelledAt       DateTime?
   // Derived display stage (kept in sync from the axes + cancelledAt).
-  status          OrderStatus     @default(PENDING)
+  status            OrderStatus       @default(PENDING)
   // Stored in the smallest unit of `currency` (cents, para, etc.). `total` is the
   // amount actually charged (already net of any coupon discount).
-  total           Int
+  total             Int
   // Coupon applied at checkout. `couponCode` is a snapshot (survives coupon edits/
   // deletes); `discountAmount` is in the order currency. Platform-funded: sellers
   // still receive their full net, the platform absorbs the discount.
-  couponId        String?
-  couponCode      String?
-  discountAmount  Int             @default(0)
+  couponId          String?
+  couponCode        String?
+  discountAmount    Int               @default(0)
   // Delivery charged at checkout, in the order currency. `shippingTotal` is the
   // whole-order amount (for the buyer total + display); `shippingByOrg` snapshots
   // the per-seller split (orgId -> amount) so payouts stay correct even if an
   // org later edits its rule. `total` already includes shippingTotal. Shipping is
   // the seller's (no platform fee) and is never reduced by a coupon.
-  shippingTotal   Int             @default(0)
-  shippingByOrg   Json?
-  items           OrderItem[]
-  reviews         ProductReview[]
+  shippingTotal     Int               @default(0)
+  shippingByOrg     Json?
+  items             OrderItem[]
+  reviews           ProductReview[]
 
   // Locale the buyer was using at checkout time - drives email language
   locale       String  @default("en")
@@ -708,7 +738,7 @@ model Order {
   returns             Return[]
   shipments           Shipment[]
   invoice             Invoice?
-  coupon              Coupon?               @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  coupon              Coupon?              @relation(fields: [couponId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([couponId])
@@ -723,21 +753,28 @@ enum CouponType {
 // usage cap, minimum order) lives in the app layer; `usageCount` is incremented
 // atomically when an order that used the coupon is created.
 model Coupon {
-  id         String     @id @default(uuid())
+  id            String     @id @default(uuid())
   // Stored uppercase; matched case-insensitively.
-  code       String     @unique
-  type       CouponType
-  value      Int
-  // Minimum order subtotal (USD base cents) required to apply; null = none.
-  minOrder   Int?
+  code          String     @unique
+  type          CouponType
+  // PERCENT: a plain 1-100 percentage, and `valueMoney` stays null - a percent
+  // is not money. FIXED: the USD-cent mirror of `valueMoney`, which holds the
+  // exact discount the admin typed in each currency. Never scale `value` for a
+  // PERCENT coupon.
+  value         Int
+  valueMoney    Json?
+  // Minimum order subtotal required to apply; null = none. Int is the USD-cent
+  // mirror used for the comparison, `minOrderMoney` is what the buyer is shown.
+  minOrder      Int?
+  minOrderMoney Json?
   // Total redemptions allowed across all buyers; null = unlimited.
-  usageLimit Int?
-  usageCount Int        @default(0)
+  usageLimit    Int?
+  usageCount    Int        @default(0)
   // Redemptions allowed per buyer (checked against their non-cancelled orders);
   // null = unlimited. 1 = the common "once per customer" case.
-  perUserLimit Int?
-  expiresAt  DateTime?
-  active     Boolean    @default(true)
+  perUserLimit  Int?
+  expiresAt     DateTime?
+  active        Boolean    @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -765,12 +802,12 @@ model Invoice {
 // The presence of a row means that seller's portion is FULFILLED; there is no
 // separate status field. Tracking is optional (some sellers ship without it).
 model Shipment {
-  id             String   @id @default(uuid())
+  id             String    @id @default(uuid())
   orderId        String
   organizationId String
   trackingNumber String?
   carrier        String?
-  shippedAt      DateTime @default(now())
+  shippedAt      DateTime  @default(now())
   // Per-seller delivery confirmation. The order reaches fulfillmentStatus
   // DELIVERED only once every seller's shipment is delivered.
   deliveredAt    DateTime?
@@ -839,24 +876,24 @@ model ReturnItem {
 // collection. Gives an audit trail and enables per-item / partial refunds.
 // No PSP abstraction - we stay on Stripe + COD (provider reuses PaymentMethod).
 model PaymentTransaction {
-  id       String                   @id @default(uuid())
-  orderId  String
-  type     PaymentTransactionType
-  status   PaymentTransactionStatus @default(SUCCEEDED)
-  provider PaymentMethod
+  id             String                   @id @default(uuid())
+  orderId        String
+  type           PaymentTransactionType
+  status         PaymentTransactionStatus @default(SUCCEEDED)
+  provider       PaymentMethod
   // Provider's id for this movement: Stripe PaymentIntent (charge), Refund
   // (refund) or Transfer/Payout (payout). Null for COD cash. Unique when set,
   // which doubles as an idempotency key (Postgres treats NULLs as distinct).
-  providerId String? @unique
+  providerId     String?                  @unique
   // Seller this movement belongs to. Set on PAYOUT rows (which org received the
   // transfer) so the seller dashboard can list its payouts; null on CHARGE /
   // REFUND, which are buyer-side and can span multiple orgs in one order.
   organizationId String?
   // Smallest unit of `currency` (cents, para...). Always positive.
-  amount   Int
-  currency String @default("usd")
+  amount         Int
+  currency       String                   @default("usd")
   // Provider metadata, failure reason, or COD note.
-  note     String? @db.Text
+  note           String?                  @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -878,9 +915,9 @@ model OrderItem {
   // Stored in the smallest unit of the order's currency
   price     Int
 
-  order   Order           @relation(fields: [orderId], references: [id])
-  product Product         @relation(fields: [productId], references: [id])
-  variant ProductVariant? @relation(fields: [variantId], references: [id])
+  order       Order           @relation(fields: [orderId], references: [id])
+  product     Product         @relation(fields: [productId], references: [id])
+  variant     ProductVariant? @relation(fields: [variantId], references: [id])
   returnItems ReturnItem[]
 
   @@index([orderId])
@@ -925,8 +962,8 @@ model ProductReview {
   moderationReason String?      @db.Text
   moderatedAt      DateTime?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   // Set only when the AUTHOR edits the review content. Distinct from updatedAt
   // (which any write bumps, incl. moderation) so the public "(edited)" badge
   // reflects a real content change, not an approve/reject status write.
@@ -989,7 +1026,7 @@ model CurrencyRate {
 // deleted. Actor is snapshotted (id + email) so the trail stays readable even if
 // the user is later removed. System actions (Stripe webhook) have a null actor.
 model AuditLog {
-  id         String   @id @default(uuid())
+  id         String  @id @default(uuid())
   // Who: snapshot, not a FK, so deleting a user never rewrites history.
   actorId    String?
   actorEmail String?
@@ -1063,18 +1100,18 @@ enum AttributeType {
 // A reusable, globally-defined attribute. `key` is a stable machine identifier
 // used in URL params (`attr_<key>`) and code; human labels live in translations.
 model Attribute {
-  id        String        @id @default(uuid())
-  key       String        @unique
-  type      AttributeType
+  id                String        @id @default(uuid())
+  key               String        @unique
+  type              AttributeType
   // Unit suffix shown next to RANGE values, e.g. "inch", "GB". Null otherwise.
-  unit      String?
-  order     Int           @default(0)
+  unit              String?
+  order             Int           @default(0)
   // When true, this attribute can be used as a product variant axis (e.g. Color,
   // Size). Only SELECT attributes are eligible. Variant values then come from
   // this attribute's options, so the same dictionary powers variations + facets.
-  isVariantDefining Boolean @default(false)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  isVariantDefining Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
   translations  AttributeTranslation[]
   options       AttributeOption[]
@@ -1106,7 +1143,7 @@ model AttributeOption {
   value       String
   order       Int    @default(0)
 
-  attribute     Attribute                    @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  attribute     Attribute                      @relation(fields: [attributeId], references: [id], onDelete: Cascade)
   translations  AttributeOptionTranslation[]
   productValues ProductAttributeValue[]
   variantValues ProductVariantAttributeValue[]

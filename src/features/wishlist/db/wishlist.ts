@@ -1,3 +1,4 @@
+import { serializeMoneyFields } from "@/lib/money";
 import { cacheTag } from "next/cache";
 import { prisma } from "@/core/db/prisma";
 import { CacheTags } from "@/lib/cache/tags";
@@ -59,8 +60,6 @@ export async function getWishlistProducts(
     .filter((i) => i.product.status === "PUBLISHED" && !i.product.deletedAt)
     .map((i) => ({
       ...i.product,
-      price: i.product.price,
-      compareAtPrice: i.product.compareAtPrice,
-      costPrice: i.product.costPrice,
+      ...serializeMoneyFields(i.product),
     }));
 }

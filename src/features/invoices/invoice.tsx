@@ -108,8 +108,8 @@ async function buildInvoiceData(order: OrderWithInvoice, number: number): Promis
         variantLabel,
         sellerName: item.product.organization.name,
         quantity: item.quantity,
-        unitPrice: formatPrice(item.price, cur),
-        lineTotal: formatPrice(item.price * item.quantity, cur),
+        unitPrice: formatPrice(item.price, cur, locale),
+        lineTotal: formatPrice(item.price * item.quantity, cur, locale),
         image: await fetchThumb(imageUrl),
       };
     }),
@@ -137,12 +137,12 @@ async function buildInvoiceData(order: OrderWithInvoice, number: number): Promis
     // discount and/or a shipping charge.
     subtotal:
       order.discountAmount > 0 || order.shippingTotal > 0
-        ? formatPrice(order.total + order.discountAmount - order.shippingTotal, cur)
+        ? formatPrice(order.total + order.discountAmount - order.shippingTotal, cur, locale)
         : null,
-    discount: order.discountAmount > 0 ? formatPrice(order.discountAmount, cur) : null,
-    shippingCost: order.shippingTotal > 0 ? formatPrice(order.shippingTotal, cur) : null,
+    discount: order.discountAmount > 0 ? formatPrice(order.discountAmount, cur, locale) : null,
+    shippingCost: order.shippingTotal > 0 ? formatPrice(order.shippingTotal, cur, locale) : null,
     couponCode: order.couponCode,
-    total: formatPrice(order.total, cur),
+    total: formatPrice(order.total, cur, locale),
     labels: {
       invoice: t("invoice"),
       invoiceNo: t("invoiceNo"),

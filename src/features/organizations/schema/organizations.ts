@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nonNegativeMoneyInputSchema } from "@/lib/money-input";
 
 export const verifyOrganizationSchema = z.object({
   verified: z.boolean(),
@@ -12,11 +13,13 @@ export const updateOrganizationNameSchema = z.object({
   name: z.string().trim().min(1).max(100),
 });
 
-// Shipping config in dollars (the form works in the display currency; the action
-// converts to USD base cents). Threshold null = never free.
+// Shipping config as MoneyInput: the seller enters a fee in a currency they
+// pick, and that exact amount is what buyers in that currency are charged. The
+// action derives the other currencies and the USD mirror server-side.
+// Threshold null = never free; flat rate 0 = always free.
 export const updateOrganizationShippingSchema = z.object({
-  shippingFlatRate: z.number().min(0),
-  shippingFreeThreshold: z.number().min(0).nullable(),
+  shippingFlatRate: nonNegativeMoneyInputSchema,
+  shippingFreeThreshold: nonNegativeMoneyInputSchema.nullable(),
 });
 
 export type VerifyOrganizationInput = z.infer<typeof verifyOrganizationSchema>;

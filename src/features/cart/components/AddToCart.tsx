@@ -14,8 +14,8 @@ import {
 import { cn } from "@/lib/utils";
 import { QuantityStepper } from "./QuantityStepper";
 import { useCartStore } from "../store/cartStore";
-import { useCurrencyStore } from "@/store/currency";
-import { formatPrice, convertCents } from "@/lib/currency";
+import { useMoney } from "@/lib/useMoney";
+import { formatPrice } from "@/lib/currency";
 import { SerializedPublicProduct } from "@/types/types";
 import {
   getOptionName,
@@ -40,7 +40,8 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
   const t = useTranslations("cart");
   const locale = useLocale();
   const { addItem, openCart, items } = useCartStore();
-  const { currency, currentRate } = useCurrencyStore();
+  // Stored per-currency amounts; nothing here converts.
+  const { amount: moneyAmount, currency } = useMoney();
   const hasOptions = product.options.length > 0;
 
   const localizedOption = (option: typeof product.options[number]) => ({
@@ -101,12 +102,18 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
     Boolean(selectedManualId) ||
     product.options.every((opt) => Boolean(selectedValues[opt.id]));
 
-  const price = activeVariant ? activeVariant.price : product.price;
+  // Resolved into display-currency minor units up front so the sale badge and
+  // the two prices beside it are computed in one space.
+  const priceSource = activeVariant ?? product;
+  const price = moneyAmount(priceSource.priceMoney, priceSource.price);
   // A variant without its own compareAtPrice still benefits from a
   // product-level sale (the common case: one sale across all variants).
-  const compareAtPrice = activeVariant
-    ? (activeVariant.compareAtPrice ?? product.compareAtPrice)
-    : product.compareAtPrice;
+  const compareAtSource =
+    activeVariant && activeVariant.compareAtPrice == null ? product : priceSource;
+  const compareAtPrice =
+    compareAtSource.compareAtPrice != null
+      ? moneyAmount(compareAtSource.compareAtPriceMoney, compareAtSource.compareAtPrice)
+      : null;
   const isOnSale = compareAtPrice != null && compareAtPrice > price;
   const salePct = isOnSale
     ? Math.round(((compareAtPrice! - price) / compareAtPrice!) * 100)
@@ -284,7 +291,11 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
         variantSku: activeVariant?.sku ?? null,
         variantOptions,
         variantLabel,
-        price,
+        // The USD mirror stays the stored `price` (the server's cart math is
+        // in USD); `priceMoney` carries the exact per-currency amount so the
+        // drawer shows the same number the product page did.
+        price: priceSource.price,
+        priceMoney: priceSource.priceMoney,
         maxStock,
         requiresShipping: product.requiresShipping,
       },
@@ -377,7 +388,7 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
                     const label = variant.sku ?? `Variant ${variant.id.slice(-4)}`;
                     const priceStr =
                       variant.price !== product.price
-                        ? formatPrice(convertCents(variant.price, currency, currentRate()), currency)
+                        ? formatPrice(moneyAmount(variant.priceMoney, variant.price), currency, locale)
                         : null;
                     return (
                       <SelectItem
@@ -501,7 +512,7 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
                       {variant.sku ?? `Variant ${variant.id.slice(-4)}`}
                       {variant.price !== product.price && (
                         <span className="ml-1.5 text-xs opacity-75">
-                          {formatPrice(convertCents(variant.price, currency, currentRate()), currency)}
+                          {formatPrice(moneyAmount(variant.priceMoney, variant.price), currency, locale)}
                         </span>
                       )}
                     </button>
@@ -574,7 +585,7 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
               ? t("selectAllOptions")
               : isOutOfStock
                 ? t("outOfStockBtn")
-                : t("addToCart", { price: formatPrice(convertCents(price * qty, currency, currentRate()), currency) })}
+                : t("addToCart", { price: formatPrice(price * qty, currency, locale) })}
             {isOnSale && !isOutOfStock && allOptionsSelected && (
               <span className="ml-2 bg-primary-foreground/20 text-primary-foreground text-xs font-bold px-1.5 py-0.5 rounded-4xl">
                 -{salePct}%

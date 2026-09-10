@@ -43,7 +43,9 @@ function renderCard(
         id: product.id,
         translations: product.translations,
         price: product.price,
+        priceMoney: product.priceMoney,
         compareAtPrice: product.compareAtPrice != null ? Number(product.compareAtPrice) : null,
+        compareAtPriceMoney: product.compareAtPriceMoney,
         status: product.status,
         // MyProductCard cycles still thumbnails on hover - for videos we use
         // the poster (thumbUrl), so a video tile still shows a frame instead

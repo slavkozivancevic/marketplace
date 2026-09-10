@@ -87,7 +87,7 @@ export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
 
         {/* Org subtotal */}
         <div role="cell" className="font-semibold text-sm text-right tabular-nums">
-          {formatPrice(order.orgSubtotal, order.currency as Currency)}
+          {formatPrice(order.orgSubtotal, order.currency as Currency, locale)}
         </div>
 
         {/* Status */}

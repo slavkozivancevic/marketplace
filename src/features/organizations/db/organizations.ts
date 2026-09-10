@@ -1,5 +1,6 @@
 import { prisma } from "@/core/db/prisma";
-import { MembershipRole } from "@/generated/prisma/client";
+import { MembershipRole, Prisma } from "@/generated/prisma/client";
+import { serializeMoney, type MoneySet } from "@/lib/money";
 import { NotFoundError, ForbiddenError } from "@/features/common/errors/domainErrors";
 import { revalidateOrganizationCache, revalidateOrganizationMembers } from "./cache";
 
@@ -119,15 +120,31 @@ export async function updateMemberRole(
   };
 }
 
-/** Per-seller delivery rule. Both values in USD base cents; threshold null =
- *  never free. */
+/**
+ * Per-seller delivery rule. Each value arrives as a MoneySet (the exact fee per
+ * currency) plus its USD-cent mirror, and both are written together so the
+ * mirror the free-shipping comparison reads can never disagree with the amount
+ * the buyer is actually charged. Threshold null = never free.
+ */
 export async function updateOrganizationShipping(
   id: string,
-  data: { shippingFlatRate: number; shippingFreeThreshold: number | null },
+  data: {
+    shippingFlatRate: number;
+    shippingFlatRateMoney: MoneySet;
+    shippingFreeThreshold: number | null;
+    shippingFreeThresholdMoney: MoneySet | null;
+  },
 ) {
   const updated = await prisma.organization.update({
     where: { id },
-    data,
+    data: {
+      shippingFlatRate: data.shippingFlatRate,
+      shippingFlatRateMoney: serializeMoney(data.shippingFlatRateMoney),
+      shippingFreeThreshold: data.shippingFreeThreshold,
+      shippingFreeThresholdMoney: data.shippingFreeThresholdMoney
+        ? serializeMoney(data.shippingFreeThresholdMoney)
+        : Prisma.DbNull,
+    },
   });
   revalidateOrganizationCache(id);
   return updated;

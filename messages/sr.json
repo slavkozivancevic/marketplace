@@ -466,7 +466,8 @@
     "continueShoppingPending": "Učitavam...",
     "total": "Ukupno",
     "shipping": "Dostava",
-    "freeShippingNudge": "Dodaj još {amount} kod {seller} za besplatnu dostavu"
+    "freeShippingNudge": "Dodaj još {amount} kod {seller} za besplatnu dostavu",
+    "freeShipping": "Besplatno"
   },
   "admin": {
     "audit": {
@@ -906,7 +907,8 @@
     "quantity": "Količina",
     "decreaseQty": "Smanji količinu",
     "increaseQty": "Povećaj količinu",
-    "removeItem": "Ukloni proizvod"
+    "removeItem": "Ukloni proizvod",
+    "itemRemoved": "{item} je uklonjen iz korpe jer više nije dostupan."
   },
   "reviews": {
     "write": "Napišite recenziju",
@@ -1141,7 +1143,7 @@
     "brand": "Brend",
     "images": "Slike",
     "media": "Mediji",
-    "pricingCurrencyNote": "Cene se čuvaju u USD. Možete uneti iznos u bilo kojoj valuti - biće automatski konvertovan.",
+    "pricingCurrencyNote": "Unesi cenu u valuti u kojoj stvarno prodaješ. Tačno taj iznos plaćaju kupci u toj valuti i ne menja se kad se kurs promeni. Ostale valute se preračunavaju iz nje.",
     "attributesTitle": "Atributi",
     "attributesDesc": "Popunite atribute za izabrane kategorije. Oni pokreću filtere u prodavnici.",
     "attributeSelectPlaceholder": "Izaberi...",
@@ -1455,7 +1457,22 @@
     "hintStatus": "DRAFT (podrazumevano), PUBLISHED ili ARCHIVED.",
     "hintCountryOfOrigin": "ISO 3166-1 alpha-2 kod, npr. DE, RS, CN",
     "hintWarrantyMonths": "ceo broj meseci, 0 za bez garancije, prazno ako nije određeno",
-    "hintSlug": "URL slug. Ostavite prazno da se generiše iz naziva."
+    "hintSlug": "URL slug. Ostavite prazno da se generiše iz naziva.",
+    "errTitleRequired": "title je obavezan",
+    "errDescriptionRequired": "description je obavezan",
+    "errPrice": "price mora biti nenegativan broj",
+    "errCompareAtPrice": "compareAtPrice mora biti broj",
+    "errCostPrice": "costPrice mora biti broj",
+    "errPriceCurrency": "priceCurrency mora biti jedno od: {currencies}",
+    "errStock": "stock mora biti ceo broj",
+    "errWeight": "weight mora biti broj",
+    "errWeightUnit": "weightUnit mora biti G, KG, LB ili OZ",
+    "errDimensionNumber": "{column} mora biti broj",
+    "errDimensionPositive": "{column} mora biti veci od 0",
+    "errDimensionUnit": "dimensionUnit mora biti CM ili IN",
+    "errStatus": "status mora biti DRAFT, PUBLISHED ili ARCHIVED",
+    "errWarrantyMonths": "warrantyMonths mora biti ceo broj izmedju 0 i {max}",
+    "errCountryOfOrigin": "countryOfOrigin mora biti ISO 3166-1 alpha-2 kod, npr. DE"
   },
   "csvTranslations": {
     "step1Title": "1. Izvezi postojeće prevode",
@@ -1606,7 +1623,8 @@
     "payoutAfterRefunds": "Konačna isplata",
     "shippingCollected": "Dostava (naplaćena)",
     "codBalanceNettedLabel": "Zadržano za dug od pouzeća",
-    "codBalanceNettedNote": "Deo ove isplate je zadržan da izmiri proviziju koju vaša organizacija duguje od prethodnih narudžbina plaćenih pouzećem. Preostali dug pogledajte na stranici isplata."
+    "codBalanceNettedNote": "Deo ove isplate je zadržan da izmiri proviziju koju vaša organizacija duguje od prethodnih narudžbina plaćenih pouzećem. Preostali dug pogledajte na stranici isplata.",
+    "codDebtRestoredNote": "Ova narudžbina je refundirana, pa se zadržanih {amount} vratilo na vaš dug od pouzeća kao provizija koju dugujete - taj deo isplate nikada nije ni stigao na vaš račun, samo vam je tada umanjio dug."
   },
   "interactions": {
     "frequentlyBoughtTogetherEyebrow": "Kupljeno zajedno",
@@ -1650,7 +1668,8 @@
     "duplicateAxis": "Ova varijanta ponavlja istu osu",
     "duplicateVariantCombo": "Ista kombinacija opcija kao varijanta #{other}",
     "duplicateSku": "Duplikat SKU \"{sku}\" (takođe varijanta #{other})",
-    "couponPercentRange": "Procenat mora biti između 1 i 100"
+    "couponPercentRange": "Procenat mora biti između 1 i 100",
+    "couponAmountPositive": "Unesite iznos popusta veći od nule"
   },
   "coupons": {
     "title": "Kuponi",
@@ -1919,7 +1938,8 @@
     "productDescriptionRequiredBeforePublish": "Opis proizvoda je obavezan pre objavljivanja",
     "productPriceRequiredBeforePublish": "Cena proizvoda mora biti veća od 0 pre objavljivanja",
     "productMediaRequiredBeforePublish": "Pre objavljivanja je potrebna bar jedna slika ili video proizvoda",
-    "invalidStatusTransition": "Neispravna promena statusa iz {from} u {to}"
+    "invalidStatusTransition": "Neispravna promena statusa iz {from} u {to}",
+    "exchangeRateUnavailable": "Kurs za {currency} trenutno nije dostupan, pa cena nije sačuvana. Pokušajte ponovo za koji trenutak."
   },
   "adminCodBalances": {
     "title": "COD dugovi",
@@ -1939,5 +1959,13 @@
     "settled": "Naplaćeno {amount}",
     "amountTooHigh": "Iznos ne može biti veći od trenutnog duga.",
     "settling": "Naplaćivanje..."
+  },
+  "money": {
+    "useConverted": "Vrati preračunato",
+    "derivedHint": "Preračunato iz cene u {currency}.",
+    "storedHint": "Sačuvani iznosi. Cena je uneta u {currency}.",
+    "enterManually": "Unesi ručno",
+    "enterManuallyTooltip": "Unesi tačan iznos za ovu valutu. Ostaje tačno takav i ne menja se kad se kurs promeni.",
+    "useConvertedTooltip": "Vrati ovu valutu na preračunavanje iz cene iznad."
   }
 }
