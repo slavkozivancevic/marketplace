@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { useTranslations } from "next-intl";
@@ -43,8 +43,8 @@ import { QuantityStepper } from "@/features/cart/components/QuantityStepper";
 import { buildCartVariantOptions, buildLocalizedText } from "@/features/cart/utils/variantOptions";
 import { useCartStore } from "@/features/cart/store/cartStore";
 import { SerializedPublicProduct } from "@/types/types";
-import { useCurrencyStore } from "@/store/currency";
-import { formatPrice, convertCents } from "@/lib/currency";
+import { useMoney } from "@/lib/useMoney";
+import { formatPrice } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 
 type QuickViewProduct = SerializedPublicProduct & {
@@ -70,8 +70,14 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
   const t = useTranslations("products");
   const tCart = useTranslations("cart");
   const locale = useLocale();
-  const { currency, currentRate } = useCurrencyStore();
+  // Stored per-currency amounts, resolved once. No rate on this path.
+  const { amount: moneyAmount, currency } = useMoney();
   const { addItem, openCart, items } = useCartStore();
+
+  // Set for the one close that hands the screen over to the cart drawer, so
+  // the dialog's focus restore does not pull focus back out of it. See
+  // `handleAdd`.
+  const handingOffToCart = useRef(false);
 
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -138,14 +144,23 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeVariantId, carouselApi]);
 
-  const displayPrice = activeVariant ? activeVariant.price : (product?.price ?? 0);
-  const displayCompareAt = activeVariant
-    ? (activeVariant.compareAtPrice ?? product?.compareAtPrice ?? null)
-    : (product?.compareAtPrice ?? null);
+  // Resolved into display-currency minor units before anything compares them,
+  // so the sale badge can never disagree with the two prices beside it.
+  const priceSource = activeVariant ?? product ?? null;
+  const displayPrice = priceSource
+    ? moneyAmount(priceSource.priceMoney, priceSource.price)
+    : 0;
+  const compareAtSource =
+    activeVariant && activeVariant.compareAtPrice == null ? product : priceSource;
+  const displayCompareAt =
+    compareAtSource && compareAtSource.compareAtPrice != null
+      ? moneyAmount(compareAtSource.compareAtPriceMoney, compareAtSource.compareAtPrice)
+      : null;
   const isOnSale = displayCompareAt != null && displayCompareAt > displayPrice;
   const salePct = isOnSale ? Math.round(((displayCompareAt! - displayPrice) / displayCompareAt!) * 100) : 0;
 
-  const variantPrices = product?.variants.map((v) => v.price) ?? [];
+  const variantPrices =
+    product?.variants.map((v) => moneyAmount(v.priceMoney, v.price)) ?? [];
   const minVariantPrice = variantPrices.length ? Math.min(...variantPrices) : null;
   const maxVariantPrice = variantPrices.length ? Math.max(...variantPrices) : null;
   const showPriceRange =
@@ -203,7 +218,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
         ? buildCartVariantOptions(activeVariant.optionValues, product.options)
         : null;
     const variantLabel = activeVariant?.sku ?? null;
-    const price = activeVariant ? activeVariant.price : product.price;
+    const source = activeVariant ?? product;
     const maxStock = activeVariant ? activeVariant.stock : (product.stock ?? null);
     addItem(
       {
@@ -215,13 +230,25 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
         variantSku: activeVariant?.sku ?? null,
         variantOptions,
         variantLabel,
-        price,
+        // USD mirror for the server's cart math, plus the exact per-currency
+        // amount for display. See the same note in AddToCart.
+        price: source.price,
+        priceMoney: source.priceMoney,
         maxStock,
         requiresShipping: product.requiresShipping,
       },
       qty,
     );
     setQuantity(1);
+    // Hand the screen over to the drawer instead of stacking on top of it.
+    // Quick view is a modal dialog, the drawer is a non-modal sheet, so two
+    // live overlays fight: the dialog's dismissable layer counts every click
+    // inside the drawer as "outside", which meant the first click there only
+    // closed this modal (a quantity change or Checkout needed a second one),
+    // and its focus trap kept the drawer off the tab order entirely. One
+    // surface at a time: this closes, the drawer confirms the add.
+    handingOffToCart.current = true;
+    handleClose();
     openCart();
   }
 
@@ -267,6 +294,16 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
         className="p-0 gap-0 overflow-hidden w-[calc(100vw-2rem)] max-w-none sm:max-w-2xl max-h-[90svh]"
         showCloseButton={false}
         aria-describedby={undefined}
+        onCloseAutoFocus={(e) => {
+          // Radix restores focus to the card that opened the dialog when the
+          // content unmounts - which happens after the exit animation, so on a
+          // hand-off it would land last and yank focus out of the drawer that
+          // just opened. Every other close keeps the default restore.
+          if (handingOffToCart.current) {
+            handingOffToCart.current = false;
+            e.preventDefault();
+          }
+        }}
       >
         <DialogTitle className="sr-only">
           {localTitle || t("quickView")}
@@ -447,7 +484,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                   {t("viewFullDetails")}
                 </Link>
               )}
-              <Button variant="ghost" size="sm" className="h-7 text-xs w-full justify-start px-0 hover:bg-transparent text-muted-foreground hover:text-foreground" onClick={handleClose}>
+              <Button variant="ghost" size="sm" className="h-7 text-xs w-full justify-start px-0 text-muted-foreground pointer-fine:hover:bg-transparent dark:pointer-fine:hover:bg-transparent" onClick={handleClose}>
                 {t("cancel")}
               </Button>
             </div>
@@ -469,7 +506,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                 <>
                   <h2 className="text-sm font-semibold leading-snug pr-5 line-clamp-2">{localTitle}</h2>
                   {product.isBestseller && (
-                    <Badge className="w-fit gap-1 bg-amber-500 text-white text-[10px] py-0 h-4 hover:bg-amber-600">
+                    <Badge className="w-fit gap-1 bg-amber-500 text-white text-[10px] py-0 h-4">
                       <Award className="h-2.5 w-2.5" />
                       {t("bestsellerBadge")}
                     </Badge>
@@ -517,26 +554,26 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                     {isOnSale ? (
                       <>
                         <span className="text-lg font-bold text-red-500">
-                          {formatPrice(convertCents(displayPrice, currency, currentRate()), currency)}
+                          {formatPrice(displayPrice, currency, locale)}
                         </span>
                         <span className="text-xs text-muted-foreground line-through">
-                          {formatPrice(convertCents(displayCompareAt!, currency, currentRate()), currency)}
+                          {formatPrice(displayCompareAt!, currency, locale)}
                         </span>
-                        <Badge className="bg-red-500 text-white text-[10px] py-0 h-4 hover:bg-red-600">
+                        <Badge className="bg-red-500 text-white text-[10px] py-0 h-4">
                           -{salePct}%
                         </Badge>
                       </>
                     ) : (
                       <span className="text-lg font-bold">
-                        {formatPrice(convertCents(displayPrice, currency, currentRate()), currency)}
+                        {formatPrice(displayPrice, currency, locale)}
                       </span>
                     )}
                   </div>
                   {showPriceRange && (
                     <p className="text-[11px] text-muted-foreground">
                       {t("variantPriceRange", {
-                        min: formatPrice(convertCents(minVariantPrice!, currency, currentRate()), currency),
-                        max: formatPrice(convertCents(maxVariantPrice!, currency, currentRate()), currency),
+                        min: formatPrice(minVariantPrice!, currency, locale),
+                        max: formatPrice(maxVariantPrice!, currency, locale),
                       })}
                     </p>
                   )}
@@ -635,7 +672,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                         : isOutOfStock
                           ? tCart("outOfStockBtn")
                           : tCart("addToCart", {
-                              price: formatPrice(convertCents(displayPrice * qty, currency, currentRate()), currency),
+                              price: formatPrice(displayPrice * qty, currency, locale),
                             })}
                     </span>
                     {isOnSale && !isOutOfStock && isAllSelected && (

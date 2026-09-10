@@ -82,7 +82,7 @@ export function OrderTableRow({ order }: { order: UserOrderListItem }) {
 
         {/* Total */}
         <div role="cell" className="font-semibold text-sm text-right tabular-nums">
-          {formatPrice(order.total, order.currency as Currency)}
+          {formatPrice(order.total, order.currency as Currency, locale)}
         </div>
 
         {/* Status */}

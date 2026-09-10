@@ -39,8 +39,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/sonner";
 import { useCurrencyStore } from "@/store/currency";
-import { formatPrice, convertCents } from "@/lib/currency";
-import { PriceInput } from "./PriceInput";
+import { MoneyField } from "@/components/forms/MoneyField";
+import { useMoney } from "@/lib/useMoney";
+import { deriveMinor } from "@/lib/money";
+import { emptyMoneyInput, type MoneyInput } from "@/lib/money-input";
 import { CountrySelect } from "./CountrySelect";
 import { countryName } from "@/lib/i18n/countries";
 import { MAX_WARRANTY_MONTHS } from "@/features/products/schema/products";
@@ -188,13 +190,14 @@ function actionValueError(
       : null;
   }
   // The selling price cannot be zero; compare-at and cost can (0 clears them).
+  // `value` is a MoneyInput, so the check is on its minor-unit amount.
   if (actionType === "setPrice") {
-    const n = Number(value);
-    return !Number.isFinite(n) || n <= 0 ? "pricePositive" : null;
+    const n = (value as MoneyInput | undefined)?.amount;
+    return !Number.isFinite(n) || (n ?? 0) <= 0 ? "pricePositive" : null;
   }
   if (actionType === "setCompareAtPrice" || actionType === "setCostPrice") {
-    const n = Number(value);
-    return !Number.isFinite(n) || n < 0 ? "priceNonNegative" : null;
+    const n = (value as MoneyInput | undefined)?.amount;
+    return !Number.isFinite(n) || (n ?? 0) < 0 ? "priceNonNegative" : null;
   }
   if (actionType === "setStock") {
     const n = Number(value);
@@ -349,6 +352,20 @@ function ConditionRow({
   const id = useId();
   const { rates, currency } = useCurrencyStore();
 
+  // The bound is stored on the condition as USD dollars (what the action and
+  // the indexed mirror expect); this keeps the currency the operator is typing
+  // in, so the field does not snap back to USD after every keystroke.
+  const [priceBound, setPriceBound] = useState<MoneyInput>(() => {
+    const usdDollars =
+      condition.type === "minPrice" || condition.type === "maxPrice"
+        ? Number(condition.value) || 0
+        : 0;
+    return {
+      currency,
+      amount: deriveMinor(Math.round(usdDollars * 100), "usd", currency, rates) ?? 0,
+    };
+  });
+
   const STATUS_LABELS: Record<string, string> = {
     DRAFT: t("draft"),
     PUBLISHED: t("published"),
@@ -499,18 +516,23 @@ function ConditionRow({
           </div>
         )}
 
+        {/* A search bound, not a price: it is compared against the indexed USD
+            mirror, so whatever currency the operator types in is converted to
+            USD dollars here. A dinar of slack at the edge of a range is
+            harmless, which is why this one legitimately still converts. */}
         {(condition.type === "minPrice" || condition.type === "maxPrice") && (
-          <PriceInput
+          <MoneyField
             className="w-64"
-            value={Number(condition.value) || 0}
+            value={priceBound}
             rates={rates}
-            defaultCurrency={currency}
-            onChange={(usd) =>
+            onChange={(next) => {
+              setPriceBound(next);
+              const usdCents = deriveMinor(next.amount, next.currency, "usd", rates) ?? 0;
               onUpdate({
                 type: condition.type as "minPrice" | "maxPrice",
-                value: usd,
-              })
-            }
+                value: usdCents / 100,
+              });
+            }}
           />
         )}
 
@@ -645,9 +667,9 @@ function ActionEditor({
   categories,
   tags,
 }: {
-  action: { type: ActionType; value?: string | number | boolean | null | string[] };
+  action: { type: ActionType; value?: string | number | boolean | null | string[] | MoneyInput };
   onChangeType: (t: ActionType) => void;
-  onChangeValue: (v: string | number | boolean | null | string[]) => void;
+  onChangeValue: (v: string | number | boolean | null | string[] | MoneyInput) => void;
   brands: BrandOption[];
   categories: CategoryOption[];
   tags: TagOption[];
@@ -846,12 +868,11 @@ function ActionEditor({
               ? t("newCompareAt")
               : t("newCost")}
           </Label>
-          <PriceInput
+          <MoneyField
             className="w-64"
-            value={(action.value as number) ?? 0}
+            value={(action.value as MoneyInput | undefined) ?? emptyMoneyInput(currency)}
             rates={rates}
-            defaultCurrency={currency}
-            onChange={(usd) => onChangeValue(usd)}
+            onChange={(next) => onChangeValue(next)}
             aria-invalid={!!valueError}
           />
           {valueError && (
@@ -937,8 +958,9 @@ function ActionEditor({
 // ---------------------------------------------------------------------------
 
 function PreviewCard({ preview }: { preview: PreviewResult }) {
+  // Stored per-currency amounts; no rate on the display path.
+  const { format } = useMoney();
   const t = useTranslations("bulkProducts");
-  const { currency, currentRate } = useCurrencyStore();
   const STATUS_LABELS: Record<string, string> = {
     DRAFT: t("draft"),
     PUBLISHED: t("published"),
@@ -966,7 +988,7 @@ function PreviewCard({ preview }: { preview: PreviewResult }) {
               {preview.samples.map((p) => (
                 <tr key={p.id} className="border-b last:border-b-0">
                   <td className="px-3 py-1.5 max-w-50 truncate font-medium">{p.title}</td>
-                  <td className="px-3 py-1.5">{formatPrice(convertCents(p.price, currency, currentRate()), currency)}</td>
+                  <td className="px-3 py-1.5">{format(p.priceMoney, p.price)}</td>
                   <td className="px-3 py-1.5">
                     <Badge variant={getStatusVariant(p.status)} className="text-[10px]">
                       {STATUS_LABELS[p.status] ?? p.status}
@@ -1060,7 +1082,7 @@ export function ConditionalBulkPanel({
   const [conditions, setConditions] = useState<Condition[]>([]);
   const [action, setAction] = useState<{
     type: ActionType;
-    value?: string | number | boolean | null | string[];
+    value?: string | number | boolean | null | string[] | MoneyInput;
   }>({ type: "setStatus", value: "DRAFT" });
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [isPreviewing, startPreview] = useTransition();
@@ -1135,11 +1157,16 @@ export function ConditionalBulkPanel({
       case "clearTags":
         return { tags: { mode: "set", ids: [] } };
       case "setPrice":
-        return { price: action.value as number };
-      case "setCompareAtPrice":
-        return { compareAtPrice: (action.value as number) > 0 ? (action.value as number) : null };
-      case "setCostPrice":
-        return { costPrice: (action.value as number) > 0 ? (action.value as number) : null };
+        return { price: action.value as MoneyInput };
+      // An amount of 0 clears the field rather than setting a zero price.
+      case "setCompareAtPrice": {
+        const m = action.value as MoneyInput | undefined;
+        return { compareAtPrice: m && m.amount > 0 ? m : null };
+      }
+      case "setCostPrice": {
+        const m = action.value as MoneyInput | undefined;
+        return { costPrice: m && m.amount > 0 ? m : null };
+      }
       case "setStock":
         return { stock: action.value as number };
       case "setTaxable":
@@ -1180,7 +1207,7 @@ export function ConditionalBulkPanel({
     if (action.type === "addTags" || action.type === "removeTags") {
       return Array.isArray(action.value) && (action.value as string[]).length > 0;
     }
-    if (action.type === "setPrice") return (action.value as number) > 0;
+    if (action.type === "setPrice") return ((action.value as MoneyInput | undefined)?.amount ?? 0) > 0;
     if (action.type === "setCompareAtPrice" || action.type === "setCostPrice") return action.value !== undefined;
     if (action.type === "setStock") return action.value !== undefined && (action.value as number) >= 0;
     if (action.type === "setTaxable" || action.type === "setRequiresShipping" || action.type === "setIsDigital") {

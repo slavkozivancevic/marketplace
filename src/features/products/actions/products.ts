@@ -4,6 +4,10 @@ import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
 import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { decimalToCents } from "@/lib/currency";
+import { decimalToMinor, type MoneySet } from "@/lib/money";
+import { buildMoneySet, type MoneyInput } from "@/lib/money-input";
+import { getCurrencyRates } from "@/features/currency/db/currencyRates";
+import type { Currency } from "@/lib/currency-config";
 import { prisma } from "@/core/db/prisma";
 import {
   createProductSchema,
@@ -18,7 +22,7 @@ import { ProductStatus } from "@/generated/prisma/client";
 import { productRepository } from "../db/products";
 import { recordAudit } from "@/features/audit/db/audit";
 import { ActionErrorResult } from "@/types/types";
-import type { BulkFilter, BulkUpdateFields } from "../types/bulk";
+import type { BulkFilter, BulkUpdateFields, BulkUpdateResolved } from "../types/bulk";
 import { requirePermission } from "@/lib/auth/permissions";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import {
@@ -47,9 +51,14 @@ export type BulkCreateRow = {
   slug?: string;
   description: string;
   shortDescription?: string;
+  /** Decimal amounts, in `priceCurrency`. A CSV is written by a human in one
+   *  currency, so one column covers all three price fields on the row. */
   price: number;
   compareAtPrice?: number;
   costPrice?: number;
+  /** Defaults to "usd" when the column is absent, which keeps every CSV
+   *  written before this column existed importing exactly as before. */
+  priceCurrency?: Currency;
   stock?: number;
   barcode?: string;
   taxable?: boolean;
@@ -99,18 +108,22 @@ export async function createProduct(
     const repo = productRepository(ctx);
 
     const { price, compareAtPrice, costPrice, variants, categoryIds, tagIds, ...rest } = parsed.data;
+    // Rates are read server-side; a client-supplied rate must never be able to
+    // decide what a product costs.
+    const rates = await getCurrencyRates();
+    const optional = (m: MoneyInput | null | undefined) => (m ? buildMoneySet(m, rates) : null);
     const created = await repo.create({
       ...rest,
       categoryIds,
       tagIds,
-      price: decimalToCents(price),
-      compareAtPrice: compareAtPrice != null ? decimalToCents(compareAtPrice) : null,
-      costPrice: costPrice != null ? decimalToCents(costPrice) : null,
+      price: buildMoneySet(price, rates),
+      compareAtPrice: optional(compareAtPrice),
+      costPrice: optional(costPrice),
       variants: variants?.map((v) => ({
         ...v,
-        price: decimalToCents(v.price),
-        compareAtPrice: v.compareAtPrice != null ? decimalToCents(v.compareAtPrice) : null,
-        costPrice: v.costPrice != null ? decimalToCents(v.costPrice) : null,
+        price: buildMoneySet(v.price, rates),
+        compareAtPrice: optional(v.compareAtPrice),
+        costPrice: optional(v.costPrice),
       })),
     });
     await recordAudit({ action: "product.created", entityType: "Product", entityId: created.id });
@@ -143,18 +156,20 @@ export async function updateProduct(
     const repo = productRepository(ctx);
 
     const { price: dPrice, compareAtPrice: dCap, costPrice: dCost, variants: dVariants, categoryIds, tagIds, ...restData } = data;
+    const rates = await getCurrencyRates();
+    const optional = (m: MoneyInput | null | undefined) => (m ? buildMoneySet(m, rates) : null);
     await repo.update(id, version, {
       ...restData,
       categoryIds,
       tagIds,
-      ...(dPrice !== undefined && { price: decimalToCents(dPrice) }),
-      ...(dCap !== undefined && { compareAtPrice: dCap != null ? decimalToCents(dCap) : null }),
-      ...(dCost !== undefined && { costPrice: dCost != null ? decimalToCents(dCost) : null }),
+      ...(dPrice !== undefined && { price: buildMoneySet(dPrice, rates) }),
+      ...(dCap !== undefined && { compareAtPrice: optional(dCap) }),
+      ...(dCost !== undefined && { costPrice: optional(dCost) }),
       variants: dVariants?.map((v) => ({
         ...v,
-        price: decimalToCents(v.price),
-        compareAtPrice: v.compareAtPrice != null ? decimalToCents(v.compareAtPrice) : null,
-        costPrice: v.costPrice != null ? decimalToCents(v.costPrice) : null,
+        price: buildMoneySet(v.price, rates),
+        compareAtPrice: optional(v.compareAtPrice),
+        costPrice: optional(v.costPrice),
       })),
     });
     await recordAudit({ action: "product.updated", entityType: "Product", entityId: id });
@@ -524,6 +539,9 @@ export async function bulkCreateProducts(
       buildCategoryLookup(),
     ]);
 
+    // One rate read for the whole import, not one per row.
+    const rates = await getCurrencyRates();
+
     const result: BulkCreateResult = {
       totalRows: rows.length,
       created: 0,
@@ -576,14 +594,21 @@ export async function bulkCreateProducts(
           });
         }
 
+        const rowCurrency: Currency = row.priceCurrency ?? "usd";
+        const rowMoney = (decimal: number) =>
+          buildMoneySet(
+            { currency: rowCurrency, amount: decimalToMinor(decimal, rowCurrency) },
+            rates,
+          );
+
         await repo.create({
           title: row.title,
           slug: row.slug,
           description: row.description,
           shortDescription: row.shortDescription,
-          price: decimalToCents(row.price),
-          compareAtPrice: row.compareAtPrice != null ? decimalToCents(row.compareAtPrice) : null,
-          costPrice: row.costPrice != null ? decimalToCents(row.costPrice) : null,
+          price: rowMoney(row.price),
+          compareAtPrice: row.compareAtPrice != null ? rowMoney(row.compareAtPrice) : null,
+          costPrice: row.costPrice != null ? rowMoney(row.costPrice) : null,
           stock: row.stock ?? null,
           barcode: row.barcode,
           taxable: row.taxable ?? true,
@@ -643,7 +668,9 @@ export type PreviewResult = {
   samples: {
     id: string;
     title: string;
+    /** USD-cent mirror plus the stored set - the panel renders from the set. */
     price: number;
+    priceMoney: MoneySet | null;
     status: string;
     brand: { name: string } | null;
   }[];
@@ -711,11 +738,19 @@ export async function bulkUpdateByFilter(
     const ctx = await resolveRequestContext();
     requirePermission(ctx, "product:update");
     const repo = productRepository(ctx);
-    const updatesInCents: BulkUpdateFields = {
-      ...updates,
-      ...(updates.price !== undefined && { price: decimalToCents(updates.price) }),
-      ...(updates.compareAtPrice != null && { compareAtPrice: decimalToCents(updates.compareAtPrice) }),
-      ...(updates.costPrice != null && { costPrice: decimalToCents(updates.costPrice) }),
+    const rates = await getCurrencyRates();
+    // Split the money fields off before spreading, so the resolved object can
+    // never carry a raw MoneyInput through to the repo.
+    const { price, compareAtPrice, costPrice, ...restUpdates } = updates;
+    const resolvedUpdates: BulkUpdateResolved = {
+      ...restUpdates,
+      ...(price !== undefined && { price: buildMoneySet(price, rates) }),
+      ...(compareAtPrice !== undefined && {
+        compareAtPrice: compareAtPrice ? buildMoneySet(compareAtPrice, rates) : null,
+      }),
+      ...(costPrice !== undefined && {
+        costPrice: costPrice ? buildMoneySet(costPrice, rates) : null,
+      }),
     };
     const filterInCents: BulkFilter = {
       ...filter,
@@ -724,7 +759,7 @@ export async function bulkUpdateByFilter(
     };
     const { count, skippedWithVariants } = await repo.bulkUpdateByFilter(
       filterInCents,
-      updatesInCents,
+      resolvedUpdates,
     );
     if (count > 0) {
       await recordAudit({

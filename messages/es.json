@@ -466,7 +466,8 @@
     "continueShoppingPending": "Cargando...",
     "total": "Total",
     "shipping": "Envío",
-    "freeShippingNudge": "Añade {amount} más de {seller} para envío gratis"
+    "freeShippingNudge": "Añade {amount} más de {seller} para envío gratis",
+    "freeShipping": "Gratis"
   },
   "admin": {
     "audit": {
@@ -906,7 +907,8 @@
     "quantity": "Cantidad",
     "decreaseQty": "Reducir cantidad",
     "increaseQty": "Aumentar cantidad",
-    "removeItem": "Eliminar artículo"
+    "removeItem": "Eliminar artículo",
+    "itemRemoved": "{item} se eliminó de tu carrito porque ya no está disponible."
   },
   "reviews": {
     "write": "Escribir una reseña",
@@ -1141,7 +1143,7 @@
     "brand": "Marca",
     "images": "Imágenes",
     "media": "Multimedia",
-    "pricingCurrencyNote": "Los precios se almacenan en USD. Puedes introducir importes en cualquier divisa; se convertirán automáticamente.",
+    "pricingCurrencyNote": "Introduce el precio en la moneda en la que realmente vendes. Ese importe exacto es lo que pagan los compradores en esa moneda y no cambia con el tipo de cambio. Las demás monedas se convierten a partir de él.",
     "attributesTitle": "Atributos",
     "attributesDesc": "Completa los atributos de las categorías seleccionadas. Alimentan los filtros de la tienda.",
     "attributeSelectPlaceholder": "Seleccionar...",
@@ -1455,7 +1457,22 @@
     "hintStatus": "DRAFT (predeterminado), PUBLISHED o ARCHIVED.",
     "hintCountryOfOrigin": "código ISO 3166-1 alfa-2, p. ej. DE, RS, CN",
     "hintWarrantyMonths": "número entero de meses, 0 para sin garantía, vacío si no se especifica",
-    "hintSlug": "Slug de URL. Deja vacío para generar a partir del título."
+    "hintSlug": "Slug de URL. Deja vacío para generar a partir del título.",
+    "errTitleRequired": "title es obligatorio",
+    "errDescriptionRequired": "description es obligatorio",
+    "errPrice": "price debe ser un numero no negativo",
+    "errCompareAtPrice": "compareAtPrice debe ser un numero",
+    "errCostPrice": "costPrice debe ser un numero",
+    "errPriceCurrency": "priceCurrency debe ser uno de {currencies}",
+    "errStock": "stock debe ser un numero entero",
+    "errWeight": "weight debe ser un numero",
+    "errWeightUnit": "weightUnit debe ser G, KG, LB u OZ",
+    "errDimensionNumber": "{column} debe ser un numero",
+    "errDimensionPositive": "{column} debe ser mayor que 0",
+    "errDimensionUnit": "dimensionUnit debe ser CM o IN",
+    "errStatus": "status debe ser DRAFT, PUBLISHED o ARCHIVED",
+    "errWarrantyMonths": "warrantyMonths debe ser un numero entero entre 0 y {max}",
+    "errCountryOfOrigin": "countryOfOrigin debe ser un codigo ISO 3166-1 alfa-2, p. ej. DE"
   },
   "csvTranslations": {
     "step1Title": "1. Exporta las traducciones actuales",
@@ -1606,7 +1623,8 @@
     "payoutAfterRefunds": "Pago neto tras reembolsos",
     "shippingCollected": "Envío (cobrado)",
     "codBalanceNettedLabel": "Retenido por comisión adeudada (contra reembolso)",
-    "codBalanceNettedNote": "Parte de este pago se retuvo para saldar la comisión que tu organización adeuda de pedidos anteriores pagados contra reembolso. Consulta el saldo restante en la página de pagos."
+    "codBalanceNettedNote": "Parte de este pago se retuvo para saldar la comisión que tu organización adeuda de pedidos anteriores pagados contra reembolso. Consulta el saldo restante en la página de pagos.",
+    "codDebtRestoredNote": "Este pedido se reembolsó, así que los {amount} retenidos arriba volvieron a tu saldo contra reembolso como comisión adeudada: esa parte del pago nunca llegó a tu cuenta, solo redujo tu deuda en su momento."
   },
   "interactions": {
     "frequentlyBoughtTogetherEyebrow": "Comprados juntos",
@@ -1650,7 +1668,8 @@
     "duplicateAxis": "Esta variante repite el mismo eje",
     "duplicateVariantCombo": "Misma combinación de opciones que la variante n.º {other}",
     "duplicateSku": "SKU duplicado \"{sku}\" (también variante n.º {other})",
-    "couponPercentRange": "El porcentaje debe estar entre 1 y 100"
+    "couponPercentRange": "El porcentaje debe estar entre 1 y 100",
+    "couponAmountPositive": "Introduce un importe de descuento mayor que cero"
   },
   "coupons": {
     "title": "Cupones",
@@ -1919,7 +1938,8 @@
     "productDescriptionRequiredBeforePublish": "La descripción del producto es obligatoria antes de publicar",
     "productPriceRequiredBeforePublish": "El precio del producto debe ser mayor que 0 antes de publicar",
     "productMediaRequiredBeforePublish": "Se requiere al menos una imagen o video del producto antes de publicar",
-    "invalidStatusTransition": "Transición de estado no válida de {from} a {to}"
+    "invalidStatusTransition": "Transición de estado no válida de {from} a {to}",
+    "exchangeRateUnavailable": "El tipo de cambio de {currency} no está disponible en este momento, por lo que no se pudo guardar el precio. Inténtalo de nuevo en un momento."
   },
   "adminCodBalances": {
     "title": "Saldos COD",
@@ -1939,5 +1959,13 @@
     "settled": "Liquidado {amount}",
     "amountTooHigh": "El importe no puede superar el saldo adeudado actual.",
     "settling": "Liquidando..."
+  },
+  "money": {
+    "useConverted": "Volver a convertido",
+    "derivedHint": "Convertido del precio en {currency}.",
+    "storedHint": "Importes guardados. El precio se introdujo en {currency}.",
+    "enterManually": "Introducir manualmente",
+    "enterManuallyTooltip": "Introduce un importe exacto para esta moneda. Se mantiene así y no cambia con el tipo de cambio.",
+    "useConvertedTooltip": "Volver a convertir esta moneda a partir del precio de arriba."
   }
 }

@@ -142,8 +142,9 @@ export function ShipmentManager({
             <div className="flex flex-wrap gap-2 mt-1">
               {!delivered && (
                 <Button
+                  variant="successSolid"
                   size="sm"
-                  className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+                  className="gap-1.5"
                   disabled={isDelivering}
                   onClick={confirmDelivered}
                 >

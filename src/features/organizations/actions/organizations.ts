@@ -15,6 +15,7 @@ import {
   updateOrganizationShipping,
   removeMember,
   updateMemberRole,
+  getOrganizationById,
 } from "../db/organizations";
 import {
   verifyOrganizationSchema,
@@ -26,7 +27,9 @@ import {
   updateMemberRoleSchema,
 } from "../schema/organizations";
 import { MembershipRole } from "@/generated/prisma/client";
-import { decimalToCents } from "@/lib/currency";
+import { moneyUsdCents, parseMoney } from "@/lib/money";
+import { buildMoneySet, preserveDerived } from "@/lib/money-input";
+import { getCurrencyRates } from "@/features/currency/db/currencyRates";
 import { ActionErrorResult } from "@/types/types";
 import { publishMemberRoleChanged } from "@/services/notifications";
 import { recordAudit } from "@/features/audit/db/audit";
@@ -106,12 +109,30 @@ export async function updateOrganizationShippingAction(
       throw new ForbiddenError({ key: "onlyOwnersAndAdminsChangeRoles" });
     }
 
+    // Rates are read here, never taken from the request: a stale or tampered
+    // client rate must not be able to decide what a seller charges.
+    const rates = await getCurrencyRates();
+    // A fee the seller did not touch keeps the derived currencies it already
+    // had. Otherwise merely flipping the free-shipping switch would re-price the
+    // flat rate for every buyer outside the seller's own currency.
+    const stored = await getOrganizationById(ctx.organizationId);
+    const flatRate = preserveDerived(
+      buildMoneySet(parsed.data.shippingFlatRate, rates),
+      parseMoney(stored?.shippingFlatRateMoney, null),
+    );
+    const freeThreshold =
+      parsed.data.shippingFreeThreshold != null
+        ? preserveDerived(
+            buildMoneySet(parsed.data.shippingFreeThreshold, rates),
+            parseMoney(stored?.shippingFreeThresholdMoney, null),
+          )
+        : null;
+
     await updateOrganizationShipping(ctx.organizationId, {
-      shippingFlatRate: decimalToCents(parsed.data.shippingFlatRate),
-      shippingFreeThreshold:
-        parsed.data.shippingFreeThreshold != null
-          ? decimalToCents(parsed.data.shippingFreeThreshold)
-          : null,
+      shippingFlatRate: moneyUsdCents(flatRate),
+      shippingFlatRateMoney: flatRate,
+      shippingFreeThreshold: freeThreshold != null ? moneyUsdCents(freeThreshold) : null,
+      shippingFreeThresholdMoney: freeThreshold,
     });
 
     revalidatePath("/[locale]/dashboard/organization", "page");

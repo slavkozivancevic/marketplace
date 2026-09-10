@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useEffectEvent } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Minus, Plus, Trash2, ShoppingCart, X, Loader2 } from "lucide-react";
 import { RetryImage } from "@/components/RetryImage";
@@ -14,10 +14,13 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { useCartStore } from "../store/cartStore";
+import { useCartStore, type CartItem } from "../store/cartStore";
 import { localizedVariantLabel, pickLocalized } from "../utils/variantOptions";
-import { useCurrencyStore } from "@/store/currency";
-import { formatPrice, convertCents } from "@/lib/currency";
+import { applyCartResolution } from "../utils/applyCartResolution";
+import { refreshCartAction } from "../actions/refreshCart";
+import { toast } from "@/components/ui/sonner";
+import { useMoney } from "@/lib/useMoney";
+import { formatPrice } from "@/lib/currency";
 
 function CartItemImage({ src, alt }: { src: string; alt: string }) {
   return (
@@ -34,9 +37,12 @@ function CartItemImage({ src, alt }: { src: string; alt: string }) {
 export function CartDrawer() {
   const t = useTranslations("cart");
   const locale = useLocale();
-  const { items, isOpen, closeCart, removeItem, updateQuantity, totalPrice } =
+  const { items, isOpen, closeCart, removeItem, updateQuantity } =
     useCartStore();
-  const { currency, currentRate } = useCurrencyStore();
+  // Each line's own snapshotted per-currency amount. The cart total is the sum
+  // of those, not a conversion of the USD total - converting once at the end
+  // would round differently from the per-line prices shown right above it.
+  const { amount: moneyAmount, currency } = useMoney();
   const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
   const router = useRouter();
   const pathname = usePathname();
@@ -59,6 +65,48 @@ export function CartDrawer() {
       setCheckingOut(false);
     }
   }, [isOpen]);
+
+  // The removal notice reads the translator and the active locale, both new
+  // values on every render. As an effect event it stays out of the effect's
+  // dependencies, which must be the drawer opening and the cart changing and
+  // nothing else, while still seeing the current locale when it fires.
+  const notifyRemoved = useEffectEvent((removed: CartItem) => {
+    toast.error(
+      t("itemRemoved", {
+        item: pickLocalized(removed.productTitleI18n, locale, removed.productTitle),
+      }),
+    );
+  });
+
+  // Every price in here is a snapshot taken when the item was added and then
+  // persisted to localStorage, so a seller editing the product leaves it
+  // behind - and nothing on the client can notice. Re-read the cart from the
+  // server each time the drawer opens, and again whenever its contents change
+  // while it is open. Without this the drawer quotes one price, checkout -
+  // which always re-reads the DB - quotes another, and the buyer is charged
+  // the second one. The same pass drops anything no longer purchasable.
+  useEffect(() => {
+    if (!isOpen || items.length === 0) return;
+    let active = true;
+    const refs = items.map((i) => ({
+      productId: i.productId,
+      variantId: i.variantId,
+      quantity: i.quantity,
+    }));
+    refreshCartAction(refs)
+      .then((res) => {
+        if (!active) return;
+        // A price that actually moved replaces the snapshot, which is a new
+        // `items` array and so one more pass through here; that pass finds
+        // nothing to change and the store hands back the same state, so it
+        // settles. An unchanged cart never re-runs at all.
+        applyCartResolution(res, (removed) => notifyRemoved(removed));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [isOpen, items]);
 
   const handleCheckout = () => {
     if (pathname === "/checkout") {
@@ -139,7 +187,7 @@ export function CartDrawer() {
                           </p>
                         )}
                         <p className="text-sm font-semibold">
-                          {formatPrice(convertCents(item.price * item.quantity, currency, currentRate()), currency)}
+                          {formatPrice(moneyAmount(item.priceMoney, item.price) * item.quantity, currency, locale)}
                         </p>
 
                         <div className="flex items-center gap-2 mt-1 select-none">
@@ -186,9 +234,9 @@ export function CartDrawer() {
                             <Plus className="h-3 w-3" />
                           </Button>
                           <Button
-                            variant="ghost"
+                            variant="ghostDestructive"
                             size="icon"
-                            className="h-6 w-6 ml-auto text-destructive hover:text-destructive"
+                            className="h-6 w-6 ml-auto"
                             aria-label={t("removeItem")}
                             onClick={() =>
                               removeItem(item.productId, item.variantId)
@@ -207,7 +255,15 @@ export function CartDrawer() {
               <div className="space-y-4 pt-4 border-t mt-4 select-none">
                 <div className="flex items-center justify-between font-semibold">
                   <span>{t("total")}</span>
-                  <span>{formatPrice(convertCents(totalPrice(), currency, currentRate()), currency)}</span>
+                  <span>
+                    {formatPrice(
+                      items.reduce(
+                        (sum, i) => sum + moneyAmount(i.priceMoney, i.price) * i.quantity,
+                        0,
+                      ),
+                      currency, locale,
+                    )}
+                  </span>
                 </div>
                 <Button
                   className="w-full"

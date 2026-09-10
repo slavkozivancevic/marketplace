@@ -466,7 +466,8 @@
     "continueShoppingPending": "Loading...",
     "total": "Total",
     "shipping": "Shipping",
-    "freeShippingNudge": "Add {amount} more from {seller} for free shipping"
+    "freeShippingNudge": "Add {amount} more from {seller} for free shipping",
+    "freeShipping": "Free"
   },
   "admin": {
     "audit": {
@@ -906,7 +907,8 @@
     "quantity": "Quantity",
     "decreaseQty": "Decrease quantity",
     "increaseQty": "Increase quantity",
-    "removeItem": "Remove item"
+    "removeItem": "Remove item",
+    "itemRemoved": "{item} was removed from your cart because it is no longer available."
   },
   "reviews": {
     "write": "Write a Review",
@@ -1141,7 +1143,7 @@
     "brand": "Brand",
     "images": "Images",
     "media": "Media",
-    "pricingCurrencyNote": "Prices are stored in USD. You can enter amounts in any currency - they will be automatically converted.",
+    "pricingCurrencyNote": "Enter the price in the currency you actually sell in. That exact amount is what buyers in that currency pay, and it does not move when exchange rates do. The other currencies are converted from it.",
     "attributesTitle": "Attributes",
     "attributesDesc": "Fill in the attributes for the selected categories. These power the storefront filters.",
     "attributeSelectPlaceholder": "Select...",
@@ -1455,7 +1457,22 @@
     "hintStatus": "DRAFT (default), PUBLISHED, or ARCHIVED.",
     "hintCountryOfOrigin": "ISO 3166-1 alpha-2 code, e.g. DE, RS, CN",
     "hintWarrantyMonths": "whole number of months, 0 for no warranty, empty for unspecified",
-    "hintSlug": "URL slug. Leave empty to auto-generate from the title."
+    "hintSlug": "URL slug. Leave empty to auto-generate from the title.",
+    "errTitleRequired": "title is required",
+    "errDescriptionRequired": "description is required",
+    "errPrice": "price must be a non-negative number",
+    "errCompareAtPrice": "compareAtPrice must be a number",
+    "errCostPrice": "costPrice must be a number",
+    "errPriceCurrency": "priceCurrency must be one of {currencies}",
+    "errStock": "stock must be a whole number",
+    "errWeight": "weight must be a number",
+    "errWeightUnit": "weightUnit must be G, KG, LB or OZ",
+    "errDimensionNumber": "{column} must be a number",
+    "errDimensionPositive": "{column} must be greater than 0",
+    "errDimensionUnit": "dimensionUnit must be CM or IN",
+    "errStatus": "status must be DRAFT, PUBLISHED or ARCHIVED",
+    "errWarrantyMonths": "warrantyMonths must be a whole number between 0 and {max}",
+    "errCountryOfOrigin": "countryOfOrigin must be an ISO 3166-1 alpha-2 code, e.g. DE"
   },
   "csvTranslations": {
     "step1Title": "1. Export current translations",
@@ -1606,7 +1623,8 @@
     "payoutAfterRefunds": "Net payout after refunds",
     "shippingCollected": "Shipping (collected)",
     "codBalanceNettedLabel": "Withheld for COD commission owed",
-    "codBalanceNettedNote": "Part of this payout was withheld to settle commission your organization owed from past cash-on-delivery orders. Check the payouts page for your remaining balance."
+    "codBalanceNettedNote": "Part of this payout was withheld to settle commission your organization owed from past cash-on-delivery orders. Check the payouts page for your remaining balance.",
+    "codDebtRestoredNote": "This order was refunded, so the {amount} withheld above went back onto your cash-on-delivery balance as commission owed - that part of the payout never reached your account, it only reduced your debt at the time."
   },
   "relatedProducts": {
     "discoverMore": "Discover More",
@@ -1650,7 +1668,8 @@
     "duplicateAxis": "This variant repeats the same axis",
     "duplicateVariantCombo": "Same option combination as variant #{other}",
     "duplicateSku": "Duplicate SKU \"{sku}\" (also variant #{other})",
-    "couponPercentRange": "Percentage must be between 1 and 100"
+    "couponPercentRange": "Percentage must be between 1 and 100",
+    "couponAmountPositive": "Enter a discount amount greater than zero"
   },
   "coupons": {
     "title": "Coupons",
@@ -1919,7 +1938,8 @@
     "productDescriptionRequiredBeforePublish": "Product description is required before publishing",
     "productPriceRequiredBeforePublish": "Product price must be greater than 0 before publishing",
     "productMediaRequiredBeforePublish": "At least one product image or video is required before publishing",
-    "invalidStatusTransition": "Invalid status transition from {from} to {to}"
+    "invalidStatusTransition": "Invalid status transition from {from} to {to}",
+    "exchangeRateUnavailable": "The {currency} exchange rate is unavailable right now, so the price could not be saved. Please try again in a moment."
   },
   "adminCodBalances": {
     "title": "COD Balances",
@@ -1939,5 +1959,13 @@
     "settled": "Settled {amount}",
     "amountTooHigh": "Amount cannot exceed the current balance owed.",
     "settling": "Settling..."
+  },
+  "money": {
+    "useConverted": "Back to converted",
+    "derivedHint": "Converted from the {currency} price.",
+    "storedHint": "Saved amounts. The price was entered in {currency}.",
+    "enterManually": "Enter manually",
+    "enterManuallyTooltip": "Enter an exact amount for this currency. It stays exactly that, unaffected by later rate changes.",
+    "useConvertedTooltip": "Go back to converting this currency from the price above."
   }
 }

@@ -20,8 +20,9 @@ import { RequiredFieldsNote } from "@/components/forms/RequiredFieldsNote";
 import { useCartStore } from "../store/cartStore";
 import { COUPON_STORAGE_KEY } from "../utils/couponStorage";
 import { localizedVariantLabel, pickLocalized } from "../utils/variantOptions";
-import { useCurrencyStore } from "@/store/currency";
-import { formatPrice, convertCents } from "@/lib/currency";
+import { applyCartResolution } from "../utils/applyCartResolution";
+import { useMoney } from "@/lib/useMoney";
+import { formatPrice } from "@/lib/currency";
 import { createCheckoutSession } from "../actions/checkout";
 import { createCodCheckout } from "../actions/codCheckout";
 import { validateCouponAction } from "@/features/coupons/actions/validateCoupon";
@@ -48,8 +49,10 @@ export function CheckoutPage() {
   const onInvalid = useInvalidToast();
   const locale = useLocale();
   const router = useRouter();
-  const { items, totalPrice } = useCartStore();
-  const { currency, currentRate } = useCurrencyStore();
+  const { items } = useCartStore();
+  // See CartDrawer: per-line stored amounts, summed - never one conversion of
+  // the USD total.
+  const { amount: moneyAmount, currency } = useMoney();
   const codAvailable = items.every((i) => i.requiresShipping);
   const [method, setMethod] = useState<PaymentMethod>("card");
   const [isPending, startTransition] = useTransition();
@@ -103,12 +106,32 @@ export function CheckoutPage() {
   // A ref holds the current code so re-applying doesn't re-trigger this effect.
   const appliedRef = useRef(applied);
   appliedRef.current = applied;
-  const itemsSig = items.map((i) => `${i.productId}:${i.variantId}:${i.quantity}`).join("|");
+  // The cart AS PRICED: its contents plus the unit price of every line. Both
+  // dependents below care about the price, not just the contents - a
+  // percentage discount is a function of the subtotal and the free-shipping
+  // threshold is judged against it - and prices move under us here, refreshed
+  // from the server by this page and by the drawer alike. Keying only on the
+  // contents left the drawer able to refresh a price while the delivery beside
+  // it stayed computed from the old one. The cost is one extra round trip after
+  // a price actually moved; that pass finds nothing to change and settles.
+  const cartSig = items
+    .map((i) => `${i.productId}:${i.variantId}:${i.quantity}:${i.price}`)
+    .join("|");
   useEffect(() => {
     const current = appliedRef.current;
     if (!current) return;
-    let active = true;
     const refs = items.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity }));
+    // Emptying the cart drops the coupon SILENTLY. The buyer just did that
+    // themselves, so "your cart is empty" reports their own action back to them
+    // as an error, and says nothing about the coupon that actually went - while
+    // the page is already switching to its empty-cart state underneath. The
+    // toast below is for the cases worth hearing about, like falling under a
+    // minimum order, where it explains why the discount disappeared.
+    if (refs.length === 0) {
+      setApplied(null);
+      return;
+    }
+    let active = true;
     validateCouponAction(current.code, refs)
       .then((res) => {
         if (!active) return;
@@ -124,7 +147,7 @@ export function CheckoutPage() {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemsSig]);
+  }, [cartSig]);
 
   // Restore a coupon persisted from a previous page load (e.g. returning via
   // browser Back from Stripe) once, re-validating it against the current cart.
@@ -167,10 +190,16 @@ export function CheckoutPage() {
     setCouponInput("");
   }, [pathname]);
 
-  // Per-seller delivery for the current cart (USD base; converted for display
-  // like item prices). Recomputed whenever the cart changes.
-  const [shipping, setShipping] = useState<{ lines: OrgShippingLine[]; totalUsd: number }>({
+  // Per-seller delivery for the current cart, already resolved in the buyer's
+  // currency by the server - including whether each seller's free-shipping
+  // threshold is met. Recomputed whenever the cart changes.
+  const [shipping, setShipping] = useState<{
+    lines: OrgShippingLine[];
+    total: number;
+    totalUsd: number;
+  }>({
     lines: [],
+    total: 0,
     totalUsd: 0,
   });
   useEffect(() => {
@@ -179,35 +208,30 @@ export function CheckoutPage() {
     getCartShippingAction(refs)
       .then((res) => {
         if (!active) return;
-        setShipping({ lines: res.lines, totalUsd: res.totalUsd });
-        // Self-heal: the resolver flagged lines whose product/variant no longer
-        // exists (e.g. the seller re-saved the product, regenerating variant
-        // ids). Prune them so the displayed total, shipping, coupon eligibility
-        // and checkout all agree on the real, purchasable cart - and tell the
-        // buyer which items dropped. Pruning changes the cart, which re-runs the
-        // dependent effects (coupon re-validation, this one) against the clean
-        // cart; the next pass reports no unavailable lines, so it can't loop.
-        if (res.unavailable.length > 0) {
-          const { items: current, removeItem } = useCartStore.getState();
-          for (const u of res.unavailable) {
-            const stale = current.find(
-              (i) => i.productId === u.productId && i.variantId === u.variantId,
-            );
-            removeItem(u.productId, u.variantId);
-            toast.error(
-              t("itemRemoved", {
-                item: stale ? pickLocalized(stale.productTitleI18n, locale, stale.productTitle) : "",
-              }),
-            );
-          }
-        }
+        setShipping({ lines: res.lines, total: res.total, totalUsd: res.totalUsd });
+        // Self-heal, from the same resolution the shipping above was computed
+        // from: refresh the persisted price snapshots (the seller may have
+        // edited the product since the item was added, and only the server
+        // knows) and prune the lines whose product/variant no longer exists -
+        // e.g. the seller re-saved the product and its variant ids were
+        // regenerated. Both here, so the summary, the drawer, the coupon and the
+        // eventual charge all describe one and the same cart. Pruning changes
+        // the cart, which re-runs the dependent effects against the clean one;
+        // that pass reports nothing unavailable, so it cannot loop.
+        applyCartResolution(res, (removed) =>
+          toast.error(
+            t("itemRemoved", {
+              item: pickLocalized(removed.productTitleI18n, locale, removed.productTitle),
+            }),
+          ),
+        );
       })
       .catch(() => {});
     return () => {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemsSig]);
+  }, [cartSig]);
 
   const { register, handleSubmit, control } = useForm<ShippingForm>({
     mode: "onTouched",
@@ -328,11 +352,11 @@ export function CheckoutPage() {
                       <p className="text-xs text-muted-foreground">{variantText}</p>
                     )}
                     <p className="text-xs text-muted-foreground">
-                      {formatPrice(convertCents(item.price, currency, currentRate()), currency)} × {item.quantity}
+                      {formatPrice(moneyAmount(item.priceMoney, item.price), currency, locale)} × {item.quantity}
                     </p>
                   </div>
                   <p className="font-semibold shrink-0 ml-4">
-                    {formatPrice(convertCents(item.price * item.quantity, currency, currentRate()), currency)}
+                    {formatPrice(moneyAmount(item.priceMoney, item.price) * item.quantity, currency, locale)}
                   </p>
                 </div>
               </div>
@@ -377,15 +401,28 @@ export function CheckoutPage() {
             <Separator />
 
             {(() => {
-              const subtotalCents = convertCents(totalPrice(), currency, currentRate());
-              const shippingCents = convertCents(shipping.totalUsd, currency, currentRate());
+              const subtotalCents = items.reduce(
+                (sum, i) => sum + moneyAmount(i.priceMoney, i.price) * i.quantity,
+                0,
+              );
+              // Already resolved in this currency by the server, with the
+              // free-shipping rule applied in it too.
+              const shippingCents = shipping.total;
               const discount = applied?.discount ?? 0;
               const grandTotal = Math.max(0, subtotalCents - discount) + shippingCents;
-              if (!applied && shippingCents === 0) {
+              // Did a seller who does charge for delivery actually have the fee
+              // waived by its threshold? That is a reward the buyer just earned,
+              // and the nudge that was telling them about it disappears the
+              // moment they earn it - so it has to be said out loud below.
+              // A seller with no fee at all earns nothing and says nothing.
+              const earnedFreeShipping = shipping.lines.some(
+                (l) => l.flatRate > 0 && l.freeThreshold != null && l.subtotal >= l.freeThreshold,
+              );
+              if (!applied && shippingCents === 0 && !earnedFreeShipping) {
                 return (
                   <div className="flex justify-between font-semibold text-sm">
                     <span>{t("total")}</span>
-                    <span>{formatPrice(subtotalCents, currency)}</span>
+                    <span>{formatPrice(subtotalCents, currency, locale)}</span>
                   </div>
                 );
               }
@@ -393,23 +430,28 @@ export function CheckoutPage() {
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>{t("subtotal")}</span>
-                    <span>{formatPrice(subtotalCents, currency)}</span>
+                    <span>{formatPrice(subtotalCents, currency, locale)}</span>
                   </div>
                   {applied && (
                     <div className="flex justify-between text-sm text-emerald-600">
                       <span>{t("discount")}</span>
-                      <span>-{formatPrice(applied.discount, currency)}</span>
+                      <span>-{formatPrice(applied.discount, currency, locale)}</span>
                     </div>
                   )}
-                  {shippingCents > 0 && (
+                  {shippingCents > 0 ? (
                     <div className="flex justify-between text-sm text-muted-foreground">
                       <span>{t("shipping")}</span>
-                      <span>{formatPrice(shippingCents, currency)}</span>
+                      <span>{formatPrice(shippingCents, currency, locale)}</span>
                     </div>
-                  )}
+                  ) : earnedFreeShipping ? (
+                    <div className="flex justify-between text-sm text-emerald-600">
+                      <span>{t("shipping")}</span>
+                      <span>{t("freeShipping")}</span>
+                    </div>
+                  ) : null}
                   <div className="flex justify-between font-semibold text-sm">
                     <span>{t("total")}</span>
-                    <span>{formatPrice(grandTotal, currency)}</span>
+                    <span>{formatPrice(grandTotal, currency, locale)}</span>
                   </div>
                 </div>
               );
@@ -417,13 +459,16 @@ export function CheckoutPage() {
 
             {/* Free-shipping nudge per seller that's below its threshold. */}
             {shipping.lines.map((l) => {
-              if (l.freeThresholdUsd == null || l.shippingUsd === 0) return null;
-              const remainingUsd = l.freeThresholdUsd - l.subtotalUsd;
-              if (remainingUsd <= 0) return null;
+              if (l.freeThreshold == null || l.shipping === 0) return null;
+              // The gap is computed from the same numbers the rule was judged
+              // by, in this currency - so "spend X more" is exactly the amount
+              // that actually flips shipping to free, not a dinar off it.
+              const remaining = l.freeThreshold - l.subtotal;
+              if (remaining <= 0) return null;
               return (
                 <p key={l.orgId} className="text-xs text-emerald-600">
                   {t("freeShippingNudge", {
-                    amount: formatPrice(convertCents(remainingUsd, currency, currentRate()), currency),
+                    amount: formatPrice(remaining, currency, locale),
                     seller: l.orgName,
                   })}
                 </p>

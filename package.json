@@ -31,7 +31,9 @@
     "db:check-drift": "node scripts/check-migration-drift.mjs",
     "check:locales": "node scripts/check-locale-keys.mjs",
     "db:reset": "prisma migrate reset --force",
-    "db:seed": "npx tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts && tsx scripts/backfill-money-sets.ts",
+    "db:backfill-money": "tsx scripts/backfill-money-sets.ts",
+    "db:backfill-money:stage": "node scripts/backfill-money-stage.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.106.0",
@@ -107,6 +109,7 @@
     "prettier": "^3.8.1",
     "sst": "^4.17.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5",
     "vitest": "^4.1.9"
   }

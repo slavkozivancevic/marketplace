@@ -11,8 +11,8 @@ import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
 import { MessageSellerButton } from "@/features/chat/components/MessageSellerButton";
 import { cn } from "@/lib/utils";
 import { SerializedPublicProduct } from "@/types/types";
-import { useCurrencyStore } from "@/store/currency";
-import { formatPrice, convertCents } from "@/lib/currency";
+import { useMoney } from "@/lib/useMoney";
+import { formatPrice } from "@/lib/currency";
 import { getBrandName } from "@/features/brands/utils/translations";
 import { getTagName } from "@/features/tags/utils/translations";
 
@@ -35,17 +35,23 @@ export function ProductPurchaseSection({
 }: ProductPurchaseSectionProps) {
   const t = useTranslations("products");
   const locale = useLocale();
-  const { currency, currentRate } = useCurrencyStore();
+  // Every amount below is the one stored for the active currency, resolved
+  // once here. Nothing on this path touches an exchange rate.
+  const { amount: moneyAmount, currency } = useMoney();
   const activeVariant = activeVariantId
     ? product.variants.find((v) => v.id === activeVariantId)
     : null;
 
   const localBrandName = product.brand ? getBrandName(product.brand, locale) : "";
 
-  const displayPrice = activeVariant ? activeVariant.price : product.price;
-  const displayCompareAt = activeVariant
-    ? (activeVariant.compareAtPrice ?? product.compareAtPrice)
-    : product.compareAtPrice;
+  const priceSource = activeVariant ?? product;
+  const displayPrice = moneyAmount(priceSource.priceMoney, priceSource.price);
+  const compareAtSource =
+    activeVariant && activeVariant.compareAtPrice == null ? product : priceSource;
+  const displayCompareAt =
+    compareAtSource.compareAtPrice != null
+      ? moneyAmount(compareAtSource.compareAtPriceMoney, compareAtSource.compareAtPrice)
+      : null;
   const isOnSale = displayCompareAt != null && displayCompareAt > displayPrice;
 
   const priceRow = (
@@ -54,17 +60,17 @@ export function ProductPurchaseSection({
         {isOnSale ? (
           <>
             <span className="text-3xl font-bold text-red-500">
-              {formatPrice(convertCents(displayPrice, currency, currentRate()), currency)}
+              {formatPrice(displayPrice, currency, locale)}
             </span>
             <span className="text-xl text-muted-foreground line-through">
-              {formatPrice(convertCents(displayCompareAt!, currency, currentRate()), currency)}
+              {formatPrice(displayCompareAt!, currency, locale)}
             </span>
-            <Badge className="bg-red-500 text-white hover:bg-red-600">
+            <Badge className="bg-red-500 text-white">
               -{discountPct(displayPrice, displayCompareAt!)}%
             </Badge>
           </>
         ) : (
-          <span className="text-3xl font-bold">{formatPrice(convertCents(displayPrice, currency, currentRate()), currency)}</span>
+          <span className="text-3xl font-bold">{formatPrice(displayPrice, currency, locale)}</span>
         )}
       </div>
       <WishlistButton productId={product.id} size={20} className="shrink-0" />
@@ -73,7 +79,7 @@ export function ProductPurchaseSection({
 
   // The per-SKU table used to be the only place a buyer could see that other
   // variants cost less. One line says the same thing without listing every SKU.
-  const variantPrices = product.variants.map((v) => v.price);
+  const variantPrices = product.variants.map((v) => moneyAmount(v.priceMoney, v.price));
   const minVariantPrice = variantPrices.length ? Math.min(...variantPrices) : null;
   const maxVariantPrice = variantPrices.length ? Math.max(...variantPrices) : null;
   const showPriceRange =
@@ -85,7 +91,7 @@ export function ProductPurchaseSection({
         <CardContent className={cn("space-y-4", product.isBestseller ? "pt-4" : "pt-6")}>
           {product.isBestseller ? (
             <div className="space-y-2">
-              <Badge className="w-fit gap-1 bg-amber-500 text-white hover:bg-amber-600">
+              <Badge className="w-fit gap-1 bg-amber-500 text-white">
                 <Award className="h-3.5 w-3.5" />
                 {t("bestsellerBadge")}
               </Badge>
@@ -97,8 +103,8 @@ export function ProductPurchaseSection({
           {showPriceRange && (
             <p className="text-sm text-muted-foreground">
               {t("variantPriceRange", {
-                min: formatPrice(convertCents(minVariantPrice!, currency, currentRate()), currency),
-                max: formatPrice(convertCents(maxVariantPrice!, currency, currentRate()), currency),
+                min: formatPrice(minVariantPrice!, currency, locale),
+                max: formatPrice(maxVariantPrice!, currency, locale),
               })}
             </p>
           )}

@@ -273,6 +273,7 @@ async function settleReturnRefund(
       currency: true,
       total: true,
       discountAmount: true,
+      shippingTotal: true,
       paymentMethod: true,
       fulfillmentStatus: true,
       cancelledAt: true,
@@ -328,6 +329,14 @@ async function settleReturnRefund(
   // Scale the buyer refund to their paid share; cumulative proportional rounding
   // makes the per-return refunds sum to exactly order.total once all is returned.
   const orderGross = order.total + order.discountAmount;
+  // The same gross WITHOUT delivery. Every REFUND ledger row is the value of
+  // returned units, and delivery is never refunded, so `orderGross` (which
+  // carries `shippingTotal` through `order.total`) is a bar the rows can never
+  // clear: an order with every item returned stayed PARTIALLY_REFUNDED forever
+  // whenever delivery had been charged. That is not cosmetic - the bestseller
+  // recompute counts PAID and PARTIALLY_REFUNDED, so a fully returned order
+  // kept ranking, and the seller's order page never went terminal.
+  const refundableGross = orderGross - order.shippingTotal;
   const priorAgg = await prisma.paymentTransaction.aggregate({
     where: { orderId, type: PaymentTransactionType.REFUND },
     _sum: { amount: true },
@@ -504,15 +513,16 @@ async function settleReturnRefund(
     }
 
     // Move the payment axis: fully REFUNDED once cumulative refunds cover the
-    // order's gross subtotal (the ledger rows are gross), otherwise
-    // PARTIALLY_REFUNDED. Recompute the derived display status.
+    // order's refundable gross - the item subtotal before any coupon, delivery
+    // excluded because it is never given back. Otherwise PARTIALLY_REFUNDED.
+    // Recompute the derived display status.
     const agg = await tx.paymentTransaction.aggregate({
       where: { orderId, type: PaymentTransactionType.REFUND },
       _sum: { amount: true },
     });
     const refundedTotal = agg._sum.amount ?? 0;
     const nextPayment =
-      refundedTotal >= orderGross ? PaymentStatus.REFUNDED : PaymentStatus.PARTIALLY_REFUNDED;
+      refundedTotal >= refundableGross ? PaymentStatus.REFUNDED : PaymentStatus.PARTIALLY_REFUNDED;
     await tx.order.update({
       where: { id: orderId },
       data: {

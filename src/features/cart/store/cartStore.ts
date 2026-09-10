@@ -1,6 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { CartVariantOption, LocalizedText } from "../utils/variantOptions";
+import type { CartLinePrice } from "../db/resolveCart";
+import type { MoneySet } from "@/lib/money";
+import { VALID_CURRENCIES } from "@/lib/currency-config";
 
 export interface CartItem {
   productId: string;
@@ -17,7 +20,13 @@ export interface CartItem {
   variantOptions: CartVariantOption[] | null;
   // Non-translatable fallback label (variant SKU, or a legacy pre-i18n label).
   variantLabel: string | null;
+  // USD-cent mirror, kept because the server still recomputes the cart in USD
+  // (coupon minimums, shipping thresholds).
   price: number;
+  // The exact per-currency amount, snapshotted when the item was added, so the
+  // drawer shows the same number the product page did. Null for carts saved
+  // before money sets existed - those fall back to converting `price`.
+  priceMoney: MoneySet | null;
   quantity: number;
   maxStock: number | null; // null = unlimited
   requiresShipping: boolean;
@@ -36,12 +45,28 @@ interface CartStore {
     quantity: number,
   ) => void;
   clearCart: () => void;
+  /** Replaces the persisted price snapshots with the server-resolved ones. */
+  syncPrices: (prices: CartLinePrice[]) => void;
   totalItems: () => number;
-  totalPrice: () => number;
+  // Deliberately no `totalPrice`: summing the USD mirrors and converting the
+  // result once rounds differently from the per-line amounts shown next to it,
+  // which is how a cart total ends up a dinar off from its own lines. Callers
+  // sum `moneyIn(item.priceMoney, currency)` per line instead.
 }
 
 function isSameItem(a: CartItem, productId: string, variantId: string | null) {
   return a.productId === productId && a.variantId === variantId;
+}
+
+/** True when two snapshots would render identically in every currency. Compared
+ *  field by field rather than by serialising: the two sets come from different
+ *  round trips, so key order is not something to rely on, and a false mismatch
+ *  would rewrite localStorage on every sync. */
+function sameMoneySnapshot(a: MoneySet | null, b: MoneySet | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  if (a.primary !== b.primary) return false;
+  return VALID_CURRENCIES.every((c) => a.amounts[c] === b.amounts[c]);
 }
 
 export const useCartStore = create<CartStore>()(
@@ -102,18 +127,44 @@ export const useCartStore = create<CartStore>()(
 
       clearCart: () => set({ items: [] }),
 
-      totalItems: () => get().items.reduce((sum, i) => sum + i.quantity, 0),
+      // The price a line was added at is a snapshot, and the seller can edit the
+      // product at any time after it was taken. Everything that decides money
+      // server-side (shipping thresholds, coupon minimums, the charge itself)
+      // re-reads the DB, so a snapshot left alone is how the cart ends up
+      // showing one total while checkout charges another. Callers hand back what
+      // `resolveCart` returned and the snapshot is replaced with it.
+      //
+      // Lines the server did not resolve are left untouched - they are the
+      // `unavailable` ones, and dropping them is the caller's job (with a
+      // message), never a silent side effect of a price refresh.
+      syncPrices: (prices) => {
+        set((state) => {
+          let changed = false;
+          const items = state.items.map((i) => {
+            const p = prices.find((x) => isSameItem(i, x.productId, x.variantId));
+            if (!p) return i;
+            if (p.unitPriceUsd === i.price && sameMoneySnapshot(p.unitMoney, i.priceMoney)) {
+              return i;
+            }
+            changed = true;
+            return { ...i, price: p.unitPriceUsd, priceMoney: p.unitMoney };
+          });
+          // Same objects when nothing moved: a new array would rewrite
+          // localStorage and re-render every cart consumer for no reason.
+          return changed ? { items } : state;
+        });
+      },
 
-      totalPrice: () =>
-        get().items.reduce((sum, i) => sum + i.price * i.quantity, 0),
+      totalItems: () => get().items.reduce((sum, i) => sum + i.quantity, 0),
     }),
     {
       name: "cart-storage",
-      version: 2,
+      version: 3,
       partialize: (state) => ({ items: state.items }),
       // Older carts predate the localized snapshots (`variantOptions` in v1,
-      // `productTitleI18n` in v2). Default them to null so the render path
-      // falls back cleanly to the stored plain `variantLabel` / `productTitle`.
+      // `productTitleI18n` in v2) and the per-currency price set (v3). Default
+      // them to null so the render path falls back cleanly - to the stored
+      // plain `variantLabel` / `productTitle`, and to converting `price`.
       migrate: (persisted, version) => {
         const state = persisted as { items?: CartItem[] } | undefined;
         if (version < 2 && state?.items) {
@@ -122,6 +173,9 @@ export const useCartStore = create<CartStore>()(
             variantOptions: i.variantOptions ?? null,
             productTitleI18n: i.productTitleI18n ?? null,
           }));
+        }
+        if (version < 3 && state?.items) {
+          state.items = state.items.map((i) => ({ ...i, priceMoney: i.priceMoney ?? null }));
         }
         return state as { items: CartItem[] };
       },

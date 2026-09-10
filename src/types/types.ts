@@ -1,3 +1,4 @@
+import type { MoneySet } from "@/lib/money";
 import { MembershipRole, Prisma, ReviewStatus, UserRole } from "@/generated/prisma/client";
 import type { Locale } from "@/i18n/config";
 
@@ -49,9 +50,11 @@ export type VariantAttributeValueInput = {
 
 export type ProductVariantInput = {
   sku: string;
-  price: number;
-  compareAtPrice?: number | null;
-  costPrice?: number | null;
+  // MoneySets, resolved by the action from what the seller typed. The repo
+  // writes each one alongside its USD-cent mirror column.
+  price: MoneySet;
+  compareAtPrice?: MoneySet | null;
+  costPrice?: MoneySet | null;
   stock: number;
   barcode?: string;
   weight?: number | null;
@@ -277,38 +280,48 @@ export type InvitableRole = (typeof INVITABLE_ROLES)[number];
 /** Option shape for org-member pickers (e.g. the "Created by" product filter). */
 export type MemberOption = { id: string; name: string | null; email: string };
 
-export type SerializedProductWithRelations = Omit<
-  ProductWithRelations,
-  "price" | "compareAtPrice" | "costPrice" | "variants"
+/**
+ * Swaps a row's raw money columns for the pair the UI actually uses: the parsed
+ * `MoneySet` (what to display, per currency) plus the USD-cent mirror (what
+ * sorting, price filters and thresholds compare). The raw `Json` columns never
+ * escape the db layer.
+ */
+export type WithMoney<T> = Omit<
+  T,
+  | "price"
+  | "compareAtPrice"
+  | "costPrice"
+  | "priceMoney"
+  | "compareAtPriceMoney"
+  | "costPriceMoney"
 > & {
   price: number;
   compareAtPrice: number | null;
   costPrice: number | null;
-  variants: (Omit<ProductWithRelations["variants"][number], "price" | "compareAtPrice" | "costPrice"> & {
-    price: number;
-    compareAtPrice: number | null;
-    costPrice: number | null;
-  })[];
+  priceMoney: MoneySet | null;
+  compareAtPriceMoney: MoneySet | null;
+  costPriceMoney: MoneySet | null;
 };
 
-export type SerializedProductListItem = Omit<ProductListItem, "price" | "compareAtPrice" | "costPrice"> & {
-  price: number;
-  compareAtPrice: number | null;
-  costPrice: number | null;
+export type SerializedProductWithRelations = WithMoney<
+  Omit<ProductWithRelations, "variants">
+> & {
+  variants: WithMoney<ProductWithRelations["variants"][number]>[];
 };
 
-export type SerializedAdminProductListItem = Omit<AdminProductListItem, "price" | "compareAtPrice" | "costPrice"> & {
-  price: number;
-  compareAtPrice: number | null;
-  costPrice: number | null;
-};
+export type SerializedProductListItem = WithMoney<ProductListItem>;
+
+export type SerializedAdminProductListItem = WithMoney<AdminProductListItem>;
 
 export type ProductHistory = Prisma.ProductHistoryGetPayload<
   Record<string, never>
 >;
 
-export type SerializedProductHistory = Omit<ProductHistory, "price"> & {
+export type SerializedProductHistory = Omit<ProductHistory, "price" | "priceMoney"> & {
   price: number;
+  /** The set as it stood at this version, so history renders each entry in the
+   *  currency it was actually priced in rather than reconverting today. */
+  priceMoney: MoneySet | null;
   updatedBy: { id: string; name: string | null; email: string } | null;
 };
 
@@ -377,22 +390,15 @@ export type CompatVariantOptionValue = {
 };
 
 type PublicVariantBase = Omit<
-  PublicProductRaw["variants"][number],
-  "price" | "compareAtPrice" | "costPrice" | "attributeValues"
+  WithMoney<PublicProductRaw["variants"][number]>,
+  "attributeValues"
 >;
 
-export type SerializedPublicProduct = Omit<
-  PublicProductRaw,
-  "price" | "compareAtPrice" | "costPrice" | "variants"
+export type SerializedPublicProduct = WithMoney<
+  Omit<PublicProductRaw, "variants">
 > & {
-  price: number;
-  compareAtPrice: number | null;
-  costPrice: number | null;
   options: CompatProductOption[];
   variants: (PublicVariantBase & {
-    price: number;
-    compareAtPrice: number | null;
-    costPrice: number | null;
     optionValues: CompatVariantOptionValue[];
   })[];
 };

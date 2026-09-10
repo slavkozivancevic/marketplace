@@ -1360,7 +1360,7 @@ export function MessageThread({
             type="button"
             variant="ghost"
             size="icon"
-            className="shrink-0 text-muted-foreground hover:text-foreground"
+            className="shrink-0 text-muted-foreground"
             onClick={() => fileInputRef.current?.click()}
             disabled={pendingAttachments.length >= MAX_FILES}
           >

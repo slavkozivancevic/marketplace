@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useTransition } from "react";
 import { useForm, useFormState, useWatch } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/sonner";
@@ -14,28 +14,34 @@ import {
   useSaveBlockedReason,
 } from "@/lib/forms/useSaveBlockedReason";
 import { FormSaveBar } from "@/components/forms/FormSaveBar";
+import { MoneyField } from "@/components/forms/MoneyField";
 import { useCurrencyStore } from "@/store/currency";
-import { convertCents, formatPrice } from "@/lib/currency";
+import { formatPrice } from "@/lib/currency";
+import { moneyIn, type MoneySet } from "@/lib/money";
+import { emptyMoneyInput, toMoneyInput, type MoneyInput } from "@/lib/money-input";
 import type { Currency } from "@/lib/currency-config";
-import { PriceInput } from "@/features/products/components/PriceInput";
 import {
   updateOrganizationShippingSchema,
   type UpdateOrganizationShippingInput,
 } from "../schema/organizations";
 import { updateOrganizationShippingAction } from "../actions/organizations";
 
-/** `flatRate` / `freeThreshold` are stored in USD base cents; the form works in
- *  dollars (PriceInput) and the action converts back. */
+/**
+ * Both values are MoneySets: the seller enters a fee in whichever currency they
+ * think in, and buyers in that currency are charged that exact amount. Nothing
+ * here converts on the way in or out - see src/lib/money.ts.
+ */
 export function OrgShippingForm({
   flatRate,
   freeThreshold,
   canEdit,
 }: {
-  flatRate: number;
-  freeThreshold: number | null;
+  flatRate: MoneySet;
+  freeThreshold: MoneySet | null;
   canEdit: boolean;
 }) {
   const t = useTranslations("organization");
+  const locale = useLocale();
   const tForm = useTranslations("form");
   const onInvalid = useInvalidToast();
   const { rates, currency } = useCurrencyStore();
@@ -46,8 +52,8 @@ export function OrgShippingForm({
       mode: "onChange",
       resolver: useZodResolver(updateOrganizationShippingSchema),
       defaultValues: {
-        shippingFlatRate: flatRate / 100,
-        shippingFreeThreshold: freeThreshold != null ? freeThreshold / 100 : null,
+        shippingFlatRate: toMoneyInput(flatRate),
+        shippingFreeThreshold: freeThreshold ? toMoneyInput(freeThreshold) : null,
       },
     });
 
@@ -68,28 +74,21 @@ export function OrgShippingForm({
 
   const saveBlockedReason = useSaveBlockedReason(control);
 
-  // Each PriceInput has its own currency selector; mirror it so the saved-value
-  // hint reads in the same currency the field is currently showing (no mental
-  // conversion to compare old vs new).
-  const [flatCurrency, setFlatCurrency] = useState<Currency>(currency);
-  const [thresholdCurrency, setThresholdCurrency] = useState<Currency>(currency);
-
   const flat = useWatch({ control, name: "shippingFlatRate" });
   const threshold = useWatch({ control, name: "shippingFreeThreshold" });
   const freeEnabled = threshold != null;
 
   // Remember the last entered threshold so toggling free shipping off and back
   // on restores it instead of snapping to 0 (seeded with the saved value).
-  const lastThresholdRef = useRef<number>(
-    freeThreshold != null ? freeThreshold / 100 : 0,
+  const lastThresholdRef = useRef<MoneyInput>(
+    freeThreshold ? toMoneyInput(freeThreshold) : emptyMoneyInput(currency),
   );
 
-  // Renders a USD-base-cents amount in the given currency, so the saved (active)
-  // value stays legible alongside the edited input.
-  const fmtSaved = (usdCents: number, cur: Currency) => {
-    const rate = cur === "usd" ? 1 : (rates[cur] ?? 1);
-    return formatPrice(convertCents(usdCents, cur, rate), cur);
-  };
+  // The saved amount, shown in whatever currency the field is currently in, so
+  // old and new are directly comparable without mental arithmetic. This is a
+  // stored amount, not a conversion.
+  const fmtSaved = (set: MoneySet, cur: Currency) =>
+    formatPrice(moneyIn(set, cur, rates), cur, locale);
 
   const onSubmit = (data: UpdateOrganizationShippingInput) => {
     start(async () => {
@@ -108,26 +107,29 @@ export function OrgShippingForm({
             <span className="size-1.5 rounded-full bg-amber-500" aria-hidden />
           )}
         </Label>
-        <PriceInput
+        <MoneyField
           aria-invalid={!!errors.shippingFlatRate}
-          value={Number.isFinite(flat) ? flat : 0}
-          onChange={(usd) =>
-            setValue("shippingFlatRate", usd, { shouldValidate: true, shouldDirty: true })
+          value={flat ?? emptyMoneyInput(currency)}
+          onChange={(next) =>
+            setValue("shippingFlatRate", next, { shouldValidate: true, shouldDirty: true })
           }
           rates={rates}
-          defaultCurrency={currency}
-          onCurrencyChange={setFlatCurrency}
+          stored={flatRate}
+          preferredCurrency={currency}
+          showDerived
           disabled={!canEdit}
         />
-        {errors.shippingFlatRate?.message && (
-          <p className="text-xs text-destructive">{errors.shippingFlatRate.message}</p>
+        {errors.shippingFlatRate?.amount?.message && (
+          <p className="text-xs text-destructive">{errors.shippingFlatRate.amount.message}</p>
         )}
         {/* Saved-value reminder is additive while editing; the instructional
             hint always stays so the field never loses its explanation. */}
         {dirtyFields.shippingFlatRate && (
           <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500">
             <span className="size-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden />
-            {tForm("savedValue", { value: fmtSaved(flatRate, flatCurrency) })}
+            {tForm("savedValue", {
+              value: fmtSaved(flatRate, flat?.currency ?? currency),
+            })}
           </p>
         )}
         <p className="text-xs text-muted-foreground">{t("shippingFlatRateHint")}</p>
@@ -165,26 +167,31 @@ export function OrgShippingForm({
               <span className="size-1.5 rounded-full bg-amber-500" aria-hidden />
             )}
           </Label>
-          <PriceInput
+          <MoneyField
             aria-invalid={!!errors.shippingFreeThreshold}
-            value={threshold ?? 0}
-            onChange={(usd) =>
-              setValue("shippingFreeThreshold", usd, { shouldValidate: true, shouldDirty: true })
+            value={threshold ?? emptyMoneyInput(currency)}
+            onChange={(next) =>
+              setValue("shippingFreeThreshold", next, { shouldValidate: true, shouldDirty: true })
             }
             rates={rates}
-            defaultCurrency={currency}
-            onCurrencyChange={setThresholdCurrency}
+            stored={freeThreshold}
+            preferredCurrency={currency}
+            showDerived
             disabled={!canEdit}
           />
-          {errors.shippingFreeThreshold?.message && (
-            <p className="text-xs text-destructive">{errors.shippingFreeThreshold.message}</p>
+          {errors.shippingFreeThreshold?.amount?.message && (
+            <p className="text-xs text-destructive">
+              {errors.shippingFreeThreshold.amount.message}
+            </p>
           )}
           {/* Saved-value reminder only when there's a saved threshold to compare;
               the instructional hint always stays below it. */}
           {dirtyFields.shippingFreeThreshold && freeThreshold != null && (
             <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500">
               <span className="size-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden />
-              {tForm("savedValue", { value: fmtSaved(freeThreshold, thresholdCurrency) })}
+              {tForm("savedValue", {
+                value: fmtSaved(freeThreshold, threshold?.currency ?? currency),
+              })}
             </p>
           )}
           <p className="text-xs text-muted-foreground">{t("shippingFreeThresholdHint")}</p>

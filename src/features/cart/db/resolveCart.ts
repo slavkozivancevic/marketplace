@@ -1,4 +1,7 @@
 import { prisma } from "@/core/db/prisma";
+import { moneyIn, parseMoney, type CurrencyRates, type MoneySet } from "@/lib/money";
+import { convertCents } from "@/lib/currency";
+import type { Currency } from "@/lib/currency-config";
 
 /** A cart line as the client knows it. Prices are intentionally absent - they
  *  are snapshots on the client and are always re-read from the DB here. */
@@ -10,8 +13,14 @@ export type ResolvedCartLine = {
   productId: string;
   variantId: string | null;
   quantity: number;
-  /** Authoritative unit price (USD base cents) - never the client snapshot. */
+  /** Authoritative USD-cent mirror - the basis for coupon minimums, shipping
+   *  thresholds and any other cross-currency comparison. Never displayed. */
   unitPriceUsd: number;
+  /** The authoritative price as an exact per-currency set. What a buyer is
+   *  actually charged comes from here via `moneyIn`, never by converting
+   *  `unitPriceUsd` - that round trip is what made the charged amount differ
+   *  from the price shown on the product page. */
+  unitMoney: MoneySet | null;
   organizationId: string;
 };
 
@@ -52,6 +61,7 @@ export async function resolveCart(items: CartItemRef[]): Promise<CartResolution>
           select: {
             id: true,
             price: true,
+            priceMoney: true,
             product: { select: { id: true, organizationId: true, status: true, deletedAt: true } },
           },
         })
@@ -59,7 +69,14 @@ export async function resolveCart(items: CartItemRef[]): Promise<CartResolution>
     productIds.length
       ? prisma.product.findMany({
           where: { id: { in: productIds } },
-          select: { id: true, price: true, organizationId: true, status: true, deletedAt: true },
+          select: {
+            id: true,
+            price: true,
+            priceMoney: true,
+            organizationId: true,
+            status: true,
+            deletedAt: true,
+          },
         })
       : [],
   ]);
@@ -86,6 +103,7 @@ export async function resolveCart(items: CartItemRef[]): Promise<CartResolution>
         variantId: it.variantId,
         quantity: it.quantity,
         unitPriceUsd: unit,
+        unitMoney: parseMoney(v.priceMoney, unit),
         organizationId: v.product.organizationId,
       });
       subtotalUsd += unit * it.quantity;
@@ -101,6 +119,7 @@ export async function resolveCart(items: CartItemRef[]): Promise<CartResolution>
         variantId: null,
         quantity: it.quantity,
         unitPriceUsd: unit,
+        unitMoney: parseMoney(p.priceMoney, unit),
         organizationId: p.organizationId,
       });
       subtotalUsd += unit * it.quantity;
@@ -108,4 +127,51 @@ export async function resolveCart(items: CartItemRef[]): Promise<CartResolution>
   }
 
   return { lines, unavailable, subtotalUsd };
+}
+
+/**
+ * The cart's value in a given currency, summed line by line.
+ *
+ * Per line, never one conversion of `subtotalUsd`: each line already has an
+ * exact amount stored for this currency, and converting the USD total instead
+ * rounds differently from the prices the buyer was shown. That difference is
+ * what puts a cart a dinar either side of a coupon minimum or a free-shipping
+ * threshold, so every threshold comparison uses this.
+ */
+export function cartSubtotalIn(
+  lines: ResolvedCartLine[],
+  currency: Currency,
+  rates?: CurrencyRates,
+): number {
+  return lines.reduce((sum, line) => {
+    const unit = line.unitMoney
+      ? moneyIn(line.unitMoney, currency, rates)
+      : convertCents(line.unitPriceUsd, currency, rates?.[currency] ?? 1);
+    return sum + unit * line.quantity;
+  }, 0);
+}
+
+/**
+ * A line's authoritative price, shaped for the client's cart snapshot.
+ *
+ * The store snapshots a price at add-to-cart time and persists it, so it goes
+ * stale the moment the seller edits that product. Sending the resolved price
+ * back lets the cart refresh its own snapshot - without it the page renders one
+ * total while checkout, which always re-reads the DB, charges another.
+ */
+export type CartLinePrice = {
+  productId: string;
+  variantId: string | null;
+  unitPriceUsd: number;
+  unitMoney: MoneySet | null;
+};
+
+/** The resolved lines reduced to what the client needs to re-snapshot. */
+export function cartLinePrices(lines: ResolvedCartLine[]): CartLinePrice[] {
+  return lines.map(({ productId, variantId, unitPriceUsd, unitMoney }) => ({
+    productId,
+    variantId,
+    unitPriceUsd,
+    unitMoney,
+  }));
 }

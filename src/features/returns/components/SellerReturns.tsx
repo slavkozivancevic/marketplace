@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRefreshOrderViews } from "@/features/orders/hooks/useRefreshOrderViews";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Loader2, RotateCcw, Check, X, BadgeDollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +46,7 @@ export function SellerReturns({
   currency: string;
 }) {
   const t = useTranslations("returns");
+  const locale = useLocale();
   const refreshOrderViews = useRefreshOrderViews();
   const [isPending, start] = useTransition();
   const [rejectFor, setRejectFor] = useState<string | null>(null);
@@ -120,7 +121,7 @@ export function SellerReturns({
                 )}
                 {r.status === "REFUNDED" && r.refundAmount != null && (
                   <span className="text-xs text-muted-foreground">
-                    {t("refunded")}: {formatPrice(r.refundAmount, currency as Currency)}
+                    {t("refunded")}: {formatPrice(r.refundAmount, currency as Currency, locale)}
                   </span>
                 )}
               </div>

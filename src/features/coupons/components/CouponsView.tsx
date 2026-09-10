@@ -11,6 +11,7 @@ import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice, convertCents } from "@/lib/currency";
+import { moneyIn, parseMoney } from "@/lib/money";
 import { couponSearchParams, type CouponFilters } from "@/lib/query/searchParams";
 import {
   useInfiniteVirtualList,
@@ -129,8 +130,8 @@ function RowActions({
         <AlertDialogTrigger asChild>
           <Button
             size="icon"
-            variant="ghost"
-            className="h-8 w-8 text-destructive hover:text-destructive"
+            variant="ghostDestructive"
+            className="h-8 w-8"
             disabled={isDeleting}
           >
             {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
@@ -186,18 +187,27 @@ function Row({
   onDuplicate: (id: string) => void;
 }) {
   const t = useTranslations("coupons");
+  const locale = useLocale();
   const dl = dateLocale(useLocale());
-  const { currency, currentRate } = useCurrencyStore();
-  const conv = (usd: number) => formatPrice(convertCents(usd, currency, currentRate()), currency);
+  const { currency, rates, currentRate } = useCurrencyStore();
+  // The exact amount stored for the active currency. Falls back to converting
+  // the USD mirror only for coupons saved before money sets existed.
+  const money = (set: unknown, mirrorUsd: number | null) => {
+    const parsed = parseMoney(set, mirrorUsd);
+    return formatPrice(
+      parsed ? moneyIn(parsed, currency, rates) : convertCents(mirrorUsd ?? 0, currency, currentRate()),
+      currency, locale,
+    );
+  };
 
   return (
     <div role="row" className={cn(GRID, "border-b px-3 py-2.5 text-sm min-w-fit")}>
       <TruncatedTooltip content={c.code}>
         <div className="font-mono font-medium truncate">{c.code}</div>
       </TruncatedTooltip>
-      <div>{c.type === "PERCENT" ? `${c.value}%` : conv(c.value)}</div>
+      <div>{c.type === "PERCENT" ? `${c.value}%` : money(c.valueMoney, c.value)}</div>
       <div className="tabular-nums">
-        {c.minOrder != null ? conv(c.minOrder) : t("form.none")}
+        {c.minOrder != null ? money(c.minOrderMoney, c.minOrder) : t("form.none")}
       </div>
       <div className="tabular-nums whitespace-nowrap">
         {c.usageCount} / {c.usageLimit != null ? c.usageLimit : t("form.unlimited")}

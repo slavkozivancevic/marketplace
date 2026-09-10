@@ -194,10 +194,9 @@ function MemberRow({
               onConfirm={handleRemove}
             >
               <Button
-                variant="ghost"
+                variant="ghostDestructive"
                 size="sm"
                 disabled={isPendingRemove || isPendingRole}
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
                 {t("removeMember")}
               </Button>

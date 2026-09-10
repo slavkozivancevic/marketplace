@@ -2,7 +2,7 @@ import type { TransactionClient } from "@/core/db/prisma";
 import { randomUUID } from "crypto";
 import { tenantPrisma } from "@/core/db/tenantPrisma";
 import { revalidateProductCache, revalidateProductHistoryCache } from "./cache";
-import type { BulkFilter, BulkUpdateFields } from "../types/bulk";
+import type { BulkFilter, BulkUpdateResolved } from "../types/bulk";
 import { BULK_CATEGORY_MUTATION_LIMIT } from "../types/bulk";
 import {
   AdminProductListItem,
@@ -25,6 +25,9 @@ import {
 } from "@/features/common/errors/domainErrors";
 import { emitProductEvent } from "@/features/webhooks/productEvents";
 import { recordSlugChanges } from "@/lib/seo/slugHistory";
+import { partialPriceColumns, priceColumns } from "@/core/db/moneyColumns";
+import { moneyUsdCents, parseMoney, serializeMoney, type MoneySet } from "@/lib/money";
+import { preserveDerived } from "@/lib/money-input";
 import { createWithUniqueSlugRetry } from "@/lib/db/uniqueSlugRetry";
 import { deleteS3Object } from "@/services/s3Delete";
 import { copyProductImage, toThumbKey, toEmailThumbKey } from "@/services/s3Copy";
@@ -355,12 +358,32 @@ async function syncVariants(
     }
   }
 
+  const existingById = new Map(existing.map((v) => [v.id, v]));
+
   for (const [index, { variant, existingId }] of resolved.entries()) {
+    // Same rule as the product's own prices: a variant whose price did not
+    // change keeps the derived currencies it already had, rather than having
+    // them recomputed at today's rate because some other field was edited.
+    // `existingId` is the identity syncVariants already resolved, by option
+    // signature or by SKU for manual variants.
+    const was = existingId ? existingById.get(existingId) : undefined;
+    const priced = was
+      ? {
+          ...variant,
+          price: preserveDerived(variant.price, parseMoney(was.priceMoney, null)),
+          compareAtPrice: variant.compareAtPrice
+            ? preserveDerived(variant.compareAtPrice, parseMoney(was.compareAtPriceMoney, null))
+            : variant.compareAtPrice,
+          costPrice: variant.costPrice
+            ? preserveDerived(variant.costPrice, parseMoney(was.costPriceMoney, null))
+            : variant.costPrice,
+        }
+      : variant;
+
     const variantScalars = {
       sku: variant.sku,
-      price: variant.price,
-      compareAtPrice: variant.compareAtPrice ?? null,
-      costPrice: variant.costPrice ?? null,
+      // Mirror + set together, always - see src/core/db/moneyColumns.ts.
+      ...priceColumns(priced),
       stock: variant.stock,
       barcode: variant.barcode,
       weight: variant.weight ?? null,
@@ -1037,9 +1060,11 @@ export function productRepository(
       slug?: string;
       description: string;
       shortDescription?: string;
-      price: number;
-      compareAtPrice?: number | null;
-      costPrice?: number | null;
+      // MoneySets resolved by the action; the repo writes each one together
+      // with its USD-cent mirror.
+      price: MoneySet;
+      compareAtPrice?: MoneySet | null;
+      costPrice?: MoneySet | null;
       stock?: number | null;
       barcode?: string;
       taxable?: boolean;
@@ -1074,9 +1099,7 @@ export function productRepository(
         return db.prisma.$transaction(async (tx) => {
           const created = await tx.product.create({
             data: {
-              price: data.price,
-              compareAtPrice: data.compareAtPrice ?? null,
-              costPrice: data.costPrice ?? null,
+              ...priceColumns(data),
               stock: data.stock ?? null,
               barcode: data.barcode,
               taxable: data.taxable ?? true,
@@ -1155,6 +1178,9 @@ export function productRepository(
               description: defaultRow.description,
               translationsSnap: buildHistoryTranslationsSnap(translationRows),
               price: created.price,
+              // Snapshot the set too, so an old version renders in the currency
+              // it was priced in instead of being reconverted at today's rate.
+              priceMoney: created.priceMoney ?? Prisma.DbNull,
               status: created.status,
               updatedById: ctx.userId,
             },
@@ -1196,9 +1222,10 @@ export function productRepository(
         slug?: string;
         description: string;
         shortDescription?: string;
-        price: number;
-        compareAtPrice?: number | null;
-        costPrice?: number | null;
+        // MoneySets, like create() - see the note there.
+        price: MoneySet;
+        compareAtPrice?: MoneySet | null;
+        costPrice?: MoneySet | null;
         stock?: number | null;
         barcode?: string;
         taxable?: boolean;
@@ -1245,6 +1272,11 @@ export function productRepository(
           shortDescription,
           metaTitle,
           metaDescription,
+          // Pulled out of the scalar rest so they go through
+          // partialPriceColumns and land as mirror + set pairs.
+          price,
+          compareAtPrice,
+          costPrice,
           ...productScalars
         } = data;
 
@@ -1260,6 +1292,19 @@ export function productRepository(
           metaDescription !== undefined ||
           translations !== undefined;
 
+        // The stored sets, so a save that did not change a price leaves that
+        // price's derived currencies exactly as they were instead of re-deriving
+        // them at today's rate. Read inside the transaction, and the `version`
+        // guard on the write below still settles any concurrent edit.
+        const current = await tx.product.findUnique({
+          where: { id },
+          select: { priceMoney: true, compareAtPriceMoney: true, costPriceMoney: true },
+        });
+        const keep = (
+          built: MoneySet | null | undefined,
+          storedJson: unknown,
+        ) => (built ? preserveDerived(built, parseMoney(storedJson, null)) : built);
+
         const result = await tx.product.updateMany({
           where: {
             id,
@@ -1269,6 +1314,17 @@ export function productRepository(
           },
           data: {
             ...productScalars,
+            ...partialPriceColumns({
+              price: keep(price, current?.priceMoney) ?? undefined,
+              compareAtPrice:
+                compareAtPrice === undefined
+                  ? undefined
+                  : (keep(compareAtPrice, current?.compareAtPriceMoney) ?? null),
+              costPrice:
+                costPrice === undefined
+                  ? undefined
+                  : (keep(costPrice, current?.costPriceMoney) ?? null),
+            }),
             ...(weightUnit !== undefined && { weightUnit: weightUnit as never }),
             ...(dimensionUnit !== undefined && { dimensionUnit: dimensionUnit as never }),
             updatedById: ctx.userId,
@@ -1372,6 +1428,7 @@ export function productRepository(
               updatedProduct.translations,
             ),
             price: updatedProduct.price,
+            priceMoney: updatedProduct.priceMoney ?? Prisma.DbNull,
             status: updatedProduct.status,
             updatedById: ctx.userId,
           },
@@ -1518,7 +1575,10 @@ export function productRepository(
         metaTitle: defaultSnap?.metaTitle,
         metaDescription: defaultSnap?.metaDescription,
         translations: rollbackTranslations,
-        price: history.price,
+        // The set as it was at that version, so restoring an old version
+        // restores the price the seller actually had, not today's conversion
+        // of its USD mirror.
+        price: parseMoney(history.priceMoney, history.price)!,
         status: history.status,
       });
     },
@@ -1563,7 +1623,11 @@ export function productRepository(
               title: defaultRow?.title ?? "",
               description: defaultRow?.description ?? "",
               translationsSnap: buildHistoryTranslationsSnap(product.translations),
+              // Mirror and set together, like every other history write - an
+              // entry with only the mirror renders through the live-rate
+              // fallback and so drifts, which is the whole thing we removed.
               price: updated.price,
+              priceMoney: updated.priceMoney ?? Prisma.DbNull,
               status: updated.status,
               updatedById: ctx.userId,
             },
@@ -1649,9 +1713,12 @@ export function productRepository(
 
       const variants: ProductVariantInput[] = source.variants.map((v) => ({
         sku: `${v.sku}-copy-${suffix}`,
-        price: v.price,
-        compareAtPrice: v.compareAtPrice ?? undefined,
-        costPrice: v.costPrice ?? undefined,
+        // Carry the stored sets across verbatim. Re-deriving from the mirror
+        // would quietly reprice the copy at today's rate, so a duplicate would
+        // not match the product it was copied from.
+        price: parseMoney(v.priceMoney, v.price)!,
+        compareAtPrice: parseMoney(v.compareAtPriceMoney, v.compareAtPrice),
+        costPrice: parseMoney(v.costPriceMoney, v.costPrice),
         stock: v.stock,
         barcode: v.barcode ?? undefined,
         weight: v.weight ?? undefined,
@@ -1709,9 +1776,9 @@ export function productRepository(
           shortDescription: defaultRow?.shortDescription ?? undefined,
           metaTitle: defaultRow?.metaTitle ?? undefined,
           metaDescription: defaultRow?.metaDescription ?? undefined,
-          price: source.price,
-          compareAtPrice: source.compareAtPrice ?? undefined,
-          costPrice: source.costPrice ?? undefined,
+          price: parseMoney(source.priceMoney, source.price)!,
+          compareAtPrice: parseMoney(source.compareAtPriceMoney, source.compareAtPrice),
+          costPrice: parseMoney(source.costPriceMoney, source.costPrice),
           stock: source.stock ?? undefined,
           barcode: source.barcode ?? undefined,
           taxable: source.taxable,
@@ -1750,7 +1817,10 @@ export function productRepository(
       samples: {
         id: string;
         title: string;
+        /** USD-cent mirror plus the stored set, so the preview can render in
+         *  whatever currency the operator is browsing in. */
         price: number;
+        priceMoney: MoneySet | null;
         status: ProductStatus;
         brand: { name: string } | null;
       }[];
@@ -1766,6 +1836,7 @@ export function productRepository(
           select: {
             id: true,
             price: true,
+            priceMoney: true,
             status: true,
             translations: {
               where: { locale: DEFAULT_LOCALE },
@@ -1789,6 +1860,7 @@ export function productRepository(
           id: p.id,
           title: p.translations[0]?.title ?? "",
           price: p.price,
+          priceMoney: parseMoney(p.priceMoney, p.price),
           status: p.status,
           brand: p.brand?.translations[0]
             ? { name: p.brand.translations[0].name }
@@ -1844,7 +1916,9 @@ export function productRepository(
 
     async bulkUpdateByFilter(
       filter: BulkFilter,
-      updates: BulkUpdateFields,
+      // Resolved, not raw: the action turned the panel's MoneyInputs into
+      // MoneySets with server-read rates before calling in here.
+      updates: BulkUpdateResolved,
     ): Promise<{ count: number; skippedWithVariants: number }> {
       const where = buildBulkFilterWhere(ctx.organizationId, filter);
 
@@ -1854,6 +1928,7 @@ export function productRepository(
           id: true,
           version: true,
           price: true,
+          priceMoney: true,
           status: true,
           translations: true,
           _count: { select: { variants: true } },
@@ -1896,9 +1971,8 @@ export function productRepository(
 
       if (status !== undefined) scalarUpdates.status = status as ProductStatus;
       if (brandId !== undefined) scalarUpdates.brandId = brandId;
-      if (price !== undefined) scalarUpdates.price = price;
-      if (compareAtPrice !== undefined) scalarUpdates.compareAtPrice = compareAtPrice;
-      if (costPrice !== undefined) scalarUpdates.costPrice = costPrice;
+      // Mirror + set written together for every price the bulk edit touches.
+      Object.assign(scalarUpdates, partialPriceColumns({ price, compareAtPrice, costPrice }));
       if (taxable !== undefined) scalarUpdates.taxable = taxable;
       if (requiresShipping !== undefined) scalarUpdates.requiresShipping = requiresShipping;
       if (isDigital !== undefined) scalarUpdates.isDigital = isDigital;
@@ -2060,7 +2134,11 @@ export function productRepository(
                 title: defaultRow?.title ?? "",
                 description: defaultRow?.description ?? "",
                 translationsSnap: buildHistoryTranslationsSnap(p.translations),
-                price: price !== undefined ? price : p.price,
+                price: price !== undefined ? moneyUsdCents(price) : p.price,
+                priceMoney:
+                  price !== undefined
+                    ? serializeMoney(price)
+                    : (p.priceMoney ?? Prisma.DbNull),
                 status: (status !== undefined ? status : p.status) as ProductStatus,
                 updatedById: ctx.userId,
               },

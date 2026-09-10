@@ -1,6 +1,7 @@
 import { logger } from "@/lib/logger";
 import { prisma } from "@/core/db/prisma";
 import { convertCents } from "@/lib/currency";
+import { moneyIn, parseMoney } from "@/lib/money";
 import type { Currency } from "@/lib/currency-config";
 import {
   Prisma,
@@ -418,13 +419,13 @@ export async function fulfillOrder({
     variantIds.length
       ? prisma.productVariant.findMany({
           where: { id: { in: variantIds } },
-          select: { id: true, price: true },
+          select: { id: true, price: true, priceMoney: true },
         })
       : [],
     productOnlyIds.length
       ? prisma.product.findMany({
           where: { id: { in: productOnlyIds } },
-          select: { id: true, price: true, stock: true },
+          select: { id: true, price: true, priceMoney: true, stock: true },
         })
       : [],
   ]);
@@ -434,15 +435,22 @@ export async function fulfillOrder({
 
   const rate = exchangeRate ?? 1;
   const curr = (currency ?? "usd") as Currency;
+  // Snapshot the price the buyer was actually charged: the exact amount stored
+  // for the order currency, not a conversion of the USD mirror.
+  const unitIn = (row: { price: number; priceMoney: unknown }, c: Currency, r: number) => {
+    const set = parseMoney(row.priceMoney, Number(row.price));
+    return set ? moneyIn(set, c, { [c]: r }) : convertCents(Number(row.price), c, r);
+  };
+
   const itemsWithPrice = items.map((item) => {
     if (item.variantId) {
       const variant = variantMap.get(item.variantId);
       if (!variant) throw new Error(`Variant ${item.variantId} not found`);
-      return { ...item, price: convertCents(Number(variant.price), curr, rate) };
+      return { ...item, price: unitIn(variant, curr, rate) };
     }
     const product = productMap.get(item.productId);
     if (!product) throw new Error(`Product ${item.productId} not found`);
-    return { ...item, price: convertCents(Number(product.price), curr, rate) };
+    return { ...item, price: unitIn(product, curr, rate) };
   });
 
   // `totalCents` (Stripe amount_total) = (subtotal - coupon discount) + shipping.
@@ -592,13 +600,13 @@ export async function createCodOrder({
     variantIds.length
       ? prisma.productVariant.findMany({
           where: { id: { in: variantIds } },
-          select: { id: true, price: true },
+          select: { id: true, price: true, priceMoney: true },
         })
       : [],
     productOnlyIds.length
       ? prisma.product.findMany({
           where: { id: { in: productOnlyIds } },
-          select: { id: true, price: true, stock: true },
+          select: { id: true, price: true, priceMoney: true, stock: true },
         })
       : [],
   ]);
@@ -606,15 +614,24 @@ export async function createCodOrder({
   const variantMap = new Map(variants.map((v) => [v.id, v]));
   const productMap = new Map(products.map((p) => [p.id, p]));
 
+  // Same rule as the Stripe path above: the stored per-currency amount wins.
+  const unitIn = (row: { price: number; priceMoney: unknown }) => {
+    const set = parseMoney(row.priceMoney, Number(row.price));
+    const c = currency as Currency;
+    return set
+      ? moneyIn(set, c, { [c]: exchangeRate })
+      : convertCents(Number(row.price), c, exchangeRate);
+  };
+
   const itemsWithPrice = items.map((item) => {
     if (item.variantId) {
       const variant = variantMap.get(item.variantId);
       if (!variant) throw new Error(`Variant ${item.variantId} not found`);
-      return { ...item, price: convertCents(Number(variant.price), currency as Currency, exchangeRate) };
+      return { ...item, price: unitIn(variant) };
     }
     const product = productMap.get(item.productId);
     if (!product) throw new Error(`Product ${item.productId} not found`);
-    return { ...item, price: convertCents(Number(product.price), currency as Currency, exchangeRate) };
+    return { ...item, price: unitIn(product) };
   });
 
   // `totalInCurrency` = (subtotal - coupon discount) + shipping. Recover the

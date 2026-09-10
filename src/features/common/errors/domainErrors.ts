@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { ActionErrorResult } from "@/types/types";
 import { Prisma } from "@/generated/prisma/client";
 import { captureError } from "@/lib/logger";
+import { MissingRateError } from "@/lib/money";
 
 export { isActionErrorResult } from "./actionErrorResult";
 
@@ -224,6 +225,17 @@ export async function handleActionError(error: unknown): Promise<ActionErrorResu
 
   if (hasI18n(error)) {
     return { error: true, message: t(error.i18n.key, error.i18n.params) };
+  }
+
+  // A money value could not be stored because the rate it needed was missing.
+  // Deliberately surfaced rather than swallowed: without the rate the USD
+  // mirror would be wrong, which silently corrupts price filters, sorting,
+  // coupon minimums and free-shipping thresholds. Better a visible failed save.
+  if (error instanceof MissingRateError) {
+    return {
+      error: true,
+      message: t("exchangeRateUnavailable", { currency: error.currency.toUpperCase() }),
+    };
   }
 
   // Unique constraint violation - surface a readable message instead of the

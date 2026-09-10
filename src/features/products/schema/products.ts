@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { isCountryCode } from "@/lib/i18n/countries";
+import { moneyInputSchema, positiveMoneyInputSchema } from "@/lib/money-input";
 
 /**
  * 50 years. High enough for the longest real consumer warranties (lifetime
@@ -59,15 +60,12 @@ export const productVariantOptionSchema = z.object({
 export const productVariantSchema = z
   .object({
     sku: z.string().min(1),
-    price: z.coerce.number().positive(),
-    compareAtPrice: z.preprocess(
-      (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
-      z.number().nonnegative().nullable(),
-    ).default(null),
-    costPrice: z.preprocess(
-      (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
-      z.number().nonnegative().nullable(),
-    ).default(null),
+    // MoneyInputs: an exact integer in the minor unit of the currency the
+    // seller picked. The server derives the other currencies and the USD
+    // mirror - see src/lib/money.ts.
+    price: positiveMoneyInputSchema,
+    compareAtPrice: moneyInputSchema.nullable().default(null),
+    costPrice: moneyInputSchema.nullable().default(null),
     stock: z.coerce.number().int().nonnegative(),
     barcode: z.string().optional(),
     weight: z.preprocess(
@@ -112,16 +110,11 @@ export const createProductSchema = z
     description: z.string().trim().min(1),
     shortDescription: z.string().optional(),
 
-    // Pricing
-    price: z.coerce.number().positive(),
-    compareAtPrice: z.preprocess(
-      (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
-      z.number().nonnegative().nullable(),
-    ).default(null),
-    costPrice: z.preprocess(
-      (v) => (v === "" || v === null || v === undefined ? null : Number(v)),
-      z.number().nonnegative().nullable(),
-    ).default(null),
+    // Pricing. See the note on productVariantSchema: these are MoneyInputs,
+    // not dollars, so nothing is rounded to the cent on the way in.
+    price: positiveMoneyInputSchema,
+    compareAtPrice: moneyInputSchema.nullable().default(null),
+    costPrice: moneyInputSchema.nullable().default(null),
     stock: z
       .preprocess(
         (v) => (v === "" || v === null || v === undefined ? null : Number(v)),

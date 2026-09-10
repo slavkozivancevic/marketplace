@@ -31,6 +31,14 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground pointer-fine:hover:bg-secondary/80 active:bg-secondary/70 aria-expanded:aria-[haspopup=menu]:bg-secondary aria-expanded:aria-[haspopup=menu]:text-secondary-foreground",
         ghost:
           "pointer-fine:hover:bg-muted pointer-fine:hover:text-foreground active:bg-muted/70 aria-expanded:aria-[haspopup=menu]:bg-muted aria-expanded:aria-[haspopup=menu]:text-foreground dark:pointer-fine:hover:bg-muted/50 dark:active:bg-muted/70",
+        // Ghost that KEEPS its destructive tint on hover - delete and remove
+        // icon buttons. `ghost` resets the text to `--foreground` on hover, and
+        // a call site answering with a plain `hover:text-destructive` loses:
+        // the modifiers differ, so tailwind-merge keeps both rules and Tailwind
+        // emits the `pointer-fine:hover:` one second. Four such buttons were
+        // written that way and every one of them went plain on hover.
+        ghostDestructive:
+          "text-destructive pointer-fine:hover:bg-destructive/10 pointer-fine:hover:text-destructive active:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40",
         destructive:
           "bg-destructive/10 text-destructive pointer-fine:hover:bg-destructive/20 active:bg-destructive/30 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:pointer-fine:hover:bg-destructive/30 dark:active:bg-destructive/40 dark:focus-visible:ring-destructive/40",
         // High-emphasis (filled) destructive - the canonical style for the
@@ -46,6 +54,19 @@ const buttonVariants = cva(
         // every theme and on every surface.
         destructiveSolid:
           "bg-destructive text-destructive-foreground pointer-fine:hover:bg-[color-mix(in_oklab,var(--destructive)_90%,black)] active:bg-[color-mix(in_oklab,var(--destructive)_80%,black)] focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40",
+        // High-emphasis positive confirm - "mark paid", "mark delivered".
+        // It exists because two call sites were hand-rolling it as
+        // `className="bg-green-600 hover:bg-green-700"` on the default
+        // variant, and a bare `hover:` does not override this file's
+        // `pointer-fine:hover:` - the modifiers differ, so tailwind-merge keeps
+        // both and the more-specific chain wins. Those buttons turned
+        // `--primary` on hover, which reads as grey in the dark and cosmos
+        // themes. Green stays a raw scale rather than a theme token: success
+        // is green in every theme here (see the emerald totals in checkout),
+        // and the 600 -> 700 -> 800 steps darken the color itself, which is the
+        // same ladder `destructiveSolid` gets from color-mix.
+        successSolid:
+          "bg-green-600 text-white pointer-fine:hover:bg-green-700 active:bg-green-800 focus-visible:border-green-600/40 focus-visible:ring-green-600/20 dark:focus-visible:ring-green-600/40",
         link: "text-primary underline-offset-4 pointer-fine:hover:underline active:text-primary/80",
       },
       size: {

@@ -11,11 +11,14 @@ import {
   deleteCoupon,
   duplicateCoupon,
   isCouponCodeTaken,
+  getCouponById,
 } from "../db/coupons";
 import { handleActionError, ForbiddenError } from "@/features/common/errors/domainErrors";
 import { requireRole } from "@/lib/auth/requireRole";
 import { recordAudit } from "@/features/audit/db/audit";
-import { decimalToCents } from "@/lib/currency";
+import { moneyUsdCents, parseMoney, type MoneySet } from "@/lib/money";
+import { buildMoneySet, preserveDerived } from "@/lib/money-input";
+import { getCurrencyRates } from "@/features/currency/db/currencyRates";
 import { CouponType } from "@/generated/prisma/client";
 import type { ActionErrorResult } from "@/types/types";
 
@@ -31,15 +34,41 @@ function revalidateCoupons() {
   revalidatePath("/[locale]/admin/coupons/[id]/edit", "page");
 }
 
-/** Maps the form input to stored columns: FIXED `value` and `minOrder` are
- *  entered in dollars and stored as USD base cents; PERCENT `value` is the raw
- *  percent. */
-function toMutationData(data: CouponInput) {
+/**
+ * Maps the form input to stored columns.
+ *
+ * A PERCENT coupon has no money in it: `value` stays the raw percent and
+ * `valueMoney` is null. Scaling a percent as if it were an amount is the exact
+ * mistake the schema comment on Coupon.value warns about.
+ *
+ * A FIXED coupon stores the exact per-currency discount in `valueMoney`, with
+ * `value` as the USD-cent mirror that the subtotal comparison uses.
+ *
+ * Rates are read here rather than trusted from the request.
+ */
+async function toMutationData(data: CouponInput, existingId?: string) {
+  const rates = await getCurrencyRates();
+  const isFixed = data.type === "FIXED";
+  // On an edit, an amount the user did not touch keeps the derived currencies it
+  // already had - renaming a coupon must not re-price the discount a German
+  // buyer gets. Absent on create, where there is nothing to preserve.
+  const stored = existingId ? await getCouponById(existingId) : null;
+  const keep = (built: MoneySet | null, was: unknown) =>
+    built ? preserveDerived(built, parseMoney(was, null)) : null;
+
+  const amount = keep(isFixed ? buildMoneySet(data.amount, rates) : null, stored?.valueMoney);
+  const minOrder = keep(
+    data.minOrder != null ? buildMoneySet(data.minOrder, rates) : null,
+    stored?.minOrderMoney,
+  );
+
   return {
     code: data.code,
     type: data.type as CouponType,
-    value: data.type === "FIXED" ? decimalToCents(data.value) : Math.round(data.value),
-    minOrder: data.minOrder != null ? decimalToCents(data.minOrder) : null,
+    value: amount ? moneyUsdCents(amount) : Math.round(data.percent),
+    valueMoney: amount,
+    minOrder: minOrder ? moneyUsdCents(minOrder) : null,
+    minOrderMoney: minOrder,
     usageLimit: data.usageLimit ?? null,
     perUserLimit: data.perUserLimit ?? null,
     expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
@@ -59,7 +88,7 @@ export async function createCouponAction(
     if (await isCouponCodeTaken(parsed.data.code)) {
       throw new ForbiddenError({ key: "couponCodeTaken" });
     }
-    const created = await createCoupon(toMutationData(parsed.data));
+    const created = await createCoupon(await toMutationData(parsed.data));
     await recordAudit({ action: "coupon.created", entityType: "Coupon", entityId: created.id });
     revalidateCoupons();
   } catch (error) {
@@ -81,7 +110,7 @@ export async function updateCouponAction(
     if (await isCouponCodeTaken(parsed.data.code, id)) {
       throw new ForbiddenError({ key: "couponCodeTaken" });
     }
-    await updateCoupon(id, toMutationData(parsed.data));
+    await updateCoupon(id, await toMutationData(parsed.data, id));
     await recordAudit({ action: "coupon.updated", entityType: "Coupon", entityId: id });
     revalidateCoupons();
   } catch (error) {

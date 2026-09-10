@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Download, Upload, AlertCircle, CheckCircle2, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +13,9 @@ import { detectDelimiter, parseCsv, csvEscape } from "@/features/products/utils/
 import { normalizeCountryCode } from "@/lib/i18n/countries";
 import { MAX_WARRANTY_MONTHS } from "@/features/products/schema/products";
 import type { ProductStatus } from "@/generated/prisma/client";
+import { VALID_CURRENCIES, type Currency } from "@/lib/currency-config";
+import { formatPrice } from "@/lib/currency";
+import { decimalToMinor } from "@/lib/money";
 
 // ---------------------------------------------------------------------------
 // CSV template
@@ -28,6 +31,10 @@ const CSV_COLUMNS = [
   "price",
   "compareAtPrice",
   "costPrice",
+  // Which currency the three price columns on this row are written in.
+  // Optional: omitted means USD, so every CSV written before this column
+  // existed imports exactly as it did before.
+  "priceCurrency",
   "stock",
   "barcode",
   "taxable",
@@ -74,9 +81,18 @@ const VALID_WEIGHT_UNITS = new Set(["G", "KG", "LB", "OZ"]);
 const VALID_DIMENSION_UNITS = new Set(["CM", "IN"]);
 const VALID_STATUS_VALUES = new Set<ProductStatus>(["DRAFT", "PUBLISHED", "ARCHIVED"]);
 
+/**
+ * Renders one validation message. Taken as a parameter rather than read from a
+ * hook because `parseRow` is a plain function outside the component - the
+ * messages are the only thing on this screen the buyer-facing rest of the app
+ * would have translated, and they were the only English left in it.
+ */
+type ErrorText = (key: string, values?: Record<string, string | number>) => string;
+
 function parseRow(
   cells: string[],
   headerIndex: Map<string, number>,
+  tError: ErrorText,
   categorySeparator: string = ";",
 ): ParsedRow {
   const get = (col: string) => cells[headerIndex.get(col) ?? -1]?.trim() ?? "";
@@ -84,45 +100,51 @@ function parseRow(
   const errors: string[] = [];
 
   const title = get("title");
-  if (!title) errors.push("title is required");
+  if (!title) errors.push(tError("errTitleRequired"));
 
   const description = get("description");
-  if (!description) errors.push("description is required");
+  if (!description) errors.push(tError("errDescriptionRequired"));
 
   const rawPrice = get("price");
   const priceDecimal = parseFloat(rawPrice);
-  if (!rawPrice || isNaN(priceDecimal) || priceDecimal < 0) errors.push("price must be a non-negative number");
+  if (!rawPrice || isNaN(priceDecimal) || priceDecimal < 0) errors.push(tError("errPrice"));
 
   const rawCompare = get("compareAtPrice");
   const compareAtPriceDecimal = rawCompare ? parseFloat(rawCompare) : undefined;
-  if (rawCompare && isNaN(compareAtPriceDecimal!)) errors.push("compareAtPrice must be a number");
+  if (rawCompare && isNaN(compareAtPriceDecimal!)) errors.push(tError("errCompareAtPrice"));
 
   const rawCost = get("costPrice");
   const costPriceDecimal = rawCost ? parseFloat(rawCost) : undefined;
-  if (rawCost && isNaN(costPriceDecimal!)) errors.push("costPrice must be a number");
+  if (rawCost && isNaN(costPriceDecimal!)) errors.push(tError("errCostPrice"));
+
+  const rawCurrency = get("priceCurrency").toLowerCase();
+  if (rawCurrency && !(VALID_CURRENCIES as readonly string[]).includes(rawCurrency)) {
+    errors.push(tError("errPriceCurrency", { currencies: VALID_CURRENCIES.join(", ") }));
+  }
+  const priceCurrency = rawCurrency ? (rawCurrency as Currency) : undefined;
 
   const rawStock = get("stock");
   const stock = rawStock ? parseInt(rawStock, 10) : undefined;
-  if (rawStock && isNaN(stock!)) errors.push("stock must be an integer");
+  if (rawStock && isNaN(stock!)) errors.push(tError("errStock"));
 
   const rawWeight = get("weight");
   const weight = rawWeight ? parseFloat(rawWeight) : undefined;
-  if (rawWeight && isNaN(weight!)) errors.push("weight must be a number");
+  if (rawWeight && isNaN(weight!)) errors.push(tError("errWeight"));
 
   const weightUnit = get("weightUnit").toUpperCase() || undefined;
   if (weightUnit && !VALID_WEIGHT_UNITS.has(weightUnit))
-    errors.push("weightUnit must be G, KG, LB, or OZ");
+    errors.push(tError("errWeightUnit"));
 
   const parseDim = (col: string): number | undefined => {
     const raw = get(col);
     if (!raw) return undefined;
     const v = parseFloat(raw);
     if (isNaN(v)) {
-      errors.push(`${col} must be a number`);
+      errors.push(tError("errDimensionNumber", { column: col }));
       return undefined;
     }
     if (v <= 0) {
-      errors.push(`${col} must be greater than 0`);
+      errors.push(tError("errDimensionPositive", { column: col }));
       return undefined;
     }
     return v;
@@ -134,11 +156,11 @@ function parseRow(
 
   const dimensionUnit = get("dimensionUnit").toUpperCase() || undefined;
   if (dimensionUnit && !VALID_DIMENSION_UNITS.has(dimensionUnit))
-    errors.push("dimensionUnit must be CM or IN");
+    errors.push(tError("errDimensionUnit"));
 
   const status = get("status").toUpperCase() || undefined;
   if (status && !VALID_STATUS_VALUES.has(status as ProductStatus))
-    errors.push("status must be DRAFT, PUBLISHED, or ARCHIVED");
+    errors.push(tError("errStatus"));
 
   // 0 is a valid warranty ("no warranty"), so an empty cell - not a zero - is
   // what means "unspecified".
@@ -147,7 +169,7 @@ function parseRow(
   if (rawWarranty) {
     const parsed = Number(rawWarranty);
     if (!Number.isInteger(parsed) || parsed < 0 || parsed > MAX_WARRANTY_MONTHS) {
-      errors.push(`warrantyMonths must be a whole number between 0 and ${MAX_WARRANTY_MONTHS}`);
+      errors.push(tError("errWarrantyMonths", { max: MAX_WARRANTY_MONTHS }));
     } else {
       warrantyMonths = parsed;
     }
@@ -155,7 +177,7 @@ function parseRow(
 
   const rawCountry = get("countryOfOrigin");
   if (rawCountry && normalizeCountryCode(rawCountry) === null)
-    errors.push("countryOfOrigin must be an ISO 3166-1 alpha-2 code, e.g. DE");
+    errors.push(tError("errCountryOfOrigin"));
 
   const parseBool = (v: string, def: boolean) => {
     if (!v) return def;
@@ -182,6 +204,7 @@ function parseRow(
       price: priceDecimal,
       compareAtPrice: compareAtPriceDecimal,
       costPrice: costPriceDecimal,
+      priceCurrency,
       stock,
       barcode: get("barcode") || undefined,
       taxable: parseBool(get("taxable"), true),
@@ -217,7 +240,11 @@ type ImportResult = {
 
 export function CsvImportPanel() {
   const t = useTranslations("csvImport");
+  const locale = useLocale();
   const tBulk = useTranslations("bulkProducts");
+  // Narrowed to what `parseRow` needs, so a plain function outside the component
+  // can render messages without pulling next-intl's full generic signature in.
+  const tError = t as unknown as ErrorText;
   const fileRef = useRef<HTMLInputElement>(null);
 
   const STATUS_LABELS: Record<string, string> = {
@@ -234,6 +261,7 @@ export function CsvImportPanel() {
     /* price              */ "29.99",
     /* compareAtPrice     */ "39.99",
     /* costPrice          */ "",
+    /* priceCurrency      */ "usd",
     /* stock              */ "100",
     /* barcode            */ "BARCODE123",
     /* taxable            */ "true",
@@ -293,7 +321,7 @@ export function CsvImportPanel() {
 
     const results = rows.slice(1).map((cells, i) => ({
       rowIndex: i + 2, // 1-based, +1 for header
-      result: parseRow(cells, ciHeaderIndex, categorySeparator),
+      result: parseRow(cells, ciHeaderIndex, tError, categorySeparator),
     }));
 
     setParsed(results);
@@ -484,7 +512,19 @@ export function CsvImportPanel() {
                       )}
                     </td>
                     <td className="px-3 py-2">
-                      {result.ok ? `$${result.data.price.toFixed(2)}` : "-"}
+                      {/* In the row's OWN currency, not a hardcoded "$": a row
+                          written as 1000.05 with priceCurrency=rsd previewed as
+                          "$1000.05", which is a different amount entirely and
+                          the last chance to catch a wrong column before import. */}
+                      {result.ok
+                        ? formatPrice(
+                            decimalToMinor(
+                              result.data.price,
+                              result.data.priceCurrency ?? "usd",
+                            ),
+                            result.data.priceCurrency ?? "usd", locale,
+                          )
+                        : "-"}
                     </td>
                     <td className="px-3 py-2 max-w-32 truncate text-muted-foreground">
                       {result.ok ? (result.data.brandRef ?? "-") : "-"}

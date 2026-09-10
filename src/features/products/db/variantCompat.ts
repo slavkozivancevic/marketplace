@@ -1,3 +1,4 @@
+import { serializeMoneyFields } from "@/lib/money";
 import { Prisma } from "@/generated/prisma/client";
 import { SUPPORTED_LOCALES } from "@/i18n/config";
 import { getLabel } from "@/features/attributes/utils/translations";
@@ -130,18 +131,14 @@ export function serializePublicProduct(
 ): SerializedPublicProduct {
   return {
     ...product,
-    price: Number(product.price),
-    compareAtPrice: product.compareAtPrice != null ? Number(product.compareAtPrice) : null,
-    costPrice: product.costPrice != null ? Number(product.costPrice) : null,
+    ...serializeMoneyFields(product),
     options: buildCompatOptions(product.variants),
     variants: product.variants.map((v) => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { attributeValues, ...rest } = v;
       return {
         ...rest,
-        price: Number(v.price),
-        compareAtPrice: v.compareAtPrice != null ? Number(v.compareAtPrice) : null,
-        costPrice: v.costPrice != null ? Number(v.costPrice) : null,
+        ...serializeMoneyFields(v),
         optionValues: buildCompatVariantOptionValues(v),
       };
     }),

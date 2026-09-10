@@ -12,6 +12,7 @@ import { handleActionError } from "@/features/common/errors/domainErrors";
 import { enforceRateLimit, getClientIp } from "@/lib/rateLimit/guard";
 import { getCurrencyRate } from "@/features/currency/db/currencyRates";
 import { convertCents } from "@/lib/currency";
+import { moneyIn, parseMoney } from "@/lib/money";
 import { validateCoupon } from "@/features/coupons/db/coupons";
 import { cartShippingLines } from "@/features/shipping/db/shipping";
 import type { ActionErrorResult } from "@/types/types";
@@ -82,13 +83,13 @@ async function runCodCheckout(
       productIds.length
         ? prisma.product.findMany({
             where: { id: { in: productIds }, status: "PUBLISHED", deletedAt: null },
-            select: { id: true, price: true, stock: true },
+            select: { id: true, price: true, priceMoney: true, stock: true },
           })
         : [],
       variantIds.length
         ? prisma.productVariant.findMany({
             where: { id: { in: variantIds } },
-            select: { id: true, price: true, stock: true },
+            select: { id: true, price: true, priceMoney: true, stock: true },
           })
         : [],
     ]);
@@ -104,7 +105,12 @@ async function runCodCheckout(
         if (!v) return { error: true, message: t("itemNoLongerAvailable") };
         if (v.stock < item.quantity) return { error: true, message: t("insufficientStock") };
         subtotalUsd += Number(v.price) * item.quantity;
-        const unitCents = convertCents(Number(v.price), currency, exchangeRate);
+        // Charge the amount stored for this currency, not a conversion of the
+        // USD mirror - same rule as the card path.
+        const unitMoney = parseMoney(v.priceMoney, Number(v.price));
+        const unitCents = unitMoney
+          ? moneyIn(unitMoney, currency, { [currency]: exchangeRate })
+          : convertCents(Number(v.price), currency, exchangeRate);
         totalInCurrency += unitCents * item.quantity;
       } else {
         const p = productMap.get(item.productId);
@@ -112,7 +118,10 @@ async function runCodCheckout(
         if (p.stock !== null && p.stock < item.quantity)
           return { error: true, message: t("insufficientStock") };
         subtotalUsd += Number(p.price) * item.quantity;
-        const unitCents = convertCents(Number(p.price), currency, exchangeRate);
+        const unitMoney = parseMoney(p.priceMoney, Number(p.price));
+        const unitCents = unitMoney
+          ? moneyIn(unitMoney, currency, { [currency]: exchangeRate })
+          : convertCents(Number(p.price), currency, exchangeRate);
         totalInCurrency += unitCents * item.quantity;
       }
     }
@@ -122,10 +131,14 @@ async function runCodCheckout(
     let appliedCouponId: string | undefined;
     let appliedCouponCode: string | undefined;
     if (couponCode) {
-      const res = await validateCoupon(couponCode, subtotalUsd, user.id);
-      if (res.ok && res.discountUsd > 0) {
-        const discountInCurrency = convertCents(res.discountUsd, currency, exchangeRate);
-        totalInCurrency = Math.max(0, totalInCurrency - discountInCurrency);
+      const res = await validateCoupon(couponCode, subtotalUsd, user.id, {
+        currency,
+        rates: { [currency]: exchangeRate },
+        subtotal: totalInCurrency,
+      });
+      if (res.ok && res.discount > 0) {
+        // Already resolved in the buyer's currency and capped at the cart.
+        totalInCurrency = Math.max(0, totalInCurrency - res.discount);
         appliedCouponId = res.couponId;
         appliedCouponCode = res.code;
       }
@@ -133,14 +146,18 @@ async function runCodCheckout(
 
     // Per-seller delivery (added on top of the discounted items total). Snapshot
     // the per-org split for payouts.
-    const shipLines = await cartShippingLines(items);
+    const shipLines = await cartShippingLines(items, {
+      currency,
+      rates: { [currency]: exchangeRate },
+    });
     const shippingByOrg: Record<string, number> = {};
     let shippingTotal = 0;
     for (const l of shipLines) {
-      if (l.shippingUsd > 0) {
-        const c = convertCents(l.shippingUsd, currency, exchangeRate);
-        shippingByOrg[l.orgId] = c;
-        shippingTotal += c;
+      // Exact per-currency fee, free-shipping rule already applied in that
+      // currency - see checkout.ts.
+      if (l.shipping > 0) {
+        shippingByOrg[l.orgId] = l.shipping;
+        shippingTotal += l.shipping;
       }
     }
     totalInCurrency += shippingTotal;

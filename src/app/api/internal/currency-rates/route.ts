@@ -1,3 +1,5 @@
+import { revalidateTag } from "next/cache";
+import { CacheTags } from "@/lib/cache/tags";
 import { logger } from "@/lib/logger";
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/env/server";
@@ -52,6 +54,19 @@ export async function POST(request: NextRequest) {
       })
     )
   );
+
+  // The root layout seeds the client currency store from a `use cache` read
+  // tagged `currency.rates()`. Writing the rows without busting that tag left
+  // every browser converting with whatever rates were cached - so the block
+  // under a price field previewed one conversion while the server, which reads
+  // the table directly, stored another. The daily cron had the same problem.
+  //
+  // The cache invariant in CLAUDE.md asks for `revalidateTag` AND `updateTag`,
+  // but `updateTag` throws outside a Server Action and this is a Route Handler.
+  // `{ expire: 0 }` is the equivalent here: it expires the entry outright, where
+  // the "max" profile is stale-while-revalidate and would hand back the old
+  // rates one more time - on a rate change, the one read that matters.
+  revalidateTag(CacheTags.currency.rates(), { expire: 0 });
 
   logger.info(`[currency-rates] updated ${entries.length} rate(s):`, Object.fromEntries(entries));
 

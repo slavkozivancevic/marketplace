@@ -71,16 +71,16 @@ export function OrgPayoutTableRow({ payout }: { payout: OrgPayoutListItem }) {
             payout.refundState === "full" && "text-muted-foreground line-through",
           )}
         >
-          {formatPrice(payout.amount, payout.currency as Currency)}
+          {formatPrice(payout.amount, payout.currency as Currency, locale)}
         </span>
         {payout.refundState === "partial" && (
           <span className="text-[11px] text-destructive tabular-nums">
-            -{formatPrice(payout.reversedNet, payout.currency as Currency)}
+            -{formatPrice(payout.reversedNet, payout.currency as Currency, locale)}
           </span>
         )}
         {payout.codNetted > 0 && (
           <span className="text-[11px] text-steel tabular-nums">
-            -{formatPrice(payout.codNetted, payout.currency as Currency)} {t("codBalanceNettedShort")}
+            -{formatPrice(payout.codNetted, payout.currency as Currency, locale)} {t("codBalanceNettedShort")}
           </span>
         )}
       </div>

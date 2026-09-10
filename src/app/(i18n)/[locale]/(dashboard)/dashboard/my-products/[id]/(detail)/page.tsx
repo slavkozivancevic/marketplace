@@ -1,3 +1,4 @@
+import { serializeMoneyFields } from "@/lib/money";
 import { Suspense } from "react";
 import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
@@ -231,14 +232,10 @@ async function fetchProduct(
 
     return {
       ...result,
-      price: Number(result.price),
-      compareAtPrice: result.compareAtPrice != null ? Number(result.compareAtPrice) : null,
-      costPrice: result.costPrice != null ? Number(result.costPrice) : null,
+      ...serializeMoneyFields(result),
       variants: result.variants.map((v) => ({
         ...v,
-        price: Number(v.price),
-        compareAtPrice: v.compareAtPrice != null ? Number(v.compareAtPrice) : null,
-        costPrice: v.costPrice != null ? Number(v.costPrice) : null,
+        ...serializeMoneyFields(v),
       })),
     };
   } catch (error) {

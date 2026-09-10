@@ -368,11 +368,11 @@ export default async function OrderDetailPage({
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground">
-                        {formatPrice(item.price, order.currency as Currency)} × {item.quantity}
+                        {formatPrice(item.price, order.currency as Currency, locale)} × {item.quantity}
                       </p>
                     </div>
                     <p className="font-semibold text-sm">
-                      {formatPrice(item.price * item.quantity, order.currency as Currency)}
+                      {formatPrice(item.price * item.quantity, order.currency as Currency, locale)}
                     </p>
                   </div>
                 </div>
@@ -386,18 +386,18 @@ export default async function OrderDetailPage({
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>{t("orders.subtotal")}</span>
                     {/* total = (items - discount) + shipping, so items = total + discount - shipping */}
-                    <span>{formatPrice(order.total + order.discountAmount - order.shippingTotal, order.currency as Currency)}</span>
+                    <span>{formatPrice(order.total + order.discountAmount - order.shippingTotal, order.currency as Currency, locale)}</span>
                   </div>
                   {order.discountAmount > 0 && (
                     <div className="flex justify-between text-sm text-emerald-600">
                       <span>{t("orders.discount")}{order.couponCode ? ` (${order.couponCode})` : ""}</span>
-                      <span>-{formatPrice(order.discountAmount, order.currency as Currency)}</span>
+                      <span>-{formatPrice(order.discountAmount, order.currency as Currency, locale)}</span>
                     </div>
                   )}
                   {order.shippingTotal > 0 && (
                     <div className="flex justify-between text-sm text-muted-foreground">
                       <span>{t("orders.shipping")}</span>
-                      <span>{formatPrice(order.shippingTotal, order.currency as Currency)}</span>
+                      <span>{formatPrice(order.shippingTotal, order.currency as Currency, locale)}</span>
                     </div>
                   )}
                 </>
@@ -407,17 +407,17 @@ export default async function OrderDetailPage({
                   paid - mirrors the seller payout breakdown on the org page. */}
               <div className={`flex justify-between ${buyerRefunded > 0 ? "text-sm text-muted-foreground" : "font-semibold"}`}>
                 <span>{t("orders.yourTotal")}</span>
-                <span>{formatPrice(order.total, order.currency as Currency)}</span>
+                <span>{formatPrice(order.total, order.currency as Currency, locale)}</span>
               </div>
               {buyerRefunded > 0 && (
                 <>
                   <div className="flex justify-between text-sm text-steel">
                     <span>{t("orders.refunded")}</span>
-                    <span>-{formatPrice(buyerRefunded, order.currency as Currency)}</span>
+                    <span>-{formatPrice(buyerRefunded, order.currency as Currency, locale)}</span>
                   </div>
                   <div className="flex justify-between font-semibold">
                     <span>{t("orders.paidAfterRefunds")}</span>
-                    <span>{formatPrice(netPaid, order.currency as Currency)}</span>
+                    <span>{formatPrice(netPaid, order.currency as Currency, locale)}</span>
                   </div>
                 </>
               )}

@@ -25,7 +25,8 @@
  * Usage: node scripts/migrate-stage.mjs --stage staging
  *        node scripts/migrate-stage.mjs --stage staging -- migrate status   (any prisma subcommand)
  */
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
+import { resolveStageDatabaseUrl } from "./lib/stageDatabaseUrl.mjs";
 
 const args = process.argv.slice(2);
 const stageIdx = args.indexOf("--stage");
@@ -40,28 +41,12 @@ if (!stage) {
 const dashIdx = args.indexOf("--");
 const prismaArgs = dashIdx !== -1 ? args.slice(dashIdx + 1) : ["migrate", "deploy"];
 
-let secretsOutput;
+let directUrl;
 try {
-  secretsOutput = execFileSync("npx", ["sst", "secret", "list", "--stage", stage], {
-    encoding: "utf8",
-    shell: process.platform === "win32",
-  });
+  directUrl = resolveStageDatabaseUrl(stage);
 } catch (err) {
-  console.error(`Failed to read secrets for stage "${stage}":`, err.message);
+  console.error(err.message);
   process.exit(1);
-}
-
-const match = secretsOutput.match(/^DatabaseUrl=(.+)$/m);
-if (!match) {
-  console.error(
-    `No DatabaseUrl secret set for stage "${stage}". Set it first: npx sst secret set DatabaseUrl <url> --stage ${stage}`
-  );
-  process.exit(1);
-}
-const pooledUrl = match[1].trim();
-const directUrl = pooledUrl.replace(/-pooler(?=\.)/, "");
-if (directUrl === pooledUrl) {
-  console.warn(`Note: "${stage}"'s DatabaseUrl had no "-pooler" segment to strip - using it as-is.`);
 }
 
 console.log(`Running "prisma ${prismaArgs.join(" ")}" against stage "${stage}" (direct connection)...`);

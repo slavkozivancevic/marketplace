@@ -136,11 +136,11 @@ export default async function CheckoutSuccessPage({
                           <p className="text-muted-foreground text-xs">{item.variant.sku}</p>
                         )}
                         <p className="text-muted-foreground text-xs">
-                          {formatPrice(item.price, order.currency as Currency)} × {item.quantity}
+                          {formatPrice(item.price, order.currency as Currency, locale)} × {item.quantity}
                         </p>
                       </div>
                       <p className="font-semibold">
-                        {formatPrice(item.price * item.quantity, order.currency as Currency)}
+                        {formatPrice(item.price * item.quantity, order.currency as Currency, locale)}
                       </p>
                     </div>
                   </div>
@@ -151,18 +151,18 @@ export default async function CheckoutSuccessPage({
                   <>
                     <div className="flex justify-between text-sm text-muted-foreground">
                       <span>{t("checkout.subtotal")}</span>
-                      <span>{formatPrice(order.total + order.discountAmount - order.shippingTotal, order.currency as Currency)}</span>
+                      <span>{formatPrice(order.total + order.discountAmount - order.shippingTotal, order.currency as Currency, locale)}</span>
                     </div>
                     {order.discountAmount > 0 && (
                       <div className="flex justify-between text-sm text-emerald-600 mt-1.5">
                         <span>{t("checkout.discount")}{order.couponCode ? ` (${order.couponCode})` : ""}</span>
-                        <span>-{formatPrice(order.discountAmount, order.currency as Currency)}</span>
+                        <span>-{formatPrice(order.discountAmount, order.currency as Currency, locale)}</span>
                       </div>
                     )}
                     {order.shippingTotal > 0 && (
                       <div className="flex justify-between text-sm text-muted-foreground mt-1.5">
                         <span>{t("checkout.shipping")}</span>
-                        <span>{formatPrice(order.shippingTotal, order.currency as Currency)}</span>
+                        <span>{formatPrice(order.shippingTotal, order.currency as Currency, locale)}</span>
                       </div>
                     )}
                     <Separator className="my-3" />
@@ -170,7 +170,7 @@ export default async function CheckoutSuccessPage({
                 )}
                 <div className="flex justify-between font-semibold text-sm">
                   <span>{t("checkout.total")}</span>
-                  <span>{formatPrice(order.total, order.currency as Currency)}</span>
+                  <span>{formatPrice(order.total, order.currency as Currency, locale)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -377,11 +377,11 @@ export default async function CheckoutSuccessPage({
                         <p className="text-muted-foreground text-xs">{item.variant.sku}</p>
                       )}
                       <p className="text-muted-foreground text-xs">
-                        {formatPrice(item.price, order.currency as Currency)} × {item.quantity}
+                        {formatPrice(item.price, order.currency as Currency, locale)} × {item.quantity}
                       </p>
                     </div>
                     <p className="font-semibold">
-                      {formatPrice(item.price * item.quantity, order.currency as Currency)}
+                      {formatPrice(item.price * item.quantity, order.currency as Currency, locale)}
                     </p>
                   </div>
                 </div>
@@ -392,18 +392,18 @@ export default async function CheckoutSuccessPage({
                 <>
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>{t("checkout.subtotal")}</span>
-                    <span>{formatPrice(order.total + order.discountAmount - order.shippingTotal, order.currency as Currency)}</span>
+                    <span>{formatPrice(order.total + order.discountAmount - order.shippingTotal, order.currency as Currency, locale)}</span>
                   </div>
                   {order.discountAmount > 0 && (
                     <div className="flex justify-between text-sm text-emerald-600 mt-1.5">
                       <span>{t("checkout.discount")}{order.couponCode ? ` (${order.couponCode})` : ""}</span>
-                      <span>-{formatPrice(order.discountAmount, order.currency as Currency)}</span>
+                      <span>-{formatPrice(order.discountAmount, order.currency as Currency, locale)}</span>
                     </div>
                   )}
                   {order.shippingTotal > 0 && (
                     <div className="flex justify-between text-sm text-muted-foreground mt-1.5">
                       <span>{t("checkout.shipping")}</span>
-                      <span>{formatPrice(order.shippingTotal, order.currency as Currency)}</span>
+                      <span>{formatPrice(order.shippingTotal, order.currency as Currency, locale)}</span>
                     </div>
                   )}
                   <Separator className="my-3" />
@@ -411,7 +411,7 @@ export default async function CheckoutSuccessPage({
               )}
               <div className="flex justify-between font-semibold text-sm">
                 <span>{t("checkout.total")}</span>
-                <span>{formatPrice(order.total, order.currency as Currency)}</span>
+                <span>{formatPrice(order.total, order.currency as Currency, locale)}</span>
               </div>
             </CardContent>
           </Card>

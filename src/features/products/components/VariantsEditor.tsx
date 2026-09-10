@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useWatch, useFormState, type UseFormReturn } from "react-hook-form";
 import { Plus, X, RefreshCw, ImageOff } from "lucide-react";
@@ -13,11 +13,12 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ChangedHint } from "@/components/forms/ChangedHint";
 import { Label } from "@/components/ui/label";
-import { PriceInput } from "./PriceInput";
+import { MoneyField } from "@/components/forms/MoneyField";
 import { useCurrencyStore } from "@/store/currency";
 import { cn } from "@/lib/utils";
-import { formatPrice, convertCents, decimalToCents } from "@/lib/currency";
-import type { Currency } from "@/lib/currency-config";
+import { formatPrice } from "@/lib/currency";
+import { emptyMoneyInput, type MoneyInput } from "@/lib/money-input";
+import type { MoneySet } from "@/lib/money";
 import { getLabel } from "@/features/attributes/utils/translations";
 import type { AttributeSelectorItem } from "@/features/attributes/db/attributes";
 import type { CategoryTreeItem } from "@/features/categories/db/categories";
@@ -50,23 +51,30 @@ export function VariantsEditor({
   categoryAttributeMap,
   categoryTree,
   uploadedMedia,
+  savedPriceMoney = [],
 }: {
   form: Form;
   attributeLibrary: AttributeSelectorItem[];
   categoryAttributeMap: Record<string, string[]>;
   categoryTree: CategoryTreeItem[];
   uploadedMedia: PresignedUploadedMedia[];
+  /**
+   * Each saved variant's stored price set, matched to a row by its option
+   * signature. The form value only carries the authoring (the currency the
+   * price is exact in), so this is what lets a row's MoneyField show the
+   * stored amount for every other currency instead of converting one.
+   */
+  savedPriceMoney?: { options: { attributeId: string; optionId: string }[]; price: MoneySet | null }[];
 }) {
   const t = useTranslations("productForm");
   const locale = useLocale();
   const { rates, currency } = useCurrencyStore();
 
-  // Each row's PriceInput has its own inline currency selector - track what
+  // Each row's MoneyField carries its own currency selector - track what
   // each is currently showing (keyed by row index, same as everything else
   // in this list) so that row's saved-value hint can match it instead of
   // always showing raw USD.
-  const [priceCurrencyByRow, setPriceCurrencyByRow] = useState<Record<number, Currency>>({});
-  const priceCurrencyFor = (i: number): Currency => priceCurrencyByRow[i] ?? currency;
+
 
   const categoryIdsRaw = useWatch({ control: form.control, name: "categoryIds" });
   const categoryIds = useMemo(
@@ -296,14 +304,15 @@ export function VariantsEditor({
   for (const sv of (savedFormValues?.variants ?? []) as Partial<VariantRow>[]) {
     savedBySig.set(sigOf((sv.options ?? []) as VariantRow["options"]), sv);
   }
-  // Variant prices live in USD-base dollars in the form, but the saved-value
-  // hint should match whatever currency that row's PriceInput is currently
-  // showing (see priceCurrencyByRow above) - not raw USD.
-  const fmtPrice = (fieldCurrency: Currency) => (n: unknown) =>
-    formatPrice(
-      convertCents(decimalToCents(Number(n)), fieldCurrency, rates[fieldCurrency] ?? 1),
-      fieldCurrency,
-    );
+  // Same keying, for the stored sets the form value cannot carry.
+  const storedPriceBySig = new Map<string, MoneySet | null>();
+  for (const sv of savedPriceMoney) storedPriceBySig.set(sigOf(sv.options), sv.price);
+  // The hint formats the row's own MoneyInput, so it always reads in the same
+  // currency the field shows and cannot disagree with it.
+  const fmtPrice = (m: unknown) => {
+    const input = m as MoneyInput | null | undefined;
+    return input ? formatPrice(input.amount, input.currency, locale) : "-";
+  };
 
   // Saved baseline for the option pills themselves (as opposed to the saved
   // variant rows above). Read straight off the baseline of the `options` field
@@ -487,21 +496,22 @@ export function VariantsEditor({
               </div>
               <div className="space-y-1">
                 <Label className="text-xs font-medium" required>{t("price")}</Label>
-                <PriceInput
+                <MoneyField
                   aria-invalid={!!errMsg(i, "price")}
-                  value={v.price}
-                  onChange={(usd) => setField(i, { price: usd })}
+                  value={v.price ?? emptyMoneyInput(currency)}
+                  onChange={(next) => setField(i, { price: next })}
                   rates={rates}
-                  defaultCurrency={currency}
-                  onCurrencyChange={(c) => setPriceCurrencyByRow((prev) => ({ ...prev, [i]: c }))}
+                  stored={storedPriceBySig.get(sigOf(v.options ?? []))}
+                  preferredCurrency={currency}
+                  showDerived
                 />
                 {errMsg(i, "price") && (
                   <p className="text-xs text-destructive">{errMsg(i, "price")}</p>
                 )}
                 {saved?.price != null && (
                   <ChangedHint
-                    changed={Number(saved.price) !== Number(v.price)}
-                    savedText={fmtPrice(priceCurrencyFor(i))(saved.price)}
+                    changed={JSON.stringify(saved.price) !== JSON.stringify(v.price)}
+                    savedText={fmtPrice(saved.price)}
                   />
                 )}
               </div>

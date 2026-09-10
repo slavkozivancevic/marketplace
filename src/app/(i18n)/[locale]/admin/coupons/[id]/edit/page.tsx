@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Link, getPathname } from "@/i18n/navigation";
 import { getCouponById } from "@/features/coupons/db/coupons";
 import { CouponForm } from "@/features/coupons/components/CouponForm";
+import { parseMoney } from "@/lib/money";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -46,7 +47,12 @@ export default async function EditCouponRoute({ params }: Props) {
             code: coupon.code,
             type: coupon.type,
             value: coupon.value,
+            // PERCENT carries no money set - `value` is a percentage, and
+            // rebuilding one from it would treat 20% as $0.20.
+            valueMoney:
+              coupon.type === "FIXED" ? parseMoney(coupon.valueMoney, coupon.value) : null,
             minOrder: coupon.minOrder,
+            minOrderMoney: parseMoney(coupon.minOrderMoney, coupon.minOrder),
             usageLimit: coupon.usageLimit,
             perUserLimit: coupon.perUserLimit,
             expiresAt: coupon.expiresAt ? coupon.expiresAt.toISOString() : null,

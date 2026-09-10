@@ -466,7 +466,8 @@
     "continueShoppingPending": "Wird geladen...",
     "total": "Gesamt",
     "shipping": "Versand",
-    "freeShippingNudge": "Noch {amount} bei {seller} für kostenlosen Versand"
+    "freeShippingNudge": "Noch {amount} bei {seller} für kostenlosen Versand",
+    "freeShipping": "Kostenlos"
   },
   "admin": {
     "audit": {
@@ -906,7 +907,8 @@
     "quantity": "Menge",
     "decreaseQty": "Menge verringern",
     "increaseQty": "Menge erhöhen",
-    "removeItem": "Artikel entfernen"
+    "removeItem": "Artikel entfernen",
+    "itemRemoved": "{item} wurde aus deinem Warenkorb entfernt, da es nicht mehr verfügbar ist."
   },
   "reviews": {
     "write": "Bewertung schreiben",
@@ -1141,7 +1143,7 @@
     "brand": "Marke",
     "images": "Bilder",
     "media": "Medien",
-    "pricingCurrencyNote": "Preise werden in USD gespeichert. Sie können Beträge in beliebiger Währung eingeben – sie werden automatisch konvertiert.",
+    "pricingCurrencyNote": "Erfassen Sie den Preis in der Währung, in der Sie tatsächlich verkaufen. Genau diesen Betrag zahlen Käufer in dieser Währung, und er ändert sich nicht mit dem Wechselkurs. Die anderen Währungen werden daraus umgerechnet.",
     "attributesTitle": "Attribute",
     "attributesDesc": "Füllen Sie die Attribute für die gewählten Kategorien aus. Sie steuern die Shop-Filter.",
     "attributeSelectPlaceholder": "Auswählen...",
@@ -1455,7 +1457,22 @@
     "hintStatus": "DRAFT (Standard), PUBLISHED oder ARCHIVED.",
     "hintCountryOfOrigin": "ISO 3166-1 Alpha-2 Code, z. B. DE, RS, CN",
     "hintWarrantyMonths": "ganze Zahl in Monaten, 0 für keine Garantie, leer wenn nicht angegeben",
-    "hintSlug": "URL-Slug. Leer lassen zur automatischen Generierung aus dem Titel."
+    "hintSlug": "URL-Slug. Leer lassen zur automatischen Generierung aus dem Titel.",
+    "errTitleRequired": "title ist erforderlich",
+    "errDescriptionRequired": "description ist erforderlich",
+    "errPrice": "price muss eine nicht negative Zahl sein",
+    "errCompareAtPrice": "compareAtPrice muss eine Zahl sein",
+    "errCostPrice": "costPrice muss eine Zahl sein",
+    "errPriceCurrency": "priceCurrency muss eines von {currencies} sein",
+    "errStock": "stock muss eine ganze Zahl sein",
+    "errWeight": "weight muss eine Zahl sein",
+    "errWeightUnit": "weightUnit muss G, KG, LB oder OZ sein",
+    "errDimensionNumber": "{column} muss eine Zahl sein",
+    "errDimensionPositive": "{column} muss groesser als 0 sein",
+    "errDimensionUnit": "dimensionUnit muss CM oder IN sein",
+    "errStatus": "status muss DRAFT, PUBLISHED oder ARCHIVED sein",
+    "errWarrantyMonths": "warrantyMonths muss eine ganze Zahl zwischen 0 und {max} sein",
+    "errCountryOfOrigin": "countryOfOrigin muss ein ISO-3166-1-alpha-2-Code sein, z. B. DE"
   },
   "csvTranslations": {
     "step1Title": "1. Aktuelle Übersetzungen exportieren",
@@ -1606,7 +1623,8 @@
     "payoutAfterRefunds": "Auszahlung nach Rückerstattungen",
     "shippingCollected": "Versand (eingezogen)",
     "codBalanceNettedLabel": "Einbehalten für geschuldete Nachnahme-Provision",
-    "codBalanceNettedNote": "Ein Teil dieser Auszahlung wurde einbehalten, um die Provision zu begleichen, die Ihre Organisation aus früheren Nachnahme-Bestellungen schuldet. Den verbleibenden Saldo finden Sie auf der Auszahlungsseite."
+    "codBalanceNettedNote": "Ein Teil dieser Auszahlung wurde einbehalten, um die Provision zu begleichen, die Ihre Organisation aus früheren Nachnahme-Bestellungen schuldet. Den verbleibenden Saldo finden Sie auf der Auszahlungsseite.",
+    "codDebtRestoredNote": "Diese Bestellung wurde erstattet, daher wurden die oben einbehaltenen {amount} als geschuldete Provision wieder Ihrem Nachnahme-Saldo zugebucht - dieser Teil der Auszahlung hat Ihr Konto nie erreicht, er hat damals nur Ihre Schuld verringert."
   },
   "interactions": {
     "frequentlyBoughtTogetherEyebrow": "Zusammen gekauft",
@@ -1650,7 +1668,8 @@
     "duplicateAxis": "Diese Variante wiederholt dieselbe Achse",
     "duplicateVariantCombo": "Gleiche Optionskombination wie Variante #{other}",
     "duplicateSku": "Doppelte SKU \"{sku}\" (auch Variante #{other})",
-    "couponPercentRange": "Der Prozentsatz muss zwischen 1 und 100 liegen"
+    "couponPercentRange": "Der Prozentsatz muss zwischen 1 und 100 liegen",
+    "couponAmountPositive": "Geben Sie einen Rabattbetrag größer als null ein"
   },
   "coupons": {
     "title": "Gutscheine",
@@ -1919,7 +1938,8 @@
     "productDescriptionRequiredBeforePublish": "Produktbeschreibung ist vor der Veröffentlichung erforderlich",
     "productPriceRequiredBeforePublish": "Produktpreis muss vor der Veröffentlichung größer als 0 sein",
     "productMediaRequiredBeforePublish": "Vor der Veröffentlichung ist mindestens ein Produktbild oder -video erforderlich",
-    "invalidStatusTransition": "Ungültiger Statusübergang von {from} zu {to}"
+    "invalidStatusTransition": "Ungültiger Statusübergang von {from} zu {to}",
+    "exchangeRateUnavailable": "Der Wechselkurs für {currency} ist derzeit nicht verfügbar, daher konnte der Preis nicht gespeichert werden. Bitte versuchen Sie es gleich erneut."
   },
   "adminCodBalances": {
     "title": "Nachnahme-Salden",
@@ -1939,5 +1959,13 @@
     "settled": "{amount} beglichen",
     "amountTooHigh": "Der Betrag darf den aktuell geschuldeten Saldo nicht überschreiten.",
     "settling": "Wird beglichen..."
+  },
+  "money": {
+    "useConverted": "Wieder umrechnen",
+    "derivedHint": "Umgerechnet aus dem Preis in {currency}.",
+    "storedHint": "Gespeicherte Beträge. Der Preis wurde in {currency} erfasst.",
+    "enterManually": "Manuell erfassen",
+    "enterManuallyTooltip": "Einen exakten Betrag für diese Währung erfassen. Er bleibt genau so und ändert sich bei späteren Kursänderungen nicht.",
+    "useConvertedTooltip": "Diese Währung wieder aus dem Preis oben umrechnen."
   }
 }
