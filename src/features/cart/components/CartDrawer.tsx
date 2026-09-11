@@ -187,7 +187,7 @@ export function CartDrawer() {
                           </p>
                         )}
                         <p className="text-sm font-semibold">
-                          {formatPrice(moneyAmount(item.priceMoney, item.price) * item.quantity, currency, locale)}
+                          {formatPrice(moneyAmount(item.priceMoney) * item.quantity, currency, locale)}
                         </p>
 
                         <div className="flex items-center gap-2 mt-1 select-none">
@@ -258,7 +258,7 @@ export function CartDrawer() {
                   <span>
                     {formatPrice(
                       items.reduce(
-                        (sum, i) => sum + moneyAmount(i.priceMoney, i.price) * i.quantity,
+                        (sum, i) => sum + moneyAmount(i.priceMoney) * i.quantity,
                         0,
                       ),
                       currency, locale,

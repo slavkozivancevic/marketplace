@@ -142,8 +142,8 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
           <div className="absolute top-3 left-0 flex flex-col items-start gap-1 pointer-events-none">
             <span className="bg-linear-to-r from-red-500 to-rose-600 text-white text-sm font-black px-4 py-1.5 rounded-r-full shadow-lg shadow-red-500/50 tracking-wider uppercase">
               -{(() => {
-                const was = moneyAmount(product.compareAtPriceMoney, product.compareAtPrice);
-                const now = moneyAmount(product.priceMoney, product.price);
+                const was = moneyAmount(product.compareAtPriceMoney);
+                const now = moneyAmount(product.priceMoney);
                 return was > 0 ? Math.round(((was - now) / was) * 100) : 0;
               })()}%
             </span>
@@ -174,11 +174,11 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
         <div className="flex items-center justify-between">
           {isOnSale ? (
             <div className="flex items-baseline gap-1.5">
-              <p className="text-sm font-medium text-red-500">{format(product.priceMoney, product.price)}</p>
-              <p className="text-xs text-muted-foreground line-through">{format(product.compareAtPriceMoney, product.compareAtPrice)}</p>
+              <p className="text-sm font-medium text-red-500">{format(product.priceMoney)}</p>
+              <p className="text-xs text-muted-foreground line-through">{format(product.compareAtPriceMoney)}</p>
             </div>
           ) : (
-            <p className="text-sm font-medium">{format(product.priceMoney, product.price)}</p>
+            <p className="text-sm font-medium">{format(product.priceMoney)}</p>
           )}
           <Badge
             variant={

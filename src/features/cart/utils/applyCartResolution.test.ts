@@ -2,6 +2,10 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { applyCartResolution } from "./applyCartResolution";
 import { useCartStore, type CartItem } from "../store/cartStore";
 import type { CartItemRef, CartLinePrice } from "../db/resolveCart";
+import { authorMoney } from "@/lib/money";
+
+/** A price snapshot the way the store holds one: mirror plus its set. */
+const usd = (cents: number) => authorMoney(cents, "usd", { usd: 1 });
 
 function line(productId: string, price = 1000): CartItem {
   return {
@@ -14,7 +18,7 @@ function line(productId: string, price = 1000): CartItem {
     variantOptions: null,
     variantLabel: null,
     price,
-    priceMoney: null,
+    priceMoney: usd(price),
     quantity: 1,
     maxStock: null,
     requiresShipping: true,
@@ -31,7 +35,7 @@ const priceOf = (productId: string, unitPriceUsd: number): CartLinePrice => ({
   productId,
   variantId: null,
   unitPriceUsd,
-  unitMoney: null,
+  unitMoney: usd(unitPriceUsd),
 });
 
 describe("applyCartResolution", () => {

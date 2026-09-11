@@ -2,7 +2,7 @@ import { logger } from "@/lib/logger";
 import { prisma } from "@/core/db/prisma";
 import { Prisma, CouponType } from "@/generated/prisma/client";
 import { resolveCart, type CartItemRef } from "@/features/cart/db/resolveCart";
-import { moneyIn, parseMoney, serializeMoney, type CurrencyRates, type MoneySet } from "@/lib/money";
+import { moneyIn, requireMoney, serializeMoney, type CurrencyRates, type MoneySet } from "@/lib/money";
 import type { Currency } from "@/lib/currency-config";
 
 export type { CartItemRef };
@@ -137,17 +137,20 @@ export async function validateCoupon(
     }
   }
   if (coupon.minOrder != null) {
-    const minOrderSet = parseMoney(coupon.minOrderMoney, coupon.minOrder);
-    const minOrder = minOrderSet
-      ? moneyIn(minOrderSet, ctx.currency, ctx.rates)
-      : coupon.minOrder;
+    // Mirror and set are written together, so a minimum that exists has a set.
+    // The old fallback compared the USD mirror against a subtotal in the
+    // buyer's currency, which is only right by accident when that is USD.
+    const minOrderSet = requireMoney(coupon.minOrderMoney, `Coupon.minOrderMoney on ${coupon.id}`);
+    const minOrder = moneyIn(minOrderSet, ctx.currency, ctx.rates);
     if (ctx.subtotal < minOrder) {
       return { ok: false, reason: "minOrder", minOrder, minOrderUsd: coupon.minOrder };
     }
   }
 
   const valueMoney =
-    coupon.type === CouponType.FIXED ? parseMoney(coupon.valueMoney, coupon.value) : null;
+    coupon.type === CouponType.FIXED
+      ? requireMoney(coupon.valueMoney, `Coupon.valueMoney on ${coupon.id}`)
+      : null;
   const fixedInCurrency = valueMoney
     ? moneyIn(valueMoney, ctx.currency, ctx.rates)
     : coupon.value;

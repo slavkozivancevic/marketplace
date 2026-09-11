@@ -1,7 +1,6 @@
 import { logger } from "@/lib/logger";
 import { prisma } from "@/core/db/prisma";
-import { convertCents } from "@/lib/currency";
-import { moneyIn, parseMoney } from "@/lib/money";
+import { moneyIn, requireMoney } from "@/lib/money";
 import type { Currency } from "@/lib/currency-config";
 import {
   Prisma,
@@ -437,10 +436,8 @@ export async function fulfillOrder({
   const curr = (currency ?? "usd") as Currency;
   // Snapshot the price the buyer was actually charged: the exact amount stored
   // for the order currency, not a conversion of the USD mirror.
-  const unitIn = (row: { price: number; priceMoney: unknown }, c: Currency, r: number) => {
-    const set = parseMoney(row.priceMoney, Number(row.price));
-    return set ? moneyIn(set, c, { [c]: r }) : convertCents(Number(row.price), c, r);
-  };
+  const unitIn = (row: { id: string; priceMoney: unknown }, c: Currency, r: number) =>
+    moneyIn(requireMoney(row.priceMoney, `priceMoney on ${row.id}`), c, { [c]: r });
 
   const itemsWithPrice = items.map((item) => {
     if (item.variantId) {
@@ -615,13 +612,10 @@ export async function createCodOrder({
   const productMap = new Map(products.map((p) => [p.id, p]));
 
   // Same rule as the Stripe path above: the stored per-currency amount wins.
-  const unitIn = (row: { price: number; priceMoney: unknown }) => {
-    const set = parseMoney(row.priceMoney, Number(row.price));
-    const c = currency as Currency;
-    return set
-      ? moneyIn(set, c, { [c]: exchangeRate })
-      : convertCents(Number(row.price), c, exchangeRate);
-  };
+  const unitIn = (row: { id: string; priceMoney: unknown }) =>
+    moneyIn(requireMoney(row.priceMoney, `priceMoney on ${row.id}`), currency as Currency, {
+      [currency]: exchangeRate,
+    });
 
   const itemsWithPrice = items.map((item) => {
     if (item.variantId) {

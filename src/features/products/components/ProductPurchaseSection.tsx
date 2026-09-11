@@ -45,12 +45,12 @@ export function ProductPurchaseSection({
   const localBrandName = product.brand ? getBrandName(product.brand, locale) : "";
 
   const priceSource = activeVariant ?? product;
-  const displayPrice = moneyAmount(priceSource.priceMoney, priceSource.price);
+  const displayPrice = moneyAmount(priceSource.priceMoney);
   const compareAtSource =
     activeVariant && activeVariant.compareAtPrice == null ? product : priceSource;
   const displayCompareAt =
     compareAtSource.compareAtPrice != null
-      ? moneyAmount(compareAtSource.compareAtPriceMoney, compareAtSource.compareAtPrice)
+      ? moneyAmount(compareAtSource.compareAtPriceMoney)
       : null;
   const isOnSale = displayCompareAt != null && displayCompareAt > displayPrice;
 
@@ -79,7 +79,7 @@ export function ProductPurchaseSection({
 
   // The per-SKU table used to be the only place a buyer could see that other
   // variants cost less. One line says the same thing without listing every SKU.
-  const variantPrices = product.variants.map((v) => moneyAmount(v.priceMoney, v.price));
+  const variantPrices = product.variants.map((v) => moneyAmount(v.priceMoney));
   const minVariantPrice = variantPrices.length ? Math.min(...variantPrices) : null;
   const maxVariantPrice = variantPrices.length ? Math.max(...variantPrices) : null;
   const showPriceRange =

@@ -1,3 +1,5 @@
+import { moneyCol } from "@/core/db/moneyColumns";
+import { zeroMoney } from "@/lib/money";
 import { prisma } from "@/core/db/prisma";
 import { cacheTag, revalidatePath } from "next/cache";
 import { revalidateUserCache } from "./cache";
@@ -80,12 +82,17 @@ export async function createOrUpdateUserFromClerk(params: {
     });
 
     if (membershipCount === 0) {
+      // A new org ships free until its owner sets a fee, but the fee still
+      // needs its MoneySet: mirror and set are written together, always.
+      const noShippingFee = moneyCol(zeroMoney());
       const organization = await tx.organization.create({
         data: {
           name: params.name
             ? `${params.name}'s Organization`
             : "My Organization",
           verified: params.role === "SELLER",
+          shippingFlatRate: noShippingFee.mirror,
+          shippingFlatRateMoney: noShippingFee.json,
         },
       });
 

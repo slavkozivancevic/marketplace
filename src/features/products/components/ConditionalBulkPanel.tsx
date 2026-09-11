@@ -988,7 +988,7 @@ function PreviewCard({ preview }: { preview: PreviewResult }) {
               {preview.samples.map((p) => (
                 <tr key={p.id} className="border-b last:border-b-0">
                   <td className="px-3 py-1.5 max-w-50 truncate font-medium">{p.title}</td>
-                  <td className="px-3 py-1.5">{format(p.priceMoney, p.price)}</td>
+                  <td className="px-3 py-1.5">{format(p.priceMoney)}</td>
                   <td className="px-3 py-1.5">
                     <Badge variant={getStatusVariant(p.status)} className="text-[10px]">
                       {STATUS_LABELS[p.status] ?? p.status}

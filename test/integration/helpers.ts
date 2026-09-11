@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/core/db/prisma";
 import type { CouponType, ProductStatus } from "@/generated/prisma/client";
+import { moneyCol, optionalMoneyCol } from "@/core/db/moneyColumns";
+import { authorMoney, zeroMoney } from "@/lib/money";
 
 export { prisma };
 
@@ -22,6 +24,19 @@ export async function resetDb(): Promise<void> {
 // Minimal valid rows for the logic under test. Unique fields use a random
 // suffix so fixtures never collide within a test.
 
+/**
+ * Fixture money: the USD-cent mirror and its MoneySet, written together the way
+ * the application writes them - `Product.priceMoney` and friends are NOT NULL.
+ * There is no CurrencyRate row in a fresh test database, so the set is USD-only,
+ * which is exactly what a USD-priced product looks like.
+ */
+const usdSet = (cents: number) => authorMoney(cents, "usd", { usd: 1 });
+
+function priceCols(cents: number) {
+  const { mirror, json } = moneyCol(usdSet(cents));
+  return { price: mirror, priceMoney: json };
+}
+
 export function createUser(overrides: { email?: string; clerkUserId?: string } = {}) {
   const id = randomUUID();
   return prisma.user.create({
@@ -37,6 +52,7 @@ export function createOrganization(overrides: { name?: string; verified?: boolea
     data: {
       name: overrides.name ?? `Org ${randomUUID().slice(0, 8)}`,
       verified: overrides.verified ?? true,
+      shippingFlatRateMoney: moneyCol(zeroMoney()).json,
     },
   });
 }
@@ -50,7 +66,7 @@ export function createProduct(input: {
   return prisma.product.create({
     data: {
       organizationId: input.organizationId,
-      price: input.price ?? 1000,
+      ...priceCols(input.price ?? 1000),
       stock: input.stock ?? 10,
       status: input.status ?? "PUBLISHED",
     },
@@ -67,7 +83,7 @@ export function createVariant(input: {
     data: {
       productId: input.productId,
       sku: input.sku ?? `SKU-${randomUUID().slice(0, 8)}`,
-      price: input.price ?? 1000,
+      ...priceCols(input.price ?? 1000),
       stock: input.stock ?? 10,
     },
   });
@@ -101,12 +117,19 @@ export function createCoupon(input: {
   expiresAt?: Date | null;
   active?: boolean;
 }) {
+  const type = input.type ?? "PERCENT";
+  // A FIXED coupon's value is money and carries a set; a PERCENT one's value is
+  // a percentage and deliberately has none. A minimum is always money.
+  const value = optionalMoneyCol(type === "FIXED" ? usdSet(input.value) : null);
+  const minOrder = optionalMoneyCol(input.minOrder != null ? usdSet(input.minOrder) : null);
   return prisma.coupon.create({
     data: {
       code: (input.code ?? `TEST${randomUUID().slice(0, 6)}`).toUpperCase(),
-      type: input.type ?? "PERCENT",
-      value: input.value,
-      minOrder: input.minOrder ?? null,
+      type,
+      value: value.mirror ?? input.value,
+      valueMoney: value.json,
+      minOrder: minOrder.mirror,
+      minOrderMoney: minOrder.json,
       usageLimit: input.usageLimit ?? null,
       usageCount: input.usageCount ?? 0,
       expiresAt: input.expiresAt ?? null,

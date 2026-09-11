@@ -16,6 +16,7 @@
 //   I. searchText rebuild for every product (mirrors refreshProductSearchText)
 
 import { PrismaClient, Prisma } from "../../src/generated/prisma/client";
+import { authorMoney, requireMoney, serializeMoney, type CurrencyRates } from "../../src/lib/money";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { electronics } from "./content/products-electronics";
 import { fashion } from "./content/products-fashion";
@@ -27,6 +28,37 @@ import type { Locale, ProductContent } from "./content/types";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
+
+/**
+ * Every price this script writes must land as a mirror AND a MoneySet, in the
+ * same statement. A bare mirror is not merely incomplete: the repair pass only
+ * fills rows whose set is NULL, so a mirror written next to a STALE set is a
+ * disagreement nothing downstream will ever fix, and it blocks the columns from
+ * going NOT NULL. See src/core/db/moneyColumns.ts for the same rule in the app.
+ */
+let ratesCache: CurrencyRates | null = null;
+async function getRates(): Promise<CurrencyRates> {
+  if (ratesCache) return ratesCache;
+  const rows = await prisma.currencyRate.findMany();
+  const rates: CurrencyRates = { usd: 1 };
+  for (const row of rows) rates[row.code] = Number(row.rate);
+  for (const c of ["eur", "rsd"]) {
+    if (!rates[c]) {
+      throw new Error(
+        `No CurrencyRate row for "${c}". Seed the rates first (POST ` +
+          `/api/internal/currency-rates), then re-run - otherwise every price ` +
+          `written here would be missing that currency.`,
+      );
+    }
+  }
+  ratesCache = rates;
+  return rates;
+}
+
+/** Mirror + set for a fresh USD-cent amount this script computed itself. */
+async function usdPrice(cents: number) {
+  return { price: cents, priceMoney: serializeMoney(authorMoney(cents, "usd", await getRates())) };
+}
 
 const LOCALES: Locale[] = ["en", "sr", "de", "es"];
 const DEFAULT_LOCALE: Locale = "en";
@@ -475,7 +507,9 @@ async function applyProducts(brandIdBySlug: Map<string, string>) {
       select: {
         id: true,
         price: true,
+        priceMoney: true,
         compareAtPrice: true,
+        compareAtPriceMoney: true,
         stock: true,
         brandId: true,
         media: { select: { id: true, order: true }, orderBy: { order: "asc" } },
@@ -597,12 +631,21 @@ async function applyProducts(brandIdBySlug: Map<string, string>) {
             }
             const price = Math.round(product.price * opt.priceFactor);
             createdPrices.push(price);
+            // A NEW amount (the factor changed it), so it gets a freshly authored
+            // USD set rather than a copy of the product's.
+            const priced = await usdPrice(price);
             const created = await prisma.productVariant.create({
               data: {
                 productId,
                 sku: `${enSlug.toUpperCase()}-${opt.value.toUpperCase()}`,
-                price,
+                ...priced,
+                // Unchanged amount, so the stored set is carried across verbatim -
+                // re-deriving it would shift the copy away from its product.
                 compareAtPrice: opt.priceFactor === 1 ? product.compareAtPrice : null,
+                compareAtPriceMoney:
+                  opt.priceFactor === 1
+                    ? (product.compareAtPriceMoney ?? Prisma.DbNull)
+                    : Prisma.DbNull,
                 stock: opt.stock,
                 order: idx++,
                 attributeValues: { create: [{ attributeId: axis.id, optionId }] },
@@ -616,7 +659,13 @@ async function applyProducts(brandIdBySlug: Map<string, string>) {
             }
           }
           const minPrice = createdPrices.length ? Math.min(...createdPrices) : product.price;
-          await prisma.product.update({ where: { id: productId }, data: { stock: null, price: minPrice } });
+          // The mirror and the set move together. Writing `price` alone left the
+          // product claiming one amount in USD and another in its set, which the
+          // repair pass does NOT fix - it only fills sets that are missing.
+          await prisma.product.update({
+            where: { id: productId },
+            data: { stock: null, ...(await usdPrice(minPrice)) },
+          });
         }
       }
     }
@@ -636,6 +685,7 @@ async function applyProtonExtras(orgId: string) {
     select: {
       id: true,
       price: true,
+      priceMoney: true,
       stock: true,
       translations: { select: { id: true, locale: true, title: true, shortDescription: true, metaTitle: true, metaDescription: true } },
       variants: { select: { id: true } },
@@ -674,7 +724,10 @@ async function applyProtonExtras(orgId: string) {
           data: {
             productId: p.id,
             sku: `${skuBase}-${c.value.toUpperCase()}`,
+            // Same amount as the product, so carry its set instead of deriving a
+            // new one - a copy must not drift from what it was copied from.
             price: p.price,
+            priceMoney: serializeMoney(requireMoney(p.priceMoney, `Product.priceMoney on ${p.id}`)),
             stock: c.stock,
             order: i,
             attributeValues: { create: [{ attributeId: colorAttr.id, optionId }] },
@@ -747,12 +800,12 @@ async function main() {
   await rebuildSearchText();
   console.log(`\n✅ Done. ${warnings.length} warning(s).`);
 
-  // Prices written here land in the USD-cent mirror columns only. Until the
-  // MoneySets are materialized, non-USD prices are derived at read time and so
-  // still move with the daily rate - the exact drift the money layer removes.
+  // Every price this script writes now carries its MoneySet alongside the USD
+  // mirror, so the backfill is no longer a required follow-up. It stays worth
+  // running as a check.
   console.log(
-    "\n[!] Run the money backfill against this same database next:" +
-      "\n    DATABASE_URL=<direct-neon-url> npx tsx scripts/backfill-money-sets.ts",
+    "\n[i] Optional check that every price here landed with its set:" +
+      "\n    DATABASE_URL=<direct-neon-url> npx tsx scripts/backfill-money-sets.ts --verify",
   );
 
   if (warnings.length) {

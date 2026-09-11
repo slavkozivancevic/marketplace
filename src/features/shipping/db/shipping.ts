@@ -1,7 +1,7 @@
 import { prisma } from "@/core/db/prisma";
 import { resolveCart, type CartItemRef, type ResolvedCartLine } from "@/features/cart/db/resolveCart";
 import { cartSubtotalIn } from "@/features/cart/db/resolveCart";
-import { moneyIn, parseMoney, type MoneySet } from "@/lib/money";
+import { moneyIn, parseMoney, requireMoney, type MoneySet } from "@/lib/money";
 import type { MoneyContext } from "@/features/currency/db/activeCurrency";
 import type { Currency } from "@/lib/currency-config";
 
@@ -102,13 +102,15 @@ export async function shippingLinesForResolved(
     const subtotal = cartSubtotalIn(linesByOrg.get(org.id) ?? [], currency, rates);
     const subtotalUsd = orgSubtotalUsd.get(org.id) ?? 0;
 
-    const flatRateMoney = parseMoney(org.shippingFlatRateMoney, org.shippingFlatRate);
-    const flatRate = flatRateMoney ? moneyIn(flatRateMoney, currency, rates) : 0;
+    const flatRateMoney = requireMoney(
+      org.shippingFlatRateMoney,
+      "Organization.shippingFlatRateMoney",
+    );
+    const flatRate = moneyIn(flatRateMoney, currency, rates);
 
-    const thresholdMoney =
-      org.shippingFreeThreshold != null
-        ? parseMoney(org.shippingFreeThresholdMoney, org.shippingFreeThreshold)
-        : null;
+    // No set means no threshold: the two columns are written together, so this
+    // no longer needs to be cross-checked against the mirror.
+    const thresholdMoney = parseMoney(org.shippingFreeThresholdMoney);
     const freeThreshold = thresholdMoney ? moneyIn(thresholdMoney, currency, rates) : null;
 
     // Judged in the buyer's currency, against the amount the seller actually

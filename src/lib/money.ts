@@ -101,6 +101,20 @@ export function authorMoney(
 }
 
 /**
+ * The set for an amount of zero.
+ *
+ * Zero converts to zero at every rate, so this is the one set that can be built
+ * without reading a rate - which is what lets a row be created before any
+ * `CurrencyRate` is in hand (a new organization's shipping fee, a fixture).
+ * Everything else must go through `authorMoney`.
+ */
+export function zeroMoney(): MoneySet {
+  const amounts: Partial<Record<Currency, number>> = {};
+  for (const c of VALID_CURRENCIES) amounts[c] = 0;
+  return { primary: "usd", amounts, authored: ["usd"], rates: { usd: 1 } };
+}
+
+/**
  * Pins one currency to an exact amount (the "fixed price for this market"
  * override). Setting the primary currency re-derives every entry that is still
  * derived; setting another currency only pins that one.
@@ -189,16 +203,18 @@ export function isAuthoredIn(set: MoneySet, currency: Currency): boolean {
 }
 
 /**
- * Reads a `MoneySet` back out of a Json column.
+ * Reads a `MoneySet` back out of a Json column. A plain deserializer: null in,
+ * null out, malformed in, null out.
  *
- * Tolerant on purpose: rows written before this module existed, or by an older
- * deploy, hold no JSON at all. `fallbackUsdCents` (the mirror column, which is
- * always present) reconstructs a USD-primary set so nothing renders as 0.
+ * It used to take the mirror column as a second argument and rebuild a USD-only
+ * set from it when the Json was missing - a net for rows written before this
+ * module existed. Those rows were backfilled, and
+ * `20260911093000_money_sets_not_null` made the guarantee a schema constraint,
+ * so the net is gone. It had to go: a genuinely corrupt set came back as a
+ * plausible USD-only set, which is exactly how a currency bug hides. Where the
+ * column is NOT NULL, use `requireMoney` and let it fail loudly instead.
  */
-export function parseMoney(
-  value: unknown,
-  fallbackUsdCents: number | null | undefined,
-): MoneySet | null {
+export function parseMoney(value: unknown): MoneySet | null {
   const isCurrency = (c: unknown): c is Currency =>
     typeof c === "string" && (VALID_CURRENCIES as readonly string[]).includes(c);
 
@@ -229,13 +245,34 @@ export function parseMoney(
     }
   }
 
-  if (fallbackUsdCents == null) return null;
-  return {
-    primary: "usd",
-    amounts: { usd: Math.round(fallbackUsdCents) },
-    authored: ["usd"],
-    rates: { usd: 1 },
-  };
+  return null;
+}
+
+/** Thrown when a column that carries a set by contract does not hold one. */
+export class MissingMoneySetError extends Error {
+  constructor(what: string) {
+    super(
+      `${what} holds no usable MoneySet. That column is NOT NULL by contract, ` +
+        `so the row was written by something that bypassed moneyColumns.ts.`,
+    );
+    this.name = "MissingMoneySetError";
+  }
+}
+
+/**
+ * `parseMoney` for the columns the schema guarantees: `Product.priceMoney`,
+ * `ProductVariant.priceMoney`, `ProductHistory.priceMoney` and
+ * `Organization.shippingFlatRateMoney`.
+ *
+ * Throwing is the point. The only way to reach it is a write that went around
+ * `priceColumns`/`moneyCol`, and the alternative - quietly showing a price
+ * derived at today's rate - is the drift this module exists to prevent. A loud
+ * failure on one row beats a wrong number on every row.
+ */
+export function requireMoney(value: unknown, what: string): MoneySet {
+  const set = parseMoney(value);
+  if (!set) throw new MissingMoneySetError(what);
+  return set;
 }
 
 /**
@@ -288,7 +325,7 @@ export function decimalToMinor(decimal: number, currency: Currency): number {
  */
 export function serializeMoneyFields(row: {
   price: number;
-  priceMoney?: unknown;
+  priceMoney: unknown;
   compareAtPrice: number | null;
   compareAtPriceMoney?: unknown;
   costPrice: number | null;
@@ -296,10 +333,10 @@ export function serializeMoneyFields(row: {
 }) {
   return {
     price: Number(row.price),
-    priceMoney: parseMoney(row.priceMoney, Number(row.price)),
+    priceMoney: requireMoney(row.priceMoney, "priceMoney"),
     compareAtPrice: row.compareAtPrice != null ? Number(row.compareAtPrice) : null,
-    compareAtPriceMoney: parseMoney(row.compareAtPriceMoney, row.compareAtPrice),
+    compareAtPriceMoney: parseMoney(row.compareAtPriceMoney),
     costPrice: row.costPrice != null ? Number(row.costPrice) : null,
-    costPriceMoney: parseMoney(row.costPriceMoney, row.costPrice),
+    costPriceMoney: parseMoney(row.costPriceMoney),
   };
 }

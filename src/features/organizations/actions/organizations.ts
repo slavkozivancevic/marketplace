@@ -118,13 +118,13 @@ export async function updateOrganizationShippingAction(
     const stored = await getOrganizationById(ctx.organizationId);
     const flatRate = preserveDerived(
       buildMoneySet(parsed.data.shippingFlatRate, rates),
-      parseMoney(stored?.shippingFlatRateMoney, null),
+      parseMoney(stored?.shippingFlatRateMoney),
     );
     const freeThreshold =
       parsed.data.shippingFreeThreshold != null
         ? preserveDerived(
             buildMoneySet(parsed.data.shippingFreeThreshold, rates),
-            parseMoney(stored?.shippingFreeThresholdMoney, null),
+            parseMoney(stored?.shippingFreeThresholdMoney),
           )
         : null;
 

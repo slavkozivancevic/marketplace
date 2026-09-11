@@ -248,8 +248,8 @@ export function ProductCard({
                 {isOnSale && (
                   <span className="bg-linear-to-r from-red-500 to-rose-600 text-white text-sm font-black px-4 py-1.5 rounded-r-full shadow-lg shadow-red-500/50 tracking-wider uppercase">
                     -{(() => {
-                      const was = moneyAmount(product.compareAtPriceMoney, product.compareAtPrice);
-                      const now = moneyAmount(product.priceMoney, product.price);
+                      const was = moneyAmount(product.compareAtPriceMoney);
+                      const now = moneyAmount(product.priceMoney);
                       return was > 0 ? Math.round(((was - now) / was) * 100) : 0;
                     })()}%
                   </span>
@@ -307,15 +307,15 @@ export function ProductCard({
               {isOnSale ? (
                 <div className="flex items-baseline gap-2 mt-2">
                   <p className="text-lg font-semibold text-red-500">
-                    {format(product.priceMoney, product.price)}
+                    {format(product.priceMoney)}
                   </p>
                   <p className="text-sm text-muted-foreground line-through">
-                    {format(product.compareAtPriceMoney, product.compareAtPrice)}
+                    {format(product.compareAtPriceMoney)}
                   </p>
                 </div>
               ) : (
                 <p className="text-lg font-semibold mt-2">
-                  {format(product.priceMoney, product.price)}
+                  {format(product.priceMoney)}
                 </p>
               )}
             </div>

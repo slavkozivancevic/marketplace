@@ -10,7 +10,7 @@
  * All it adds is resolving the stage's DIRECT database URL; see
  * scripts/lib/stageDatabaseUrl.mjs for why `sst shell` cannot be trusted here.
  *
- * Usage: node scripts/backfill-money-stage.mjs --stage staging [--verify|--dry-run]
+ * Usage: node scripts/backfill-money-stage.mjs --stage staging [--verify|--rederive|--dry-run]
  */
 import { spawnSync } from "node:child_process";
 import { resolveStageDatabaseUrl } from "./lib/stageDatabaseUrl.mjs";
@@ -31,7 +31,9 @@ try {
   process.exit(1);
 }
 
-const passThrough = ["--dry-run", "--verify"].filter((f) => args.includes(f));
+// Whitelisted rather than forwarded wholesale, so a typo'd flag fails loudly
+// here instead of being silently ignored against a deployed database.
+const passThrough = ["--dry-run", "--verify", "--rederive"].filter((f) => args.includes(f));
 
 console.log(`Running the money backfill tool against stage "${stage}" (direct connection)...`);
 // `tsx` is a pinned devDependency, so this resolves from node_modules rather

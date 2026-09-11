@@ -2,6 +2,7 @@ import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { deriveOrderStatus } from "../src/features/orders/status";
+import { authorMoney, serializeMoney, zeroMoney, type CurrencyRates } from "../src/lib/money";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
@@ -589,12 +590,48 @@ async function seedBrands(): Promise<Map<string, string>> {
   return map;
 }
 
+/**
+ * Rates for the derived currencies, read once from the database.
+ *
+ * Every money column is written as a mirror AND a MoneySet - the set columns are
+ * NOT NULL, so there is no "fill it in later". On a database with no
+ * CurrencyRate rows yet the sets come out USD-only, which is honest: the seed
+ * has no rate to derive from, and `moneyIn` still renders those rows in any
+ * currency from the live rate.
+ */
+let ratesCache: CurrencyRates | null = null;
+async function seedRates(): Promise<CurrencyRates> {
+  if (ratesCache) return ratesCache;
+  const rows = await prisma.currencyRate.findMany();
+  const rates: CurrencyRates = { usd: 1 };
+  for (const row of rows) rates[row.code] = Number(row.rate);
+  if (!rates.eur || !rates.rsd) {
+    console.log("   (no CurrencyRate rows - seeded prices will be USD-only sets)");
+  }
+  ratesCache = rates;
+  return rates;
+}
+
+/** Mirror + set for a USD-cent amount the seed made up itself. */
+async function usdMoney(cents: number) {
+  return serializeMoney(authorMoney(cents, "usd", await seedRates()));
+}
+
 async function seedOrgsAndUsers(): Promise<{ orgIds: string[]; userIds: string[]; buyerIds: string[] }> {
   console.log("👥 Organizations + users...");
   const orgIds: string[] = [];
   for (const o of orgSeeds) {
     let org = await prisma.organization.findFirst({ where: { name: o.name } });
-    if (!org) org = await prisma.organization.create({ data: { name: o.name, verified: o.verified } });
+    if (!org)
+      org = await prisma.organization.create({
+        data: {
+          name: o.name,
+          verified: o.verified,
+          // Ships free until someone sets a fee - but the set is written all the
+          // same, because the mirror and the set always travel together.
+          shippingFlatRateMoney: serializeMoney(zeroMoney()),
+        },
+      });
     orgIds.push(org.id);
   }
 
@@ -798,10 +835,15 @@ async function seedProducts(
         url, key: `seed/${baseSlug}/${i}`, thumbUrl: url, thumbKey: `seed/${baseSlug}/${i}-thumb`, mediaType: "IMAGE" as const, order: i,
       }));
 
+      const priceMoney = await usdMoney(price);
+      const compareAtPriceMoney = compareAtPrice != null ? await usdMoney(compareAtPrice) : undefined;
+
       const variants = variantAxes.map((axes, i) => ({
         sku: `${baseSlug}-${i + 1}`.toUpperCase(),
-        price: onSale ? price : price,
+        price,
+        priceMoney,
         compareAtPrice,
+        compareAtPriceMoney,
         stock: randInt(0, 60),
         order: i,
         attributeValues: { create: axes.map((a) => ({ attributeId: a.attributeId, optionId: a.optionId })) },
@@ -812,7 +854,9 @@ async function seedProducts(
       const product = await prisma.product.create({
         data: {
           price,
+          priceMoney,
           compareAtPrice,
+          compareAtPriceMoney,
           stock: variants.length === 0 ? randInt(0, 100) : null,
           status: "PUBLISHED",
           publishedAt: new Date(Date.now() - randInt(0, 120) * 86400000),

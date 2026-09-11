@@ -147,12 +147,12 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
           <CardTitle>{tf("tabPricing")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <Row label={t("priceLabel")} value={fmt(product.priceMoney, product.price)} />
+          <Row label={t("priceLabel")} value={fmt(product.priceMoney)} />
           {product.compareAtPrice != null && (
-            <Row label={tf("compareAtPrice")} value={fmt(product.compareAtPriceMoney, product.compareAtPrice)} />
+            <Row label={tf("compareAtPrice")} value={fmt(product.compareAtPriceMoney)} />
           )}
           {product.costPrice != null && (
-            <Row label={tf("costPrice")} value={fmt(product.costPriceMoney, product.costPrice)} />
+            <Row label={tf("costPrice")} value={fmt(product.costPriceMoney)} />
           )}
           {product.variants?.length === 0 && (
             <Row
@@ -294,12 +294,12 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
               <div key={variant.id} className="border p-3 rounded space-y-1.5">
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
                   <span><strong>{t("sku")}</strong> {variant.sku}</span>
-                  <span><strong>{t("priceLabel")}</strong> {fmt(variant.priceMoney, variant.price)}</span>
+                  <span><strong>{t("priceLabel")}</strong> {fmt(variant.priceMoney)}</span>
                   {variant.compareAtPrice != null && (
-                    <span><strong>{tf("compareAtPrice")}</strong> {fmt(variant.compareAtPriceMoney, variant.compareAtPrice)}</span>
+                    <span><strong>{tf("compareAtPrice")}</strong> {fmt(variant.compareAtPriceMoney)}</span>
                   )}
                   {variant.costPrice != null && (
-                    <span><strong>{tf("costPrice")}</strong> {fmt(variant.costPriceMoney, variant.costPrice)}</span>
+                    <span><strong>{tf("costPrice")}</strong> {fmt(variant.costPriceMoney)}</span>
                   )}
                   <span><strong>{t("stockLabel")}</strong> {variant.stock}</span>
                   {variant.barcode && (

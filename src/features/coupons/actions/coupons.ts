@@ -54,7 +54,7 @@ async function toMutationData(data: CouponInput, existingId?: string) {
   // buyer gets. Absent on create, where there is nothing to preserve.
   const stored = existingId ? await getCouponById(existingId) : null;
   const keep = (built: MoneySet | null, was: unknown) =>
-    built ? preserveDerived(built, parseMoney(was, null)) : null;
+    built ? preserveDerived(built, parseMoney(was)) : null;
 
   const amount = keep(isFixed ? buildMoneySet(data.amount, rates) : null, stored?.valueMoney);
   const minOrder = keep(

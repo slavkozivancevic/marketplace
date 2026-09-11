@@ -352,11 +352,11 @@ export function CheckoutPage() {
                       <p className="text-xs text-muted-foreground">{variantText}</p>
                     )}
                     <p className="text-xs text-muted-foreground">
-                      {formatPrice(moneyAmount(item.priceMoney, item.price), currency, locale)} × {item.quantity}
+                      {formatPrice(moneyAmount(item.priceMoney), currency, locale)} × {item.quantity}
                     </p>
                   </div>
                   <p className="font-semibold shrink-0 ml-4">
-                    {formatPrice(moneyAmount(item.priceMoney, item.price) * item.quantity, currency, locale)}
+                    {formatPrice(moneyAmount(item.priceMoney) * item.quantity, currency, locale)}
                   </p>
                 </div>
               </div>
@@ -402,7 +402,7 @@ export function CheckoutPage() {
 
             {(() => {
               const subtotalCents = items.reduce(
-                (sum, i) => sum + moneyAmount(i.priceMoney, i.price) * i.quantity,
+                (sum, i) => sum + moneyAmount(i.priceMoney) * i.quantity,
                 0,
               );
               // Already resolved in this currency by the server, with the

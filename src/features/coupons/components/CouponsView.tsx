@@ -10,8 +10,8 @@ import { cn } from "@/lib/utils";
 import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { useCurrencyStore } from "@/store/currency";
-import { formatPrice, convertCents } from "@/lib/currency";
-import { moneyIn, parseMoney } from "@/lib/money";
+import { formatPrice } from "@/lib/currency";
+import { moneyIn, requireMoney } from "@/lib/money";
 import { couponSearchParams, type CouponFilters } from "@/lib/query/searchParams";
 import {
   useInfiniteVirtualList,
@@ -189,25 +189,21 @@ function Row({
   const t = useTranslations("coupons");
   const locale = useLocale();
   const dl = dateLocale(useLocale());
-  const { currency, rates, currentRate } = useCurrencyStore();
-  // The exact amount stored for the active currency. Falls back to converting
-  // the USD mirror only for coupons saved before money sets existed.
-  const money = (set: unknown, mirrorUsd: number | null) => {
-    const parsed = parseMoney(set, mirrorUsd);
-    return formatPrice(
-      parsed ? moneyIn(parsed, currency, rates) : convertCents(mirrorUsd ?? 0, currency, currentRate()),
-      currency, locale,
-    );
-  };
+  const { currency, rates } = useCurrencyStore();
+  // The exact amount stored for the active currency. Only ever called where the
+  // coupon has an amount, and a stored amount always carries its set, so there
+  // is nothing to fall back to - a missing one is corruption, not a legacy row.
+  const money = (set: unknown, what: string) =>
+    formatPrice(moneyIn(requireMoney(set, what), currency, rates), currency, locale);
 
   return (
     <div role="row" className={cn(GRID, "border-b px-3 py-2.5 text-sm min-w-fit")}>
       <TruncatedTooltip content={c.code}>
         <div className="font-mono font-medium truncate">{c.code}</div>
       </TruncatedTooltip>
-      <div>{c.type === "PERCENT" ? `${c.value}%` : money(c.valueMoney, c.value)}</div>
+      <div>{c.type === "PERCENT" ? `${c.value}%` : money(c.valueMoney, `Coupon.valueMoney on ${c.id}`)}</div>
       <div className="tabular-nums">
-        {c.minOrder != null ? money(c.minOrderMoney, c.minOrder) : t("form.none")}
+        {c.minOrder != null ? money(c.minOrderMoney, `Coupon.minOrderMoney on ${c.id}`) : t("form.none")}
       </div>
       <div className="tabular-nums whitespace-nowrap">
         {c.usageCount} / {c.usageLimit != null ? c.usageLimit : t("form.unlimited")}

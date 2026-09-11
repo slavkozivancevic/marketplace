@@ -298,7 +298,7 @@ export type WithMoney<T> = Omit<
   price: number;
   compareAtPrice: number | null;
   costPrice: number | null;
-  priceMoney: MoneySet | null;
+  priceMoney: MoneySet;
   compareAtPriceMoney: MoneySet | null;
   costPriceMoney: MoneySet | null;
 };
@@ -321,7 +321,7 @@ export type SerializedProductHistory = Omit<ProductHistory, "price" | "priceMone
   price: number;
   /** The set as it stood at this version, so history renders each entry in the
    *  currency it was actually priced in rather than reconverting today. */
-  priceMoney: MoneySet | null;
+  priceMoney: MoneySet;
   updatedBy: { id: string; name: string | null; email: string } | null;
 };
 

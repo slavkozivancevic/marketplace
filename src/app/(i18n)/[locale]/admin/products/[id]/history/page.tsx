@@ -1,4 +1,4 @@
-import { parseMoney } from "@/lib/money";
+import { requireMoney } from "@/lib/money";
 import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
 import { Link, getPathname } from "@/i18n/navigation";
@@ -134,7 +134,7 @@ async function fetchProductHistory(
       price: Number(entry.price),
       // The set snapshotted at that version, so each row renders in the
       // currency it was priced in rather than being reconverted today.
-      priceMoney: parseMoney(entry.priceMoney, Number(entry.price)),
+      priceMoney: requireMoney(entry.priceMoney, `ProductHistory.priceMoney on ${entry.id}`),
     }));
   } catch {
     return { error: true, message: "Failed to load product history" };

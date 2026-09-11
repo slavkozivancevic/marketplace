@@ -148,19 +148,19 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
   // so the sale badge can never disagree with the two prices beside it.
   const priceSource = activeVariant ?? product ?? null;
   const displayPrice = priceSource
-    ? moneyAmount(priceSource.priceMoney, priceSource.price)
+    ? moneyAmount(priceSource.priceMoney)
     : 0;
   const compareAtSource =
     activeVariant && activeVariant.compareAtPrice == null ? product : priceSource;
   const displayCompareAt =
     compareAtSource && compareAtSource.compareAtPrice != null
-      ? moneyAmount(compareAtSource.compareAtPriceMoney, compareAtSource.compareAtPrice)
+      ? moneyAmount(compareAtSource.compareAtPriceMoney)
       : null;
   const isOnSale = displayCompareAt != null && displayCompareAt > displayPrice;
   const salePct = isOnSale ? Math.round(((displayCompareAt! - displayPrice) / displayCompareAt!) * 100) : 0;
 
   const variantPrices =
-    product?.variants.map((v) => moneyAmount(v.priceMoney, v.price)) ?? [];
+    product?.variants.map((v) => moneyAmount(v.priceMoney)) ?? [];
   const minVariantPrice = variantPrices.length ? Math.min(...variantPrices) : null;
   const maxVariantPrice = variantPrices.length ? Math.max(...variantPrices) : null;
   const showPriceRange =

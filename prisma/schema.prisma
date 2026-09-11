@@ -76,8 +76,10 @@ model Organization {
   // The Int columns are USD-cent MIRRORS of the `*Money` sets below: they exist
   // so threshold comparisons stay plain integer SQL/JS. The amount actually
   // charged and shown comes from the MoneySet - see the note on Product.price.
+  // The flat rate always exists (it defaults to 0), so its set is NOT NULL; the
+  // free-shipping threshold is genuinely optional, so its set stays nullable.
   shippingFlatRate           Int   @default(0)
-  shippingFlatRateMoney      Json?
+  shippingFlatRateMoney      Json
   shippingFreeThreshold      Int?
   shippingFreeThresholdMoney Json?
 
@@ -320,9 +322,16 @@ model Product {
   // The bare Int columns are USD-cent MIRRORS of `amounts.usd`, written in the
   // same transaction. They exist ONLY so price filters (`where.price`), sorting
   // and cross-currency thresholds stay indexed integer SQL. Never render one:
-  // display and checkout go through moneyIn(parseMoney(priceMoney, price), cur).
+  // display and checkout go through moneyIn(parseMoney(priceMoney), cur).
+  //
+  // A `*Money` column is NOT NULL exactly when its mirror is - a set exists
+  // whenever the amount exists. `compareAtPrice` and `costPrice` are optional
+  // AMOUNTS, so their sets stay nullable; null there means "no such price",
+  // never "a price whose set went missing". That guarantee is what lets the
+  // read path drop its rebuild-from-the-mirror fallback: a malformed set now
+  // fails loudly (requireMoney) instead of quietly reading back as USD-only.
   price               Int
-  priceMoney          Json?
+  priceMoney          Json
   compareAtPrice      Int?
   compareAtPriceMoney Json?
   // Seller-internal margin figure. Never shown to a buyer and never summed
@@ -475,7 +484,7 @@ model ProductHistory {
   // USD-cent mirror + the MoneySet as it stood at this version, so history
   // renders each entry in the currency it was actually priced in.
   price            Int
-  priceMoney       Json?
+  priceMoney       Json
   status           ProductStatus
   updatedById      String?
   createdAt        DateTime      @default(now())
@@ -493,7 +502,7 @@ model ProductVariant {
   sku                 String
   // Same money contract as Product - see the invariant note there.
   price               Int
-  priceMoney          Json?
+  priceMoney          Json
   compareAtPrice      Int?
   compareAtPriceMoney Json?
   costPrice           Int?
