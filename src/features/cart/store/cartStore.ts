@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { CartVariantOption, LocalizedText } from "../utils/variantOptions";
 import type { CartLinePrice } from "../db/resolveCart";
-import type { MoneySet } from "@/lib/money";
+import { authorMoney, type MoneySet } from "@/lib/money";
 import { VALID_CURRENCIES } from "@/lib/currency-config";
 
 export interface CartItem {
@@ -24,9 +24,10 @@ export interface CartItem {
   // (coupon minimums, shipping thresholds).
   price: number;
   // The exact per-currency amount, snapshotted when the item was added, so the
-  // drawer shows the same number the product page did. Null for carts saved
-  // before money sets existed - those fall back to converting `price`.
-  priceMoney: MoneySet | null;
+  // drawer shows the same number the product page did. Always present: a cart
+  // saved before money sets existed gets one rebuilt from its mirror by the v4
+  // persist migration, so no render path has to convert `price` any more.
+  priceMoney: MoneySet;
   quantity: number;
   maxStock: number | null; // null = unlimited
   requiresShipping: boolean;
@@ -62,9 +63,8 @@ function isSameItem(a: CartItem, productId: string, variantId: string | null) {
  *  field by field rather than by serialising: the two sets come from different
  *  round trips, so key order is not something to rely on, and a false mismatch
  *  would rewrite localStorage on every sync. */
-function sameMoneySnapshot(a: MoneySet | null, b: MoneySet | null): boolean {
+function sameMoneySnapshot(a: MoneySet, b: MoneySet): boolean {
   if (a === b) return true;
-  if (!a || !b) return false;
   if (a.primary !== b.primary) return false;
   return VALID_CURRENCIES.every((c) => a.amounts[c] === b.amounts[c]);
 }
@@ -159,12 +159,16 @@ export const useCartStore = create<CartStore>()(
     }),
     {
       name: "cart-storage",
-      version: 3,
+      version: 4,
       partialize: (state) => ({ items: state.items }),
       // Older carts predate the localized snapshots (`variantOptions` in v1,
-      // `productTitleI18n` in v2) and the per-currency price set (v3). Default
-      // them to null so the render path falls back cleanly - to the stored
-      // plain `variantLabel` / `productTitle`, and to converting `price`.
+      // `productTitleI18n` in v2) and the per-currency price set (v3, made
+      // mandatory in v4). The first two default to null, which the render path
+      // handles by falling back to the plain `variantLabel` / `productTitle`.
+      // The price set cannot: it is now required, so v4 rebuilds a USD-only one
+      // from the mirror. That is exactly what the old read-time fallback did -
+      // done once, here, where a browser's saved cart can actually be migrated,
+      // rather than on every render of every price for the life of the app.
       migrate: (persisted, version) => {
         const state = persisted as { items?: CartItem[] } | undefined;
         if (version < 2 && state?.items) {
@@ -174,8 +178,11 @@ export const useCartStore = create<CartStore>()(
             productTitleI18n: i.productTitleI18n ?? null,
           }));
         }
-        if (version < 3 && state?.items) {
-          state.items = state.items.map((i) => ({ ...i, priceMoney: i.priceMoney ?? null }));
+        if (version < 4 && state?.items) {
+          state.items = state.items.map((i) => ({
+            ...i,
+            priceMoney: i.priceMoney ?? authorMoney(i.price, "usd", { usd: 1 }),
+          }));
         }
         return state as { items: CartItem[] };
       },

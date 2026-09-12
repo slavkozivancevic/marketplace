@@ -26,7 +26,7 @@ import {
 import { emitProductEvent } from "@/features/webhooks/productEvents";
 import { recordSlugChanges } from "@/lib/seo/slugHistory";
 import { partialPriceColumns, priceColumns } from "@/core/db/moneyColumns";
-import { moneyUsdCents, parseMoney, serializeMoney, type MoneySet } from "@/lib/money";
+import { moneyUsdCents, parseMoney, requireMoney, serializeMoney, type MoneySet } from "@/lib/money";
 import { preserveDerived } from "@/lib/money-input";
 import { createWithUniqueSlugRetry } from "@/lib/db/uniqueSlugRetry";
 import { deleteS3Object } from "@/services/s3Delete";
@@ -370,12 +370,12 @@ async function syncVariants(
     const priced = was
       ? {
           ...variant,
-          price: preserveDerived(variant.price, parseMoney(was.priceMoney, null)),
+          price: preserveDerived(variant.price, parseMoney(was.priceMoney)),
           compareAtPrice: variant.compareAtPrice
-            ? preserveDerived(variant.compareAtPrice, parseMoney(was.compareAtPriceMoney, null))
+            ? preserveDerived(variant.compareAtPrice, parseMoney(was.compareAtPriceMoney))
             : variant.compareAtPrice,
           costPrice: variant.costPrice
-            ? preserveDerived(variant.costPrice, parseMoney(was.costPriceMoney, null))
+            ? preserveDerived(variant.costPrice, parseMoney(was.costPriceMoney))
             : variant.costPrice,
         }
       : variant;
@@ -1303,7 +1303,7 @@ export function productRepository(
         const keep = (
           built: MoneySet | null | undefined,
           storedJson: unknown,
-        ) => (built ? preserveDerived(built, parseMoney(storedJson, null)) : built);
+        ) => (built ? preserveDerived(built, parseMoney(storedJson)) : built);
 
         const result = await tx.product.updateMany({
           where: {
@@ -1578,7 +1578,7 @@ export function productRepository(
         // The set as it was at that version, so restoring an old version
         // restores the price the seller actually had, not today's conversion
         // of its USD mirror.
-        price: parseMoney(history.priceMoney, history.price)!,
+        price: requireMoney(history.priceMoney, `ProductHistory.priceMoney on ${history.id}`),
         status: history.status,
       });
     },
@@ -1716,9 +1716,9 @@ export function productRepository(
         // Carry the stored sets across verbatim. Re-deriving from the mirror
         // would quietly reprice the copy at today's rate, so a duplicate would
         // not match the product it was copied from.
-        price: parseMoney(v.priceMoney, v.price)!,
-        compareAtPrice: parseMoney(v.compareAtPriceMoney, v.compareAtPrice),
-        costPrice: parseMoney(v.costPriceMoney, v.costPrice),
+        price: requireMoney(v.priceMoney, `ProductVariant.priceMoney on ${v.id}`),
+        compareAtPrice: parseMoney(v.compareAtPriceMoney),
+        costPrice: parseMoney(v.costPriceMoney),
         stock: v.stock,
         barcode: v.barcode ?? undefined,
         weight: v.weight ?? undefined,
@@ -1776,9 +1776,9 @@ export function productRepository(
           shortDescription: defaultRow?.shortDescription ?? undefined,
           metaTitle: defaultRow?.metaTitle ?? undefined,
           metaDescription: defaultRow?.metaDescription ?? undefined,
-          price: parseMoney(source.priceMoney, source.price)!,
-          compareAtPrice: parseMoney(source.compareAtPriceMoney, source.compareAtPrice),
-          costPrice: parseMoney(source.costPriceMoney, source.costPrice),
+          price: requireMoney(source.priceMoney, `Product.priceMoney on ${source.id}`),
+          compareAtPrice: parseMoney(source.compareAtPriceMoney),
+          costPrice: parseMoney(source.costPriceMoney),
           stock: source.stock ?? undefined,
           barcode: source.barcode ?? undefined,
           taxable: source.taxable,
@@ -1860,7 +1860,7 @@ export function productRepository(
           id: p.id,
           title: p.translations[0]?.title ?? "",
           price: p.price,
-          priceMoney: parseMoney(p.priceMoney, p.price),
+          priceMoney: requireMoney(p.priceMoney, `Product.priceMoney on ${p.id}`),
           status: p.status,
           brand: p.brand?.translations[0]
             ? { name: p.brand.translations[0].name }

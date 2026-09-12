@@ -103,7 +103,7 @@ function HistoryRow({
       <div role="cell" className="truncate">{entry.title}</div>
       <div role="cell" className="truncate text-muted-foreground">{entry.description}</div>
       <div role="cell" className="text-right tabular-nums">
-        {format(entry.priceMoney, entry.price)}
+        {format(entry.priceMoney)}
       </div>
       <div role="cell" className="flex justify-center">
         <Badge variant={getStatusVariant(entry.status)}>

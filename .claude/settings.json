@@ -88,6 +88,12 @@
         "hooks": [
           {
             "type": "command",
+            "command": "node .claude/hooks/enforce-crlf.mjs",
+            "timeout": 10,
+            "statusMessage": "Normalising line endings"
+          },
+          {
+            "type": "command",
             "command": "node .claude/hooks/locale-drift-check.mjs",
             "timeout": 20,
             "statusMessage": "Checking locale keys"

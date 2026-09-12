@@ -240,7 +240,7 @@ export function ProductTableRow({
         </div>
       </TruncatedTooltip>
       <div role="cell" className="text-right tabular-nums">
-        {format(product.priceMoney, product.price)}
+        {format(product.priceMoney)}
       </div>
       <div role="cell" className="flex justify-center">
         <Badge variant={getStatusVariant(product.status)}>

@@ -8,6 +8,7 @@ import { SluggedEntityType } from "@/generated/prisma/client";
 import { notFoundResponse } from "@/lib/seo/notFoundResponse";
 import { resolveRetiredSlug } from "@/lib/seo/slugHistory";
 import { isScannerPath } from "@/lib/security/scannerPaths";
+import { hasFileExtension, isPublicAssetPath } from "@/lib/security/publicAssets";
 import {
   ENTITY_SEGMENTS,
   type EntityDetail,
@@ -166,6 +167,19 @@ export default clerkMiddleware(async (auth, req) => {
     return new NextResponse(null, { status: 404 });
   }
 
+  // File-shaped URLs are settled here, before auth and before next-intl.
+  // Neither applies to a file: `auth.protect()` would 307 `/favicon.ico` to
+  // sign-in, and next-intl would redirect it to `/en/favicon.ico`, which no
+  // route serves. Blocklists lose to scanners that invent new filenames, so the
+  // rule is inverted - a path whose last segment carries an extension is served
+  // only if it is one of ours, and every other one is answered 404 with no
+  // render, no database wake-up and no error log.
+  if (hasFileExtension(pathname)) {
+    return isPublicAssetPath(pathname)
+      ? NextResponse.next()
+      : new NextResponse(null, { status: 404 });
+  }
+
   // Locale-prefixed URLs that match no route in any locale. Deliberately
   // ahead of `auth.protect()`: a URL that does not exist should 404 for
   // everyone, not 307 signed-out visitors (and Googlebot, and uptime monitors)
@@ -190,6 +204,15 @@ export default clerkMiddleware(async (auth, req) => {
       return new NextResponse("Cross-origin request blocked", { status: 403 });
     }
     return NextResponse.next();
+  }
+
+  // Past this point every URL is a page. The only thing that legitimately POSTs
+  // to a page is a Server Action, which Next marks with a `next-action` header;
+  // a bot POSTing a junk body to `/sr/proizvodi` otherwise reaches the Server
+  // Action handler, which tries to parse it and throws a SyntaxError into the
+  // error log. 405 rather than 404: the URL exists, the method does not.
+  if (MUTATING_METHODS.has(req.method) && !req.headers.get("next-action")) {
+    return new NextResponse(null, { status: 405, headers: { Allow: "GET, HEAD" } });
   }
 
   // Storefront URLs whose shape no route can serve - extra path depth under
@@ -241,8 +264,16 @@ export default clerkMiddleware(async (auth, req) => {
 
 export const config = {
   matcher: [
-    // Skip Next.js internals and all static files, unless found in search params
-    "/((?!_next|[^?]*\\.(?:html?|css|m?js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    // Skip Next.js internals only. This deliberately no longer skips paths by
+    // file extension: that exclusion meant `isScannerPath` never saw
+    // `/backup.zip`, `/favicon.png`, `/main.<hash>.js` or
+    // `/wp-content/uploads/*.png`, so they bypassed middleware, fell through to
+    // the `[locale]` catch-all and rendered a page - about 40 of the 107 errors
+    // logged on staging in a week. `isUnservableAssetPath` now answers them
+    // here, and `isPublicAssetPath` lets this app's own files through; in
+    // production the real ones are served by CloudFront/S3 and never reach the
+    // function at all.
+    "/((?!_next).*)",
     // Always run for API routes
     "/(api|trpc)(.*)",
   ],

@@ -330,6 +330,8 @@
     "browse": "Browse products",
     "searchPlaceholder": "Search by product name or order ID...",
     "paidAfterRefunds": "Paid after refunds",
+    "charged": "Charged",
+    "cancelledNothingChargedNote": "This order was cancelled before payment, so nothing was charged.",
     "shipping": "Shipping"
   },
   "myProducts": {
@@ -1621,6 +1623,8 @@
     "yourPayout": "Your payout",
     "payoutReversed": "Refund reversal",
     "payoutAfterRefunds": "Net payout after refunds",
+    "payoutAfterCancellation": "Payout after cancellation",
+    "cancelledNoPayoutNote": "This order was cancelled before payment was collected, so there is no payout for it.",
     "shippingCollected": "Shipping (collected)",
     "codBalanceNettedLabel": "Withheld for COD commission owed",
     "codBalanceNettedNote": "Part of this payout was withheld to settle commission your organization owed from past cash-on-delivery orders. Check the payouts page for your remaining balance.",

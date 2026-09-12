@@ -50,9 +50,9 @@ export default async function EditCouponRoute({ params }: Props) {
             // PERCENT carries no money set - `value` is a percentage, and
             // rebuilding one from it would treat 20% as $0.20.
             valueMoney:
-              coupon.type === "FIXED" ? parseMoney(coupon.valueMoney, coupon.value) : null,
+              coupon.type === "FIXED" ? parseMoney(coupon.valueMoney) : null,
             minOrder: coupon.minOrder,
-            minOrderMoney: parseMoney(coupon.minOrderMoney, coupon.minOrder),
+            minOrderMoney: parseMoney(coupon.minOrderMoney),
             usageLimit: coupon.usageLimit,
             perUserLimit: coupon.perUserLimit,
             expiresAt: coupon.expiresAt ? coupon.expiresAt.toISOString() : null,

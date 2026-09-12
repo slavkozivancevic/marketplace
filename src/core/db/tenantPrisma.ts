@@ -5,6 +5,14 @@ import {
 } from "@/features/common/errors/domainErrors";
 import { prisma } from "./prisma";
 import { Prisma, ProductStatus } from "@/generated/prisma/client";
+import { moneyCol, priceColumns } from "./moneyColumns";
+import type { MoneySet } from "@/lib/money";
+
+/** The `price`/`priceMoney` pair for an update that changes the price. */
+function moneyColumns(set: MoneySet) {
+  const { mirror, json } = moneyCol(set);
+  return { price: mirror, priceMoney: json };
+}
 
 export function tenantPrisma({
   organizationId,
@@ -67,10 +75,13 @@ export function tenantPrisma({
         return product;
       },
 
-      async create(data: { price: number }) {
+      // Money goes in as a MoneySet, never a bare mirror: `priceColumns` writes
+      // the Int and the Json together, which is what `Product.priceMoney` being
+      // NOT NULL enforces. See src/core/db/moneyColumns.ts.
+      async create(data: { price: MoneySet }) {
         return prisma.product.create({
           data: {
-            ...data,
+            ...priceColumns(data),
             organizationId,
             createdById: userId,
           },
@@ -81,7 +92,7 @@ export function tenantPrisma({
         id: string,
         version: number | undefined,
         data: Partial<{
-          price: number;
+          price: MoneySet;
           status?: ProductStatus;
         }>,
       ) {
@@ -89,6 +100,7 @@ export function tenantPrisma({
           throw new VersionRequiredError();
         }
 
+        const { price, ...rest } = data;
         const result = await prisma.product.updateMany({
           where: {
             id,
@@ -97,7 +109,8 @@ export function tenantPrisma({
             deletedAt: null,
           },
           data: {
-            ...data,
+            ...rest,
+            ...(price ? moneyColumns(price) : {}),
             updatedById: userId,
             version: { increment: 1 },
           },
@@ -163,17 +176,23 @@ export function tenantPrisma({
       async create(data: {
         productId: string;
         sku: string;
-        price: number;
+        price: MoneySet;
         stock: number;
       }) {
-        return prisma.productVariant.create({ data });
+        return prisma.productVariant.create({
+          data: { ...data, ...priceColumns(data) },
+        });
       },
 
       async update(
         id: string,
-        data: Partial<{ sku: string; price: number; stock: number }>,
+        data: Partial<{ sku: string; price: MoneySet; stock: number }>,
       ) {
-        return prisma.productVariant.update({ where: { id }, data });
+        const { price, ...rest } = data;
+        return prisma.productVariant.update({
+          where: { id },
+          data: { ...rest, ...(price ? moneyColumns(price) : {}) },
+        });
       },
 
       async delete(id: string) {

@@ -105,14 +105,14 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
   // Resolved into display-currency minor units up front so the sale badge and
   // the two prices beside it are computed in one space.
   const priceSource = activeVariant ?? product;
-  const price = moneyAmount(priceSource.priceMoney, priceSource.price);
+  const price = moneyAmount(priceSource.priceMoney);
   // A variant without its own compareAtPrice still benefits from a
   // product-level sale (the common case: one sale across all variants).
   const compareAtSource =
     activeVariant && activeVariant.compareAtPrice == null ? product : priceSource;
   const compareAtPrice =
     compareAtSource.compareAtPrice != null
-      ? moneyAmount(compareAtSource.compareAtPriceMoney, compareAtSource.compareAtPrice)
+      ? moneyAmount(compareAtSource.compareAtPriceMoney)
       : null;
   const isOnSale = compareAtPrice != null && compareAtPrice > price;
   const salePct = isOnSale
@@ -388,7 +388,7 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
                     const label = variant.sku ?? `Variant ${variant.id.slice(-4)}`;
                     const priceStr =
                       variant.price !== product.price
-                        ? formatPrice(moneyAmount(variant.priceMoney, variant.price), currency, locale)
+                        ? formatPrice(moneyAmount(variant.priceMoney), currency, locale)
                         : null;
                     return (
                       <SelectItem
@@ -512,7 +512,7 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
                       {variant.sku ?? `Variant ${variant.id.slice(-4)}`}
                       {variant.price !== product.price && (
                         <span className="ml-1.5 text-xs opacity-75">
-                          {formatPrice(moneyAmount(variant.priceMoney, variant.price), currency, locale)}
+                          {formatPrice(moneyAmount(variant.priceMoney), currency, locale)}
                         </span>
                       )}
                     </button>

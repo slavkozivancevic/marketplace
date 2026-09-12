@@ -1,6 +1,5 @@
 import { prisma } from "@/core/db/prisma";
-import { moneyIn, parseMoney, type CurrencyRates, type MoneySet } from "@/lib/money";
-import { convertCents } from "@/lib/currency";
+import { moneyIn, requireMoney, type CurrencyRates, type MoneySet } from "@/lib/money";
 import type { Currency } from "@/lib/currency-config";
 
 /** A cart line as the client knows it. Prices are intentionally absent - they
@@ -19,8 +18,10 @@ export type ResolvedCartLine = {
   /** The authoritative price as an exact per-currency set. What a buyer is
    *  actually charged comes from here via `moneyIn`, never by converting
    *  `unitPriceUsd` - that round trip is what made the charged amount differ
-   *  from the price shown on the product page. */
-  unitMoney: MoneySet | null;
+   *  from the price shown on the product page. `Product.priceMoney` and
+   *  `ProductVariant.priceMoney` are NOT NULL, so a resolved line always has
+   *  one - an unpriceable row cannot become a line, it becomes `unavailable`. */
+  unitMoney: MoneySet;
   organizationId: string;
 };
 
@@ -103,7 +104,7 @@ export async function resolveCart(items: CartItemRef[]): Promise<CartResolution>
         variantId: it.variantId,
         quantity: it.quantity,
         unitPriceUsd: unit,
-        unitMoney: parseMoney(v.priceMoney, unit),
+        unitMoney: requireMoney(v.priceMoney, `ProductVariant.priceMoney on ${v.id}`),
         organizationId: v.product.organizationId,
       });
       subtotalUsd += unit * it.quantity;
@@ -119,7 +120,7 @@ export async function resolveCart(items: CartItemRef[]): Promise<CartResolution>
         variantId: null,
         quantity: it.quantity,
         unitPriceUsd: unit,
-        unitMoney: parseMoney(p.priceMoney, unit),
+        unitMoney: requireMoney(p.priceMoney, `Product.priceMoney on ${p.id}`),
         organizationId: p.organizationId,
       });
       subtotalUsd += unit * it.quantity;
@@ -143,12 +144,10 @@ export function cartSubtotalIn(
   currency: Currency,
   rates?: CurrencyRates,
 ): number {
-  return lines.reduce((sum, line) => {
-    const unit = line.unitMoney
-      ? moneyIn(line.unitMoney, currency, rates)
-      : convertCents(line.unitPriceUsd, currency, rates?.[currency] ?? 1);
-    return sum + unit * line.quantity;
-  }, 0);
+  return lines.reduce(
+    (sum, line) => sum + moneyIn(line.unitMoney, currency, rates) * line.quantity,
+    0,
+  );
 }
 
 /**
@@ -163,7 +162,7 @@ export type CartLinePrice = {
   productId: string;
   variantId: string | null;
   unitPriceUsd: number;
-  unitMoney: MoneySet | null;
+  unitMoney: MoneySet;
 };
 
 /** The resolved lines reduced to what the client needs to re-snapshot. */

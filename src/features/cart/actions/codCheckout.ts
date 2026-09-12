@@ -11,8 +11,7 @@ import { publishCodOrderPlaced } from "@/services/notifications";
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import { enforceRateLimit, getClientIp } from "@/lib/rateLimit/guard";
 import { getCurrencyRate } from "@/features/currency/db/currencyRates";
-import { convertCents } from "@/lib/currency";
-import { moneyIn, parseMoney } from "@/lib/money";
+import { moneyIn, requireMoney } from "@/lib/money";
 import { validateCoupon } from "@/features/coupons/db/coupons";
 import { cartShippingLines } from "@/features/shipping/db/shipping";
 import type { ActionErrorResult } from "@/types/types";
@@ -107,10 +106,8 @@ async function runCodCheckout(
         subtotalUsd += Number(v.price) * item.quantity;
         // Charge the amount stored for this currency, not a conversion of the
         // USD mirror - same rule as the card path.
-        const unitMoney = parseMoney(v.priceMoney, Number(v.price));
-        const unitCents = unitMoney
-          ? moneyIn(unitMoney, currency, { [currency]: exchangeRate })
-          : convertCents(Number(v.price), currency, exchangeRate);
+        const unitMoney = requireMoney(v.priceMoney, `ProductVariant.priceMoney on ${v.id}`);
+        const unitCents = moneyIn(unitMoney, currency, { [currency]: exchangeRate });
         totalInCurrency += unitCents * item.quantity;
       } else {
         const p = productMap.get(item.productId);
@@ -118,10 +115,8 @@ async function runCodCheckout(
         if (p.stock !== null && p.stock < item.quantity)
           return { error: true, message: t("insufficientStock") };
         subtotalUsd += Number(p.price) * item.quantity;
-        const unitMoney = parseMoney(p.priceMoney, Number(p.price));
-        const unitCents = unitMoney
-          ? moneyIn(unitMoney, currency, { [currency]: exchangeRate })
-          : convertCents(Number(p.price), currency, exchangeRate);
+        const unitMoney = requireMoney(p.priceMoney, `Product.priceMoney on ${p.id}`);
+        const unitCents = moneyIn(unitMoney, currency, { [currency]: exchangeRate });
         totalInCurrency += unitCents * item.quantity;
       }
     }

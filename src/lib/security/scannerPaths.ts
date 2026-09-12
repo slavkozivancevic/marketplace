@@ -21,6 +21,19 @@
  * missed every pattern below, woke Neon 14 times and tripped the AppErrors
  * alarm at 08:21 UTC. Those shapes are covered now.
  *
+ * A third sweep, 06-12.09.2026, showed the limit of this approach: it arrived
+ * as `/backup.zip`, `/api/v3/.env.sendgrid`, `/wp-config.php~`,
+ * `/assets/favicon-aOK6_042.ico` and thirty more invented filenames. Chasing
+ * those one regex at a time is a losing game, and most of them never even
+ * reached this function - the middleware matcher skipped anything ending in a
+ * static extension. That whole class is now handled by inversion instead, in
+ * ./publicAssets.ts: a file-shaped URL is served only if it is one of ours.
+ *
+ * DIVISION OF LABOUR. This file keeps the shapes that carry NO file extension
+ * and so cannot be decided by that rule - `/wp-admin/`, `/actuator/env`,
+ * `/_ignition/health-check`, `/storage/logs/`, bare `/env`. Anything with a dot
+ * in its last segment belongs to publicAssets.ts.
+ *
  * A WAF would be the textbook answer, but a Web ACL is billed monthly and this
  * project holds a hard $0 rule (ROADMAP #23), so the check lives in middleware
  * where it costs nothing. Matching is deliberately narrow - only paths that

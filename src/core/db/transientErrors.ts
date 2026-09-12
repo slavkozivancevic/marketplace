@@ -33,9 +33,16 @@ const TRANSIENT_PRISMA_CODES = new Set([
  * so the message is all there is to match on. Kept to phrases that can only
  * describe a transport failure - nothing here can match a constraint violation
  * or a bad query.
+ *
+ * `authentication timed out` is Neon's own wording when the compute is still
+ * resuming while the driver tries to authenticate: it surfaced on staging as
+ * `DriverAdapterError: Authentication timed out` on `GET /en/products` and
+ * `HEAD /en`, both first-hit-after-idle. It describes the handshake, not
+ * credentials - a wrong password answers immediately with "password
+ * authentication failed", which stays unmatched and unretried.
  */
 const TRANSIENT_MESSAGE_RE =
-  /ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE|connection terminated|connection closed|Connection terminated unexpectedly|server closed the connection|Can't reach database server|timeout expired/i;
+  /ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE|connection terminated|connection closed|Connection terminated unexpectedly|server closed the connection|Can't reach database server|timeout expired|authentication timed out/i;
 
 const READ_OPERATIONS = new Set([
   "findUnique",

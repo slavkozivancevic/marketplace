@@ -69,6 +69,10 @@ export default async function OrgOrderDetailPage({ params }: Props) {
     cancelledAt: order.cancelledAt,
   });
   const isTerminal = order.cancelledAt != null || order.paymentStatus === "REFUNDED";
+  // `cancelOrder` refuses anything that is not UNPAID, so a cancelled order was
+  // never collected and never paid out: the breakdown below must not present
+  // its figures as money on the way.
+  const isCancelled = order.cancelledAt != null;
 
   const rawReturns = await getOrgOrderReturns(order.id, ctx.organizationId);
   const shipment = await getOrgShipment(order.id, ctx.organizationId);
@@ -384,7 +388,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                 {/* The CHARGE is what the buyer actually paid - already reduced by
                     the platform-funded coupon. Clarify so the seller doesn't read
                     the lower charge as a cut to their payout. */}
-                {order.discountAmount > 0 && (
+                {order.discountAmount > 0 && !isCancelled && (
                   <p className="mt-3 pt-3 border-t text-[11px] text-muted-foreground/80">
                     {t("paymentHistoryCouponNote", { code: order.couponCode ?? "" })}
                   </p>
@@ -467,7 +471,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                     </span>
                   </div>
                 )}
-                <div className={`flex justify-between ${payoutReversed > 0 || codNetted > 0 ? "text-muted-foreground" : "font-semibold"}`}>
+                <div className={`flex justify-between ${payoutReversed > 0 || codNetted > 0 || isCancelled ? "text-muted-foreground" : "font-semibold"}`}>
                   <span>{t("yourPayout")}</span>
                   <span className="tabular-nums">
                     {formatPrice(orgPayout, order.currency as Currency, locale)}
@@ -505,7 +509,23 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                     </span>
                   </div>
                 )}
+                {/* Cancelled orders reach none of the rows above (no transfer,
+                    so no netting and nothing to claw back) - the payout figure
+                    would otherwise stand alone in bold as if it were coming. */}
+                {isCancelled && (
+                  <div className="flex justify-between font-semibold">
+                    <span>{t("payoutAfterCancellation")}</span>
+                    <span className="tabular-nums">
+                      {formatPrice(0, order.currency as Currency, locale)}
+                    </span>
+                  </div>
+                )}
               </div>
+              {isCancelled && (
+                <p className="mt-3 text-[11px] text-muted-foreground/80">
+                  {t("cancelledNoPayoutNote")}
+                </p>
+              )}
               {codNetted > 0 && codDebtRestored === 0 && (
                 <p className="mt-3 text-[11px] text-muted-foreground/80">
                   {t("codBalanceNettedNote")}
@@ -524,7 +544,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
               {/* Buyer used a platform-funded coupon: the seller is still paid on
                   the full gross subtotal above, so make clear the coupon never
                   touches this breakdown. */}
-              {order.discountAmount > 0 && (
+              {order.discountAmount > 0 && !isCancelled && (
                 <p className="mt-3 text-[11px] text-muted-foreground/80">
                   {t("couponSellerNote", { code: order.couponCode ?? "", percent: PLATFORM_FEE_PERCENT })}
                 </p>

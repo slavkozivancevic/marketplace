@@ -12,8 +12,7 @@ import { ActionErrorResult } from "@/types/types";
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import { enforceRateLimit, getClientIp } from "@/lib/rateLimit/guard";
 import { getCurrencyRate } from "@/features/currency/db/currencyRates";
-import { convertCents } from "@/lib/currency";
-import { moneyIn, parseMoney, type MoneySet } from "@/lib/money";
+import { moneyIn, requireMoney, type MoneySet } from "@/lib/money";
 import { VALID_CURRENCIES, type Currency } from "@/lib/currency-config";
 import { asLocale, type Locale } from "@/i18n/config";
 import { getProductTitle } from "@/features/products/utils/translations";
@@ -169,7 +168,7 @@ async function runCheckoutSession(
       let unitPriceUsdCents: number;
       // The USD mirror above drives the coupon subtotal; this is what Stripe
       // actually charges.
-      let unitMoney: MoneySet | null;
+      let unitMoney: MoneySet;
       let itemName = productTitle;
 
       if (item.variantId) {
@@ -184,11 +183,11 @@ async function runCheckoutSession(
           };
         }
         unitPriceUsdCents = Number(variant.price);
-        unitMoney = parseMoney(variant.priceMoney, unitPriceUsdCents);
+        unitMoney = requireMoney(variant.priceMoney, `ProductVariant.priceMoney on ${variant.id}`);
         itemName = `${productTitle} (${variant.sku})`;
       } else {
         unitPriceUsdCents = Number(product.price);
-        unitMoney = parseMoney(product.priceMoney, unitPriceUsdCents);
+        unitMoney = requireMoney(product.priceMoney, `Product.priceMoney on ${product.id}`);
       }
 
       if (!product.isDigital && product.requiresShipping) {
@@ -199,9 +198,7 @@ async function runCheckoutSession(
 
       // The exact amount stored for the buyer's currency - the same number the
       // product page showed. Not a conversion of the USD mirror.
-      const unitAmountInCurrency = unitMoney
-        ? moneyIn(unitMoney, currency, { [currency]: exchangeRate })
-        : convertCents(unitPriceUsdCents, currency, exchangeRate);
+      const unitAmountInCurrency = moneyIn(unitMoney, currency, { [currency]: exchangeRate });
 
       const variantMedia = item.variantId
         ? product.variants.find((v) => v.id === item.variantId)?.media[0]?.media

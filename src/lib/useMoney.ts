@@ -16,8 +16,10 @@ import { moneyIn, parseMoney, type MoneySet } from "@/lib/money";
  * rate moved. This hook replaces it with a lookup of the amount stored for the
  * active currency.
  *
- * `mirrorUsd` is only the fallback for rows written before money sets existed;
- * once those are backfilled it is never consulted.
+ * `amount`/`format` take a column value - a raw Json set or one already parsed
+ * into a `MoneySet`. They used to take the USD mirror as a second argument, to
+ * rebuild a set for rows written before money sets existed. Those rows are gone
+ * and the columns are NOT NULL, so the fallback is gone with them.
  */
 export function useMoney() {
   const { currency, rates } = useCurrencyStore();
@@ -28,8 +30,8 @@ export function useMoney() {
 
   /** The amount in the active currency, in its minor units. */
   const amount = useCallback(
-    (set: unknown, mirrorUsd?: number | null): number => {
-      const parsed = set != null || mirrorUsd != null ? parseMoney(set, mirrorUsd) : null;
+    (set: unknown): number => {
+      const parsed = parseMoney(set);
       return parsed ? moneyIn(parsed, currency, rates) : 0;
     },
     [currency, rates],
@@ -37,8 +39,7 @@ export function useMoney() {
 
   /** The same amount, formatted for the active currency. */
   const format = useCallback(
-    (set: unknown, mirrorUsd?: number | null): string =>
-      formatPrice(amount(set, mirrorUsd), currency, locale),
+    (set: unknown): string => formatPrice(amount(set), currency, locale),
     [amount, currency, locale],
   );
 

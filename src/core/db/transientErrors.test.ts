@@ -19,9 +19,20 @@ describe("isTransientDbError", () => {
       "read ECONNRESET",
       "Can't reach database server at ep-x.eu-central-1.aws.neon.tech:5432",
       "timeout expired",
+      // Neon's wording while the compute is still resuming - observed on
+      // staging as `DriverAdapterError: Authentication timed out`.
+      "Authentication timed out",
     ]) {
       expect(isTransientDbError({ message }), message).toBe(true);
     }
+  });
+
+  it("does NOT retry a genuine credential rejection", () => {
+    // The neighbour of the cold-start handshake timeout above: retrying this
+    // just delays the same failure, and it must stay distinguishable.
+    expect(
+      isTransientDbError({ message: 'password authentication failed for user "app"' }),
+    ).toBe(false);
   });
 
   it("does NOT retry application-level failures", () => {

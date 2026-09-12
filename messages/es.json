@@ -330,6 +330,8 @@
     "browse": "Explorar productos",
     "searchPlaceholder": "Buscar por nombre de producto o ID de pedido...",
     "paidAfterRefunds": "Pagado tras reembolsos",
+    "charged": "Cobrado",
+    "cancelledNothingChargedNote": "Este pedido se canceló antes del pago, por lo que no se cobró nada.",
     "shipping": "Envío"
   },
   "myProducts": {
@@ -1621,6 +1623,8 @@
     "yourPayout": "Tu pago",
     "payoutReversed": "Reverso del pago (reembolsos)",
     "payoutAfterRefunds": "Pago neto tras reembolsos",
+    "payoutAfterCancellation": "Pago tras la cancelación",
+    "cancelledNoPayoutNote": "Este pedido se canceló antes de cobrar el importe, por lo que no hay ningún pago por él.",
     "shippingCollected": "Envío (cobrado)",
     "codBalanceNettedLabel": "Retenido por comisión adeudada (contra reembolso)",
     "codBalanceNettedNote": "Parte de este pago se retuvo para saldar la comisión que tu organización adeuda de pedidos anteriores pagados contra reembolso. Consulta el saldo restante en la página de pagos.",

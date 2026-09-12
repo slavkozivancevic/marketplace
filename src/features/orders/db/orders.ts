@@ -1,7 +1,6 @@
 import { logger } from "@/lib/logger";
 import { prisma } from "@/core/db/prisma";
-import { convertCents } from "@/lib/currency";
-import { moneyIn, parseMoney } from "@/lib/money";
+import { moneyIn, requireMoney } from "@/lib/money";
 import type { Currency } from "@/lib/currency-config";
 import {
   Prisma,
@@ -19,7 +18,10 @@ import { recordCouponUsage } from "@/features/coupons/db/coupons";
 import { cacheTag } from "next/cache";
 import { CacheTags } from "@/lib/cache/tags";
 import { revalidateOrderCache } from "./cache";
-import { revalidateProductCache } from "@/features/products/db/cache";
+import {
+  revalidateProductCache,
+  revalidateProductCacheFromRoute,
+} from "@/features/products/db/cache";
 import { recordPurchaseEvents } from "@/features/interactions/db/interactions";
 import { InsufficientStockError } from "@/features/common/errors/domainErrors";
 import { reverseSellerPayoutsForOrder } from "@/features/payments/db/payouts";
@@ -437,10 +439,8 @@ export async function fulfillOrder({
   const curr = (currency ?? "usd") as Currency;
   // Snapshot the price the buyer was actually charged: the exact amount stored
   // for the order currency, not a conversion of the USD mirror.
-  const unitIn = (row: { price: number; priceMoney: unknown }, c: Currency, r: number) => {
-    const set = parseMoney(row.priceMoney, Number(row.price));
-    return set ? moneyIn(set, c, { [c]: r }) : convertCents(Number(row.price), c, r);
-  };
+  const unitIn = (row: { id: string; priceMoney: unknown }, c: Currency, r: number) =>
+    moneyIn(requireMoney(row.priceMoney, `priceMoney on ${row.id}`), c, { [c]: r });
 
   const itemsWithPrice = items.map((item) => {
     if (item.variantId) {
@@ -544,13 +544,14 @@ export async function fulfillOrder({
     return order;
   });
 
-  const uniqueProductIds = [...new Set(items.map((i) => i.productId))];
-  const allProducts = await prisma.product.findMany({
-    where: { id: { in: uniqueProductIds } },
-    select: { id: true, organizationId: true },
-  });
-  allProducts.forEach((p) => revalidateProductCache(p.organizationId, p.id));
-
+  // Accounting before cache invalidation, deliberately. Both calls below
+  // swallow their own errors, but they used to run *after* the invalidation,
+  // which threw on every Stripe webhook (updateTag outside a Server Action -
+  // see products/db/cache.ts). The order was already committed by then, so
+  // Stripe's retry hit the `existing` early return at the top of this function
+  // and these never ran on either attempt: every card order silently lost its
+  // coupon count and its purchase events. Nothing that cannot be recomputed
+  // may sit behind an invalidation call again.
   if (couponId) await recordCouponUsage(couponId);
 
   // Engagement log: one PURCHASE event per product (best-effort, post-commit).
@@ -559,6 +560,16 @@ export async function fulfillOrder({
     orderId: order.id,
     productIds: items.map((i) => i.productId),
   });
+
+  const uniqueProductIds = [...new Set(items.map((i) => i.productId))];
+  const allProducts = await prisma.product.findMany({
+    where: { id: { in: uniqueProductIds } },
+    select: { id: true, organizationId: true },
+  });
+  // Route Handler variant: this path is reached only from the Stripe webhook.
+  allProducts.forEach((p) =>
+    revalidateProductCacheFromRoute(p.organizationId, p.id),
+  );
 
   // NOTE: sellers are NOT paid here. The platform holds the captured funds and
   // releases each seller's transfer when that seller ships (releaseSellerPayout),
@@ -615,13 +626,10 @@ export async function createCodOrder({
   const productMap = new Map(products.map((p) => [p.id, p]));
 
   // Same rule as the Stripe path above: the stored per-currency amount wins.
-  const unitIn = (row: { price: number; priceMoney: unknown }) => {
-    const set = parseMoney(row.priceMoney, Number(row.price));
-    const c = currency as Currency;
-    return set
-      ? moneyIn(set, c, { [c]: exchangeRate })
-      : convertCents(Number(row.price), c, exchangeRate);
-  };
+  const unitIn = (row: { id: string; priceMoney: unknown }) =>
+    moneyIn(requireMoney(row.priceMoney, `priceMoney on ${row.id}`), currency as Currency, {
+      [currency]: exchangeRate,
+    });
 
   const itemsWithPrice = items.map((item) => {
     if (item.variantId) {
@@ -723,19 +731,24 @@ export async function createCodOrder({
   revalidateOrderCache(userId, order.id);
   if (couponId) await recordCouponUsage(couponId);
 
+  // Engagement log: one PURCHASE event per product (best-effort, post-commit).
+  // Ahead of the cache invalidation below, like the coupon count above it and
+  // like fulfillOrder: nothing irrecoverable may sit behind an invalidation
+  // call. `updateTag` is legal here (this runs in a Server Action, via
+  // codCheckout.ts) so there is no live bug to fix - this keeps the two order
+  // paths identical so the next reader does not have to work out which is safe.
+  await recordPurchaseEvents({
+    userId,
+    orderId: order.id,
+    productIds: items.map((i) => i.productId),
+  });
+
   const uniqueProductIds = [...new Set(items.map((i) => i.productId))];
   const allProducts = await prisma.product.findMany({
     where: { id: { in: uniqueProductIds } },
     select: { id: true, organizationId: true },
   });
   allProducts.forEach((p) => revalidateProductCache(p.organizationId, p.id));
-
-  // Engagement log: one PURCHASE event per product (best-effort, post-commit).
-  await recordPurchaseEvents({
-    userId,
-    orderId: order.id,
-    productIds: items.map((i) => i.productId),
-  });
 
   return order;
 }
@@ -867,12 +880,6 @@ export async function reconcileStripeRefund(
   });
 
   revalidateOrderCache(order.userId, order.id);
-  const productIds = [...new Set(order.items.map((i) => i.productId))];
-  const products = await prisma.product.findMany({
-    where: { id: { in: productIds } },
-    select: { id: true, organizationId: true },
-  });
-  products.forEach((p) => revalidateProductCache(p.organizationId, p.id));
 
   // External (Stripe dashboard) refund - no signed-in actor, attribute to system.
   const externalTotal = external.reduce((s, r) => s + r.amount, 0);
@@ -893,6 +900,21 @@ export async function reconcileStripeRefund(
       logger.error("[reconcileStripeRefund] reverseSellerPayoutsForOrder failed", err),
     );
   }
+
+  // Restocking changed what the storefront shows, so bust the product caches -
+  // last, and with the Route Handler variant. This is reached only from the
+  // Stripe webhook, where the updateTag variant throws; it used to sit above
+  // the audit write and the payout clawback, which meant a fully refunded order
+  // could permanently skip both (the retry returns early once the refund is in
+  // the ledger). See products/db/cache.ts.
+  const productIds = [...new Set(order.items.map((i) => i.productId))];
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, organizationId: true },
+  });
+  products.forEach((p) =>
+    revalidateProductCacheFromRoute(p.organizationId, p.id),
+  );
 
   if (becameRefunded) {
     return { order, kind: "full" as const, amount: externalTotal };

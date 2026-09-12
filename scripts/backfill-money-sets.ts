@@ -129,7 +129,7 @@ async function main() {
      * Returns null when nothing changed.
      */
     const rederiveSet = (label: string, id: string, field: string, stored: unknown): MoneySet | null => {
-      const set = parseMoney(stored, null);
+      const set = parseMoney(stored);
       if (!set) return null;
 
       const next = refreshDerived(set, set.rates);
@@ -368,9 +368,8 @@ Done: ${rederived} row(s) rewritten.`,
     console.log(
       "\nNote: this only fills rows that had NO set. To move already-set " +
         "DERIVED amounts onto newer rates, use refreshDerived - deliberately, " +
-        "because it changes prices buyers see. To only re-apply the current " +
-        "rounding rule to them, use --rederive. " +
-        "because it changes prices buyers see.",
+        "because that one changes prices buyers see. To only re-apply the " +
+        "current rounding rule to them, use --rederive.",
     );
   } finally {
     await prisma.$disconnect();

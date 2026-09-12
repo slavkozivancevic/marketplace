@@ -2,7 +2,7 @@ import { logger } from "@/lib/logger";
 import { prisma } from "@/core/db/prisma";
 import { Prisma, CouponType } from "@/generated/prisma/client";
 import { resolveCart, type CartItemRef } from "@/features/cart/db/resolveCart";
-import { moneyIn, parseMoney, serializeMoney, type CurrencyRates, type MoneySet } from "@/lib/money";
+import { moneyIn, requireMoney, serializeMoney, type CurrencyRates, type MoneySet } from "@/lib/money";
 import type { Currency } from "@/lib/currency-config";
 
 export type { CartItemRef };
@@ -137,17 +137,20 @@ export async function validateCoupon(
     }
   }
   if (coupon.minOrder != null) {
-    const minOrderSet = parseMoney(coupon.minOrderMoney, coupon.minOrder);
-    const minOrder = minOrderSet
-      ? moneyIn(minOrderSet, ctx.currency, ctx.rates)
-      : coupon.minOrder;
+    // Mirror and set are written together, so a minimum that exists has a set.
+    // The old fallback compared the USD mirror against a subtotal in the
+    // buyer's currency, which is only right by accident when that is USD.
+    const minOrderSet = requireMoney(coupon.minOrderMoney, `Coupon.minOrderMoney on ${coupon.id}`);
+    const minOrder = moneyIn(minOrderSet, ctx.currency, ctx.rates);
     if (ctx.subtotal < minOrder) {
       return { ok: false, reason: "minOrder", minOrder, minOrderUsd: coupon.minOrder };
     }
   }
 
   const valueMoney =
-    coupon.type === CouponType.FIXED ? parseMoney(coupon.valueMoney, coupon.value) : null;
+    coupon.type === CouponType.FIXED
+      ? requireMoney(coupon.valueMoney, `Coupon.valueMoney on ${coupon.id}`)
+      : null;
   const fixedInCurrency = valueMoney
     ? moneyIn(valueMoney, ctx.currency, ctx.rates)
     : coupon.value;
@@ -181,6 +184,28 @@ export async function recordCouponUsage(couponId: string): Promise<void> {
     });
   } catch (err) {
     logger.error("[coupons] recordCouponUsage failed", couponId, err);
+  }
+}
+
+/**
+ * Gives one redemption back, when an order that consumed the code is cancelled.
+ * The per-user limit needs no such undo - it is counted live from the buyer's
+ * non-cancelled orders - but `usageCount` is a plain column that only ever went
+ * up, so a cancelled order used to burn a slot off `usageLimit` for good.
+ *
+ * Floored at zero through the `gt: 0` guard, so a counter that lost a race at
+ * checkout (recordCouponUsage is capped and best-effort) can never be driven
+ * negative. Best-effort in the same spirit: a cancellation must stand even if
+ * the counter does not move.
+ */
+export async function releaseCouponUsage(couponId: string): Promise<void> {
+  try {
+    await prisma.coupon.updateMany({
+      where: { id: couponId, usageCount: { gt: 0 } },
+      data: { usageCount: { decrement: 1 } },
+    });
+  } catch (err) {
+    logger.error("[coupons] releaseCouponUsage failed", couponId, err);
   }
 }
 

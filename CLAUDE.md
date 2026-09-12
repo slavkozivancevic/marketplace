@@ -41,6 +41,12 @@ Never run `npm run build` casually - it is slow. Prefer `typecheck`.
   through CodePipeline on push.
 - **Never use an em dash** in code, comments, translations, docs or chat output.
   Use `-` instead.
+- **Every file is CRLF.** Any file you create or edit must end its lines with
+  CRLF. The single exception is `prisma/migrations/**`, which `prisma migrate`
+  generates as LF and which is checksummed - leave those alone. An LF file makes
+  every line of the diff look changed and buries the real change.
+  `.claude/hooks/enforce-crlf.mjs` enforces this after every Write/Edit, so it
+  is not something to remember - but do not fight it.
 - Do not touch internal identifiers (SSM parameter names, SST resource names,
   repo names). The product was rebranded to MarketVerse; the infrastructure
   names were deliberately left alone.
@@ -90,6 +96,17 @@ compute cart value anywhere else. Never silently zero a stale line - it goes to
 must call **both** `revalidateTag` and `updateTag`. Calling only `revalidateTag`
 serves stale data until a hard reload.
 
+That holds **in Server Actions only**. `updateTag` throws "can only be called
+from within a Server Action" anywhere else, so a Route Handler (webhook, cron,
+internal API) uses `revalidateTag(tag, { expire: 0 })` instead - same immediate
+effect, no stale-while-revalidate window. A shared helper that both kinds of
+caller reach needs two variants: see `revalidateProductCache` versus
+`revalidateProductCacheFromRoute` in `src/features/products/db/cache.ts`. Getting
+this wrong is not a cache bug, it is an exception thrown mid-request: the Stripe
+webhook wrote every order and then answered 500, and the post-commit work behind
+the invalidation call was skipped for good. **Never put anything irrecoverable
+(accounting, audit, payouts) after an invalidation call.**
+
 **React Query keys.** Any org-scoped query key must include `orgId` (from
 `useActiveOrgId`), on the client *and* in the SSR prefetch. The two keys must
 match exactly or the prefetch is wasted. Missing `orgId` causes cross-tenant
@@ -122,6 +139,18 @@ feature, show it locked with an explanation, or show a read-only banner.
 **Neon cold start.** The database sleeps. The first query after idle is slow
 because the instance is waking, not because the query is slow. See
 `src/lib/observability/idleGap.ts` - never conflate the two in metrics.
+
+**Prisma Studio shows the wrong clock.** Every `DateTime` column is
+`timestamp without time zone` and holds UTC. The app reads them correctly - the
+`PrismaPg` adapter parses them as UTC - but Prisma Studio, and any bare `pg`
+client, parse them in the machine's local zone, so on a UTC+2 laptop every
+timestamp in Studio reads two hours early. Measured 2026-09-12: a row stored as
+`08:19:24` came back from the Prisma client as `08:19:24Z` and from Studio as
+`06:19:24Z`. Nothing is wrong with the data. Do not "fix" it, and do not judge
+whether a write just happened by the clock in Studio - compare the ORDER of
+rows, or read through the app. No raw SQL in this repo binds a JS `Date`
+(the bestseller window uses the database's own `NOW()`), which is the one thing
+that would turn this into a real write bug.
 
 ---
 

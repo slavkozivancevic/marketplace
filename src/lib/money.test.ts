@@ -6,13 +6,16 @@ import {
   deriveMinor,
   isAuthoredIn,
   minorToDecimal,
+  MissingMoneySetError,
   MissingRateError,
   moneyIn,
   moneyUsdCents,
   parseMoney,
   refreshDerived,
+  requireMoney,
   serializeMoney,
   setAuthoredAmount,
+  zeroMoney,
   type CurrencyRates,
 } from "./money";
 import { formatPrice } from "./currency";
@@ -85,7 +88,7 @@ describe("the bug this module exists to prevent", () => {
 
   it("survives a full round trip through the Json column", () => {
     const set = authorMoney(100005, "rsd", RATES);
-    const back = parseMoney(JSON.parse(JSON.stringify(serializeMoney(set))), null);
+    const back = parseMoney(JSON.parse(JSON.stringify(serializeMoney(set))));
     expect(back).not.toBeNull();
     expect(moneyIn(back!, "rsd")).toBe(100005);
     expect(back!.primary).toBe("rsd");
@@ -171,32 +174,49 @@ describe("moneyIn fallback", () => {
 });
 
 describe("parseMoney", () => {
-  it("reconstructs a USD set from the mirror column when there is no Json", () => {
-    const set = parseMoney(null, 2999);
-    expect(set).toEqual({
-      primary: "usd",
-      amounts: { usd: 2999 },
-      authored: ["usd"],
-      rates: { usd: 1 },
-    });
+  it("returns null when the column holds nothing", () => {
+    expect(parseMoney(null)).toBeNull();
+    expect(parseMoney(undefined)).toBeNull();
   });
 
-  it("returns null when there is neither Json nor a mirror", () => {
-    expect(parseMoney(null, null)).toBeNull();
-    expect(parseMoney(undefined, undefined)).toBeNull();
-  });
-
-  it("falls back on malformed Json instead of throwing", () => {
-    expect(parseMoney({ primary: "xyz" }, 2999)?.primary).toBe("usd");
-    expect(parseMoney("not an object", 2999)?.amounts.usd).toBe(2999);
-    expect(parseMoney([1, 2, 3], 2999)?.amounts.usd).toBe(2999);
-    // Primary present but its amount missing - unusable, so fall back.
-    expect(parseMoney({ primary: "rsd", amounts: { usd: 5 } }, 2999)?.primary).toBe("usd");
+  it("returns null on malformed Json rather than improvising a set", () => {
+    // It used to rebuild a USD-only set from the mirror column here. That made a
+    // corrupt set indistinguishable from a legitimately USD-priced one, which is
+    // how a currency bug hides. The money columns are NOT NULL now, so there is
+    // nothing left to rescue and the honest answer is "this is not a set".
+    expect(parseMoney({ primary: "xyz" })).toBeNull();
+    expect(parseMoney("not an object")).toBeNull();
+    expect(parseMoney([1, 2, 3])).toBeNull();
+    // Primary present but its amount missing - unusable.
+    expect(parseMoney({ primary: "rsd", amounts: { usd: 5 } })).toBeNull();
   });
 
   it("repairs an authored list that lost its primary", () => {
-    const set = parseMoney({ primary: "rsd", amounts: { rsd: 100005 }, authored: [] }, null);
+    const set = parseMoney({ primary: "rsd", amounts: { rsd: 100005 }, authored: [] });
     expect(set!.authored).toContain("rsd");
+  });
+});
+
+describe("requireMoney", () => {
+  it("returns the set for a column that holds one", () => {
+    const stored = JSON.parse(JSON.stringify(serializeMoney(authorMoney(100005, "rsd", RATES))));
+    expect(moneyIn(requireMoney(stored, "Product.priceMoney"), "rsd")).toBe(100005);
+  });
+
+  it("throws, naming the column, when the contract is broken", () => {
+    expect(() => requireMoney(null, "Product.priceMoney on p1")).toThrow(MissingMoneySetError);
+    expect(() => requireMoney({ primary: "xyz" }, "Product.priceMoney on p1")).toThrow(
+      /Product\.priceMoney on p1/,
+    );
+  });
+});
+
+describe("zeroMoney", () => {
+  it("is zero in every currency without needing a rate", () => {
+    const zero = zeroMoney();
+    expect(moneyIn(zero, "usd")).toBe(0);
+    expect(moneyIn(zero, "eur")).toBe(0);
+    expect(moneyIn(zero, "rsd")).toBe(0);
   });
 });
 
