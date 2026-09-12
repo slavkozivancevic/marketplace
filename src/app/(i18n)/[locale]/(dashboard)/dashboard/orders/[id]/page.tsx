@@ -150,6 +150,9 @@ export default async function OrderDetailPage({
     }),
   }));
 
+  // `cancelOrder` refuses to cancel anything that is not UNPAID, so a cancelled
+  // order never collected a cent - the totals below must not read as owed.
+  const isCancelled = order.cancelledAt != null;
   const isCod = order.paymentMethod === "COD";
   const shortId = `#${order.id.slice(-8).toUpperCase()}`;
   const breadcrumbItems = [
@@ -405,10 +408,20 @@ export default async function OrderDetailPage({
               {/* When items were refunded, "Your total" becomes the order's
                   original charge, then show the refunded amount and what stays
                   paid - mirrors the seller payout breakdown on the org page. */}
-              <div className={`flex justify-between ${buyerRefunded > 0 ? "text-sm text-muted-foreground" : "font-semibold"}`}>
+              <div className={`flex justify-between ${buyerRefunded > 0 || isCancelled ? "text-sm text-muted-foreground" : "font-semibold"}`}>
                 <span>{t("orders.yourTotal")}</span>
                 <span>{formatPrice(order.total, order.currency as Currency, locale)}</span>
               </div>
+              {/* Cancelled: the order total above is what it WOULD have cost, so
+                  demote it and let the collected amount carry the bold - same
+                  shape as the refund rows below. Cancellation and refunds are
+                  mutually exclusive (cancelling requires UNPAID). */}
+              {isCancelled && (
+                <div className="flex justify-between font-semibold">
+                  <span>{t("orders.charged")}</span>
+                  <span>{formatPrice(0, order.currency as Currency, locale)}</span>
+                </div>
+              )}
               {buyerRefunded > 0 && (
                 <>
                   <div className="flex justify-between text-sm text-steel">
@@ -422,6 +435,11 @@ export default async function OrderDetailPage({
                 </>
               )}
             </div>
+            {isCancelled && (
+              <p className="mt-3 text-[11px] text-muted-foreground/80">
+                {t("orders.cancelledNothingChargedNote")}
+              </p>
+            )}
           </CardContent>
         </Card>
         {order.shippingLine1 && (

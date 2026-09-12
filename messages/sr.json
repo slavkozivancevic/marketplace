@@ -330,6 +330,8 @@
     "browse": "Pregledaj proizvode",
     "searchPlaceholder": "Pretraži po nazivu proizvoda ili ID narudžbine...",
     "paidAfterRefunds": "Plaćeno (nakon povraćaja)",
+    "charged": "Naplaćeno",
+    "cancelledNothingChargedNote": "Narudžbina je otkazana pre naplate, pa ništa nije naplaćeno.",
     "shipping": "Dostava"
   },
   "myProducts": {
@@ -1621,6 +1623,8 @@
     "yourPayout": "Vaša isplata",
     "payoutReversed": "Storno isplate (povraćaji)",
     "payoutAfterRefunds": "Konačna isplata",
+    "payoutAfterCancellation": "Isplata nakon otkazivanja",
+    "cancelledNoPayoutNote": "Narudžbina je otkazana pre naplate, pa isplate po njoj nema.",
     "shippingCollected": "Dostava (naplaćena)",
     "codBalanceNettedLabel": "Zadržano za dug od pouzeća",
     "codBalanceNettedNote": "Deo ove isplate je zadržan da izmiri proviziju koju vaša organizacija duguje od prethodnih narudžbina plaćenih pouzećem. Preostali dug pogledajte na stranici isplata.",

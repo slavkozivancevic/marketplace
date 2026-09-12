@@ -330,6 +330,8 @@
     "browse": "Produkte durchsuchen",
     "searchPlaceholder": "Nach Produktname oder Bestell-ID suchen...",
     "paidAfterRefunds": "Bezahlt nach Rückerstattungen",
+    "charged": "Berechnet",
+    "cancelledNothingChargedNote": "Diese Bestellung wurde vor der Zahlung storniert, daher wurde nichts berechnet.",
     "shipping": "Versand"
   },
   "myProducts": {
@@ -1621,6 +1623,8 @@
     "yourPayout": "Ihre Auszahlung",
     "payoutReversed": "Auszahlungsstorno (Rückerstattungen)",
     "payoutAfterRefunds": "Auszahlung nach Rückerstattungen",
+    "payoutAfterCancellation": "Auszahlung nach Stornierung",
+    "cancelledNoPayoutNote": "Diese Bestellung wurde vor dem Zahlungseingang storniert, daher gibt es dafür keine Auszahlung.",
     "shippingCollected": "Versand (eingezogen)",
     "codBalanceNettedLabel": "Einbehalten für geschuldete Nachnahme-Provision",
     "codBalanceNettedNote": "Ein Teil dieser Auszahlung wurde einbehalten, um die Provision zu begleichen, die Ihre Organisation aus früheren Nachnahme-Bestellungen schuldet. Den verbleibenden Saldo finden Sie auf der Auszahlungsseite.",

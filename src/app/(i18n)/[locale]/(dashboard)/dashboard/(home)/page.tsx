@@ -34,15 +34,22 @@ export default async function DashboardPage() {
     { name: tCrumbs("dashboard"), href: getPathname({ href: "/dashboard", locale }) },
   ];
 
-  const user = await prisma.user.findUnique({
-    where: { clerkUserId: userId! },
-    select: {
-      role: true,
-      name: true,
-      activeOrgId: true,
-      memberships: { select: { orgId: true, role: true } },
-    },
-  });
+  // `safeAuth()` legitimately yields null - a signed-out visitor, or one of
+  // Next's throwaway prefetch renders (see safeAuth.ts). The layout redirects
+  // in that case, but layout and page render in parallel, so this query fires
+  // first regardless; `userId!` only lied to TypeScript and Prisma threw
+  // "Argument `clerkUserId` must not be null" on every HEAD from a crawler.
+  const user = userId
+    ? await prisma.user.findUnique({
+        where: { clerkUserId: userId },
+        select: {
+          role: true,
+          name: true,
+          activeOrgId: true,
+          memberships: { select: { orgId: true, role: true } },
+        },
+      })
+    : null;
 
   const userRole = user?.role ?? "USER";
   const isAdmin = userRole === "ADMIN";

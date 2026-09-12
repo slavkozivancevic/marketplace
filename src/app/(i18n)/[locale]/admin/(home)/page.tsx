@@ -37,10 +37,15 @@ export default async function AdminPage() {
     { name: tCrumbs("admin"), href: getPathname({ href: "/admin", locale }) },
   ];
 
-  const user = await prisma.user.findUnique({
-    where: { clerkUserId: userId! },
-    select: { name: true },
-  });
+  // Null-safe for the same reason as the dashboard home page: the layout's
+  // redirect races this render, so a signed-out HEAD would otherwise reach
+  // Prisma with a null `clerkUserId`. See safeAuth.ts.
+  const user = userId
+    ? await prisma.user.findUnique({
+        where: { clerkUserId: userId },
+        select: { name: true },
+      })
+    : null;
 
   const adminCards = [
     {

@@ -31,20 +31,26 @@ export default async function MyProductsRoute() {
     { name: tCrumbs("myProducts"), href: getPathname({ href: "/dashboard/my-products", locale }) },
   ];
 
-  const user = await prisma.user.findUnique({
-    where: { clerkUserId: userId! },
-    select: {
-      role: true,
-      activeOrgId: true,
-      memberships: {
+  // Null-safe for the same reason as the dashboard home page: the layout's
+  // redirect races this render, so a signed-out HEAD would otherwise reach
+  // Prisma with a null `clerkUserId`. See safeAuth.ts. The `!user` guard below
+  // already sends anyone without a row back to /dashboard.
+  const user = userId
+    ? await prisma.user.findUnique({
+        where: { clerkUserId: userId },
         select: {
-          orgId: true,
           role: true,
-          organization: { select: { verified: true } },
+          activeOrgId: true,
+          memberships: {
+            select: {
+              orgId: true,
+              role: true,
+              organization: { select: { verified: true } },
+            },
+          },
         },
-      },
-    },
-  });
+      })
+    : null;
 
   if (!user || user.role !== "SELLER") {
     redirect(`/${locale}/dashboard`);

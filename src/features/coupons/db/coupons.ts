@@ -187,6 +187,28 @@ export async function recordCouponUsage(couponId: string): Promise<void> {
   }
 }
 
+/**
+ * Gives one redemption back, when an order that consumed the code is cancelled.
+ * The per-user limit needs no such undo - it is counted live from the buyer's
+ * non-cancelled orders - but `usageCount` is a plain column that only ever went
+ * up, so a cancelled order used to burn a slot off `usageLimit` for good.
+ *
+ * Floored at zero through the `gt: 0` guard, so a counter that lost a race at
+ * checkout (recordCouponUsage is capped and best-effort) can never be driven
+ * negative. Best-effort in the same spirit: a cancellation must stand even if
+ * the counter does not move.
+ */
+export async function releaseCouponUsage(couponId: string): Promise<void> {
+  try {
+    await prisma.coupon.updateMany({
+      where: { id: couponId, usageCount: { gt: 0 } },
+      data: { usageCount: { decrement: 1 } },
+    });
+  } catch (err) {
+    logger.error("[coupons] releaseCouponUsage failed", couponId, err);
+  }
+}
+
 // ── Admin CRUD ──────────────────────────────────────────────────────────────
 
 export type CouponMutationData = {

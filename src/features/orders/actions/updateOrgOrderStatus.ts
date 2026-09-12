@@ -16,6 +16,7 @@ import { ForbiddenError } from "@/features/common/errors/domainErrors";
 import { deriveOrderStatus } from "@/features/orders/status";
 import { platformFeeAmount } from "@/features/payments/config";
 import { recordAudit } from "@/features/audit/db/audit";
+import { releaseCouponUsage } from "@/features/coupons/db/coupons";
 import {
   publishCodOrderCancelled,
   publishCodPaymentReceived,
@@ -170,6 +171,7 @@ export async function cancelOrder(
       id: true,
       userId: true,
       locale: true,
+      couponId: true,
       paymentStatus: true,
       cancelledAt: true,
       items: { select: { productId: true, variantId: true, quantity: true } },
@@ -214,6 +216,13 @@ export async function cancelOrder(
       }
     }
   });
+
+  // Give the coupon slot back before any invalidation runs (the stock above is
+  // restored in the transaction; this counter lives on the Coupon row, so it
+  // cannot join it without locking an unrelated row for every cancellation).
+  // Ahead of the cache calls deliberately - nothing that cannot be recomputed
+  // may sit behind one.
+  if (order.couponId) await releaseCouponUsage(order.couponId);
 
   revalidateOrderCache(order.userId, orderId);
   const productIds = [...new Set(order.items.map((i) => i.productId))];
