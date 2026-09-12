@@ -5,4 +5,4 @@
 // release-please-config.json), so this constant always matches the released
 // `vX.Y.Z` tag. Keep the `x-release-please-version` comment on the same line -
 // it is the anchor the updater looks for.
-export const APP_VERSION = "0.2.0"; // x-release-please-version
+export const APP_VERSION = "0.3.0"; // x-release-please-version
