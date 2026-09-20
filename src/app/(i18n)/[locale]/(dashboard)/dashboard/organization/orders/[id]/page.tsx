@@ -19,14 +19,15 @@ import { getOrgOrderReturns } from "@/features/returns/db/returns";
 import { SellerReturns } from "@/features/returns/components/SellerReturns";
 import { getOrgShipment } from "@/features/shipments/db/shipments";
 import { ShipmentManager } from "@/features/shipments/components/ShipmentManager";
-import { deriveOrderStatus } from "@/features/orders/status";
+import { deriveSellerPartStage, sellerPartRefundState } from "@/features/orders/status";
 import { orderStatusKey, orderStatusVariant } from "@/features/orders/statusBadge";
 import { MembershipRole } from "@/generated/prisma/client";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { formatPrice } from "@/lib/currency";
-import { sellerNetAmount, platformFeeAmount, PLATFORM_FEE_PERCENT } from "@/features/payments/config";
+import { platformFeeAmount, PLATFORM_FEE_PERCENT } from "@/features/payments/config";
+import { sellerOrderMoney } from "@/features/orders/sellerOrderMoney";
 import type { Currency } from "@/lib/currency-config";
-import { getLabel } from "@/features/attributes/utils/translations";
+import { getVariantLabel } from "@/features/attributes/utils/translations";
 import { getProductTitle } from "@/features/products/utils/translations";
 
 interface Props {
@@ -61,21 +62,33 @@ export default async function OrgOrderDetailPage({ params }: Props) {
   const order = await getOrgOrderById(id, ctx.organizationId);
   if (!order) redirect(`/${locale}/dashboard`);
 
-  // Display stage is derived from the two real axes, so legacy rows (whose
-  // stored status predates the axes) still render correctly.
-  const displayStatus = deriveOrderStatus({
-    paymentStatus: order.paymentStatus,
-    fulfillmentStatus: order.fulfillmentStatus,
-    cancelledAt: order.cancelledAt,
+  const rawReturns = await getOrgOrderReturns(order.id, ctx.organizationId);
+  // This seller's own part of the order. Everything on this page is about that
+  // part - another seller's progress on the same order is none of its business.
+  const part = await getOrgShipment(order.id, ctx.organizationId);
+  if (!part) redirect(`/${locale}/dashboard`);
+
+  // Display stage is derived from the real axes, so legacy rows (whose stored
+  // status predates them) still render correctly. The refund half is scoped to
+  // this seller's own goods - the order's payment axis carries every seller's
+  // refunds, and reading it here told a seller with nothing returned that they
+  // were partially refunded.
+  const orgRefund = {
+    refundedGross: order.orgRefundGross,
+    itemsSubtotal: part.itemsSubtotal,
+  };
+  const refundState = sellerPartRefundState(orgRefund, order.paymentStatus);
+  const displayStatus = deriveSellerPartStage({
+    part,
+    paymentMethod: order.paymentMethod,
+    orderPaymentStatus: order.paymentStatus,
+    orgRefund,
   });
-  const isTerminal = order.cancelledAt != null || order.paymentStatus === "REFUNDED";
-  // `cancelOrder` refuses anything that is not UNPAID, so a cancelled order was
+  const isTerminal = part.cancelledAt != null || order.paymentStatus === "REFUNDED";
+  // `cancelOrder` refuses anything that is not UNPAID, so a cancelled part was
   // never collected and never paid out: the breakdown below must not present
   // its figures as money on the way.
-  const isCancelled = order.cancelledAt != null;
-
-  const rawReturns = await getOrgOrderReturns(order.id, ctx.organizationId);
-  const shipment = await getOrgShipment(order.id, ctx.organizationId);
+  const isCancelled = part.cancelledAt != null;
 
   // Attach localized titles to each return's lines (the order already carries
   // this seller's items with translations).
@@ -85,10 +98,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
       // can HAVE a translation row whose title was left blank, and `??` would
       // then hand back that empty string instead of falling back to English.
       const title = getProductTitle(it.product, order.locale);
-      const variantLabel =
-        it.variant?.attributeValues
-          .map((av) => getLabel(av.option.translations, order.locale))
-          .join(" / ") || null;
+      const variantLabel = getVariantLabel(it.variant, order.locale);
       return [it.id, { title, variantLabel }] as const;
     }),
   );
@@ -117,55 +127,36 @@ export default async function OrgOrderDetailPage({ params }: Props) {
   // of their net items share.
   const orgShipping =
     (order.shippingByOrg as Record<string, number> | null)?.[ctx.organizationId] ?? 0;
-  const orgItemsNet = sellerNetAmount(order.orgSubtotal);
-  const orgPayout = orgItemsNet + orgShipping;
-  // Refund-aware payout, computed the same way for Stripe and COD alike. COD
-  // orders never get a PAYOUT ledger row (no platform-held funds to reverse -
-  // see releaseSellerPayout), so this can't be read off a PAYOUT tx's own
-  // reversedNet the way the ledger display does; it's re-derived here from the
-  // same refund-gross figures (org-scoped app returns + external/Stripe-
-  // dashboard refunds) that getOrgOrderById already computed for the FEE row.
-  const grossPayoutBack =
-    sellerNetAmount(order.orgRefundGross) + sellerNetAmount(order.externalRefundGross);
-  // Delivery is never refunded to the buyer, so it is never clawed back from
-  // the seller either: the ceiling is their net on GOODS, not their whole
-  // payout. This used `orgPayout` and was correct only by accident - the
-  // payment axis could not reach REFUNDED while delivery had been charged, so
-  // the branch that ignores `grossPayoutBack` never ran on an order whose
-  // payout carried any. It can now, and it would have taken the delivery with it.
-  const payoutReversed = order.isFullyRefunded
-    ? orgItemsNet
-    : Math.min(orgItemsNet, grossPayoutBack);
-  const netPayoutAfterRefunds = orgPayout - payoutReversed;
-
-  // A succeeded Stripe transfer for this order may have been reduced below
-  // orgPayout to net this org's COD commission balance against it (see
-  // releaseSellerPayout) - the withheld slice never reaches the seller's
-  // connected account. Compared against orgPayout (not netPayoutAfterRefunds):
-  // the netting happens once at ship time, before any later refund, so it's
-  // independent of payoutReversed - mixing the two would misattribute the gap
-  // between them when an order has both. The two effects instead stack in
-  // finalTransferred: what was actually transferred, minus any subsequent
-  // refund clawback.
+  const isCod = order.paymentMethod === "COD";
+  // A succeeded Stripe transfer for this order may have been reduced below the
+  // payout to net this org's COD commission balance against it - the breakdown
+  // needs the amount that actually moved, not the one that was owed.
   const orgPayoutTx = order.paymentTransactions.find(
     (tx) => tx.type === "PAYOUT" && tx.organizationId === ctx.organizationId && tx.status === "SUCCEEDED",
   );
-  const codNetted = orgPayoutTx ? Math.max(0, orgPayout - orgPayoutTx.amount) : 0;
-  // The clawback cannot exceed what the transfer actually moved - Stripe
-  // rejects a reversal larger than its transfer, so settleReturnRefund caps it
-  // and puts the uncovered slice back on the COD balance as debt owed
-  // (`codDebtShortfall`): it was never cash in the seller's hands, it was debt
-  // relief when the payout was netted, and the refund undoes that relief.
-  // Subtracting the FULL net here instead showed a negative final payout, as
-  // if the seller owed cash for this order. They do not - the cash nets to
-  // zero and the withheld part reappears as debt, which the note explains.
-  const payoutReversedFromTransfer = orgPayoutTx
-    ? Math.min(payoutReversed, orgPayoutTx.amount)
-    : payoutReversed;
-  const codDebtRestored = payoutReversed - payoutReversedFromTransfer;
-  const finalTransferred = orgPayoutTx
-    ? orgPayoutTx.amount - payoutReversedFromTransfer
-    : netPayoutAfterRefunds;
+  const {
+    externalRefundPending,
+    orgPayout,
+    codCashToCollect,
+    codCommissionCredited,
+    codOwedAfterRefunds,
+    payoutReversed,
+    codNetted,
+    payoutReversedFromTransfer,
+    codDebtRestored,
+    finalTransferred,
+  } = sellerOrderMoney({
+    isCod,
+    isCancelled,
+    isFullyRefunded: order.isFullyRefunded,
+    orgSubtotal: order.orgSubtotal,
+    orgShipping,
+    partShipping: part.shippingAmount,
+    part,
+    orgRefundGross: order.orgRefundGross,
+    externalRefundGross: order.externalRefundGross,
+    payoutTxAmount: orgPayoutTx?.amount ?? null,
+  });
 
   const shortId = `#${order.id.slice(-8).toUpperCase()}`;
   const breadcrumbItems = [
@@ -249,7 +240,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                     {t("returnInProgress")}
                   </Badge>
                 )}
-                {order.paymentStatus === "PARTIALLY_REFUNDED" && (
+                {refundState === "partial" && (
                   <Badge variant="outline" className="gap-1 text-xs text-steel border-steel/40">
                     {t("partiallyRefunded")}
                   </Badge>
@@ -287,19 +278,28 @@ export default async function OrgOrderDetailPage({ params }: Props) {
             </CardContent>
           </Card>
 
-          {/* ── Action required (deliver / collect cash / cancel) ── */}
-          {canManage && !isTerminal && (
+          {/* ── Action required (deliver / collect cash / cancel) ──
+              Driven by this seller's own part: it collects its own cash and
+              cancels its own goods, never the whole order's.
+
+              Deliberately NOT gated on `isTerminal`: cancelling is what makes the
+              part terminal, so gating here would unmount the card in the middle
+              of its own action and take the pending confirmation toast with it.
+              The card is handed the cancelled flag and renders nothing itself. */}
+          {canManage && (
             <OrgOrderStatusManager
               orderId={order.id}
               paymentMethod={order.paymentMethod}
-              paymentStatus={order.paymentStatus}
-              fulfillmentStatus={order.fulfillmentStatus}
+              partDelivered={part.deliveredAt != null}
+              partSettled={part.codSettledAt != null}
+              partCancelled={part.cancelledAt != null}
+              orderPaymentStatus={order.paymentStatus}
             />
           )}
 
           {/* ── Fulfillment / shipping ── */}
           {canManage && !isTerminal && (
-            <ShipmentManager orderId={order.id} shipment={shipment} />
+            <ShipmentManager orderId={order.id} shipment={part} />
           )}
 
           {/* ── Returns (RMA) ── */}
@@ -325,7 +325,12 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                             variant={tx.type === "REFUND" ? "destructive" : "secondary"}
                             className="text-[10px]"
                           >
-                            {txTypeLabel[tx.type] ?? tx.type}
+                            {/* A negative FEE is the opposite transaction - the
+                                platform paying the seller back for a COD coupon
+                                - so it must not wear the word "commission". */}
+                            {tx.type === "FEE" && tx.amount < 0
+                              ? t("txType.feeCredit")
+                              : (txTypeLabel[tx.type] ?? tx.type)}
                           </Badge>
                           <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
                             {tx.provider === "COD" ? (
@@ -334,14 +339,22 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                               <><CreditCard className="h-3 w-3" />{t("card")}</>
                             )}
                           </span>
+                          {/* A PAYOUT was clawed back BECAUSE of a refund, so
+                              that is what its badge says. A FEE is the platform's
+                              own bookkeeping against this seller - a commission
+                              owed, or a coupon credit owed back to them - and
+                              nothing is refunded to anybody when it unwinds: the
+                              entry is voided. "Refundirano" struck across a
+                              credit row read as if the seller's money had gone
+                              somewhere, when the row simply stopped standing. */}
                           {(tx.type === "PAYOUT" || tx.type === "FEE") && tx.refundState === "full" && (
                             <Badge variant="destructive" className="text-[10px]">
-                              {t("refunded")}
+                              {tx.type === "FEE" ? t("feeVoided") : t("refunded")}
                             </Badge>
                           )}
                           {(tx.type === "PAYOUT" || tx.type === "FEE") && tx.refundState === "partial" && (
                             <Badge variant="outline" className="text-[10px]">
-                              {t("partiallyRefunded")}
+                              {tx.type === "FEE" ? t("feePartlyVoided") : t("partiallyRefunded")}
                             </Badge>
                           )}
                         </div>
@@ -356,26 +369,50 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                         </span>
                       </div>
                       <div className="flex flex-col items-end gap-0.5">
+                        {/* A FEE row is money leaving the seller, so it is
+                            rendered with a minus and in red - EXCEPT when it is
+                            negative, which is the platform owing them for a COD
+                            coupon deeper than its commission
+                            (markCodPaymentReceived). Printing the stored sign
+                            under the same rule gave "--400,01" in red, which
+                            reads as a charge twice over rather than as money
+                            coming back. */}
                         <span
                           className={`font-semibold tabular-nums ${
                             (tx.type === "PAYOUT" || tx.type === "FEE") && tx.refundState === "full"
                               ? "text-muted-foreground line-through"
-                              : tx.type === "REFUND" || tx.type === "FEE"
-                                ? "text-destructive"
-                                : ""
+                              : tx.type === "FEE" && tx.amount < 0
+                                ? "text-emerald-600 dark:text-emerald-500"
+                                : tx.type === "REFUND" || tx.type === "FEE"
+                                  ? "text-destructive"
+                                  : ""
                           }`}
                         >
-                          {tx.type === "REFUND" || tx.type === "FEE" ? "-" : ""}
-                          {formatPrice(tx.amount, tx.currency as Currency, locale)}
+                          {tx.type === "FEE" && tx.amount < 0
+                            ? "+"
+                            : tx.type === "REFUND" || tx.type === "FEE"
+                              ? "-"
+                              : ""}
+                          {formatPrice(Math.abs(tx.amount), tx.currency as Currency, locale)}
                         </span>
                         {tx.type === "PAYOUT" && tx.refundState === "partial" && (
                           <span className="text-[11px] text-destructive tabular-nums">
                             -{formatPrice(tx.reversedNet, tx.currency as Currency, locale)}
                           </span>
                         )}
+                        {/* Which way this credit points follows the row it
+                            belongs to: a commission owed gets money back (green
+                            plus), while a credit the platform owed the seller
+                            SHRINKS when their goods come back (red minus). One
+                            hard-coded plus read as a gift in the second case. */}
                         {tx.type === "FEE" && tx.refundState === "partial" && (
-                          <span className="text-[11px] text-emerald-600 tabular-nums">
-                            +{formatPrice(tx.reversedNet, tx.currency as Currency, locale)}
+                          <span
+                            className={`text-[11px] tabular-nums ${
+                              tx.amount < 0 ? "text-destructive" : "text-emerald-600"
+                            }`}
+                          >
+                            {tx.amount < 0 ? "-" : "+"}
+                            {formatPrice(Math.abs(tx.reversedNet), tx.currency as Currency, locale)}
                           </span>
                         )}
                         <Badge variant={txStatusVariant(tx.status)} className="text-[10px]">
@@ -385,14 +422,12 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                     </div>
                   </div>
                 ))}
-                {/* The CHARGE is what the buyer actually paid - already reduced by
-                    the platform-funded coupon. Clarify so the seller doesn't read
-                    the lower charge as a cut to their payout. */}
-                {order.discountAmount > 0 && !isCancelled && (
-                  <p className="mt-3 pt-3 border-t text-[11px] text-muted-foreground/80">
-                    {t("paymentHistoryCouponNote", { code: order.couponCode ?? "" })}
-                  </p>
-                )}
+                {/* No note about the CHARGE here. A seller never sees that row -
+                    it covers every seller's goods, so `visibleTxns` filters it
+                    out - and a sentence explaining "the charge is what the buyer
+                    paid after the coupon" pointed at something that is not on
+                    the page. The same promise is made, in full, under the payout
+                    breakdown below, where the seller's own figures are. */}
               </CardContent>
             </Card>
           )}
@@ -413,9 +448,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                   productMedia?.thumbUrl ??
                   productMedia?.url ??
                   null;
-                const variantLabel = item.variant?.attributeValues
-                  .map((av) => getLabel(av.option.translations, order.locale))
-                  .join(" / ");
+                const variantLabel = getVariantLabel(item.variant, order.locale);
                 const productTitle = getProductTitle(item.product, order.locale);
 
                 return (
@@ -448,6 +481,55 @@ export default async function OrgOrderDetailPage({ params }: Props) {
               })}
 
               <Separator className="my-4" />
+
+              {/* ── Cash to collect (COD only) ──
+                  The one number a courier acts on, and it is NOT the subtotal:
+                  the buyer pays this part's goods less its share of the coupon,
+                  plus its delivery (syncOrderFromParts builds the order total
+                  from exactly that). Without this line the seller has to derive
+                  it, and the obvious guess - goods plus delivery - overcharges
+                  the buyer by the coupon. Broken out line by line so the figure
+                  can be checked rather than trusted. */}
+              {isCod && !isCancelled && (
+                <div className="mb-4 rounded-lg border bg-muted/40 p-3 space-y-1.5 text-sm">
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>{t("codGoods")}</span>
+                    <span className="tabular-nums">
+                      {formatPrice(part.itemsSubtotal, order.currency as Currency, locale)}
+                    </span>
+                  </div>
+                  {part.discountShare > 0 && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>{t("couponPlatformFunded", { code: order.couponCode ?? "" })}</span>
+                      <span className="tabular-nums">
+                        -{formatPrice(part.discountShare, order.currency as Currency, locale)}
+                      </span>
+                    </div>
+                  )}
+                  {part.shippingAmount > 0 && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>{t("shippingCollected")}</span>
+                      <span className="tabular-nums">
+                        +{formatPrice(part.shippingAmount, order.currency as Currency, locale)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-semibold">
+                    <span>{t("codToCollect")}</span>
+                    <span className="tabular-nums">
+                      {formatPrice(codCashToCollect, order.currency as Currency, locale)}
+                    </span>
+                  </div>
+                  {/* The instruction is for a courier who has not gone yet. Once
+                      the cash is in, the same figures stay as the record of what
+                      was taken - telling them to collect it again would be
+                      nonsense. */}
+                  {part.discountShare > 0 && part.codSettledAt == null && (
+                    <p className="pt-1 text-xs text-muted-foreground">{t("codToCollectNote")}</p>
+                  )}
+                </div>
+              )}
+
               {/* Full payout breakdown: the seller is paid on the gross subtotal
                   minus the standard platform fee. Showing the fee explains why the
                   payout (also in the ledger) is less than the subtotal - it's the
@@ -471,12 +553,48 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                     </span>
                   </div>
                 )}
+                {/* The coupon is deliberately NOT a line in this column. It
+                    never touches the seller's earnings - on a card order the
+                    platform transfers the full net, and on a COD one it gives
+                    the same amount back by charging less commission - so as a
+                    "+" row it was an addend that the bold total below did not
+                    include, and the column stopped adding up: goods less
+                    commission plus coupon came to more than the payout printed
+                    under it. The amount is not lost; the note below the block
+                    carries it, which is also where the promise is spelled out. */}
                 <div className={`flex justify-between ${payoutReversed > 0 || codNetted > 0 || isCancelled ? "text-muted-foreground" : "font-semibold"}`}>
-                  <span>{t("yourPayout")}</span>
+                  <span>{isCod ? t("codEarnings") : t("yourPayout")}</span>
                   <span className="tabular-nums">
                     {formatPrice(orgPayout, order.currency as Currency, locale)}
                   </span>
                 </div>
+                {/* COD closes with what this order put ON the running balance,
+                    since no transfer will ever show it: the seller holds the
+                    cash, so the commission is charged to that balance (or, when
+                    the coupon outran it, credited to it).
+                    
+                    It says "charged"/"credited", not "you owe" / "we owe you".
+                    The balance is a pool per currency across every order, and an
+                    admin settles or pays out the pool, never a line of it - so
+                    once that happens there is no way to say which order was
+                    covered. This line stated a live obligation, and went on
+                    stating it after the money had changed hands: a credit that
+                    had just been paid out still read "the platform owes you". */}
+                {/* What is left of it once goods came back - the debt shrinks as
+                    the commission is credited, and saying otherwise would have
+                    the seller chasing a figure the balance no longer holds. The
+                    label follows the REMAINING sign: returns can carry it past
+                    zero, from owing the platform to being owed by it. */}
+                {isCod && !isCancelled && codOwedAfterRefunds !== 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>
+                      {codOwedAfterRefunds > 0 ? t("codOwedToPlatform") : t("codOwedToYou")}
+                    </span>
+                    <span className="tabular-nums">
+                      {formatPrice(Math.abs(codOwedAfterRefunds), order.currency as Currency, locale)}
+                    </span>
+                  </div>
+                )}
                 {/* Some of this transfer was withheld to settle COD commission
                     this org owed from other orders (see releaseSellerPayout) -
                     without this line the ledger's PAYOUT amount below would
@@ -493,9 +611,14 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                 )}
                 {/* If items were refunded, show the payout clawback and the net
                     actually kept - matching the PAYOUT row in the ledger above. */}
+                {/* A COD seller has no payout to reverse - they are holding the
+                    cash, which is why the earnings line above says "what you
+                    keep" rather than "your payout". These two lines were left
+                    behind on the card wording and talked about a transfer that
+                    never happens. */}
                 {payoutReversedFromTransfer > 0 && (
                   <div className="flex justify-between text-destructive">
-                    <span>{t("payoutReversed")}</span>
+                    <span>{isCod ? t("codReversedLabel") : t("payoutReversed")}</span>
                     <span className="tabular-nums">
                       -{formatPrice(payoutReversedFromTransfer, order.currency as Currency, locale)}
                     </span>
@@ -503,7 +626,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                 )}
                 {(payoutReversedFromTransfer > 0 || codNetted > 0) && (
                   <div className="flex justify-between font-semibold">
-                    <span>{t("payoutAfterRefunds")}</span>
+                    <span>{isCod ? t("codAfterRefundsLabel") : t("payoutAfterRefunds")}</span>
                     <span className="tabular-nums">
                       {formatPrice(finalTransferred, order.currency as Currency, locale)}
                     </span>
@@ -526,6 +649,61 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                   {t("cancelledNoPayoutNote")}
                 </p>
               )}
+              {/* Someone refunded the buyer straight from Stripe, and this
+                  order is not written off yet - so nothing has come out of this
+                  seller's money for it. Saying nothing would leave a REFUND row
+                  in the ledger above with no explanation, and drawing a clawback
+                  (which is what this page used to do) would claim money left
+                  when none did. It says which, with the amount. */}
+              {externalRefundPending > 0 && (
+                <p className="mt-3 text-[11px] text-muted-foreground/80">
+                  {t("externalRefundNotDeductedNote", {
+                    amount: formatPrice(
+                      externalRefundPending,
+                      order.currency as Currency,
+                      locale,
+                    ),
+                  })}
+                </p>
+              )}
+              {/* ...and where the live figure actually lives, so nobody reads
+                  the line above as a running total. */}
+              {isCod && !isCancelled && codOwedAfterRefunds !== 0 && (
+                <p className="mt-3 text-[11px] text-muted-foreground/80">
+                  {t("codBalancePooledNote")}
+                </p>
+              )}
+              {/* The commission line above moved because goods came back. Said
+                  with its amount rather than left for the seller to work out
+                  from the difference between two figures on two cards.
+                  Which way it moved decides the sentence: a debt being paid
+                  down is money coming back to the seller, while a credit the
+                  platform owed them getting SMALLER is the opposite, and one
+                  sentence covering both would be wrong in one of the two. A
+                  20% coupon against a 10% commission puts every seller in the
+                  second case, so it is not the rare branch.
+
+                  It carries BOTH figures, the movement and what is left, rather
+                  than pointing at "the amount above": a refund adds a clawback
+                  line and a final-total line between this note and the
+                  commission it is about, so the nearest figure above it is not
+                  the one it means. */}
+              {isCod && !isCancelled && codCommissionCredited !== 0 && (
+                <p className="mt-3 text-[11px] text-muted-foreground/80">
+                  {t(codCommissionCredited > 0 ? "codCommissionCreditedNote" : "codCreditReducedNote", {
+                    amount: formatPrice(
+                      Math.abs(codCommissionCredited),
+                      order.currency as Currency,
+                      locale,
+                    ),
+                    remaining: formatPrice(
+                      Math.abs(codOwedAfterRefunds),
+                      order.currency as Currency,
+                      locale,
+                    ),
+                  })}
+                </p>
+              )}
               {codNetted > 0 && codDebtRestored === 0 && (
                 <p className="mt-3 text-[11px] text-muted-foreground/80">
                   {t("codBalanceNettedNote")}
@@ -546,7 +724,11 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                   touches this breakdown. */}
               {order.discountAmount > 0 && !isCancelled && (
                 <p className="mt-3 text-[11px] text-muted-foreground/80">
-                  {t("couponSellerNote", { code: order.couponCode ?? "", percent: PLATFORM_FEE_PERCENT })}
+                  {t("couponSellerNote", {
+                    code: order.couponCode ?? "",
+                    percent: PLATFORM_FEE_PERCENT,
+                    amount: formatPrice(part.discountShare, order.currency as Currency, locale),
+                  })}
                 </p>
               )}
             </CardContent>

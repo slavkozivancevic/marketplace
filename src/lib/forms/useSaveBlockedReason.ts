@@ -72,9 +72,14 @@ export function useHasFormErrors<T extends FieldValues>(
  *
  * Returns `undefined` when the form is valid, so it can be passed straight
  * through to `<FormSaveBar saveDisabledReason>` / `<SaveBlockedNotice reason>`.
+ *
+ * `variant` picks the wording. The default "save" is what every admin form
+ * wants; "order" is for the buyer-facing checkout form, where "Cannot save"
+ * would be nonsense - the button says "Place order", not "Save".
  */
 export function useSaveBlockedReason<T extends FieldValues>(
   control: Control<T>,
+  variant: "save" | "order" = "save",
 ): string | undefined {
   "use no memo";
   const t = useTranslations("form");
@@ -82,7 +87,15 @@ export function useSaveBlockedReason<T extends FieldValues>(
   const messages = collectFormErrorMessages(errors);
 
   if (messages.length === 0) return undefined;
-  return messages.length > 1
-    ? t("saveBlockedMore", { message: messages[0], count: messages.length - 1 })
-    : t("saveBlocked", { message: messages[0] });
+  const message = messages[0];
+  const count = messages.length - 1;
+
+  if (variant === "order") {
+    return count > 0
+      ? t("orderBlockedMore", { message, count })
+      : t("orderBlocked", { message });
+  }
+  return count > 0
+    ? t("saveBlockedMore", { message, count })
+    : t("saveBlocked", { message });
 }

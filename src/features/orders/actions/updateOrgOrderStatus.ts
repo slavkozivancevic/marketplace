@@ -5,15 +5,18 @@ import { prisma } from "@/core/db/prisma";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
 import {
-  FulfillmentStatus,
   PaymentStatus,
   PaymentTransactionType,
   PaymentTransactionStatus,
   PaymentMethod,
-  OrderStatus,
 } from "@/generated/prisma/client";
 import { ForbiddenError } from "@/features/common/errors/domainErrors";
-import { deriveOrderStatus } from "@/features/orders/status";
+import {
+  getSellerPart,
+  syncCodCharge,
+  syncOrderFromParts,
+  updateSellerPart,
+} from "@/features/orders/db/sellerParts";
 import { platformFeeAmount } from "@/features/payments/config";
 import { recordAudit } from "@/features/audit/db/audit";
 import { releaseCouponUsage } from "@/features/coupons/db/coupons";
@@ -48,10 +51,15 @@ async function authorize(): Promise<AuthedOrder | { error: string }> {
 }
 
 /**
- * Confirms the seller received the cash for a delivered COD order. This is what
- * completes a COD order: it sets paymentStatus PAID (derived COMPLETED) and
- * settles the PENDING charge to SUCCEEDED in one transaction, so an order is
- * never COMPLETED while unpaid.
+ * Confirms THIS seller collected the cash for its own delivered part of a COD
+ * order, and accrues the platform commission it now owes on that part.
+ *
+ * Scoped to the seller's part on purpose. It used to act on the whole order,
+ * which in a multi-seller order let one seller mark every other seller's cash as
+ * received and saddle them with a FEE for money they had never seen. The order
+ * itself reaches PAID only once every active part is settled - `syncOrderFromParts`
+ * decides that, and only then is the order-level COD charge closed, so an order
+ * is still never COMPLETED while any of it is unpaid.
  */
 export async function markCodPaymentReceived(
   orderId: string,
@@ -60,8 +68,8 @@ export async function markCodPaymentReceived(
   if ("error" in auth) return auth;
   const { ctx } = auth;
 
-  const order = await prisma.order.findFirst({
-    where: { id: orderId, items: { some: { product: { organizationId: ctx.organizationId } } } },
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
     select: {
       id: true,
       userId: true,
@@ -69,64 +77,78 @@ export async function markCodPaymentReceived(
       currency: true,
       paymentMethod: true,
       paymentStatus: true,
-      fulfillmentStatus: true,
-      cancelledAt: true,
     },
   });
   if (!order) return { error: "Order not found" };
+
+  // Ownership FIRST, before anything about the order's own state. A seller with
+  // no part in this order must learn nothing from asking: answering "Not a COD
+  // order" or "Order is already paid" told a caller holding a stray id what
+  // somebody else's order is and how far along it is. The lookup used to be
+  // scoped to the org, so the distinction did not exist.
+  const part = await getSellerPart(orderId, ctx.organizationId);
+  if (!part) return { error: "Order not found" };
+
   if (order.paymentMethod !== PaymentMethod.COD) return { error: "Not a COD order" };
-  if (order.cancelledAt) return { error: "Order is cancelled" };
-  if (order.paymentStatus !== PaymentStatus.UNPAID) return { error: "Order is already paid" };
-  if (order.fulfillmentStatus !== FulfillmentStatus.DELIVERED) {
-    return { error: "Order must be delivered before payment is confirmed" };
+  // Belt and braces. An order only leaves UNPAID once every active part has
+  // settled, so the per-part guard below already covers this - but stating it
+  // here means a second FEE can never be accrued against a closed order, even if
+  // that derivation ever changes.
+  if (order.paymentStatus !== PaymentStatus.UNPAID) {
+    return { error: "Order is already paid" };
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.order.update({
-      where: { id: orderId },
-      data: {
-        paymentStatus: PaymentStatus.PAID,
-        status: deriveOrderStatus({
-          paymentStatus: PaymentStatus.PAID,
-          fulfillmentStatus: order.fulfillmentStatus,
-          cancelledAt: null,
-        }),
-      },
-    });
-    await tx.paymentTransaction.updateMany({
-      where: {
-        orderId,
-        type: PaymentTransactionType.CHARGE,
-        provider: PaymentMethod.COD,
-        status: PaymentTransactionStatus.PENDING,
-      },
-      data: { status: PaymentTransactionStatus.SUCCEEDED },
-    });
+  if (part.cancelledAt) return { error: "Your part of this order is cancelled" };
+  if (part.codSettledAt) return { error: "Your part is already settled" };
+  // Per-seller: this seller collects once IT has delivered, not once every other
+  // seller in the order has.
+  if (!part.deliveredAt) {
+    return { error: "Your part must be delivered before payment is confirmed" };
+  }
 
-    // Accrue the platform commission each seller now owes on this COD order. The
-    // seller collected the full cash, so the fee can't be netted from a transfer
-    // (as it is for card orders) - record it as a FEE owed per seller.
-    const orgItems = await tx.orderItem.findMany({
-      where: { orderId },
-      select: { price: true, quantity: true, product: { select: { organizationId: true } } },
-    });
-    const subtotalByOrg = new Map<string, number>();
-    for (const it of orgItems) {
-      const orgId = it.product.organizationId;
-      subtotalByOrg.set(orgId, (subtotalByOrg.get(orgId) ?? 0) + it.price * it.quantity);
-    }
-    for (const [organizationId, subtotal] of subtotalByOrg) {
-      const fee = platformFeeAmount(subtotal);
-      if (fee <= 0) continue;
+  // What the platform is owed for this part, AFTER its own share of the buyer's
+  // coupon.
+  //
+  // The seller took the cash at the door, and that cash was already short by
+  // `discountShare` - the order total the buyer pays is
+  // `itemsSubtotal - discountShare + shippingAmount` per part (syncOrderFromParts).
+  // Charging the full commission on the gross would therefore make the SELLER
+  // fund the coupon, which is the opposite of what the platform promises them in
+  // black and white ("the discount comes out of our commission, not your
+  // payout"). Netting it here leaves the seller with exactly
+  // `itemsSubtotal - fee + shippingAmount`, the same as a card order.
+  //
+  // It can go negative: a coupon steeper than the commission means the platform
+  // owes the seller the difference. That is a real liability and it is recorded
+  // as one - a negative running balance, paid out with the next Stripe transfer
+  // (releaseSellerPayout) - rather than quietly floored at zero, which would put
+  // the seller back to funding the discount in exactly the cases where it hurts
+  // most.
+  const grossFee = platformFeeAmount(part.itemsSubtotal);
+  const fee = grossFee - part.discountShare;
+  let orderFullyPaid = false;
+
+  await prisma.$transaction(async (tx) => {
+    await updateSellerPart(tx, part.id, { codSettledAt: new Date() });
+
+    // Accrue the platform commission THIS seller now owes. It collected the cash
+    // itself, so the fee can't be netted from a transfer (as it is for card
+    // orders) - record it as a FEE owed by this org alone. A negative amount is
+    // the platform owing the seller, and reads that way in the ledger.
+    if (fee !== 0) {
       await tx.paymentTransaction.create({
         data: {
           orderId,
-          organizationId,
+          organizationId: ctx.organizationId,
           type: PaymentTransactionType.FEE,
           status: PaymentTransactionStatus.SUCCEEDED,
           provider: PaymentMethod.COD,
           amount: fee,
           currency: order.currency,
+          note:
+            part.discountShare > 0
+              ? `Commission ${grossFee} less coupon share ${part.discountShare} funded by the platform`
+              : undefined,
         },
       });
       // Track this owed fee in the org's running balance so it can later be
@@ -134,29 +156,60 @@ export async function markCodPaymentReceived(
       // settled manually - individual FEE rows are per-order and never summed
       // on their own.
       await tx.orgBalance.upsert({
-        where: { organizationId_currency: { organizationId, currency: order.currency } },
-        create: { organizationId, currency: order.currency, owedAmount: fee },
+        where: {
+          organizationId_currency: {
+            organizationId: ctx.organizationId,
+            currency: order.currency,
+          },
+        },
+        create: {
+          organizationId: ctx.organizationId,
+          currency: order.currency,
+          owedAmount: fee,
+        },
         update: { owedAmount: { increment: fee } },
       });
     }
+
+    const synced = await syncOrderFromParts(orderId, tx);
+
+    // Closes the order-level cash charge only when there is nothing left to
+    // collect from anyone.
+    await syncCodCharge(tx, orderId, synced);
+
+    orderFullyPaid = synced.paymentStatus === PaymentStatus.PAID;
   });
 
   revalidateOrderCache(order.userId, orderId);
-  await recordAudit({ action: "order.cod_paid", entityType: "Order", entityId: orderId });
+  await recordAudit({
+    action: "order.cod_paid",
+    entityType: "Order",
+    entityId: orderId,
+    diff: { seller: ctx.organizationId, fee },
+  });
 
-  try {
-    await publishCodPaymentReceived(orderId, order.locale ?? "en");
-  } catch (err) {
-    logger.error(`[markCodPaymentReceived] notification failed for ${orderId}:`, err);
+  // The buyer's receipt is for the order, so it waits until the last seller has
+  // been paid - otherwise a three-seller order would send three of them.
+  if (orderFullyPaid) {
+    try {
+      await publishCodPaymentReceived(orderId, order.locale ?? "en");
+    } catch (err) {
+      logger.error(`[markCodPaymentReceived] notification failed for ${orderId}:`, err);
+    }
   }
 
   return { success: true };
 }
 
 /**
- * Cancels an order before money changes hands. COD-only path: a paid (card)
- * order must be refunded, not cancelled. Sets cancelledAt (derived CANCELLED),
- * fails the pending COD charge and restocks the reserved inventory.
+ * Cancels THIS seller's part of an order before money changes hands, restocking
+ * its own items. COD-only in practice: a paid (card) order must be refunded, not
+ * cancelled, and a card order is paid the moment it exists.
+ *
+ * The buyer's order survives one seller withdrawing. It is cancelled, and its
+ * coupon slot released, only once no active part is left. Until then the order
+ * stays open with a smaller total, and the pending cash charge is reduced to
+ * match so the courier collects only for goods that are still coming.
  */
 export async function cancelOrder(
   orderId: string,
@@ -165,37 +218,48 @@ export async function cancelOrder(
   if ("error" in auth) return auth;
   const { ctx } = auth;
 
-  const order = await prisma.order.findFirst({
-    where: { id: orderId, items: { some: { product: { organizationId: ctx.organizationId } } } },
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
     select: {
       id: true,
       userId: true,
       locale: true,
       couponId: true,
       paymentStatus: true,
-      cancelledAt: true,
-      items: { select: { productId: true, variantId: true, quantity: true } },
+      // Only THIS seller's lines. The restock below must never reach into
+      // another seller's inventory.
+      items: {
+        where: { product: { organizationId: ctx.organizationId } },
+        select: { productId: true, variantId: true, quantity: true },
+      },
     },
   });
   if (!order) return { error: "Order not found" };
-  if (order.cancelledAt) return { error: "Order is already cancelled" };
+
+  // Ownership first - see markCodPaymentReceived. A caller with no part here
+  // learns only that there is nothing of theirs at this id.
+  const part = await getSellerPart(orderId, ctx.organizationId);
+  if (!part) return { error: "Order not found" };
+
   if (order.paymentStatus !== PaymentStatus.UNPAID) {
     return { error: "Paid orders must be refunded, not cancelled" };
   }
+  if (part.cancelledAt) return { error: "Your part of this order is already cancelled" };
+  // The order-level UNPAID check above is not enough on its own: a seller that
+  // has already collected its own cash sits inside an order that stays UNPAID
+  // until the LAST seller collects. Cancelling then would restock goods that
+  // were handed over and paid for, and leave the commission accrued against it.
+  if (part.codSettledAt) {
+    return { error: "You have already collected payment for your part" };
+  }
+
+  let orderCancelled = false;
 
   await prisma.$transaction(async (tx) => {
-    await tx.order.update({
-      where: { id: orderId },
-      data: { cancelledAt: new Date(), status: OrderStatus.CANCELLED },
-    });
+    await updateSellerPart(tx, part.id, { cancelledAt: new Date() });
 
-    // A cancelled order is never paid - fail its pending COD charge.
-    await tx.paymentTransaction.updateMany({
-      where: { orderId, type: PaymentTransactionType.CHARGE, provider: PaymentMethod.COD },
-      data: { status: PaymentTransactionStatus.FAILED },
-    });
-
-    // Return reserved inventory (null stock = unlimited, leave it).
+    // Return reserved inventory (null stock = unlimited, leave it). These are
+    // this seller's items only - see the scoped `items` query above.
     for (const item of order.items) {
       if (item.variantId) {
         await tx.productVariant.update({
@@ -215,6 +279,15 @@ export async function cancelOrder(
         }
       }
     }
+
+    // Recompute the order's axes and what is still owed on it.
+    const synced = await syncOrderFromParts(orderId, tx);
+    orderCancelled = synced.orderCancelled;
+
+    // The courier must never collect for goods that are no longer coming, and
+    // this withdrawal can itself be what finishes the order - if the only other
+    // seller had already collected its cash, the order is paid in full now.
+    await syncCodCharge(tx, orderId, synced);
   });
 
   // Give the coupon slot back before any invalidation runs (the stock above is
@@ -222,7 +295,12 @@ export async function cancelOrder(
   // cannot join it without locking an unrelated row for every cancellation).
   // Ahead of the cache calls deliberately - nothing that cannot be recomputed
   // may sit behind one.
-  if (order.couponId) await releaseCouponUsage(order.couponId);
+  //
+  // Only when the WHOLE order is gone. One seller dropping out leaves an order
+  // that still exists and still used the code, so the slot stays spent. The
+  // per-user limit needs no equivalent - it counts the buyer's non-cancelled
+  // orders live, and this order is still one of them.
+  if (orderCancelled && order.couponId) await releaseCouponUsage(order.couponId);
 
   revalidateOrderCache(order.userId, orderId);
   const productIds = [...new Set(order.items.map((i) => i.productId))];
@@ -231,10 +309,15 @@ export async function cancelOrder(
     select: { id: true, organizationId: true },
   });
   products.forEach((p) => revalidateProductCache(p.organizationId, p.id));
-  await recordAudit({ action: "order.cancelled", entityType: "Order", entityId: orderId });
+  await recordAudit({
+    action: "order.cancelled",
+    entityType: "Order",
+    entityId: orderId,
+    diff: { seller: ctx.organizationId, orderCancelled },
+  });
 
   try {
-    await publishCodOrderCancelled(orderId, order.locale ?? "en");
+    await publishCodOrderCancelled(orderId, ctx.organizationId, order.locale ?? "en");
   } catch (err) {
     logger.error(`[cancelOrder] notification failed for ${orderId}:`, err);
   }

@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+/** Longest key and label the form accepts. Exported because
+ *  `duplicateAttribute` writes straight to the DB, bypassing this schema and
+ *  any column length - a copy that outgrew the form would exist as a row the
+ *  edit form then refuses to save. Both sides must read the same numbers. */
+export const ATTRIBUTE_KEY_MAX_LENGTH = 80;
+export const ATTRIBUTE_LABEL_MAX_LENGTH = 100;
+
 export const ATTRIBUTE_TYPES = [
   "SELECT",
   "MULTI_SELECT",
@@ -20,7 +27,7 @@ export const OPTION_TYPES: readonly AttributeTypeValue[] = [
 const labelTranslationsSchema = z
   .record(
     z.string(),
-    z.object({ label: z.string().max(100).optional() }).optional(),
+    z.object({ label: z.string().max(ATTRIBUTE_LABEL_MAX_LENGTH).optional() }).optional(),
   )
   .nullable()
   .optional();
@@ -31,7 +38,7 @@ const optionSchema = z.object({
   id: z.string().optional(),
   // Machine value; auto-derived from the label when left blank.
   value: z.string().max(80).optional(),
-  label: z.string().trim().min(1).max(100),
+  label: z.string().trim().min(1).max(ATTRIBUTE_LABEL_MAX_LENGTH),
   translations: labelTranslationsSchema,
   order: z.number().int().min(0),
 });
@@ -41,11 +48,11 @@ export type AttributeOptionInput = z.infer<typeof optionSchema>;
 export const attributeSchema = z
   .object({
     // Stable machine key; auto-derived from the default label when blank.
-    key: z.string().max(80).optional(),
+    key: z.string().max(ATTRIBUTE_KEY_MAX_LENGTH).optional(),
     type: z.enum(ATTRIBUTE_TYPES),
     // Unit suffix shown next to RANGE values (e.g. "inch", "GB").
     unit: z.string().max(20).optional(),
-    label: z.string().trim().min(1).max(100),
+    label: z.string().trim().min(1).max(ATTRIBUTE_LABEL_MAX_LENGTH),
     translations: labelTranslationsSchema,
     order: z.number().int().min(0),
     options: z.array(optionSchema),

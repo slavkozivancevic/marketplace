@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { BrandLogo } from "@/features/brands/components/BrandLogo";
 import { Copy, Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
+import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
 import { cn } from "@/lib/utils";
 import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 import { SearchInput } from "@/components/search/SearchInput";
@@ -63,6 +64,8 @@ function BrandTableRow({
   isDeleting,
   isEditing,
   isDuplicating,
+  deleteOpen,
+  onDeleteOpenChange,
 }: {
   brand: BrandListItem;
   displayName: string;
@@ -74,17 +77,17 @@ function BrandTableRow({
   isDeleting: boolean;
   isEditing: boolean;
   isDuplicating: boolean;
+  /**
+   * Owned by the page, not the row, so the page can steer it from inside the
+   * delete transition. On success it is never closed by hand: the refreshed list
+   * drops the row and this dialog, which lives inside it, goes with it - in the
+   * same frame the spinner stops and the toast appears. On failure it stays open
+   * with the reason.
+   */
+  deleteOpen: boolean;
+  onDeleteOpenChange: (open: boolean) => void;
 }) {
   const t = useTranslations();
-  const [deleteOpen, setDeleteOpen] = useState(false);
-
-  // Close the dialog once the delete that we started actually settles.
-  const wasDeleting = useRef(false);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (wasDeleting.current && !isDeleting) setDeleteOpen(false);
-    wasDeleting.current = isDeleting;
-  }, [isDeleting]);
 
   return (
     <div
@@ -139,7 +142,7 @@ function BrandTableRow({
             open={deleteOpen}
             onOpenChange={(next) => {
               if (isDeleting) return;
-              setDeleteOpen(next);
+              onDeleteOpenChange(next);
             }}
           >
             <AlertDialogTrigger asChild>
@@ -193,9 +196,13 @@ export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [deleteOpenId, setDeleteOpenId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isNavigating, startNavigate] = useTransition();
   const [isDuplicating, startDuplicate] = useTransition();
+  // Toasts wait for the refreshed list, so they land with the row they describe.
+  const announceDeleted = useAnnounceWhenSettled(isPending);
+  const announceDuplicated = useAnnounceWhenSettled(isDuplicating);
 
   const localizedBrands = useMemo(
     () =>
@@ -231,11 +238,17 @@ export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
     startTransition(async () => {
       const result = await deleteBrandAction(id);
       if (result && "error" in result) {
+        // Leave the dialog open so the reason stays readable, and re-arm the
+        // confirm button for a retry.
         toast.error(result.message);
-      } else {
-        toast.success(t("brands.brandDeleted"));
+        setDeletingId(null);
+        return;
       }
-      setDeletingId(null);
+      // Announced when the refreshed list actually drops the row - see the note
+      // in AdminTagsPage. The dialog lives inside that row and goes with it, so
+      // the spinner, the popup and the toast all resolve in one frame.
+      announceDeleted({ message: t("brands.brandDeleted") });
+      router.refresh();
     });
   };
 
@@ -248,17 +261,22 @@ export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
     setDuplicatingId(id);
     startDuplicate(async () => {
       const result = await duplicateBrandAction(id);
-      if ("id" in result) {
-        toast.success(t("brands.duplicated"), {
-          action: {
-            label: t("brands.editCopy"),
-            onClick: () => router.push(`/${locale}/admin/brands/${result.id}/edit`),
-          },
-        });
-      } else {
+      if (!("id" in result)) {
         toast.error(result.message);
+        setDuplicatingId(null);
+        return;
       }
-      setDuplicatingId(null);
+      const copyId = result.id;
+      // The copy exists on the server; the list still doesn't show it. Announce
+      // it when it does - the spinner runs until then, for the same reason.
+      announceDuplicated({
+        message: t("brands.duplicated"),
+        action: {
+          label: t("brands.editCopy"),
+          onClick: () => router.push(`/${locale}/admin/brands/${copyId}/edit`),
+        },
+      });
+      router.refresh();
     });
   };
 
@@ -303,6 +321,8 @@ export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
               isDeleting={isPending && deletingId === brand.id}
               isEditing={isNavigating && editingId === brand.id}
               isDuplicating={isDuplicating && duplicatingId === brand.id}
+              deleteOpen={deleteOpenId === brand.id}
+              onDeleteOpenChange={(open) => setDeleteOpenId(open ? brand.id : null)}
             />
           ))}
         </div>

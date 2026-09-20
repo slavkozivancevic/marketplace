@@ -16,6 +16,11 @@ beforeEach(async () => {
   await resetDb();
 });
 
+/** Short unique fragment, so `@@unique([locale, slug])` never collides. */
+function suffix() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
 describe("productRepository.bulkUpdateStatus", () => {
   it("updates status, bumps version, and snapshots history for the org's products", async () => {
     const org = await createOrganization();
@@ -64,5 +69,81 @@ describe("productRepository.bulkUpdateStatus", () => {
     );
     // Rolled back - the other org's product is untouched.
     expect((await prisma.product.findUnique({ where: { id: pB.id } }))?.status).toBe("DRAFT");
+  });
+});
+
+describe("productRepository.duplicate", () => {
+  it("carries the source's categories and tags onto the copy", async () => {
+    const org = await createOrganization();
+    const user = await createUser();
+    const product = await createProduct({ organizationId: org.id });
+    const category = await prisma.category.create({
+      data: {
+        translations: { create: { locale: "en", name: "Shoes", slug: `shoes-${suffix()}` } },
+      },
+    });
+    const tag = await prisma.tag.create({
+      data: {
+        translations: { create: { locale: "en", name: "New", slug: `new-${suffix()}` } },
+      },
+    });
+    await prisma.productCategory.create({
+      data: { productId: product.id, categoryId: category.id },
+    });
+    await prisma.productTag.create({ data: { productId: product.id, tagId: tag.id } });
+
+    const repo = productRepository({ organizationId: org.id, userId: user.id });
+    const copy = await repo.duplicate(product.id);
+
+    // The copy used to be created with neither join row, so it sat off every
+    // category page and out of every tag facet while looking complete.
+    expect(
+      await prisma.productCategory.findMany({ where: { productId: copy.id } }),
+    ).toEqual([expect.objectContaining({ categoryId: category.id })]);
+    expect(await prisma.productTag.findMany({ where: { productId: copy.id } })).toEqual([
+      expect.objectContaining({ tagId: tag.id }),
+    ]);
+  });
+
+  it("gives every locale's slug the same copy marker", async () => {
+    const org = await createOrganization();
+    const user = await createUser();
+    const product = await createProduct({ organizationId: org.id });
+    const base = suffix();
+    await prisma.productTranslation.createMany({
+      data: [
+        { productId: product.id, locale: "en", title: "Nike Air", slug: `nike-air-${base}`, description: "d" },
+        { productId: product.id, locale: "sr", title: "Patike Nike", slug: `patike-nike-${base}`, description: "d" },
+      ],
+    });
+
+    const repo = productRepository({ organizationId: org.id, userId: user.id });
+    const copy = await repo.duplicate(product.id);
+
+    const rows = await prisma.productTranslation.findMany({
+      where: { productId: copy.id },
+      orderBy: { locale: "asc" },
+    });
+    const byLocale = new Map(rows.map((r) => [r.locale, r.slug]));
+    // The default locale used to derive its slug from the "Copy of" TITLE
+    // (`copy-of-nike-air`) while the others kept the source slug plus a marker,
+    // so one product's slugs followed two different rules.
+    expect(byLocale.get("en")).toMatch(new RegExp(`^nike-air-${base}-copy-[0-9a-z]+$`));
+    expect(byLocale.get("sr")).toMatch(new RegExp(`^patike-nike-${base}-copy-[0-9a-z]+$`));
+  });
+
+  it("names the copy after the source for the audit trail", async () => {
+    const org = await createOrganization();
+    const user = await createUser();
+    const product = await createProduct({ organizationId: org.id });
+    await prisma.productTranslation.create({
+      data: { productId: product.id, locale: "en", title: "Nike Air", slug: `nike-air-${suffix()}`, description: "d" },
+    });
+
+    const repo = productRepository({ organizationId: org.id, userId: user.id });
+    const copy = await repo.duplicate(product.id);
+
+    // The audit log renders this as "Copied from: Nike Air" instead of a UUID.
+    expect(copy.sourceLabel).toBe("Nike Air");
   });
 });

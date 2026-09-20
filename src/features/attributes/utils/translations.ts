@@ -16,6 +16,27 @@ export function getLabel(
   return pickTranslatedText(rows, locale, "label");
 }
 
+/** A variant as every order-facing query loads it: its chosen option rows. */
+export type VariantWithOptions = {
+  attributeValues: readonly { option: { translations: readonly LabelRow[] } }[];
+} | null;
+
+/**
+ * What a buyer calls a variant, in one locale: its option labels joined, as in
+ * "Bela / 42". Null when the variant has no options to name it by, so callers
+ * can fall back (to the SKU, or to printing nothing) rather than render an
+ * empty line.
+ *
+ * Shared because this is one fact about an order line, and it used to be
+ * written out per page - the checkout confirmation printed the SKU where every
+ * other surface printed the label, so the same line read "WHITE" there and
+ * "Bela" on the order itself.
+ */
+export function getVariantLabel(variant: VariantWithOptions, locale: string): string | null {
+  if (!variant) return null;
+  return variant.attributeValues.map((av) => getLabel(av.option.translations, locale)).join(" / ") || null;
+}
+
 export type AttributeWithTranslations = {
   translations: LabelRow[];
 };

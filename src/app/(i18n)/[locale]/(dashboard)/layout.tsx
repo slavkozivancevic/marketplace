@@ -8,6 +8,7 @@ import { DashboardSidebar } from "@/components/layout/dashboard-sidebar";
 import { UnsavedChangesGuard } from "@/components/forms/UnsavedChangesGuard";
 import { ActiveOrgProvider } from "@/features/organizations/components/ActiveOrgContext";
 import { canManageOrgPayouts } from "@/lib/auth/permissions";
+import { pickActiveMembership } from "@/features/organizations/db/activeOrg";
 import { CacheTags } from "@/lib/cache/tags";
 import { prisma } from "@/core/db/prisma";
 
@@ -27,11 +28,18 @@ export default async function DashboardLayout({
 
   const userRole = user?.role ?? "USER";
   const organizations = user?.memberships.map((m) => m.organization) ?? [];
-  const currentOrgId = user?.activeOrgId ?? organizations[0]?.id ?? "";
+
+  // Resolved through the memberships, never straight off `user.activeOrgId`:
+  // that column can name an org the membership no longer backs, and the shell
+  // would then show a switcher parked on an org with no rights in it.
+  const activeMembership = pickActiveMembership(
+    user?.activeOrgId,
+    user?.memberships ?? [],
+  );
+  const currentOrgId = activeMembership?.orgId ?? "";
 
   // Gate the payouts nav entry on the active-org membership role, matching the
   // payouts page guard - so we never show a link that would just bounce.
-  const activeMembership = user?.memberships.find((m) => m.orgId === currentOrgId);
   const canManagePayouts = activeMembership
     ? canManageOrgPayouts(activeMembership.role)
     : false;
@@ -81,6 +89,7 @@ async function fetchLayoutUser(clerkUserId: string) {
         select: {
           orgId: true,
           role: true,
+          createdAt: true,
           organization: { select: { id: true, name: true } },
         },
       },

@@ -28,13 +28,19 @@ import {
 interface ProductDetailsProps {
   product: SerializedProductWithRelations;
   showActions?: boolean;
-  redirectTo?: string;
+  /**
+   * The product list this page hangs off, without the locale prefix. Only a
+   * delete uses it - see {@link ProductStatusActions}. Required whenever
+   * `showActions` is on, because the two surfaces (admin, seller dashboard)
+   * have different lists and neither one is a safe default for the other.
+   */
+  deletedRedirectTo?: string;
 }
 
 export const ProductDetails: React.FC<ProductDetailsProps> = ({
   product,
   showActions = true,
-  redirectTo,
+  deletedRedirectTo,
 }) => {
   const t = useTranslations("products");
   const tf = useTranslations("productForm");
@@ -63,7 +69,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({
             <ProductStatusActions
               productId={product.id}
               status={product.status}
-              redirectTo={redirectTo}
+              deletedRedirectTo={deletedRedirectTo ?? null}
             />
           )}
         </CardHeader>

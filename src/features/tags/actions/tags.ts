@@ -1,8 +1,6 @@
 "use server";
 
 import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
-import { redirect } from "next/navigation";
-import { getLocale } from "next-intl/server";
 import { createTagSchema, updateTagSchema, CreateTagInput, UpdateTagInput } from "../schema/tags";
 import { createTag, updateTag, deleteTag, duplicateTag } from "../db/tags";
 import { handleActionError } from "@/features/common/errors/domainErrors";
@@ -10,18 +8,19 @@ import { requireRole } from "@/lib/auth/requireRole";
 import { recordAudit } from "@/features/audit/db/audit";
 import { ActionErrorResult } from "@/types/types";
 
-// Server-action callers pass unlocalized paths like "/admin/tags"; we
-// re-prefix with the caller's request locale so the post-redirect URL stays
-// in the same language and middleware doesn't have to bounce again.
-async function localizedRedirect(redirectTo: string): Promise<never> {
-  const locale = await getLocale();
-  redirect(`/${locale}${redirectTo}`);
-}
+// Every action here hands its redirect target back to the caller instead of
+// redirecting, so there is no server-side navigation left to localize. The
+// client re-prefixes with the request locale.
 
+/**
+ * Hands the redirect target back instead of performing it. `redirect()` unwinds
+ * by throwing, so the form never got to confirm the save or drop its dirty
+ * state - it simply vanished to the list with nothing said.
+ */
 export async function createTagAction(
   unsafeData: CreateTagInput,
   redirectTo = "/admin/tags",
-): Promise<void | ActionErrorResult> {
+): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
     await requireRole("ADMIN");
 
@@ -36,18 +35,18 @@ export async function createTagAction(
       translations: parsed.data.translations ?? null,
     });
     await recordAudit({ action: "tag.created", entityType: "Tag", entityId: created.id });
+    return { ok: true, redirectTo };
   } catch (error) {
     return handleActionError(error);
   }
-
-  await localizedRedirect(redirectTo);
 }
 
+/** Hands the redirect target back instead of performing it - see createTagAction. */
 export async function updateTagAction(
   id: string,
   unsafeData: UpdateTagInput,
   redirectTo = "/admin/tags",
-): Promise<void | ActionErrorResult> {
+): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
     await requireRole("ADMIN");
 
@@ -62,26 +61,31 @@ export async function updateTagAction(
       translations: parsed.data.translations ?? null,
     });
     await recordAudit({ action: "tag.updated", entityType: "Tag", entityId: id });
+    return { ok: true, redirectTo };
   } catch (error) {
     return handleActionError(error);
   }
-
-  await localizedRedirect(redirectTo);
 }
 
+/**
+ * Returns instead of redirecting. `redirect()` unwinds by throwing, so an action
+ * that ends in one never returns to its caller - and everything the caller had
+ * queued after the await (the success toast, clearing the row's spinner) was
+ * silently unreachable. The only caller is the admin list, the very page the
+ * redirect pointed at, so the navigation bought nothing and cost the
+ * confirmation. `deleteTag` revalidates the cache; the caller refreshes.
+ */
 export async function deleteTagAction(
   id: string,
-  redirectTo = "/admin/tags",
-): Promise<void | ActionErrorResult> {
+): Promise<{ ok: true } | ActionErrorResult> {
   try {
     await requireRole("ADMIN");
     await deleteTag(id);
     await recordAudit({ action: "tag.deleted", entityType: "Tag", entityId: id });
+    return { ok: true };
   } catch (error) {
     return handleActionError(error);
   }
-
-  await localizedRedirect(redirectTo);
 }
 
 export async function duplicateTagAction(
@@ -90,7 +94,12 @@ export async function duplicateTagAction(
   try {
     await requireRole("ADMIN");
     const copy = await duplicateTag(id);
-    await recordAudit({ action: "tag.duplicated", entityType: "Tag", entityId: copy.id, diff: { from: id } });
+    await recordAudit({
+      action: "tag.duplicated",
+      entityType: "Tag",
+      entityId: copy.id,
+      diff: { from: copy.sourceLabel, fromId: id },
+    });
     return { error: false, id: copy.id };
   } catch (error) {
     return handleActionError(error);

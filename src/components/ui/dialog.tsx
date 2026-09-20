@@ -4,6 +4,7 @@ import * as React from "react"
 import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
+import { useOrphanedPortalCleanup } from "@/components/ui/useOrphanedPortalCleanup"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
@@ -55,9 +56,11 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
+  // Same leak as the alert dialog: see the hook.
+  const trackOverlay = useOrphanedPortalCleanup()
   return (
     <DialogPortal>
-      <DialogOverlay />
+      <DialogOverlay ref={trackOverlay} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(

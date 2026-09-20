@@ -22,6 +22,7 @@ import {
 import { getLocale, getTranslations } from "next-intl/server";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { canManageOrgPayouts } from "@/lib/auth/permissions";
+import { pickActiveMembership } from "@/features/organizations/db/activeOrg";
 
 export default async function DashboardPage() {
   await connection();
@@ -46,7 +47,7 @@ export default async function DashboardPage() {
           role: true,
           name: true,
           activeOrgId: true,
-          memberships: { select: { orgId: true, role: true } },
+          memberships: { select: { orgId: true, role: true, createdAt: true } },
         },
       })
     : null;
@@ -54,10 +55,14 @@ export default async function DashboardPage() {
   const userRole = user?.role ?? "USER";
   const isAdmin = userRole === "ADMIN";
 
-  const currentOrgId = user?.activeOrgId ?? user?.memberships[0]?.orgId ?? "";
+  // Via the memberships, not the raw column - see the dashboard layout.
+  const activeMembership = pickActiveMembership(
+    user?.activeOrgId,
+    user?.memberships ?? [],
+  );
+  const currentOrgId = activeMembership?.orgId ?? "";
   const showReceivedOrders = Boolean(currentOrgId);
   // Payouts card: OWNER/ADMIN only, matching the payouts page guard.
-  const activeMembership = user?.memberships.find((m) => m.orgId === currentOrgId);
   const showPayouts = activeMembership
     ? canManageOrgPayouts(activeMembership.role)
     : false;

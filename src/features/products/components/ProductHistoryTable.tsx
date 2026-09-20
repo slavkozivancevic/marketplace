@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ActionButton";
 import { toast } from "@/components/ui/sonner";
+import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
 import { rollbackProductVersion } from "@/features/products/actions/products";
 import { SerializedProductHistory } from "@/types/types";
 import { useMoney } from "@/lib/useMoney";
@@ -72,6 +73,7 @@ function HistoryRow({
   // Stored per-currency amounts; no rate on the display path.
   const { format } = useMoney();
   const [isPending, startTransition] = useTransition();
+  const announceRolledBack = useAnnounceWhenSettled(isPending);
   const router = useRouter();
   const locale = useLocale();
   const dl = dateLocale(locale);
@@ -82,7 +84,12 @@ function HistoryRow({
       if (result && "error" in result) {
         toast.error(result.message);
       } else {
-        toast.success(t("historyRollbackSuccess", { version: entry.version }));
+        // Announced once the refreshed history actually shows the rollback: the
+        // refresh rides inside this transition, so the confirm dialog's spinner
+        // runs until then and the toast lands with the new row, not before it.
+        announceRolledBack({
+          message: t("historyRollbackSuccess", { version: entry.version }),
+        });
         router.push(`/${locale}/admin/products/${productId}/history`);
         router.refresh();
       }
@@ -132,6 +139,11 @@ function HistoryRow({
             title={t("historyRollbackTitle")}
             description={t("historyRollbackDesc", { version: entry.version })}
             confirmText={t("historyRollback")}
+            loadingText={t("historyRollingBack")}
+            // Without this the dialog had no way to know the action had
+            // finished: it prevents Radix's auto-close and then waits for
+            // `isLoading` to fall, so it simply stayed open after a rollback.
+            isLoading={isPending}
             onConfirm={handleRollback}
           >
             <Button variant="outline" size="sm" disabled={isPending}>

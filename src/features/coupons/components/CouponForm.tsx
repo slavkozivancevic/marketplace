@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useNavigationGeneration } from "@/lib/navigation/navGeneration";
+import { setFlash } from "@/lib/navigation/flash";
 import { useForm, useFormState } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { useTranslations, useLocale } from "next-intl";
@@ -58,6 +60,7 @@ type CouponRow = {
 export function CouponForm({ coupon }: { coupon?: CouponRow }) {
   const t = useTranslations("coupons");
   const locale = useLocale();
+  const router = useRouter();
   const onInvalid = useInvalidToast();
   const { rates, currency } = useCurrencyStore();
   const [isPending, start] = useTransition();
@@ -192,10 +195,12 @@ export function CouponForm({ coupon }: { coupon?: CouponRow }) {
         : await createCouponAction(data);
       if (res && "error" in res) {
         toast.error(res.message);
-      } else if (coupon) {
-        // Adopt the just-saved values as the new baseline so the form is no
-        // longer "dirty" (the save bar clears and the nav guard stops prompting).
-        reset(data);
+      } else {
+        // Not re-baselined here - see the note in BrandForm.
+        // Queued for the list we are about to land on - see the note in TagForm.
+        const target = `/${locale}${res.redirectTo}`;
+        setFlash(t(coupon ? "updated" : "created"), { path: target });
+        router.push(target);
       }
     });
   };

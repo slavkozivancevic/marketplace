@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { getOrgOrderById } from "./orgOrders";
 import { fulfillOrder } from "./orders";
-import { sellerNetAmount } from "@/features/payments/config";
 import {
   prisma,
   resetDb,
@@ -37,8 +36,17 @@ beforeEach(async () => {
 // refund existed on the order, regardless of how much was actually refunded -
 // same bug as getOrgPayoutsPage (see payouts.integration.test.ts), just a
 // third independent copy of the same math, in the per-order page.
+//
+// The first case below then swung the other way and was corrected a second
+// time. It used to expect a PARTIAL marking for a partial manual refund, on the
+// reasoning that some of the payout was notionally gone. Nothing takes it:
+// `reconcileStripeRefund` claws payouts back only on the crossing into
+// REFUNDED, and then reverses the transfer whole. Marking the row while every
+// cent of it still stood was a claim about the seller's money that no ledger
+// entry backed - the page now says the refund happened, in words, and leaves
+// the row alone.
 describe("getOrgOrderById - external refund reversal display", () => {
-  it("marks the PAYOUT row PARTIAL (netted, capped) for a partial external refund", async () => {
+  it("leaves the PAYOUT row alone for a partial external refund - nothing was reversed", async () => {
     const user = await createUser();
     const org = await createOrganization();
     const product = await createProduct({ organizationId: org.id, price: 1000, stock: 10 });
@@ -83,9 +91,12 @@ describe("getOrgOrderById - external refund reversal display", () => {
     const orgOrder = await getOrgOrderById(order.id, org.id);
     const payoutTx = orgOrder?.paymentTransactions.find((t) => t.type === "PAYOUT");
 
-    expect(payoutTx?.refundState).toBe("partial");
-    expect(payoutTx?.reversedNet).toBe(sellerNetAmount(1000));
-    expect(payoutTx?.reversedNet).toBeLessThan(payoutTx?.amount ?? 0);
+    expect(payoutTx?.refundState).toBe("none");
+    expect(payoutTx?.reversedNet).toBe(0);
+    // The refund itself is not hidden from the seller: the order-level REFUND
+    // row is in their ledger, and the page states that it has not been taken
+    // off their payout (`externalRefundPending` -> externalRefundNotDeductedNote).
+    expect(orgOrder?.externalRefundGross).toBe(1000);
   });
 
   it("marks the PAYOUT row FULL only once the order is actually fully refunded", async () => {

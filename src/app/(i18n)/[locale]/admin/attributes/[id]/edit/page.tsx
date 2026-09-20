@@ -10,6 +10,7 @@ import { getAttributeById } from "@/features/attributes/db/attributes";
 import { getAttributeLabel } from "@/features/attributes/utils/translations";
 import { attributeToFormValues } from "@/features/attributes/utils/form";
 import { AttributeForm } from "@/features/attributes/components/AttributeForm";
+import { RemountOnNavigation } from "@/components/forms/RemountOnNavigation";
 
 export default async function EditAttributePage({
   params,
@@ -52,12 +53,17 @@ export default async function EditAttributePage({
         </PageHeader>
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
-        <AttributeForm
-          key={crypto.randomUUID()}
-          mode="edit"
-          attributeId={id}
-          defaultValues={attributeToFormValues(attribute)}
-        />
+        {/* Remounts only when the user navigates away and back, so a
+            half-edited form never reopens as if it were the saved record.
+            NOT a fresh key per render: that also tore the form down mid-save,
+            whenever a Server Action revalidated this page. */}
+        <RemountOnNavigation>
+          <AttributeForm
+            mode="edit"
+            attributeId={id}
+            defaultValues={attributeToFormValues(attribute)}
+          />
+        </RemountOnNavigation>
       </div>
     </div>
   );

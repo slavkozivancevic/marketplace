@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
-import { usePathname } from "next/navigation";
 import { useRefreshOrderViews } from "@/features/orders/hooks/useRefreshOrderViews";
 import { useTranslations } from "next-intl";
 import { Loader2, RotateCcw, Truck } from "lucide-react";
@@ -12,7 +11,10 @@ import { NumberStepper } from "@/components/ui/number-stepper";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/sonner";
+import { useNavigationGeneration } from "@/lib/navigation/navGeneration";
+import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
 import { requestReturn, shipReturn } from "@/features/returns/actions/returns";
+import { ReturnItemLine } from "./ReturnItemLine";
 
 type ItemRow = {
   orderItemId: string;
@@ -26,6 +28,8 @@ type Seller = {
   name: string;
   shipped: boolean;
   delivered: boolean;
+  /** This seller withdrew its items - they are never coming, so never returning. */
+  cancelled: boolean;
   canReturn: boolean;
   items: ItemRow[];
 };
@@ -65,26 +69,32 @@ export function BuyerReturns({
   const t = useTranslations("returns");
   const refreshOrderViews = useRefreshOrderViews();
   const [isPending, start] = useTransition();
+  // One transition, so one announcer: whichever message is queued fires in the
+  // commit that applies the refresh - the frame where the request appears in the
+  // list, or where the badge flips to shipped.
+  const announce = useAnnounceWhenSettled(isPending);
   const [openFor, setOpenFor] = useState<string | null>(null);
   const [sel, setSel] = useState<Record<string, number>>({});
   const [reason, setReason] = useState("");
-  // One transition serves every seller's form + every return's ship button, so
-  // track which id is running to swap only that button's label/spinner. `submit`
-  // is keyed by org id, `ship` by return id - these id spaces never collide here.
+  // That same transition serves every seller's form + every return's ship button,
+  // so track which id is running to swap only that button's label/spinner.
+  // `submit` is keyed by org id, `ship` by return id - the id spaces never collide.
   const [pending, setPending] = useState<{ id: string; kind: "submit" | "ship" } | null>(null);
   const isRunning = (id: string, kind: "submit" | "ship") =>
     isPending && pending?.id === id && pending?.kind === kind;
 
   // Reset the in-progress return form when the route changes - the client Router
   // Cache (dynamicOnHover) would otherwise keep a half-filled form alive across
-  // instant back-navigation.
-  const pathname = usePathname();
+  // instant back-navigation. Keyed on the navigation counter, not the pathname:
+  // returning to the same order does not change the path, and a router.refresh()
+  // must not count as a navigation and wipe the form mid-submit.
+  const navGeneration = useNavigationGeneration();
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpenFor(null);
     setSel({});
     setReason("");
-  }, [pathname]);
+  }, [navGeneration]);
 
   const statusLabel: Record<string, string> = {
     REQUESTED: t("statusRequested"),
@@ -116,7 +126,7 @@ export function BuyerReturns({
         setPending(null);
         return;
       }
-      toast.success(t("requestSent"));
+      announce({ message: t("requestSent") });
       setOpenFor(null);
       setSel({});
       setReason("");
@@ -133,13 +143,10 @@ export function BuyerReturns({
         setPending(null);
         return;
       }
-      toast.success(t("markedShipped"));
+      announce({ message: t("markedShipped") });
       refreshOrderViews();
     });
   };
-
-  const lineLabel = (l: ReturnLine | ItemRow) =>
-    "variantLabel" in l && l.variantLabel ? `${l.title} (${l.variantLabel})` : l.title;
 
   return (
     <Card>
@@ -166,13 +173,21 @@ export function BuyerReturns({
                   </Button>
                 )}
               </div>
-              {/* No return button yet - always explain why. Until this seller's
-                  shipment is delivered (covers not-shipped AND in-transit) a
-                  return can't be opened; once delivered but still not eligible
-                  it's awaiting collected payment (COD cash confirmation). */}
+              {/* No return button yet - always explain why, and with the RIGHT
+                  reason. A withdrawn seller is not "waiting to be delivered":
+                  those goods are never coming and there is nothing to send back,
+                  so telling the buyer to wait for a delivery would have them
+                  waiting forever. Otherwise: until this seller's shipment is
+                  delivered (covers not-shipped AND in-transit) a return can't be
+                  opened; once delivered but still not eligible it's awaiting
+                  collected payment (COD cash confirmation). */}
               {!seller.canReturn && returnable.length > 0 && sellerReturns.length === 0 && (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {!seller.delivered ? t("returnAfterDelivery") : t("notEligibleHint")}
+                  {seller.cancelled
+                    ? t("sellerCancelledHint")
+                    : !seller.delivered
+                      ? t("returnAfterDelivery")
+                      : t("notEligibleHint")}
                 </p>
               )}
 
@@ -192,7 +207,13 @@ export function BuyerReturns({
                   </div>
                   <ul className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
                     {ret.items.map((l) => (
-                      <li key={l.orderItemId}>{lineLabel(l)} × {l.quantity}</li>
+                      <li key={l.orderItemId}>
+                        <ReturnItemLine
+                          title={l.title}
+                          variantLabel={l.variantLabel}
+                          quantity={l.quantity}
+                        />
+                      </li>
                     ))}
                   </ul>
                   {ret.reason && (
@@ -212,7 +233,7 @@ export function BuyerReturns({
                   {returnable.map((item) => (
                     <div key={item.orderItemId} className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate">{lineLabel(item)}</p>
+                        <ReturnItemLine title={item.title} variantLabel={item.variantLabel} />
                         <p className="text-xs text-muted-foreground">{t("returnQtyMax", { max: item.returnable })}</p>
                       </div>
                       <NumberStepper

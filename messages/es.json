@@ -236,6 +236,7 @@
     "deleteConfirm": "¿Eliminar \"{title}\"?",
     "cannotUndo": "Esta acción no se puede deshacer.",
     "duplicated": "Producto duplicado",
+    "productDeleted": "Producto eliminado",
     "editCopy": "Editar copia",
     "edit": "Editar",
     "view": "Ver",
@@ -535,7 +536,10 @@
         "orgName": "Organización",
         "deletedClerkUserId": "Usuario eliminado",
         "promotedUserId": "Usuario ascendido",
-        "productCount": "Cantidad de productos"
+        "productCount": "Cantidad de productos",
+        "fee": "Comisión",
+        "orderCancelled": "Pedido cancelado",
+        "paid": "Pagado"
       },
       "values": {
         "USER": "Usuario",
@@ -569,7 +573,8 @@
           "reversal_failed": "Reversión de pago fallida"
         },
         "cod_balance": {
-          "settled": "Saldo de contra reembolso liquidado"
+          "settled": "Saldo de contra reembolso liquidado",
+          "credit_paid": "Crédito contra reembolso pagado"
         },
         "return": {
           "requested": "Devolución solicitada",
@@ -630,7 +635,8 @@
         "coupon": {
           "created": "Cupón creado",
           "updated": "Cupón actualizado",
-          "deleted": "Cupón eliminado"
+          "deleted": "Cupón eliminado",
+          "duplicated": "Cupón duplicado"
         },
         "review": {
           "approved": "Reseña aprobada",
@@ -798,6 +804,8 @@
     "creating": "Creando...",
     "saveChanges": "Guardar cambios",
     "saving": "Guardando...",
+    "updated": "Categoría actualizada",
+    "created": "Categoría creada",
     "deleted": "Categoría eliminada",
     "deleting": "Eliminando...",
     "searchPlaceholder": "Buscar categorías...",
@@ -868,6 +876,8 @@
     "creating": "Creando...",
     "saveChanges": "Guardar cambios",
     "saving": "Guardando...",
+    "updated": "Atributo actualizado",
+    "created": "Atributo creado",
     "deleted": "Atributo eliminado",
     "deleting": "Eliminando...",
     "searchPlaceholder": "Buscar atributos...",
@@ -932,7 +942,9 @@
     "rejectedReason": "No publicada: {reason}",
     "deleteConfirm": "¿Eliminar tu reseña?",
     "deleteDesc": "Esto elimina permanentemente tu valoración y comentario. No se puede deshacer.",
-    "deleting": "Eliminando..."
+    "deleting": "Eliminando...",
+    "deleted": "Reseña eliminada",
+    "updated": "Reseña actualizada"
   },
   "search": {
     "result": "resultado",
@@ -996,6 +1008,8 @@
     "description": "Descripción",
     "descPlaceholder": "Breve descripción de la marca...",
     "products": "Productos",
+    "brandUpdated": "Marca actualizada",
+    "brandCreated": "Marca creada",
     "brandDeleted": "Marca eliminada",
     "deleteConfirm": "¿Eliminar \"{name}\"?",
     "deleteDesc": "Los productos vinculados a esta marca perderán la asociación. Esto no se puede deshacer.",
@@ -1045,6 +1059,8 @@
     "name": "Nombre",
     "slug": "Slug",
     "products": "Productos",
+    "tagUpdated": "Etiqueta actualizada",
+    "tagCreated": "Etiqueta creada",
     "tagDeleted": "Etiqueta eliminada",
     "deleteConfirm": "¿Eliminar \"{name}\"?",
     "deleteDesc": "Los productos con esta etiqueta la perderán. Esto no se puede deshacer.",
@@ -1120,8 +1136,6 @@
     "title": "Algo ha salido mal",
     "pageDescription": "Se ha producido un error inesperado al cargar esta página.",
     "productsBody": "No hemos podido cargar la página de productos solicitada. Inténtalo de nuevo.",
-    "productBody": "No hemos podido cargar este producto. Inténtalo de nuevo.",
-    "productHistoryBody": "No hemos podido cargar el historial de este producto. Inténtalo de nuevo.",
     "genericDescription": "Se ha producido un error inesperado. Puedes intentarlo de nuevo.",
     "tryAgain": "Intentar de nuevo"
   },
@@ -1516,10 +1530,12 @@
     "allSaved": "Todos los cambios guardados",
     "saveBlocked": "No se puede guardar: {message}",
     "saveBlockedMore": "No se puede guardar: {message} (+{count} más)",
+    "orderBlocked": "No se puede realizar el pedido: {message}",
+    "orderBlockedMore": "No se puede realizar el pedido: {message} (+{count} más)",
     "discard": "Descartar",
     "save": "Guardar cambios",
     "saving": "Guardando...",
-    "changed": "Editado",
+    "emptyValue": "(vacío)",
     "savedValue": "Guardado: {value}",
     "on": "Activado",
     "off": "Desactivado",
@@ -1555,7 +1571,8 @@
       "charge": "Cargo",
       "refund": "Reembolso",
       "payout": "Pago",
-      "fee": "Comisión"
+      "fee": "Comisión",
+      "feeCredit": "Cupón devuelto"
     },
     "txStatus": {
       "pending": "Pendiente",
@@ -1582,6 +1599,8 @@
     "cancelled": "Cancelado",
     "refunded": "Reembolsado",
     "partiallyRefunded": "Parcialmente reembolsado",
+    "feeVoided": "Anulado",
+    "feePartlyVoided": "Parcialmente anulado",
     "returnInProgress": "Devolución en curso",
     "cashOnDelivery": "Contra reembolso",
     "card": "Tarjeta",
@@ -1607,28 +1626,40 @@
     "deliverDescription": "Marca este pedido como entregado una vez que el comprador lo haya recibido. Para contra reembolso, confirma el efectivo después.",
     "markDelivered": "Marcar entregado",
     "markedDelivered": "Pedido marcado como entregado.",
-    "cancelOrder": "Cancelar pedido",
+    "cancelOrder": "Cancelar mis artículos",
     "markedCancelled": "Pedido cancelado.",
     "codPaymentDescription": "El pago contra reembolso está pendiente. Confirma cuando hayas recibido el efectivo del comprador.",
     "markPaymentReceived": "Marcar pago recibido",
     "markingPaymentReceived": "Marcando...",
     "markedPaymentReceived": "Pago confirmado.",
-    "cancelConfirmTitle": "¿Cancelar este pedido?",
-    "cancelConfirmDesc": "Esto no se puede deshacer. El inventario se reabastece y se notifica al comprador de la cancelación.",
+    "cancelConfirmTitle": "¿Cancelar tus artículos de este pedido?",
+    "cancelConfirmDesc": "Esto no se puede deshacer. Solo se retiran y se reabastecen tus propios artículos. Si hay otros vendedores en este pedido, sus artículos no se ven afectados y el pedido sigue abierto para ellos. Se notifica al comprador.",
     "keepOrder": "Mantener pedido",
     "cancellingOrder": "Cancelando...",
-    "couponSellerNote": "Tu pago es el subtotal completo menos la comisión estándar de la plataforma ({percent}%) - igual que sin cupón. El descuento que recibió el comprador (cupón {code}) lo cubre la plataforma con su comisión, no se descuenta de tu pago.",
-    "paymentHistoryCouponNote": "El cargo es lo que el comprador pagó tras el cupón {code}. El descuento lo financia la plataforma y no reduce tu pago.",
+    "couponSellerNote": "Tu pago es el subtotal completo menos la comisión estándar ({percent}%), igual que si no hubiera cupón. Los {amount} que ahorró el comprador (cupón {code}) salen de la comisión de la plataforma, no de tu pago, y por eso no aparecen como línea arriba.",
     "platformFee": "Comisión de la plataforma ({percent}%)",
     "yourPayout": "Tu pago",
     "payoutReversed": "Reverso del pago (reembolsos)",
+    "codReversedLabel": "Mercancía devuelta",
     "payoutAfterRefunds": "Pago neto tras reembolsos",
+    "externalRefundNotDeductedNote": "Se reembolsaron {amount} al comprador fuera de la aplicación para este pedido. Ese importe NO se ha descontado de tu pago: lo asume la plataforma. Si se reembolsa el pedido entero, se revierte toda la transferencia, y eso aparece arriba como reverso.",
+    "codAfterRefundsLabel": "Ganancias finales",
     "payoutAfterCancellation": "Pago tras la cancelación",
     "cancelledNoPayoutNote": "Este pedido se canceló antes de cobrar el importe, por lo que no hay ningún pago por él.",
     "shippingCollected": "Envío (cobrado)",
     "codBalanceNettedLabel": "Retenido por comisión adeudada (contra reembolso)",
     "codBalanceNettedNote": "Parte de este pago se retuvo para saldar la comisión que tu organización adeuda de pedidos anteriores pagados contra reembolso. Consulta el saldo restante en la página de pagos.",
-    "codDebtRestoredNote": "Este pedido se reembolsó, así que los {amount} retenidos arriba volvieron a tu saldo contra reembolso como comisión adeudada: esa parte del pago nunca llegó a tu cuenta, solo redujo tu deuda en su momento."
+    "codCommissionCreditedNote": "Se devolvió mercancía de este pedido, así que se te abonaron {amount} de comisión en tu saldo contra reembolso, y quedan {remaining}.",
+    "codCreditReducedNote": "Se devolvió mercancía de este pedido, así que el crédito que te debemos se redujo en {amount}, y quedan {remaining}.",
+    "codDebtRestoredNote": "Este pedido se reembolsó, así que los {amount} retenidos arriba volvieron a tu saldo contra reembolso como comisión adeudada: esa parte del pago nunca llegó a tu cuenta, solo redujo tu deuda en su momento.",
+    "codToCollect": "A cobrar contra reembolso",
+    "codGoods": "Mercancía",
+    "couponPlatformFunded": "Cupón {code} (lo asume la plataforma)",
+    "codOwedToPlatform": "Cargado a tu saldo contra reembolso",
+    "codOwedToYou": "Abonado a tu saldo contra reembolso",
+    "codBalancePooledNote": "Los saldos se llevan por moneda y para todos tus pedidos, no por pedido: la cifra actual está en tu página de pagos y puede que ya se haya liquidado o pagado.",
+    "codEarnings": "Te queda",
+    "codToCollectNote": "Cobra exactamente este importe al comprador. El cupón se descuenta del efectivo en la puerta y la plataforma te lo devuelve reduciendo su comisión: tus ingresos son los mismos que sin cupón."
   },
   "interactions": {
     "frequentlyBoughtTogetherEyebrow": "Comprados juntos",
@@ -1735,6 +1766,8 @@
       "edit": "Editar",
       "duplicate": "Duplicar"
     },
+    "updated": "Cupón actualizado",
+    "created": "Cupón creado",
     "deleted": "Cupón eliminado",
     "duplicated": "Cupón duplicado",
     "deleteDesc": "Esta acción no se puede deshacer.",
@@ -1766,8 +1799,10 @@
     "delivered": "Entregado",
     "unfulfilled": "No enviado",
     "notShipped": "Aún no enviado",
+    "cancelled": "Cancelado",
     "shippedOn": "Enviado el {date}",
     "deliveredOn": "Entregado el {date}",
+    "cancelledOn": "Cancelado por el vendedor el {date}",
     "carrier": "Transportista",
     "tracking": "Seguimiento",
     "updateTracking": "Actualizar seguimiento",
@@ -1780,7 +1815,7 @@
     "markingDelivered": "Marcando...",
     "markedDelivered": "Marcado como entregado",
     "trackingUpdated": "Seguimiento actualizado",
-    "description": "Añade el transportista y el número de seguimiento, luego marca el pedido como enviado para notificar al comprador.",
+    "description": "Añade el transportista y el número de seguimiento, luego marca tus artículos como enviados para notificar al comprador.",
     "carrierPlaceholder": "p. ej. DHL",
     "trackingPlaceholder": "Número de seguimiento",
     "cancel": "Cancelar"
@@ -1820,7 +1855,8 @@
     "markRefunded": "Marcar como reembolsada",
     "refunding": "Emitiendo reembolso...",
     "refundDone": "Reembolso emitido",
-    "returnAfterDelivery": "Puedes solicitar una devolución una vez que este artículo sea entregado."
+    "returnAfterDelivery": "Puedes solicitar una devolución una vez que este artículo sea entregado.",
+    "sellerCancelledHint": "Este vendedor retiró sus artículos del pedido, así que no hay nada que devolver."
   },
   "payouts": {
     "pageTitle": "Pagos",
@@ -1862,7 +1898,9 @@
     "codBalanceNettedPill": "Retenido por deuda COD",
     "codBalanceNettedNote": "Parte de este pago se retuvo para saldar la comisión contra reembolso que adeuda tu organización.",
     "connecting": "Redirigiendo a Stripe...",
-    "toggleDetails": "Mostrar/ocultar detalles"
+    "toggleDetails": "Mostrar/ocultar detalles",
+    "codCreditTitle": "Te lo debemos",
+    "codCreditDesc": "Un cupón en un pedido contra reembolso superó nuestra comisión sobre él, así que cobraste menos efectivo en la puerta de lo que ganaste. La diferencia se suma a tu próximo pago de Stripe en la misma moneda."
   },
   "actionErrors": {
     "forbidden": "No permitido",
@@ -1947,10 +1985,10 @@
   },
   "adminCodBalances": {
     "title": "Saldos COD",
-    "description": "Comisión que las organizaciones adeudan a la plataforma por pedidos contra reembolso, pendiente de liquidar.",
+    "description": "Comisión que las organizaciones deben a la plataforma por pedidos contra reembolso, pendiente de cobro - y a la inversa, cuando un cupón que financiamos superó nuestra comisión sobre él.",
     "organization": "Organización",
     "currency": "Moneda",
-    "owed": "Adeudado",
+    "owed": "Saldo",
     "actions": "Acciones",
     "settle": "Liquidar",
     "empty": "No hay saldos COD pendientes",
@@ -1962,7 +2000,17 @@
     "confirmSettle": "Confirmar",
     "settled": "Liquidado {amount}",
     "amountTooHigh": "El importe no puede superar el saldo adeudado actual.",
-    "settling": "Liquidando..."
+    "settling": "Liquidando...",
+    "weOwe": "Debemos {amount}",
+    "creditNote": "Sale con su próximo pago",
+    "payAction": "Pagar",
+    "payTitle": "Pagar el saldo a favor de {org}",
+    "payDesc": "Registra el dinero devuelto fuera de la aplicación (transferencia, efectivo). El saldo a favor se reduce de inmediato y queda en el registro de auditoría.",
+    "amountPaidLabel": "Importe pagado",
+    "creditNow": "Actualmente les debemos: {amount}",
+    "amountTooHighCredit": "El importe no puede superar el saldo a favor pendiente.",
+    "paying": "Pagando...",
+    "paidOut": "Pagado {amount}"
   },
   "money": {
     "useConverted": "Volver a convertido",

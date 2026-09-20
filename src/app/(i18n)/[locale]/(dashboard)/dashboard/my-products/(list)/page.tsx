@@ -12,6 +12,7 @@ import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Link, getPathname } from "@/i18n/navigation";
 import { MyProductsPage } from "@/features/products/components/MyProductsPage";
 import { getAllBrands } from "@/features/brands/db/brands";
+import { pickActiveMembership } from "@/features/organizations/db/activeOrg";
 import { CacheTags } from "@/lib/cache/tags";
 
 async function fetchBrands() {
@@ -45,6 +46,7 @@ export default async function MyProductsRoute() {
             select: {
               orgId: true,
               role: true,
+              createdAt: true,
               organization: { select: { verified: true } },
             },
           },
@@ -56,18 +58,24 @@ export default async function MyProductsRoute() {
     redirect(`/${locale}/dashboard`);
   }
 
-  if (!user.activeOrgId) {
-    redirect(`/${locale}/dashboard`);
-  }
-  const activeOrgId = user.activeOrgId;
-
-  const activeMembership = user.memberships.find(
-    (m) => m.orgId === activeOrgId,
+  // Resolved from the memberships rather than read straight off
+  // `user.activeOrgId`: that column has no foreign key behind it, and when it
+  // named an org whose membership was gone, this page found no membership at
+  // all and told the owner of her own shop she had read-only access. Removal
+  // now repoints the column, and this keeps the page right either way.
+  const activeMembership = pickActiveMembership(
+    user.activeOrgId,
+    user.memberships,
   );
 
+  if (!activeMembership) {
+    redirect(`/${locale}/dashboard`);
+  }
+  const activeOrgId = activeMembership.orgId;
+
   const canWrite =
-    activeMembership?.role === "OWNER" || activeMembership?.role === "ADMIN";
-  const orgVerified = activeMembership?.organization?.verified ?? false;
+    activeMembership.role === "OWNER" || activeMembership.role === "ADMIN";
+  const orgVerified = activeMembership.organization.verified;
 
   // The list is fetched client-side (MyProductsList via React Query with
   // `refetchOnMount: "always"`), so we skip a blocking SSR prefetch and let its

@@ -10,7 +10,10 @@ import { getProductTitle } from "@/features/products/utils/translations";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
 import { CacheTags } from "@/lib/cache/tags";
-import { isActionErrorResult } from "@/features/common/errors/domainErrors";
+import {
+  handleActionError,
+  isActionErrorResult,
+} from "@/features/common/errors/domainErrors";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs, type BreadcrumbItem } from "@/components/seo/Breadcrumbs";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -104,7 +107,7 @@ async function ProductDetailsContent({ id }: { id: string }) {
         <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
           <Alert variant="destructive">
             <AlertTitle>{t("admin.errorLoading")}</AlertTitle>
-            <AlertDescription>{t("errorPage.productBody")}</AlertDescription>
+            <AlertDescription>{result.message}</AlertDescription>
           </Alert>
         </div>
       </>
@@ -143,7 +146,7 @@ async function ProductDetailsContent({ id }: { id: string }) {
         </PageHeader>
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
-        <ProductDetails product={product} />
+        <ProductDetails product={product} deletedRedirectTo="/admin/products" />
       </div>
     </>
   );
@@ -157,7 +160,10 @@ async function fetchProduct(
   SerializedProductWithRelations | null | { error: boolean; message: string }
 > {
   "use cache";
-  cacheTag(CacheTags.products.all(organizationId));
+  // Just the per-product tag, same as the seller's copy of this page. Every
+  // mutation path busts `products.all` and `products.byId` together (see
+  // revalidateProductCache), so also tagging the org-wide one only made this
+  // page re-render for products it does not show.
   cacheTag(CacheTags.products.byId(organizationId, id));
   try {
     const repo = productRepository({ organizationId, userId });
@@ -173,7 +179,10 @@ async function fetchProduct(
         ...serializeMoneyFields(v),
       })),
     };
-  } catch {
-    return { error: true, message: "Failed to load product" };
+  } catch (error) {
+    // handleActionError, not a hardcoded English string: a domain error here
+    // (a forbidden read, a stale org) has a translated message, and the seller
+    // copy of this page has always surfaced it.
+    return handleActionError(error);
   }
 }

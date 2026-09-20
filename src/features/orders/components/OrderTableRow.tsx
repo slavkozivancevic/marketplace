@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import type { UserOrderListItem } from "../db/orders";
 import type { Currency } from "@/lib/currency-config";
 import { formatPrice } from "@/lib/currency";
+import { getVariantLabel } from "@/features/attributes/utils/translations";
 import { getProductTitle } from "@/features/products/utils/translations";
 import { deriveOrderStatus } from "../status";
 import { orderStatusKey, orderStatusVariant } from "../statusBadge";
@@ -33,7 +34,8 @@ export function OrderTableRow({ order }: { order: UserOrderListItem }) {
       // can HAVE a translation row whose title was left blank, and `??` would
       // then hand back that empty string instead of falling back to English.
       const title = getProductTitle(item.product, order.locale);
-      const label = item.variant?.sku ? `${title} (${item.variant.sku})` : title;
+      const variantLabel = getVariantLabel(item.variant, order.locale) ?? item.variant?.sku ?? null;
+      const label = variantLabel ? `${title} (${variantLabel})` : title;
       return item.quantity > 1 ? `${label} ×${item.quantity}` : label;
     })
     .join(", ");

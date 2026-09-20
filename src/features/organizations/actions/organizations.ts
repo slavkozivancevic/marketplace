@@ -9,6 +9,7 @@ import {
 } from "@/features/common/errors/domainErrors";
 import { requireRole } from "@/lib/auth/requireRole";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
+import { syncClerkUserMetadata } from "@/services/clerk";
 import {
   setOrganizationVerified,
   updateOrganizationName,
@@ -16,6 +17,7 @@ import {
   removeMember,
   updateMemberRole,
   getOrganizationById,
+  listMemberManagers,
 } from "../db/organizations";
 import {
   verifyOrganizationSchema,
@@ -31,7 +33,11 @@ import { moneyUsdCents, parseMoney } from "@/lib/money";
 import { buildMoneySet, preserveDerived } from "@/lib/money-input";
 import { getCurrencyRates } from "@/features/currency/db/currencyRates";
 import { ActionErrorResult } from "@/types/types";
-import { publishMemberRoleChanged } from "@/services/notifications";
+import {
+  publishMemberAccessRevoked,
+  publishMemberRemoved,
+  publishMemberRoleChanged,
+} from "@/services/notifications";
 import { recordAudit } from "@/features/audit/db/audit";
 
 export async function setOrganizationVerifiedAction(
@@ -151,12 +157,66 @@ export async function removeMemberAction(
       throw new ForbiddenError({ key: "onlyOwnersAndAdminsRemoveMembers" });
     }
 
-    await removeMember(targetUserId, ctx.organizationId);
+    const removed = await removeMember(targetUserId, ctx.organizationId);
     await recordAudit({
       action: "member.removed",
       entityType: "Membership",
       entityId: targetUserId,
+      diff: { role: removed.removedRole, member: removed.userEmail },
     });
+
+    // removeMember already moved them off this org in the DB; mirror it into
+    // Clerk so their live session re-scopes on the next request instead of
+    // carrying a claim for an org they no longer belong to. Only when they were
+    // actually moved and landed somewhere: the metadata sync requires an org
+    // id, a user with no memberships left has no dashboard to scope, and a
+    // member who was working in a different org needs no write at all (Clerk
+    // rate-limits writes). The sync swallows its own failures - it is a cache
+    // of the DB, not the source of truth.
+    if (removed.activeOrgChanged && removed.newActiveOrgId) {
+      await syncClerkUserMetadata({
+        clerkUserId: removed.userClerkId,
+        dbId: removed.userId,
+        role: removed.userRole,
+        activeOrgId: removed.newActiveOrgId,
+      });
+    }
+
+    // Recipient-targeted, like the role-change email: it goes to the member who
+    // was just removed, so it renders in THEIR language, not the acting admin's.
+    // Fire-and-forget - a notification failure must not undo the removal.
+    publishMemberAccessRevoked({
+      userEmail: removed.userEmail,
+      userName: removed.userName,
+      organizationName: removed.organizationName,
+      removedRole: removed.removedRole,
+      locale: removed.userLocale,
+    }).catch((err) =>
+      logger.error("[notifications] publishMemberAccessRevoked failed", err),
+    );
+
+    // And the org's other owners/admins, same as when a member's account is
+    // closed - who holds access is security-relevant to everyone who manages
+    // it, not just to whoever happened to click. The actor is left out; they
+    // already know. Each email renders in its own recipient's language, so the
+    // fan-out is per recipient rather than one shared render.
+    const managers = await listMemberManagers(ctx.organizationId, {
+      excludeUserId: ctx.userId,
+    });
+    for (const manager of managers) {
+      publishMemberRemoved({
+        recipientEmail: manager.email,
+        recipientName: manager.name,
+        organizationName: removed.organizationName,
+        removedUserName: removed.userName,
+        removedUserEmail: removed.userEmail,
+        removedRole: removed.removedRole,
+        reason: "removed_by_admin",
+        locale: manager.locale ?? "en",
+      }).catch((err) =>
+        logger.error("[notifications] publishMemberRemoved failed", err),
+      );
+    }
   } catch (error) {
     return handleActionError(error);
   }

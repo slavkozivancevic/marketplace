@@ -55,7 +55,13 @@ export function FormSaveBar({
     return register();
   }, [sticky, register]);
 
-  if (!isDirty) {
+  // `isPending` keeps the bar up even after the form has been reset to its
+  // saved baseline: the save adopts the new values (so the unsaved-changes guard
+  // lets the navigation through) but the transition runs on through that
+  // navigation, and collapsing to "all changes saved" mid-flight would drop the
+  // spinner the user is still waiting on. The bar stays, spinning, until the
+  // list it is heading for replaces it.
+  if (!isDirty && !isPending) {
     return (
       <div
         className={cn(

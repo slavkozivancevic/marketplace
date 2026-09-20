@@ -8,6 +8,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { prisma } from "@/core/db/prisma";
 
 import { productRepository } from "@/features/products/db/products";
+import { pickActiveMembership } from "@/features/organizations/db/activeOrg";
 import { getProductTitle } from "@/features/products/utils/translations";
 import {
   handleActionError,
@@ -100,24 +101,29 @@ async function MyProductContent({ id }: { id: string }) {
 
   const user = await prisma.user.findUnique({
     where: { clerkUserId },
-    select: { id: true, activeOrgId: true },
+    select: {
+      id: true,
+      activeOrgId: true,
+      memberships: { select: { orgId: true, role: true, createdAt: true } },
+    },
   });
 
   if (!user) notFound();
 
-  const membership = await prisma.membership.findUnique({
-    where: {
-      userId_orgId: {
-        userId: user.id,
-        orgId: product.organizationId,
-      },
-    },
-    select: { role: true },
-  });
+  const membership = user.memberships.find(
+    (m) => m.orgId === product.organizationId,
+  );
 
   if (!membership) notFound();
 
-  if (user.activeOrgId !== product.organizationId) {
+  // Which org they are really in - `user.activeOrgId` alone can name one they
+  // were removed from, and then their own product read as another org's.
+  const activeOrgId = pickActiveMembership(
+    user.activeOrgId,
+    user.memberships,
+  )?.orgId;
+
+  if (activeOrgId !== product.organizationId) {
     return (
       <>
         <div className="shrink-0 px-6 pt-2 sticky-header-bg">
@@ -208,7 +214,7 @@ async function MyProductContent({ id }: { id: string }) {
         <ProductDetails
           product={productData}
           showActions={canWrite}
-          redirectTo="/dashboard/my-products"
+          deletedRedirectTo="/dashboard/my-products"
         />
       </div>
     </>

@@ -70,7 +70,13 @@ export function MyProductsPage({
     brand: Record<string, number>;
     createdBy: Record<string, number>;
   }>({
+    // Under the "products" prefix, exactly like the admin list's counts
+    // (["products","admin","counts",...]). Every product mutation invalidates
+    // ["products"], and this key used to sit outside that prefix - so deleting
+    // or duplicating a product left the sidebar facet counts showing the old
+    // numbers until the page was remounted.
     queryKey: [
+      "products",
       "my-products",
       "counts",
       orgId,

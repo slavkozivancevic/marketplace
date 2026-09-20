@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import {
@@ -14,6 +14,7 @@ import {
   Star,
 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
+import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
 import { SearchInput } from "@/components/search/SearchInput";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -91,14 +92,9 @@ export function AdminCategoriesPage({
   const [isPending, startTransition] = useTransition();
   const [isNavigating, startNavigate] = useTransition();
   const [isDuplicating, startDuplicate] = useTransition();
-
-  // Close the open dialog once its delete settles.
-  const wasPending = useRef(false);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (wasPending.current && !isPending) setDeleteOpenId(null);
-    wasPending.current = isPending;
-  }, [isPending]);
+  // Toasts wait for the refreshed list, so they land with the row they describe.
+  const announceDeleted = useAnnounceWhenSettled(isPending);
+  const announceDuplicated = useAnnounceWhenSettled(isDuplicating);
 
   const treeRows = useMemo(() => toTreeOrder(categories), [categories]);
 
@@ -121,11 +117,17 @@ export function AdminCategoriesPage({
     startTransition(async () => {
       const result = await deleteCategoryAction(id);
       if (result && "error" in result) {
+        // Leave the dialog open so the reason stays readable, and re-arm the
+        // confirm button for a retry.
         toast.error(result.message);
-      } else {
-        toast.success(t("deleted"));
+        setDeletingId(null);
+        return;
       }
-      setDeletingId(null);
+      // Announced when the refreshed list actually drops the row - see the note
+      // in AdminTagsPage. The dialog lives inside that row and goes with it, so
+      // the spinner, the popup and the toast all resolve in one frame.
+      announceDeleted({ message: t("deleted") });
+      router.refresh();
     });
   };
 
@@ -133,17 +135,22 @@ export function AdminCategoriesPage({
     setDuplicatingId(id);
     startDuplicate(async () => {
       const result = await duplicateCategoryAction(id);
-      if ("id" in result) {
-        toast.success(t("duplicated"), {
-          action: {
-            label: t("editCopy"),
-            onClick: () => router.push(`/${locale}/admin/categories/${result.id}/edit`),
-          },
-        });
-      } else {
+      if (!("id" in result)) {
         toast.error(result.message);
+        setDuplicatingId(null);
+        return;
       }
-      setDuplicatingId(null);
+      const copyId = result.id;
+      // The copy exists on the server; the list still doesn't show it. Announce
+      // it when it does - the spinner runs until then, for the same reason.
+      announceDuplicated({
+        message: t("duplicated"),
+        action: {
+          label: t("editCopy"),
+          onClick: () => router.push(`/${locale}/admin/categories/${copyId}/edit`),
+        },
+      });
+      router.refresh();
     });
   };
 

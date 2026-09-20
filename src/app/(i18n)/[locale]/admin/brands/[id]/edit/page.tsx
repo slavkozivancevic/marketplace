@@ -12,6 +12,7 @@ import {
   type BrandTranslations,
 } from "@/features/brands/utils/translations";
 import { BrandForm } from "@/features/brands/components/BrandForm";
+import { RemountOnNavigation } from "@/components/forms/RemountOnNavigation";
 import { DEFAULT_LOCALE, NON_DEFAULT_LOCALES } from "@/i18n/config";
 
 export default async function EditBrandPage({
@@ -82,24 +83,26 @@ export default async function EditBrandPage({
         </PageHeader>
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
-        {/* Fresh key forces remount on each page render so unsaved edits
-            don't persist across navigations (Next.js can preserve the
-            form's in-memory state otherwise). */}
-        <BrandForm
-          key={crypto.randomUUID()}
-          mode="edit"
-          brandId={brand.id}
-          defaultValues={{
-            name: en?.name ?? "",
-            slug: en?.slug ?? "",
-            logoUrl: brand.logoUrl ?? "",
-            logoUrlDark: brand.logoUrlDark ?? "",
-            logoBackdrop: brand.logoBackdrop,
-            logoBackdropDark: brand.logoBackdropDark,
-            description: en?.description ?? "",
-            translations: nonDefault,
-          }}
-        />
+        {/* Remounts only when the user navigates away and back, so a
+            half-edited form never reopens as if it were the saved record.
+            NOT a fresh key per render: that also tore the form down mid-save,
+            whenever a Server Action revalidated this page. */}
+        <RemountOnNavigation>
+          <BrandForm
+            mode="edit"
+            brandId={brand.id}
+            defaultValues={{
+              name: en?.name ?? "",
+              slug: en?.slug ?? "",
+              logoUrl: brand.logoUrl ?? "",
+              logoUrlDark: brand.logoUrlDark ?? "",
+              logoBackdrop: brand.logoBackdrop,
+              logoBackdropDark: brand.logoBackdropDark,
+              description: en?.description ?? "",
+              translations: nonDefault,
+            }}
+          />
+        </RemountOnNavigation>
       </div>
     </div>
   );

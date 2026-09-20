@@ -1,7 +1,7 @@
 "use client";
 import axios from "axios";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { getProductTitle } from "@/features/products/utils/translations";
 import { getBrandName } from "@/features/brands/utils/translations";
@@ -87,13 +87,6 @@ export function BulkSelectPanel() {
   const [isDeleting, startDelete] = useTransition();
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const wasDeleting = useRef(false);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (wasDeleting.current && !isDeleting) setDeleteOpen(false);
-    wasDeleting.current = isDeleting;
-  }, [isDeleting]);
-
   const query = useInfiniteQuery({
     queryKey: ["products", "admin", "bulk", search],
     queryFn: ({ pageParam }) =>
@@ -131,8 +124,10 @@ export function BulkSelectPanel() {
     });
   };
 
-  const invalidateAndClear = () => {
-    queryClient.invalidateQueries({ queryKey: ["products"] });
+  // Awaited by its callers: `invalidateQueries` resolves once the refetch has
+  // landed, i.e. once the table on screen actually shows the change.
+  const invalidateAndClear = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["products"] });
     setSelectedIds(new Set());
   };
 
@@ -143,8 +138,10 @@ export function BulkSelectPanel() {
       if (result.error) {
         toast.error(result.message);
       } else {
+        // The rows still carry their old status until the refetch lands, so the
+        // toast waits for it - and the button spins for exactly that long.
+        await invalidateAndClear();
         toast.success(result.message);
-        invalidateAndClear();
       }
     });
   };
@@ -154,11 +151,16 @@ export function BulkSelectPanel() {
     startDelete(async () => {
       const result = await bulkDeleteProducts(ids);
       if (result.error) {
+        // Leave the dialog open so the reason stays readable.
         toast.error(result.message);
-      } else {
-        toast.success(result.message);
-        invalidateAndClear();
+        return;
       }
+      // Awaited: the rows are still in the table until the refetch lands, so the
+      // dialog stays up with its spinner until then - see the note in
+      // ProductTable. Closing and announcing happen in the frame they vanish.
+      await invalidateAndClear();
+      setDeleteOpen(false);
+      toast.success(result.message);
     });
   };
 

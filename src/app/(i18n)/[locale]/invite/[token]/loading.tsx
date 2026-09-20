@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { PageHeader } from "@/components/PageHeader";
+import { InviteHeading } from "@/features/organizations/components/InviteHeading";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
@@ -7,16 +7,18 @@ import { Skeleton } from "@/components/ui/skeleton";
  * the two addresses before it renders anything - and it is the first thing a
  * newly invited teammate ever sees, so it should not open on a blank frame.
  *
- * The wrapper is `container max-w-md px-6`, matching the accept branch (the
- * error branches are the wider `container px-6`, but those are the exception).
- * The title and description are static copy, so the real <PageHeader> is used
- * and only the organization name inside the card stays a placeholder.
+ * The wrapper is the same `w-full max-w-md` column every branch of the page
+ * uses, centered by invite/layout.tsx. It used to be `container max-w-md px-6`
+ * while the error branches were a full-width `container px-6`, so the screen
+ * changed width the moment the lookup finished. The title and description are
+ * static copy, so the real heading is used and only the organization name
+ * inside the card stays a placeholder.
  */
 export default async function InviteLoading() {
   const t = await getTranslations("invite");
   return (
-    <div className="container max-w-md px-6">
-      <PageHeader title={t("pageTitle")} description={t("pageDesc")} />
+    <div className="w-full max-w-md space-y-6">
+      <InviteHeading title={t("pageTitle")} description={t("pageDesc")} />
 
       <div className="flex flex-col gap-4 overflow-hidden rounded-xl bg-card py-4 ring-1 ring-foreground/10">
         {/* CardTitle - the organization's name. */}

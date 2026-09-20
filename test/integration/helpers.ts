@@ -67,7 +67,9 @@ export function createProduct(input: {
     data: {
       organizationId: input.organizationId,
       ...priceCols(input.price ?? 1000),
-      stock: input.stock ?? 10,
+      // `?? 10` used to turn an explicit null into 10, so "unlimited stock" was
+      // untestable through this helper even though the type offered it.
+      stock: input.stock === undefined ? 10 : input.stock,
       status: input.status ?? "PUBLISHED",
     },
   });
@@ -114,6 +116,8 @@ export function createCoupon(input: {
   minOrder?: number | null;
   usageLimit?: number | null;
   usageCount?: number;
+  /** Redemptions allowed per buyer; counted live from their non-cancelled orders. */
+  perUserLimit?: number | null;
   expiresAt?: Date | null;
   active?: boolean;
 }) {
@@ -132,6 +136,7 @@ export function createCoupon(input: {
       minOrderMoney: minOrder.json,
       usageLimit: input.usageLimit ?? null,
       usageCount: input.usageCount ?? 0,
+      perUserLimit: input.perUserLimit ?? null,
       expiresAt: input.expiresAt ?? null,
       active: input.active ?? true,
     },

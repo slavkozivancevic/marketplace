@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useNavigationGeneration } from "@/lib/navigation/navGeneration";
+import { setFlash } from "@/lib/navigation/flash";
+import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { useFieldArray, useForm, useFormState, useWatch } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
@@ -306,6 +308,7 @@ function AttributeFormInner(props: AttributeFormProps & { onDiscard: () => void 
   const t = useTranslations("adminAttributes");
   const onInvalid = useInvalidToast();
   const uiLocale = useLocale();
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   // Auto-derive stays on in edit mode too, consistent with the brand/category
   // slug fields: typing a new label regenerates the key until the admin edits
@@ -498,7 +501,15 @@ function AttributeFormInner(props: AttributeFormProps & { onDiscard: () => void 
         props.mode === "edit"
           ? await updateAttributeAction(props.attributeId, data)
           : await createAttributeAction(data);
-      if (result && "error" in result) toast.error(result.message);
+      if (result && "error" in result) {
+        toast.error(result.message);
+      } else {
+        // Not re-baselined here - see the note in BrandForm.
+        // Queued for the list we are about to land on - see the note in TagForm.
+        const target = `/${uiLocale}${result.redirectTo}`;
+        setFlash(t(props.mode === "edit" ? "updated" : "created"), { path: target });
+        router.push(target);
+      }
     });
   };
 

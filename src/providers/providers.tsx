@@ -8,6 +8,7 @@ import { QueryProvider } from "./QueryProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ChatDrawerRoot } from "@/features/chat/components/ChatDrawer";
 import { ClerkGate } from "@/components/layout/app-loader";
+import { FlashHost } from "@/components/layout/flash-host";
 import { LocalePathsHost } from "@/i18n/LocalePathsContext";
 import { LocaleSync } from "@/components/layout/locale-sync";
 import { NavigationGenerationTracker } from "@/components/layout/navigation-generation-tracker";
@@ -94,6 +95,10 @@ export function InnerProviders({ children }: { children: React.ReactNode }) {
         <PullToRefresh />
         <ClerkGate>{children}</ClerkGate>
         <Toaster />
+        {/* Raises the toast a create/edit queued before it navigated away -
+            the confirmation belongs to the list we land on, not to the form
+            that is unmounting. Must sit beside the Toaster, outside any page. */}
+        <FlashHost />
         <ChatDrawerRoot />
       </LocalePathsHost>
     </TooltipProvider>

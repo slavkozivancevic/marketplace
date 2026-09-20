@@ -35,6 +35,7 @@ import { commitProductMedia } from "@/services/s3Tagging";
 import { env } from "@/env/server";
 import { slugify } from "@/lib/utils";
 import { copyName } from "@/lib/i18n/copyName";
+import { copyIdentifier } from "@/lib/copyIdentifier";
 import {
   DEFAULT_LOCALE,
   NON_DEFAULT_LOCALES,
@@ -1649,7 +1650,11 @@ export function productRepository(
       return updatedProducts;
     },
 
-    async duplicate(id: string): Promise<ProductWithRelations> {
+    /** Returns the copy plus the source's default-locale title, so the audit
+     *  trail can record what it was copied FROM by name rather than by UUID. */
+    async duplicate(
+      id: string,
+    ): Promise<ProductWithRelations & { sourceLabel: string }> {
       // 1. Fetch the source product with all relations needed for duplication.
       const source = await db.prisma.product.findFirst({
         where: { id, organizationId: ctx.organizationId, deletedAt: null },
@@ -1674,6 +1679,12 @@ export function productRepository(
               valueBool: true,
             },
           },
+          // The copy has to carry these over. Left out, it was created with
+          // no categories and no tags at all: off every category page and out
+          // of every tag facet, silently, on a product that otherwise looked
+          // like a complete copy.
+          categories: { select: { categoryId: true } },
+          tags: { select: { tagId: true } },
         },
       });
 
@@ -1700,7 +1711,7 @@ export function productRepository(
       }
 
       // 3. Convert DB relations into the create() input format.
-      const suffix = Date.now().toString(36);
+      const now = Date.now();
 
       const media: MediaInput[] = source.media.map((m) => ({
         key: keyMap.get(m.key)!,
@@ -1712,7 +1723,7 @@ export function productRepository(
       }));
 
       const variants: ProductVariantInput[] = source.variants.map((v) => ({
-        sku: `${v.sku}-copy-${suffix}`,
+        sku: copyIdentifier(v.sku, undefined, now),
         // Carry the stored sets across verbatim. Re-deriving from the mirror
         // would quietly reprice the copy at today's rate, so a duplicate would
         // not match the product it was copied from.
@@ -1760,7 +1771,7 @@ export function productRepository(
         if (t.locale === DEFAULT_LOCALE) continue;
         sourceTranslations[t.locale as keyof ProductTranslationsInput] = {
           title: copyName(t.locale, t.title),
-          slug: `${t.slug}-copy-${suffix}`,
+          slug: copyIdentifier(t.slug, undefined, now),
           description: t.description,
           shortDescription: t.shortDescription ?? undefined,
           metaTitle: t.metaTitle ?? undefined,
@@ -1770,8 +1781,16 @@ export function productRepository(
 
       // 4. Create the duplicate.  On DB failure, clean up the copied S3 objects.
       try {
-        return await this.create({
+        const created = await this.create({
           title: copyName(DEFAULT_LOCALE, defaultRow?.title ?? ""),
+          // Explicit, for the same reason the other locales above are: left
+          // out, create() derives this one from the "Copy of" TITLE
+          // (`copy-of-nike-air`) while every other locale kept the source slug
+          // plus a copy marker, so one product's four slugs followed two
+          // different rules - and the odd one out was the canonical URL.
+          slug: defaultRow?.slug
+            ? copyIdentifier(defaultRow.slug, undefined, now)
+            : undefined,
           description: defaultRow?.description ?? "",
           shortDescription: defaultRow?.shortDescription ?? undefined,
           metaTitle: defaultRow?.metaTitle ?? undefined,
@@ -1799,7 +1818,10 @@ export function productRepository(
           media: media.length > 0 ? media : undefined,
           variants: variants.length > 0 ? variants : undefined,
           attributes: attributes.length > 0 ? attributes : undefined,
+          categoryIds: source.categories.map((c) => c.categoryId),
+          tagIds: source.tags.map((t) => t.tagId),
         });
+        return { ...created, sourceLabel: defaultRow?.title ?? "" };
       } catch (err) {
         await Promise.all(copiedKeys.map((k) => deleteS3Object(k).catch(() => {})));
         throw err;

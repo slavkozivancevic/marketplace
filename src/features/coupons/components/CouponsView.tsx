@@ -1,7 +1,7 @@
 "use client";
 
 import axios from "axios";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useQueryStates } from "nuqs";
 import { useQueryClient } from "@tanstack/react-query";
@@ -74,6 +74,8 @@ function RowActions({
   isEditing,
   isDuplicating,
   isDeleting,
+  deleteOpen,
+  onDeleteOpenChange,
 }: {
   id: string;
   code: string;
@@ -83,18 +85,18 @@ function RowActions({
   isEditing: boolean;
   isDuplicating: boolean;
   isDeleting: boolean;
+  /**
+   * Owned by the view, not the row, so the view can steer it from inside the
+   * delete transition. On success it is never closed by hand: the refetched
+   * table drops the row and this dialog, which lives inside it, goes with it -
+   * in the same frame the spinner stops and the toast appears. On failure it
+   * stays open with the reason.
+   */
+  deleteOpen: boolean;
+  onDeleteOpenChange: (open: boolean) => void;
 }) {
   const t = useTranslations("coupons");
   const tc = useTranslations("common");
-  const [deleteOpen, setDeleteOpen] = useState(false);
-
-  // Close the confirm dialog once the delete we started actually settles.
-  const wasDeleting = useRef(false);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (wasDeleting.current && !isDeleting) setDeleteOpen(false);
-    wasDeleting.current = isDeleting;
-  }, [isDeleting]);
 
   return (
     <div className="flex items-center justify-end gap-1">
@@ -124,7 +126,7 @@ function RowActions({
         open={deleteOpen}
         onOpenChange={(next) => {
           if (isDeleting) return;
-          setDeleteOpen(next);
+          onDeleteOpenChange(next);
         }}
       >
         <AlertDialogTrigger asChild>
@@ -174,17 +176,21 @@ function Row({
   editingId,
   deletingId,
   duplicatingId,
+  deleteOpenId,
   onEdit,
   onDelete,
   onDuplicate,
+  onDeleteOpenChange,
 }: {
   c: CouponListItem;
   editingId: string | null;
   deletingId: string | null;
   duplicatingId: string | null;
+  deleteOpenId: string | null;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
+  onDeleteOpenChange: (id: string | null) => void;
 }) {
   const t = useTranslations("coupons");
   const locale = useLocale();
@@ -230,6 +236,8 @@ function Row({
         isEditing={editingId === c.id}
         isDeleting={deletingId === c.id}
         isDuplicating={duplicatingId === c.id}
+        deleteOpen={deleteOpenId === c.id}
+        onDeleteOpenChange={(open) => onDeleteOpenChange(open ? c.id : null)}
       />
     </div>
   );
@@ -252,6 +260,7 @@ export function CouponsView() {
   // table is locked while any action is in flight (mirrors the brands table).
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteOpenId, setDeleteOpenId] = useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [, startNavigate] = useTransition();
   const [, startDelete] = useTransition();
@@ -271,9 +280,13 @@ export function CouponsView() {
     setDuplicatingId(null);
   }, [pathname]);
 
-  const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["coupons"] });
+  // Awaited by its callers: the returned promise resolves once the refetch has
+  // landed, i.e. once the table on screen actually shows the change. The RSC
+  // refresh rides along for the server-rendered shell around it.
+  const refresh = async () => {
+    const refetched = queryClient.invalidateQueries({ queryKey: ["coupons"] });
     router.refresh();
+    await refetched;
   };
 
   const handleEdit = (id: string) => {
@@ -286,12 +299,21 @@ export function CouponsView() {
     setDeletingId(id);
     startDelete(async () => {
       const res = await deleteCouponAction(id);
-      if (res && "error" in res) toast.error(res.message);
-      else {
-        toast.success(t("deleted"));
-        refresh();
+      if (res && "error" in res) {
+        // Leave the dialog open so the reason stays readable, and re-arm the
+        // confirm button for a retry.
+        toast.error(res.message);
+        setDeletingId(null);
+        return;
       }
+      // The row is still on screen here, so nothing is closed or announced yet:
+      // the spinner keeps running through the refetch. Once it lands the row is
+      // gone (and with it the dialog, which is rendered inside it), and the
+      // popup state, the pending flag and the toast all settle in that frame.
+      await refresh();
+      setDeleteOpenId(null);
       setDeletingId(null);
+      toast.success(t("deleted"));
     });
   };
 
@@ -299,12 +321,16 @@ export function CouponsView() {
     setDuplicatingId(id);
     startDuplicate(async () => {
       const res = await duplicateCouponAction(id);
-      if ("error" in res) toast.error(res.message);
-      else {
-        toast.success(t("duplicated"));
-        refresh();
+      if ("error" in res) {
+        toast.error(res.message);
+        setDuplicatingId(null);
+        return;
       }
+      // Announced once the copy is actually in the table - the spinner runs
+      // until then, for the same reason as the delete above.
+      await refresh();
       setDuplicatingId(null);
+      toast.success(t("duplicated"));
     });
   };
 
@@ -413,9 +439,11 @@ export function CouponsView() {
             editingId={editingId}
             deletingId={deletingId}
             duplicatingId={duplicatingId}
+            deleteOpenId={deleteOpenId}
             onEdit={handleEdit}
             onDelete={handleDelete}
             onDuplicate={handleDuplicate}
+            onDeleteOpenChange={setDeleteOpenId}
           />
         ))}
       </div>
@@ -443,9 +471,11 @@ export function CouponsView() {
                     editingId={editingId}
                     deletingId={deletingId}
                     duplicatingId={duplicatingId}
+                    deleteOpenId={deleteOpenId}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onDuplicate={handleDuplicate}
+                    onDeleteOpenChange={setDeleteOpenId}
                   />
                 )}
               </div>

@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useNavigationGeneration } from "@/lib/navigation/navGeneration";
+import { setFlash } from "@/lib/navigation/flash";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useForm, useFormState, useWatch } from "react-hook-form";
@@ -286,6 +288,7 @@ function CategoryFormInner(props: CategoryFormProps & { onDiscard: () => void })
   const t = useTranslations("adminCategories");
   const onInvalid = useInvalidToast();
   const locale = useLocale();
+  const router = useRouter();
   const boolFmt = useBoolFormat();
   const [isPending, startTransition] = useTransition();
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
@@ -412,6 +415,12 @@ function CategoryFormInner(props: CategoryFormProps & { onDiscard: () => void })
 
       if (result && "error" in result) {
         toast.error(result.message);
+      } else {
+        // Not re-baselined here - see the note in BrandForm.
+        // Queued for the list we are about to land on - see the note in TagForm.
+        const target = `/${locale}${result.redirectTo}`;
+        setFlash(t(props.mode === "edit" ? "updated" : "created"), { path: target });
+        router.push(target);
       }
     });
   };

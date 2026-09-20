@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Copy, ImageOff, Loader2, Pencil, Trash2 } from "lucide-react";
@@ -119,22 +119,23 @@ export function ProductTableRow({
   const localDescription = getProductDescription(product, locale);
   const localBrandName = product.brand ? getBrandName(product.brand, locale) : "";
 
-  // Auto-close the confirm dialog once the in-flight delete finishes.
-  const wasDeleting = useRef(false);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (wasDeleting.current && !isDeleting) setDeleteOpen(false);
-    wasDeleting.current = isDeleting;
-  }, [isDeleting]);
-
   const handleDelete = () => {
     startDelete(async () => {
       const result = await deleteProduct(product.id, null);
       if (result && "error" in result) {
+        // Leave the dialog open so the reason stays readable.
         toast.error(result.message);
-      } else {
-        queryClient.invalidateQueries({ queryKey: ["products"] });
+        return;
       }
+      // Awaited: `invalidateQueries` resolves once the refetch has landed, which
+      // is the moment this row leaves the table. Closing the dialog and
+      // announcing the delete before that confirmed a row the user could still
+      // see - and the spinner, which runs for as long as this transition does,
+      // would have stopped while the row was still there. All three now resolve
+      // together.
+      await queryClient.invalidateQueries({ queryKey: ["products"] });
+      setDeleteOpen(false);
+      toast.success(t("productDeleted"));
     });
   };
 
@@ -146,7 +147,9 @@ export function ProductTableRow({
         return;
       }
       const copyId = result.id;
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      // Awaited for the same reason as the delete above: the copy is announced
+      // once it is actually in the table, not when the server says it exists.
+      await queryClient.invalidateQueries({ queryKey: ["products"] });
       toast.success(t("duplicated"), {
         action: {
           label: t("editCopy"),

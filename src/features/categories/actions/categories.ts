@@ -1,8 +1,6 @@
 "use server";
 
 import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
-import { redirect } from "next/navigation";
-import { getLocale } from "next-intl/server";
 import { categorySchema, type CategoryInput } from "../schema/categories";
 import {
   createCategory,
@@ -15,14 +13,12 @@ import { requireRole } from "@/lib/auth/requireRole";
 import { recordAudit } from "@/features/audit/db/audit";
 import type { ActionErrorResult } from "@/types/types";
 
-async function localizedRedirect(redirectTo: string): Promise<never> {
-  const locale = await getLocale();
-  redirect(`/${locale}${redirectTo}`);
-}
+// Every action here hands its redirect target back to the caller instead of
+// redirecting, so there is no server-side navigation left to localize.
 
 export async function createCategoryAction(
   unsafeData: CategoryInput,
-): Promise<void | ActionErrorResult> {
+): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
     await requireRole("ADMIN");
 
@@ -44,17 +40,16 @@ export async function createCategoryAction(
       translations: translations ?? null,
     });
     await recordAudit({ action: "category.created", entityType: "Category", entityId: created.id });
+    return { ok: true, redirectTo: "/admin/categories" };
   } catch (error) {
     return handleActionError(error);
   }
-
-  await localizedRedirect("/admin/categories");
 }
 
 export async function updateCategoryAction(
   id: string,
   unsafeData: CategoryInput,
-): Promise<void | ActionErrorResult> {
+): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
     await requireRole("ADMIN");
 
@@ -76,25 +71,28 @@ export async function updateCategoryAction(
       translations: translations ?? null,
     });
     await recordAudit({ action: "category.updated", entityType: "Category", entityId: id });
+    return { ok: true, redirectTo: "/admin/categories" };
   } catch (error) {
     return handleActionError(error);
   }
-
-  await localizedRedirect("/admin/categories");
 }
 
+/**
+ * Returns instead of redirecting - see the note on deleteTagAction. The redirect
+ * threw past the caller's success toast and spinner reset, and pointed at the
+ * admin list the caller was already on.
+ */
 export async function deleteCategoryAction(
   id: string,
-): Promise<void | ActionErrorResult> {
+): Promise<{ ok: true } | ActionErrorResult> {
   try {
     await requireRole("ADMIN");
     await deleteCategory(id);
     await recordAudit({ action: "category.deleted", entityType: "Category", entityId: id });
+    return { ok: true };
   } catch (error) {
     return handleActionError(error);
   }
-
-  await localizedRedirect("/admin/categories");
 }
 
 export async function duplicateCategoryAction(
@@ -103,7 +101,12 @@ export async function duplicateCategoryAction(
   try {
     await requireRole("ADMIN");
     const copy = await duplicateCategory(id);
-    await recordAudit({ action: "category.duplicated", entityType: "Category", entityId: copy.id, diff: { from: id } });
+    await recordAudit({
+      action: "category.duplicated",
+      entityType: "Category",
+      entityId: copy.id,
+      diff: { from: copy.sourceLabel, fromId: id },
+    });
     return { error: false, id: copy.id };
   } catch (error) {
     return handleActionError(error);

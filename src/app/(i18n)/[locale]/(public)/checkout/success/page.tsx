@@ -14,6 +14,7 @@ import { Footer } from "@/components/layout/footer";
 import { stripe } from "@/services/stripe";
 import { getOrderByStripeSessionId, getOrderById } from "@/features/orders/db/orders";
 import { getProductTitle } from "@/features/products/utils/translations";
+import { getVariantLabel } from "@/features/attributes/utils/translations";
 import { prisma } from "@/core/db/prisma";
 import type Stripe from "stripe";
 import { formatPrice } from "@/lib/currency";
@@ -105,6 +106,9 @@ export default async function CheckoutSuccessPage({
                   // blank, and `??` would then hand back that empty string
                   // instead of falling back to English.
                   const productTitle = getProductTitle(item.product, order.locale);
+                  // Named the same way the order page names it - the label, in
+                  // the locale the order was placed in, never the SKU.
+                  const variantLabel = getVariantLabel(item.variant, order.locale);
                   const variantMedia = item.variant?.media[0]?.media ?? null;
                   const variantImageUrl =
                     variantMedia && variantMedia.mediaType === "IMAGE"
@@ -132,8 +136,8 @@ export default async function CheckoutSuccessPage({
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium">{productTitle}</p>
-                        {item.variant && (
-                          <p className="text-muted-foreground text-xs">{item.variant.sku}</p>
+                        {variantLabel && (
+                          <p className="text-muted-foreground text-xs">{variantLabel}</p>
                         )}
                         <p className="text-muted-foreground text-xs">
                           {formatPrice(item.price, order.currency as Currency, locale)} × {item.quantity}
@@ -346,6 +350,7 @@ export default async function CheckoutSuccessPage({
             <CardContent className="space-y-0">
               {order.items.map((item, index) => {
                 const productTitle = getProductTitle(item.product, order.locale);
+                const variantLabel = getVariantLabel(item.variant, order.locale);
                 const variantMedia = item.variant?.media[0]?.media ?? null;
                 const variantImageUrl =
                   variantMedia && variantMedia.mediaType === "IMAGE"
@@ -373,8 +378,8 @@ export default async function CheckoutSuccessPage({
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium">{productTitle}</p>
-                      {item.variant?.sku && (
-                        <p className="text-muted-foreground text-xs">{item.variant.sku}</p>
+                      {variantLabel && (
+                        <p className="text-muted-foreground text-xs">{variantLabel}</p>
                       )}
                       <p className="text-muted-foreground text-xs">
                         {formatPrice(item.price, order.currency as Currency, locale)} × {item.quantity}

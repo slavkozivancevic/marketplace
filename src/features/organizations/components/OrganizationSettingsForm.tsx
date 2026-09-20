@@ -6,6 +6,8 @@ import { useTranslations } from "next-intl";
 import { useForm, useFormState } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { toast } from "@/components/ui/sonner";
+import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
+import { useWhenSettled } from "@/lib/hooks/useWhenSettled";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
 import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
 import {
@@ -42,6 +44,8 @@ export function OrganizationSettingsForm({
   const t = useTranslations("organization");
   const onInvalid = useInvalidToast();
   const [isPending, startTransition] = useTransition();
+  const announceSaved = useAnnounceWhenSettled(isPending);
+  const whenSettled = useWhenSettled(isPending);
 
   const navGeneration = useNavigationGeneration();
 
@@ -89,7 +93,18 @@ export function OrganizationSettingsForm({
       if (result && "error" in result) {
         toast.error(result.message);
       } else {
-        toast.success(t("nameUpdated"));
+        // Adopt the saved name as the new baseline. The re-baseline effect above
+        // only fires once the server sends a new `currentName`, which lands after
+        // the action resolves - so the bar, and the unsaved-changes guard with
+        // it, outlived the save that cleared them.
+        //
+        // Deferred to the settled frame: doing it while the save is in flight
+        // clears the dirty flag, the "saved value" hint under the field vanishes,
+        // and the save bar jumps up with its own spinner still running.
+        whenSettled(() => form.reset(data));
+        // Announced when the bar collapses to "all changes saved" - see the
+        // same note in OrgShippingForm.
+        announceSaved({ message: t("nameUpdated") });
       }
     });
   };

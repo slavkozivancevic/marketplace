@@ -136,7 +136,17 @@ export async function publishCodPaymentReceived(orderId: string, locale = "en"):
   );
 }
 
-export async function publishCodOrderCancelled(orderId: string, locale = "en"): Promise<void> {
+/**
+ * One seller withdrew from an order. `organizationId` says which, and is part of
+ * the dedupe key: in a multi-seller order each seller can cancel its own part,
+ * and an eventId of just the order would make every cancellation after the first
+ * look like a replay, so the buyer would never hear about it.
+ */
+export async function publishCodOrderCancelled(
+  orderId: string,
+  organizationId: string,
+  locale = "en",
+): Promise<void> {
   const topicArn = await getTopicArn();
   await sns.send(
     new PublishCommand({
@@ -144,8 +154,9 @@ export async function publishCodOrderCancelled(orderId: string, locale = "en"): 
       Message: JSON.stringify({
         type: "order.cod_cancelled",
         orderId,
+        organizationId,
         locale,
-        eventId: `${orderId}:order.cod_cancelled`,
+        eventId: `${orderId}:${organizationId}:order.cod_cancelled`,
       }),
     })
   );
@@ -230,10 +241,15 @@ export async function publishOwnerAutoPromoted(params: {
 }
 
 /**
- * A team member's account was closed (Clerk deletion) and removed from an
- * org - notifies the org's remaining OWNER(s)/ADMIN(s) (see deleteUser).
- * Covers both a departing co-owner and a departing ADMIN/MEMBER; plain
- * MEMBERs aren't recipients, matching who can see the member-management UI.
+ * A team member is gone from an org - notifies the org's remaining OWNER(s)/
+ * ADMIN(s). Covers both a departing co-owner and a departing ADMIN/MEMBER;
+ * plain MEMBERs aren't recipients, matching who can see the member-management
+ * UI.
+ *
+ * `reason` says how it happened: their account was closed (deleteUser) or an
+ * admin removed them by hand (removeMemberAction). It is not decoration - the
+ * two wordings make different factual claims, and the account-closed one sent
+ * about a deliberate removal describes something that never happened.
  */
 export async function publishMemberRemoved(params: {
   recipientEmail: string;
@@ -242,6 +258,7 @@ export async function publishMemberRemoved(params: {
   removedUserName: string | null;
   removedUserEmail: string;
   removedRole: string;
+  reason?: "account_closed" | "removed_by_admin";
   locale: string;
 }): Promise<void> {
   const topicArn = await getTopicArn();
@@ -256,6 +273,42 @@ export async function publishMemberRemoved(params: {
         organizationName: params.organizationName,
         removedUserName: params.removedUserName,
         removedUserEmail: params.removedUserEmail,
+        removedRole: params.removedRole,
+        reason: params.reason ?? "account_closed",
+        locale: params.locale,
+      }),
+    })
+  );
+}
+
+/**
+ * "You no longer have access to {org}" - sent to the member an owner/admin just
+ * removed by hand from the members list. The mirror image of `member.removed`,
+ * which announces a departure to the people who stay: here the recipient is the
+ * one who left, so it renders in THEIR locale, and it is the only way they find
+ * out - otherwise the org simply disappears from their switcher.
+ *
+ * Not idempotent per (member, org) on purpose: someone can be invited back and
+ * removed again, and a second removal is a second thing that happened to them,
+ * not a replay of the first. The timestamp keeps each one its own event.
+ */
+export async function publishMemberAccessRevoked(params: {
+  userEmail: string;
+  userName: string | null;
+  organizationName: string;
+  removedRole: string;
+  locale: string;
+}): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "member.access_revoked",
+        eventId: `member-access-revoked:${params.userEmail}:${params.organizationName}:${Date.now()}`,
+        userEmail: params.userEmail,
+        userName: params.userName,
+        organizationName: params.organizationName,
         removedRole: params.removedRole,
         locale: params.locale,
       }),
@@ -318,13 +371,93 @@ export async function publishOrderShipped(params: {
       TopicArn: topicArn,
       Message: JSON.stringify({
         type: "order.shipped",
-        // One shipped email per shipment - re-marking tracking won't re-notify.
+        // One shipped email per seller part, ever. The caller only publishes this
+        // on the FIRST ship, so this id is belt-and-braces against a redelivered
+        // SNS message rather than the thing that stops re-notifying: the
+        // idempotency record it guards against expires after 30 days, and a
+        // tracking edit later than that would otherwise re-announce a shipment
+        // the buyer received weeks ago. A tracking change has its own event.
         eventId: `${params.shipmentId}:order.shipped`,
         orderId: params.orderId,
         organizationId: params.organizationId,
         locale: params.locale,
         trackingNumber: params.trackingNumber,
         carrier: params.carrier,
+      }),
+    })
+  );
+}
+
+/**
+ * How to follow an already-shipped part changed. What the buyer holds is a pair -
+ * a number and the carrier to type it into - and either half going stale breaks
+ * it. Five readings, chosen by how each half moved:
+ *
+ *   number added                    the buyer had none, here it is
+ *   number replaced                 the one they wrote down is now dead
+ *   number withdrawn                gone, with nothing to replace it yet
+ *   carrier replaced, number same   the number is fine, the site to type it into is not
+ *   carrier named, number same      they had a number and nowhere to use it
+ *
+ * Why this is separate from `order.shipped`: both tracking fields are optional,
+ * so a seller can mark a part shipped with nothing in them and fill them in
+ * afterwards. That edit is the only moment the buyer could learn the number, and
+ * re-sending the shipped email is the wrong shape - the parcel left days ago.
+ *
+ * The distinction is not a matter of wording. A buyer who was already given a
+ * number has it written down somewhere, and once it stops working they will sit
+ * refreshing a carrier page that never moves. That is also why a withdrawal is
+ * announced at all rather than passing in silence: silence leaves them watching a
+ * dead number, and it would leave the NEXT number reading as a first one.
+ *
+ * Two carrier moves are deliberately silent, and `createShipment` is where that
+ * is decided: a carrier cleared while the number stands (nothing the buyer was
+ * told stopped being true - the number still works where it always did), and any
+ * carrier move while there is no number at all (nothing to look up, so nothing to
+ * act on).
+ *
+ * `writtenAt` is the part's `updatedAt` after the write, and it is what the
+ * eventId is built from - deliberately NOT the two values. Keyed on the values,
+ * a seller who went A -> B -> A -> B had the last change swallowed as a duplicate
+ * of the first, leaving the buyer holding A while the truth was B. A redelivered
+ * SNS message carries the same timestamp and is still dropped, which is the only
+ * thing the idempotency record has to catch.
+ */
+export async function publishOrderTrackingUpdated(params: {
+  shipmentId: string;
+  orderId: string;
+  organizationId: string;
+  locale: string;
+  /** The new number. Absent means it was withdrawn and not replaced. */
+  trackingNumber?: string;
+  carrier?: string;
+  /** What the buyer was told last time. Absent means there was none. */
+  previousTrackingNumber?: string;
+  /** The carrier the buyer was told last time. Absent means there was none. */
+  previousCarrier?: string;
+  /** The part's `updatedAt` after this write - identifies the edit itself. */
+  writtenAt: Date;
+}): Promise<void> {
+  const topicArn = await getTopicArn();
+  await sns.send(
+    new PublishCommand({
+      TopicArn: topicArn,
+      Message: JSON.stringify({
+        type: "order.tracking-updated",
+        // One id per write. The transition rides along in the suffix so the
+        // processing logs stay readable, but it is the timestamp that makes the
+        // id unique - see the note above about A -> B -> A -> B.
+        eventId:
+          `${params.shipmentId}:tracking:${params.writtenAt.getTime()}:` +
+          `${params.previousCarrier ?? ""}/${params.previousTrackingNumber ?? ""}` +
+          `>${params.carrier ?? ""}/${params.trackingNumber ?? ""}`,
+        orderId: params.orderId,
+        organizationId: params.organizationId,
+        locale: params.locale,
+        trackingNumber: params.trackingNumber,
+        carrier: params.carrier,
+        previousTrackingNumber: params.previousTrackingNumber,
+        previousCarrier: params.previousCarrier,
       }),
     })
   );
