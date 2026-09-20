@@ -1,11 +1,11 @@
 import { getLocale, getTranslations } from "next-intl/server";
-import { dateLocale } from "@/lib/i18n/dateLocale";
+import { dateInSentence } from "@/lib/i18n/dateLocale";
 import { connection } from "next/server";
 import { notFound, redirect } from "next/navigation";
 import { safeAuth } from "@/lib/auth/safeAuth";
 import { getInviteByToken } from "@/features/organizations/db/invites";
 import { getUserByClerkId } from "@/features/users/db/users";
-import { PageHeader } from "@/components/PageHeader";
+import { InviteHeading } from "@/features/organizations/components/InviteHeading";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,6 @@ export default async function InvitePage({ params }: InvitePageProps) {
   const locale = await getLocale();
   const t = await getTranslations("invite");
   const invite = await getInviteByToken(token);
-  const dl = dateLocale(locale);
 
   if (!invite) return notFound();
 
@@ -42,11 +41,8 @@ export default async function InvitePage({ params }: InvitePageProps) {
 
   if (isInvalid) {
     return (
-      <div className="container px-6">
-        <PageHeader
-          title={t("invalidTitle")}
-          description={t("invalidDesc")}
-        />
+      <div className="w-full max-w-md space-y-6">
+        <InviteHeading title={t("invalidTitle")} description={t("invalidDesc")} />
         <Alert variant="destructive">
           <AlertTitle>
             {isExpired ? t("expiredHeading") : t("usedHeading")}
@@ -55,7 +51,7 @@ export default async function InvitePage({ params }: InvitePageProps) {
             {isExpired ? t("expiredBody") : t("usedBody")}
           </AlertDescription>
         </Alert>
-        <Button asChild className="mt-4">
+        <Button asChild className="w-full">
           <Link href="/dashboard">{t("goToDashboard")}</Link>
         </Button>
       </div>
@@ -73,15 +69,15 @@ export default async function InvitePage({ params }: InvitePageProps) {
 
   if (emailMismatch) {
     return (
-      <div className="container px-6">
-        <PageHeader title={t("pageTitle")} description={t("pageDesc")} />
+      <div className="w-full max-w-md space-y-6">
+        <InviteHeading title={t("pageTitle")} description={t("pageDesc")} />
         <Alert variant="destructive">
           <AlertTitle>{t("wrongAccountHeading")}</AlertTitle>
           <AlertDescription>
             {t("wrongAccountBody", { email: invite.email })}
           </AlertDescription>
         </Alert>
-        <Button asChild className="mt-4">
+        <Button asChild className="w-full">
           <Link href="/dashboard">{t("goToDashboard")}</Link>
         </Button>
       </div>
@@ -89,11 +85,8 @@ export default async function InvitePage({ params }: InvitePageProps) {
   }
 
   return (
-    <div className="container max-w-md px-6">
-      <PageHeader
-        title={t("pageTitle")}
-        description={t("pageDesc")}
-      />
+    <div className="w-full max-w-md space-y-6">
+      <InviteHeading title={t("pageTitle")} description={t("pageDesc")} />
 
       <Card>
         <CardHeader>
@@ -107,7 +100,13 @@ export default async function InvitePage({ params }: InvitePageProps) {
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            {t("expiresOn", { date: new Date(invite.expiresAt).toLocaleDateString(dl, { year: "numeric", month: "short", day: "numeric" }) })}
+            {t("expiresOn", {
+              date: dateInSentence(new Date(invite.expiresAt), locale, {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              }),
+            })}
           </p>
 
           <InviteActions token={token} />

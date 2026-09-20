@@ -72,17 +72,40 @@ export async function getUserReviewForProduct(
   return review;
 }
 
+/**
+ * A completed order only proves the buyer received THIS product if the seller
+ * that owns it actually delivered. A multi-seller order reaches COMPLETED on the
+ * strength of the sellers who did, so a seller that withdrew must not hand the
+ * buyer a verified-purchase review for goods that never shipped.
+ *
+ * `some` is exact here: `@@unique([orderId, organizationId])` means the seller
+ * has at most one part per order.
+ */
+async function deliveredOrderFilter(userId: string, productId: string) {
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { organizationId: true },
+  });
+  if (!product) return null;
+
+  return {
+    productId,
+    order: {
+      userId,
+      status: "COMPLETED" as const,
+      sellerParts: { some: { organizationId: product.organizationId, cancelledAt: null } },
+    },
+  };
+}
+
 export async function hasUserPurchasedProduct(
   userId: string,
   productId: string,
 ): Promise<boolean> {
-  const orderItem = await prisma.orderItem.findFirst({
-    where: {
-      productId,
-      order: { userId, status: "COMPLETED" },
-    },
-    select: { id: true },
-  });
+  const where = await deliveredOrderFilter(userId, productId);
+  if (!where) return false;
+
+  const orderItem = await prisma.orderItem.findFirst({ where, select: { id: true } });
 
   return !!orderItem;
 }
@@ -91,11 +114,11 @@ export async function getEligibleOrderForReview(
   userId: string,
   productId: string,
 ): Promise<string | null> {
+  const where = await deliveredOrderFilter(userId, productId);
+  if (!where) return null;
+
   const orderItem = await prisma.orderItem.findFirst({
-    where: {
-      productId,
-      order: { userId, status: "COMPLETED" },
-    },
+    where,
     orderBy: { order: { createdAt: "desc" } },
     select: { orderId: true },
   });

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/requireRole";
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import { recordAudit } from "@/features/audit/db/audit";
-import { settleCodBalance } from "../db/payouts";
+import { settleCodBalance, payOutCodCredit } from "../db/payouts";
 import type { ActionErrorResult } from "@/types/types";
 
 /**
@@ -28,6 +28,31 @@ export async function settleCodBalanceAction(
     });
     revalidatePath("/[locale]/admin/cod-balances", "page");
     return { ok: true, settled };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+/**
+ * The other direction: hand back a credit the platform owes this org. Audited
+ * under its own action so the trail never reads a payout as a collection.
+ */
+export async function payOutCodCreditAction(
+  organizationId: string,
+  currency: string,
+  amount: number,
+): Promise<{ ok: true; paid: number } | ActionErrorResult> {
+  try {
+    await requireRole("ADMIN");
+    const paid = await payOutCodCredit({ organizationId, currency, amount });
+    await recordAudit({
+      action: "cod_balance.credit_paid",
+      entityType: "Organization",
+      entityId: organizationId,
+      diff: { currency, paid },
+    });
+    revalidatePath("/[locale]/admin/cod-balances", "page");
+    return { ok: true, paid };
   } catch (error) {
     return handleActionError(error);
   }

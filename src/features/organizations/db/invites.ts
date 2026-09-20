@@ -9,6 +9,7 @@ import {
   revalidateOrganizationInvites,
   revalidateOrganizationMembers,
 } from "./cache";
+import { ROLE_RANK } from "./activeOrg";
 import { randomUUID } from "crypto";
 
 // Invite emails are compared against Clerk-provided user emails, whose casing we
@@ -17,14 +18,6 @@ import { randomUUID } from "crypto";
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
-
-// Privilege ordering used to guarantee invite acceptance never demotes an
-// existing member (see acceptInvite). Higher = more privileged.
-const ROLE_RANK: Record<MembershipRole, number> = {
-  [MembershipRole.OWNER]: 3,
-  [MembershipRole.ADMIN]: 2,
-  [MembershipRole.MEMBER]: 1,
-};
 
 export async function getInviteByToken(token: string) {
   return prisma.invite.findUnique({

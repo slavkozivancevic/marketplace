@@ -4,6 +4,7 @@ import * as React from "react"
 import { Dialog as SheetPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
+import { useOrphanedPortalCleanup } from "@/components/ui/useOrphanedPortalCleanup"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
@@ -55,9 +56,12 @@ function SheetContent({
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
 }) {
+  // Same leak as the alert dialog: see the hook. A sheet is the likeliest to
+  // hit it - the mobile nav drawer navigates while it is still open.
+  const trackOverlay = useOrphanedPortalCleanup()
   return (
     <SheetPortal>
-      <SheetOverlay />
+      <SheetOverlay ref={trackOverlay} />
       <SheetPrimitive.Content
         data-slot="sheet-content"
         data-side={side}

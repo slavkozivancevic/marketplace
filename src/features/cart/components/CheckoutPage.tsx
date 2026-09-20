@@ -16,7 +16,12 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/sonner";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
+import {
+  useHasFormErrors,
+  useSaveBlockedReason,
+} from "@/lib/forms/useSaveBlockedReason";
 import { RequiredFieldsNote } from "@/components/forms/RequiredFieldsNote";
+import { SaveBlockedNotice } from "@/components/forms/SaveBlockedNotice";
 import { useCartStore } from "../store/cartStore";
 import { COUPON_STORAGE_KEY } from "../utils/couponStorage";
 import { localizedVariantLabel, pickLocalized } from "../utils/variantOptions";
@@ -234,7 +239,9 @@ export function CheckoutPage() {
   }, [cartSig]);
 
   const { register, handleSubmit, control } = useForm<ShippingForm>({
-    mode: "onTouched",
+    // Validate on every change so errors surface immediately and `hasErrors`
+    // is accurate while the user is still typing (house rule for every form).
+    mode: "onChange",
     resolver: useZodResolver(shippingSchema),
   });
 
@@ -244,6 +251,13 @@ export function CheckoutPage() {
   // the first read and leaves the per-field errors frozen - checkout validation
   // messages would stick around after the field was corrected.
   const { errors } = useFormState({ control });
+
+  // Block ordering while any shipping field is invalid, with the reason spelled
+  // out next to the button. Both go through the hooks rather than reading
+  // `errors` directly - see useSaveBlockedReason for why a plain
+  // `Object.keys(errors).length` freezes under the React Compiler.
+  const hasErrors = useHasFormErrors(control);
+  const orderBlockedReason = useSaveBlockedReason(control, "order");
 
   if (items.length === 0) {
     if (!hydrated) return null; // still rehydrating - avoid empty-cart flash
@@ -537,7 +551,11 @@ export function CheckoutPage() {
 
           {/* COD - shipping form */}
           {method === "cod" && (
-            <form onSubmit={handleSubmit(handleCodSubmit, onInvalid)} className="space-y-4">
+            <form
+              noValidate
+              onSubmit={handleSubmit(handleCodSubmit, onInvalid)}
+              className="space-y-4"
+            >
               <p className="text-sm font-semibold">{t("shippingDetails")}</p>
               <RequiredFieldsNote />
 
@@ -593,13 +611,19 @@ export function CheckoutPage() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" size="lg" disabled={isPending}>
+              <Button
+                type="submit"
+                className="w-full"
+                size="lg"
+                disabled={isPending || hasErrors}
+              >
                 {isPending ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("placingOrder")}</>
                 ) : (
                   <><Truck className="mr-2 h-4 w-4" />{t("placeOrder")}</>
                 )}
               </Button>
+              <SaveBlockedNotice blocked={hasErrors} reason={orderBlockedReason} />
             </form>
           )}
         </div>

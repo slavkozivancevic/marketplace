@@ -129,16 +129,20 @@ async function getOrgPayoutRefundStates(
 }
 
 /**
- * Current COD commission balance an org owes the platform, one row per
+ * Current COD commission balance between an org and the platform, one row per
  * currency it has accrued in (see OrgBalance). Zero-balance currencies are
- * omitted. Surfaced on the payouts page so the seller isn't surprised when a
- * future Stripe payout comes in lower than expected (see releaseSellerPayout).
+ * omitted; a NEGATIVE row is the platform owing the seller, from a COD coupon
+ * that ran deeper than the commission on it (markCodPaymentReceived).
+ *
+ * Surfaced on the payouts page so neither direction is a surprise: a future
+ * Stripe payout can come in lower than expected, or higher (releaseSellerPayout
+ * settles both ways).
  */
 export async function getOrgCodBalances(
   organizationId: string,
 ): Promise<{ currency: string; owedAmount: number }[]> {
   const rows = await prisma.orgBalance.findMany({
-    where: { organizationId, owedAmount: { gt: 0 } },
+    where: { organizationId, NOT: { owedAmount: 0 } },
     select: { currency: true, owedAmount: true },
   });
   return rows;
@@ -152,14 +156,18 @@ export type AdminCodBalanceItem = {
 };
 
 /**
- * Every organization with an outstanding COD commission balance, across all
- * currencies - the platform admin's settlement view. Expected to stay a small
- * list (debt only sits here between accrual and either a same-currency payout
+ * Every organization with an open COD commission balance, across all currencies
+ * - the platform admin's settlement view. Expected to stay a small list (a
+ * balance only sits here between accrual and either a same-currency payout
  * netting it away or a manual settlement below), so no pagination.
+ *
+ * Credits are listed too, not just debts. A negative row is money the platform
+ * owes a seller for funding a COD coupon, and it is a liability the admin has to
+ * be able to see - filtering to `> 0` showed the admin only what it was owed.
  */
 export async function getAllCodBalances(): Promise<AdminCodBalanceItem[]> {
   const rows = await prisma.orgBalance.findMany({
-    where: { owedAmount: { gt: 0 } },
+    where: { NOT: { owedAmount: 0 } },
     orderBy: { owedAmount: "desc" },
     select: {
       organizationId: true,
@@ -203,6 +211,44 @@ export async function settleCodBalance({
     });
   }
   return settled;
+}
+
+/**
+ * Manually pays out (part of) a CREDIT on an org's COD balance - the platform
+ * owing THEM, from a cash-on-delivery coupon that ran deeper than the commission
+ * on it (markCodPaymentReceived).
+ *
+ * Automatically such a credit leaves with the org's next Stripe transfer
+ * (releaseSellerPayout). A seller who only ever sells cash-on-delivery never
+ * gets one, so without this the platform would hold their money indefinitely
+ * with no way to hand it back - the mirror of the debt an admin can already
+ * settle by hand, and the same reason for existing.
+ *
+ * Clamped to the credit actually outstanding, so an admin typing too large an
+ * amount cannot flip the balance into a debt the seller never incurred. Returns
+ * the amount actually paid out.
+ */
+export async function payOutCodCredit({
+  organizationId,
+  currency,
+  amount,
+}: {
+  organizationId: string;
+  currency: string;
+  amount: number;
+}): Promise<number> {
+  const balance = await prisma.orgBalance.findUnique({
+    where: { organizationId_currency: { organizationId, currency } },
+  });
+  const credit = Math.max(0, -(balance?.owedAmount ?? 0));
+  const paid = Math.max(0, Math.min(amount, credit));
+  if (paid > 0) {
+    await prisma.orgBalance.update({
+      where: { organizationId_currency: { organizationId, currency } },
+      data: { owedAmount: { increment: paid } },
+    });
+  }
+  return paid;
 }
 
 /**
@@ -426,6 +472,48 @@ export async function getOrgPayoutFacetCounts({
  * Best-effort: a missing account or a failed transfer is recorded (PENDING /
  * FAILED) and never thrown, so it can't undo an already-shipped order.
  */
+/**
+ * Takes this org's running COD balance out of play for one payout, atomically.
+ *
+ * Positive is commission the org owes, and only as much as the transfer can
+ * absorb is claimed, so a payout never goes negative. Negative is the platform
+ * owing THEM - a coupon deeper than the commission - and the whole of it is
+ * claimed, because the entire point is to hand it back.
+ *
+ * The compare-and-set is what makes it safe to read and then act: `updateMany`
+ * only matches while the row still holds the value that was read, so of two
+ * concurrent payouts exactly one wins the claim. The loser retries against the
+ * new value, and after a few rounds gives up and nets nothing - a payout that
+ * skips the netting is always correct, just later.
+ *
+ * Returns what was claimed, which the caller must hand back if the transfer it
+ * was claimed for never happens.
+ */
+async function claimCodBalance(
+  organizationId: string,
+  currency: string,
+  net: number,
+): Promise<number> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const balance = await prisma.orgBalance.findUnique({
+      where: { organizationId_currency: { organizationId, currency } },
+    });
+    const owed = balance?.owedAmount ?? 0;
+    if (owed === 0) return 0;
+
+    const claim = owed > 0 ? Math.min(owed, net) : owed;
+    if (claim === 0) return 0;
+
+    const claimed = await prisma.orgBalance.updateMany({
+      // Still holding what we read - otherwise somebody else claimed first.
+      where: { organizationId, currency, owedAmount: owed },
+      data: { owedAmount: { decrement: claim } },
+    });
+    if (claimed.count === 1) return claim;
+  }
+  return 0;
+}
+
 export async function releaseSellerPayout({
   orderId,
   organizationId,
@@ -489,10 +577,25 @@ export async function releaseSellerPayout({
   // collection: no separate charge or transfer-back is needed. Only applied
   // here (not in the PENDING/not-onboarded branch above) since it must track
   // an actual transfer, never a marker for money that hasn't moved yet.
-  const balance = await prisma.orgBalance.findUnique({
-    where: { organizationId_currency: { organizationId, currency } },
-  });
-  const codNetted = Math.min(balance?.owedAmount ?? 0, net);
+  // The running balance cuts both ways. Positive is COD commission this org
+  // owes, and it is withheld from the transfer (capped at the transfer, so a
+  // payout never goes negative). Negative is the platform owing THEM - a coupon
+  // on a COD order that ran deeper than the commission (see
+  // markCodPaymentReceived) - and it rides out with this transfer in full. There
+  // is nothing to cap in that direction: the whole point is to hand it back, and
+  // leaving it on the books would mean the seller funded a discount the platform
+  // promised to fund.
+  //
+  // Claimed BEFORE the transfer, and atomically. The balance used to be read
+  // here and decremented much further down, inside the ledger transaction - so
+  // two payouts released at the same moment (a seller marking two orders
+  // shipped) both read the same figure and both acted on it: the same credit
+  // paid out twice, or the same debt withheld twice. The claim is a
+  // compare-and-set on the value that was read; if someone else moved it first,
+  // it is retried, and if it is still contended the netting is simply skipped -
+  // the balance is a running one, so it rides to the next payout untouched.
+  // Should the transfer then fail, the claim is handed back (see the catch).
+  const codNetted = await claimCodBalance(organizationId, currency, net);
   const netAfterCod = net - codNetted;
 
   try {
@@ -529,38 +632,34 @@ export async function releaseSellerPayout({
           note:
             codNetted > 0
               ? `Netted ${codNetted} ${currency} against COD commission owed`
-              : undefined,
+              : codNetted < 0
+                ? `Includes ${-codNetted} ${currency} owed back on a COD coupon`
+                : undefined,
         },
       });
-      if (codNetted > 0) {
-        await tx.orgBalance.update({
-          where: { organizationId_currency: { organizationId, currency } },
-          data: { owedAmount: { decrement: codNetted } },
-        });
-      }
     });
 
-    // Tell the seller they've been paid (best-effort - must not fail the payout).
-    publishPayoutReleased({
-      orderId,
-      organizationId,
-      amount: netAfterCod,
-      currency,
-      locale: order.locale ?? "en",
-      codNetted: codNetted > 0 ? codNetted : undefined,
-    }).catch((e) => logger.error("[releaseSellerPayout] publishPayoutReleased failed", e));
-
-    await recordAudit({
-      action: "payout.released",
-      entityType: "Order",
-      entityId: orderId,
-      diff: { seller: organizationId, amount: netAfterCod, currency, codNetted },
-    });
   } catch (err) {
     logger.error("[releaseSellerPayout] transfer failed", organizationId, err);
-    // Transfer failed before any netting was applied - the COD balance was
-    // never touched, so the debt stays intact for the next attempt. Record
-    // the amount actually attempted (post-netting), not the pre-netting net.
+    // The claim above already moved the balance, so hand it back: no money
+    // changed hands, and the debt (or the credit) must stay intact for the next
+    // attempt. Best-effort - a failure here leaves the balance short by the
+    // claim rather than paying it out twice, which is the safe direction.
+    if (codNetted !== 0) {
+      await prisma.orgBalance
+        .update({
+          where: { organizationId_currency: { organizationId, currency } },
+          data: { owedAmount: { increment: codNetted } },
+        })
+        .catch((restoreErr) =>
+          logger.error(
+            "[releaseSellerPayout] could not restore COD balance after a failed transfer",
+            organizationId,
+            restoreErr,
+          ),
+        );
+    }
+    // Record the amount actually attempted (post-netting), not the pre-netting net.
     await prisma.paymentTransaction.create({
       data: {
         orderId,
@@ -573,6 +672,34 @@ export async function releaseSellerPayout({
         note: err instanceof Error ? err.message.slice(0, 500) : "transfer failed",
       },
     });
+    return;
+  }
+
+  // Past this point the money has moved and the ledger says so. These two are
+  // best-effort trimmings, and they sit OUTSIDE the try above on purpose: that
+  // catch compensates a failed transfer by writing a FAILED payout row, so a
+  // notification or audit hiccup in here would have stamped a second, phantom
+  // FAILED row beside the SUCCEEDED one and shown the seller a payout that never
+  // failed. Nothing that is merely informational may share a compensation path
+  // with the thing it reports on.
+  publishPayoutReleased({
+    orderId,
+    organizationId,
+    amount: netAfterCod,
+    currency,
+    locale: order.locale ?? "en",
+    codNetted: codNetted > 0 ? codNetted : undefined,
+  }).catch((e) => logger.error("[releaseSellerPayout] publishPayoutReleased failed", e));
+
+  try {
+    await recordAudit({
+      action: "payout.released",
+      entityType: "Order",
+      entityId: orderId,
+      diff: { seller: organizationId, amount: netAfterCod, currency, codNetted },
+    });
+  } catch (e) {
+    logger.error("[releaseSellerPayout] audit failed", e);
   }
 }
 

@@ -1,8 +1,6 @@
 "use server";
 
 import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
-import { redirect } from "next/navigation";
-import { getLocale } from "next-intl/server";
 import { attributeSchema, type AttributeInput } from "../schema/attributes";
 import {
   createAttribute,
@@ -15,14 +13,12 @@ import { requireRole } from "@/lib/auth/requireRole";
 import { recordAudit } from "@/features/audit/db/audit";
 import type { ActionErrorResult } from "@/types/types";
 
-async function localizedRedirect(redirectTo: string): Promise<never> {
-  const locale = await getLocale();
-  redirect(`/${locale}${redirectTo}`);
-}
+// Every action here hands its redirect target back to the caller instead of
+// redirecting, so there is no server-side navigation left to localize.
 
 export async function createAttributeAction(
   unsafeData: AttributeInput,
-): Promise<void | ActionErrorResult> {
+): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
     await requireRole("ADMIN");
     const parsed = attributeSchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
@@ -34,16 +30,16 @@ export async function createAttributeAction(
     }
     const created = await createAttribute(parsed.data);
     await recordAudit({ action: "attribute.created", entityType: "Attribute", entityId: created.id });
+    return { ok: true, redirectTo: "/admin/attributes" };
   } catch (error) {
     return handleActionError(error);
   }
-  await localizedRedirect("/admin/attributes");
 }
 
 export async function updateAttributeAction(
   id: string,
   unsafeData: AttributeInput,
-): Promise<void | ActionErrorResult> {
+): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
     await requireRole("ADMIN");
     const parsed = attributeSchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
@@ -55,23 +51,28 @@ export async function updateAttributeAction(
     }
     await updateAttribute(id, parsed.data);
     await recordAudit({ action: "attribute.updated", entityType: "Attribute", entityId: id });
+    return { ok: true, redirectTo: "/admin/attributes" };
   } catch (error) {
     return handleActionError(error);
   }
-  await localizedRedirect("/admin/attributes");
 }
 
+/**
+ * Returns instead of redirecting - see the note on deleteTagAction. The redirect
+ * threw past the caller's success toast and spinner reset, and pointed at the
+ * admin list the caller was already on.
+ */
 export async function deleteAttributeAction(
   id: string,
-): Promise<void | ActionErrorResult> {
+): Promise<{ ok: true } | ActionErrorResult> {
   try {
     await requireRole("ADMIN");
     await deleteAttribute(id);
     await recordAudit({ action: "attribute.deleted", entityType: "Attribute", entityId: id });
+    return { ok: true };
   } catch (error) {
     return handleActionError(error);
   }
-  await localizedRedirect("/admin/attributes");
 }
 
 export async function duplicateAttributeAction(
@@ -80,7 +81,12 @@ export async function duplicateAttributeAction(
   try {
     await requireRole("ADMIN");
     const copy = await duplicateAttribute(id);
-    await recordAudit({ action: "attribute.duplicated", entityType: "Attribute", entityId: copy.id, diff: { from: id } });
+    await recordAudit({
+      action: "attribute.duplicated",
+      entityType: "Attribute",
+      entityId: copy.id,
+      diff: { from: copy.sourceLabel, fromId: id },
+    });
     return { error: false, id: copy.id };
   } catch (error) {
     return handleActionError(error);

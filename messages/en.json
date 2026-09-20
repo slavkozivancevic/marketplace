@@ -236,6 +236,7 @@
     "deleteConfirm": "Delete \"{title}\"?",
     "cannotUndo": "This action cannot be undone.",
     "duplicated": "Product duplicated",
+    "productDeleted": "Product deleted",
     "editCopy": "Edit copy",
     "edit": "Edit",
     "view": "View",
@@ -535,7 +536,10 @@
         "orgName": "Organization",
         "deletedClerkUserId": "Deleted user",
         "promotedUserId": "Promoted user",
-        "productCount": "Product count"
+        "productCount": "Product count",
+        "fee": "Commission",
+        "orderCancelled": "Order cancelled",
+        "paid": "Paid out"
       },
       "values": {
         "USER": "User",
@@ -569,7 +573,8 @@
           "reversal_failed": "Payout reversal failed"
         },
         "cod_balance": {
-          "settled": "COD balance settled"
+          "settled": "COD balance settled",
+          "credit_paid": "COD credit paid out"
         },
         "return": {
           "requested": "Return requested",
@@ -630,7 +635,8 @@
         "coupon": {
           "created": "Coupon created",
           "updated": "Coupon updated",
-          "deleted": "Coupon deleted"
+          "deleted": "Coupon deleted",
+          "duplicated": "Coupon duplicated"
         },
         "review": {
           "approved": "Review approved",
@@ -798,6 +804,8 @@
     "creating": "Creating...",
     "saveChanges": "Save Changes",
     "saving": "Saving...",
+    "updated": "Category updated",
+    "created": "Category created",
     "deleted": "Category deleted",
     "deleting": "Deleting...",
     "searchPlaceholder": "Search categories...",
@@ -868,6 +876,8 @@
     "creating": "Creating...",
     "saveChanges": "Save Changes",
     "saving": "Saving...",
+    "updated": "Attribute updated",
+    "created": "Attribute created",
     "deleted": "Attribute deleted",
     "deleting": "Deleting...",
     "searchPlaceholder": "Search attributes...",
@@ -932,7 +942,9 @@
     "rejectedReason": "Not published: {reason}",
     "deleteConfirm": "Delete your review?",
     "deleteDesc": "This permanently removes your rating and comment. This can't be undone.",
-    "deleting": "Deleting..."
+    "deleting": "Deleting...",
+    "deleted": "Review deleted",
+    "updated": "Review updated"
   },
   "search": {
     "result": "result",
@@ -996,6 +1008,8 @@
     "description": "Description",
     "descPlaceholder": "Short description of the brand...",
     "products": "Products",
+    "brandUpdated": "Brand updated",
+    "brandCreated": "Brand created",
     "brandDeleted": "Brand deleted",
     "deleteConfirm": "Delete \"{name}\"?",
     "deleteDesc": "Products linked to this brand will have their brand cleared. This cannot be undone.",
@@ -1045,6 +1059,8 @@
     "name": "Name",
     "slug": "Slug",
     "products": "Products",
+    "tagUpdated": "Tag updated",
+    "tagCreated": "Tag created",
     "tagDeleted": "Tag deleted",
     "deleteConfirm": "Delete \"{name}\"?",
     "deleteDesc": "Products carrying this tag will have it removed. This cannot be undone.",
@@ -1120,8 +1136,6 @@
     "title": "Something went wrong",
     "pageDescription": "An unexpected error occurred while loading this page.",
     "productsBody": "We couldn't load the requested products page. Please try again.",
-    "productBody": "We couldn't load this product. Please try again.",
-    "productHistoryBody": "We couldn't load this product's history. Please try again.",
     "genericDescription": "An unexpected error occurred. You can try again.",
     "tryAgain": "Try again"
   },
@@ -1516,10 +1530,12 @@
     "allSaved": "All changes saved",
     "saveBlocked": "Cannot save: {message}",
     "saveBlockedMore": "Cannot save: {message} (+{count} more)",
+    "orderBlocked": "Cannot place order: {message}",
+    "orderBlockedMore": "Cannot place order: {message} (+{count} more)",
     "discard": "Discard",
     "save": "Save changes",
     "saving": "Saving...",
-    "changed": "Edited",
+    "emptyValue": "(empty)",
     "savedValue": "Saved: {value}",
     "on": "On",
     "off": "Off",
@@ -1555,7 +1571,8 @@
       "charge": "Charge",
       "refund": "Refund",
       "payout": "Payout",
-      "fee": "Commission"
+      "fee": "Commission",
+      "feeCredit": "Coupon returned"
     },
     "txStatus": {
       "pending": "Pending",
@@ -1582,6 +1599,8 @@
     "cancelled": "Cancelled",
     "refunded": "Refunded",
     "partiallyRefunded": "Partially refunded",
+    "feeVoided": "Voided",
+    "feePartlyVoided": "Partly voided",
     "returnInProgress": "Return in progress",
     "cashOnDelivery": "Cash on Delivery",
     "card": "Card",
@@ -1607,28 +1626,40 @@
     "deliverDescription": "Mark this order as delivered once the buyer has received it. For cash-on-delivery, confirm the cash afterwards.",
     "markDelivered": "Mark delivered",
     "markedDelivered": "Order marked as delivered.",
-    "cancelOrder": "Cancel Order",
+    "cancelOrder": "Cancel my items",
     "markedCancelled": "Order cancelled.",
     "codPaymentDescription": "Cash-on-delivery payment is pending. Confirm once you've received the cash from the buyer.",
     "markPaymentReceived": "Mark payment received",
     "markingPaymentReceived": "Marking...",
     "markedPaymentReceived": "Payment confirmed.",
-    "cancelConfirmTitle": "Cancel this order?",
-    "cancelConfirmDesc": "This can't be undone. Inventory is restocked and the buyer is notified of the cancellation.",
+    "cancelConfirmTitle": "Cancel your items in this order?",
+    "cancelConfirmDesc": "This can't be undone. Only your own items are withdrawn and restocked. If other sellers are part of this order, their items are unaffected and the order stays open for them. The buyer is notified.",
     "keepOrder": "Keep order",
     "cancellingOrder": "Cancelling...",
-    "couponSellerNote": "Your payout is the full subtotal minus the standard {percent}% platform fee - exactly the same as without a coupon. The discount the buyer received (coupon {code}) is covered by the platform out of its fee, not taken from your payout.",
-    "paymentHistoryCouponNote": "The charge is what the buyer paid after coupon {code}. The discount is platform-funded and does not reduce your payout.",
+    "couponSellerNote": "Your payout is the full subtotal less the standard commission ({percent}%) - the same as it would be with no coupon at all. The {amount} the buyer saved (coupon {code}) comes out of the platform's commission, not your payout, which is why it is not a line above.",
     "platformFee": "Platform fee ({percent}%)",
     "yourPayout": "Your payout",
     "payoutReversed": "Refund reversal",
+    "codReversedLabel": "Returned goods",
     "payoutAfterRefunds": "Net payout after refunds",
+    "externalRefundNotDeductedNote": "{amount} was refunded to the buyer outside the app for this order. It has not been taken off your payout - the platform is carrying it. Should the whole order be refunded, the entire transfer is reversed, and that is shown above as a clawback.",
+    "codAfterRefundsLabel": "Final earnings",
     "payoutAfterCancellation": "Payout after cancellation",
     "cancelledNoPayoutNote": "This order was cancelled before payment was collected, so there is no payout for it.",
     "shippingCollected": "Shipping (collected)",
     "codBalanceNettedLabel": "Withheld for COD commission owed",
     "codBalanceNettedNote": "Part of this payout was withheld to settle commission your organization owed from past cash-on-delivery orders. Check the payouts page for your remaining balance.",
-    "codDebtRestoredNote": "This order was refunded, so the {amount} withheld above went back onto your cash-on-delivery balance as commission owed - that part of the payout never reached your account, it only reduced your debt at the time."
+    "codCommissionCreditedNote": "Goods from this order came back, so {amount} of commission was credited to your cash-on-delivery balance, leaving {remaining}.",
+    "codCreditReducedNote": "Goods from this order came back, so the credit we owe you dropped by {amount}, leaving {remaining}.",
+    "codDebtRestoredNote": "This order was refunded, so the {amount} withheld above went back onto your cash-on-delivery balance as commission owed - that part of the payout never reached your account, it only reduced your debt at the time.",
+    "codToCollect": "To collect on delivery",
+    "codGoods": "Goods",
+    "couponPlatformFunded": "Coupon {code} (funded by the platform)",
+    "codOwedToPlatform": "Charged to your COD balance",
+    "codOwedToYou": "Credited to your COD balance",
+    "codBalancePooledNote": "Balances run per currency across all your orders, not per order - the live figure is on your payouts page, and it may already have been settled or paid out.",
+    "codEarnings": "You keep",
+    "codToCollectNote": "Take exactly this much from the buyer. The coupon comes off the cash at the door, and the platform gives it back by reducing its commission - so your earnings are the same as without a coupon."
   },
   "relatedProducts": {
     "discoverMore": "Discover More",
@@ -1735,6 +1766,8 @@
       "edit": "Edit",
       "duplicate": "Duplicate"
     },
+    "updated": "Coupon updated",
+    "created": "Coupon created",
     "deleted": "Coupon deleted",
     "duplicated": "Coupon duplicated",
     "deleteDesc": "This action cannot be undone.",
@@ -1766,8 +1799,10 @@
     "delivered": "Delivered",
     "unfulfilled": "Not shipped",
     "notShipped": "Not yet shipped",
+    "cancelled": "Cancelled",
     "shippedOn": "Shipped on {date}",
     "deliveredOn": "Delivered on {date}",
+    "cancelledOn": "Cancelled by the seller on {date}",
     "carrier": "Carrier",
     "tracking": "Tracking",
     "updateTracking": "Update tracking",
@@ -1780,7 +1815,7 @@
     "markingDelivered": "Marking as delivered...",
     "markedDelivered": "Marked as delivered",
     "trackingUpdated": "Tracking updated",
-    "description": "Add a carrier and tracking number, then mark this order as shipped to notify the buyer.",
+    "description": "Add a carrier and tracking number, then mark your items as shipped to notify the buyer.",
     "carrierPlaceholder": "e.g. DHL",
     "trackingPlaceholder": "Tracking number",
     "cancel": "Cancel"
@@ -1820,7 +1855,8 @@
     "markRefunded": "Mark refunded",
     "refunding": "Issuing refund...",
     "refundDone": "Refund issued",
-    "returnAfterDelivery": "You can request a return once this item is delivered."
+    "returnAfterDelivery": "You can request a return once this item is delivered.",
+    "sellerCancelledHint": "This seller withdrew its items from the order, so there is nothing to return."
   },
   "payouts": {
     "pageTitle": "Payouts",
@@ -1862,7 +1898,9 @@
     "codBalanceNettedPill": "COD debt withheld",
     "codBalanceNettedNote": "Part of this payout was withheld to settle COD commission your organization owed.",
     "connecting": "Redirecting to Stripe...",
-    "toggleDetails": "Toggle details"
+    "toggleDetails": "Toggle details",
+    "codCreditTitle": "Owed back to you",
+    "codCreditDesc": "A coupon on a cash-on-delivery order ran deeper than our commission on it, so you took less cash at the door than you earned. The difference is added to your next Stripe payout in the same currency."
   },
   "actionErrors": {
     "forbidden": "Forbidden",
@@ -1947,10 +1985,10 @@
   },
   "adminCodBalances": {
     "title": "COD Balances",
-    "description": "Commission organizations owe the platform from cash-on-delivery orders, pending settlement.",
+    "description": "Commission organizations owe the platform from cash-on-delivery orders, pending settlement - and the reverse, where a coupon we funded ran deeper than our commission on it.",
     "organization": "Organization",
     "currency": "Currency",
-    "owed": "Owed",
+    "owed": "Balance",
     "actions": "Actions",
     "settle": "Settle",
     "empty": "No outstanding COD balances",
@@ -1962,7 +2000,17 @@
     "confirmSettle": "Confirm",
     "settled": "Settled {amount}",
     "amountTooHigh": "Amount cannot exceed the current balance owed.",
-    "settling": "Settling..."
+    "settling": "Settling...",
+    "weOwe": "We owe {amount}",
+    "creditNote": "Goes out with their next payout",
+    "payAction": "Pay out",
+    "payTitle": "Pay out credit to {org}",
+    "payDesc": "Record money handed back outside the app (bank transfer, cash). This reduces the credit immediately and is logged to the audit trail.",
+    "amountPaidLabel": "Amount paid out",
+    "creditNow": "Currently owed to them: {amount}",
+    "amountTooHighCredit": "Amount cannot exceed the credit outstanding.",
+    "paying": "Paying out...",
+    "paidOut": "Paid out {amount}"
   },
   "money": {
     "useConverted": "Back to converted",

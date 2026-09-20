@@ -4,6 +4,9 @@ import { Prisma, CouponType } from "@/generated/prisma/client";
 import { resolveCart, type CartItemRef } from "@/features/cart/db/resolveCart";
 import { moneyIn, requireMoney, serializeMoney, type CurrencyRates, type MoneySet } from "@/lib/money";
 import type { Currency } from "@/lib/currency-config";
+import { copyIdentifier } from "@/lib/copyIdentifier";
+import { NotFoundError } from "@/features/common/errors/domainErrors";
+import { COUPON_CODE_MAX_LENGTH } from "../schema/coupons";
 
 export type { CartItemRef };
 
@@ -258,15 +261,17 @@ export async function deleteCoupon(id: string) {
 }
 
 /** Copies a coupon with a fresh unique code, reset usage and inactive by default.
- *  Returns the new coupon plus the source's human-readable code (for the audit
- *  trail - so it records "from: SAVE10", not a raw UUID). */
+ *  Returns the new coupon plus the source's human-readable code as `sourceLabel`
+ *  (for the audit trail - so it records "from: SAVE10", not a raw UUID). */
 export async function duplicateCoupon(id: string) {
   const src = await prisma.coupon.findUnique({ where: { id } });
-  if (!src) throw new Error("Coupon not found");
-  const suffix = Date.now().toString(36).slice(-4).toUpperCase();
+  if (!src) throw new NotFoundError(`Coupon ${id} not found`);
+  // A coupon has no name to carry a localized "Copy of" - `code` is both its
+  // identifier and what the buyer types at checkout - so it gets the identifier
+  // half of the duplicate convention, uppercased to match how codes are stored.
   const created = await prisma.coupon.create({
     data: {
-      code: `${src.code}-${suffix}`,
+      code: copyIdentifier(src.code, COUPON_CODE_MAX_LENGTH).toUpperCase(),
       type: src.type,
       value: src.value,
       // Copy the money sets too - a duplicate that kept only the USD mirror
@@ -280,7 +285,7 @@ export async function duplicateCoupon(id: string) {
       active: false,
     },
   });
-  return { ...created, sourceCode: src.code };
+  return { ...created, sourceLabel: src.code };
 }
 
 export function getCouponById(id: string) {

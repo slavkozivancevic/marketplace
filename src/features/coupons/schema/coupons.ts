@@ -1,6 +1,12 @@
 import { z } from "zod/v4";
 import { moneyInputSchema, nonNegativeMoneyInputSchema } from "@/lib/money-input";
 
+/** Longest code the form accepts. Exported because `duplicateCouponCode` writes
+ *  a code straight to the DB, bypassing this schema - if the copy came out
+ *  longer than the form allows, the coupon would exist but refuse to save on
+ *  edit. Both sides must read the same number. */
+export const COUPON_CODE_MAX_LENGTH = 40;
+
 /**
  * Admin coupon form.
  *
@@ -16,7 +22,7 @@ import { moneyInputSchema, nonNegativeMoneyInputSchema } from "@/lib/money-input
  */
 export const couponSchema = z
   .object({
-    code: z.string().trim().min(2).max(40),
+    code: z.string().trim().min(2).max(COUPON_CODE_MAX_LENGTH),
     type: z.enum(["PERCENT", "FIXED"]),
     /** Percent off. Meaningful only when `type` is PERCENT. */
     percent: z.number(),

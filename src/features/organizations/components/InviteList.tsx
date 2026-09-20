@@ -1,7 +1,9 @@
 "use client";
 
 import { useTransition, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
+import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { toast } from "@/components/ui/sonner";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +22,8 @@ export function InviteList({ invites, canManage }: InviteListProps) {
   const dl = dateLocale(useLocale());
   const [isPending, startTransition] = useTransition();
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const announceCancelled = useAnnounceWhenSettled(isPending);
+  const router = useRouter();
 
   const handleCancel = (inviteId: string) => {
     setCancellingId(inviteId);
@@ -28,10 +32,15 @@ export function InviteList({ invites, canManage }: InviteListProps) {
 
       if (result && "error" in result) {
         toast.error(result.message);
-      } else {
-        toast.success(t("cancelled"));
+        setCancellingId(null);
+        return;
       }
-      setCancellingId(null);
+      // The row is server-rendered and still on screen here. `router.refresh()`
+      // inside this transition keeps the spinner running until it goes, and the
+      // toast is queued for that same frame. `cancellingId` is not cleared on
+      // success - the row that carries it is about to disappear.
+      announceCancelled({ message: t("cancelled") });
+      router.refresh();
     });
   };
 

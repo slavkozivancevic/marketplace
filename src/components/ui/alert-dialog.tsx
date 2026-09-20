@@ -4,6 +4,7 @@ import * as React from "react";
 import { AlertDialog as AlertDialogPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/utils";
+import { useOrphanedPortalCleanup } from "@/components/ui/useOrphanedPortalCleanup";
 import { Button } from "@/components/ui/button";
 
 function AlertDialog({
@@ -58,9 +59,12 @@ const AlertDialogContent = React.forwardRef<
     size?: "default" | "sm";
   }
 >(({ className, size = "default", ...props }, ref) => {
+  // See the hook: a confirm dialog whose page navigates away while it is open
+  // leaves its portal behind, blurring and blocking the page we land on.
+  const trackOverlay = useOrphanedPortalCleanup();
   return (
     <AlertDialogPortal>
-      <AlertDialogOverlay />
+      <AlertDialogOverlay ref={trackOverlay} />
       <AlertDialogPrimitive.Content
         ref={ref}
         data-slot="alert-dialog-content"

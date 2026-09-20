@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useNavigationGeneration } from "@/lib/navigation/navGeneration";
+import { setFlash } from "@/lib/navigation/flash";
 import { useLocale, useTranslations } from "next-intl";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useForm, useFormState, useWatch } from "react-hook-form";
@@ -231,6 +233,7 @@ function TagFormInner(props: TagFormProps & { onDiscard: () => void }) {
   const t = useTranslations("tags");
   const onInvalid = useInvalidToast();
   const locale = useLocale();
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
 
@@ -349,6 +352,21 @@ function TagFormInner(props: TagFormProps & { onDiscard: () => void }) {
 
       if (result && "error" in result) {
         toast.error(result.message);
+      } else {
+        // Deliberately NOT re-baselined here. `form.reset(data)` clears the
+        // dirty flags, so the "saved value" hints under every edited field vanish
+        // and the save bar jumps up the page - with its own spinner still
+        // running, since the transition lasts until the navigation lands. It was
+        // never needed: the unsaved-changes guard only intercepts link CLICKS,
+        // never a programmatic `router.push`, and the form unregisters itself
+        // when it unmounts on arrival. ProductForm has always worked this way.
+        // Queued, not raised. The transition stays pending through the navigation
+        // that follows, so a toast raised here would sit next to a button still
+        // spinning and claim the opposite. The save is confirmed where its result
+        // is visible - on the list - and FlashHost raises it once we land there.
+        const target = `/${locale}${result.redirectTo}`;
+        setFlash(t(props.mode === "edit" ? "tagUpdated" : "tagCreated"), { path: target });
+        router.push(target);
       }
     });
   };

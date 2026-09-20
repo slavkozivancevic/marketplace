@@ -13,6 +13,7 @@ import {
 } from "@/features/categories/db/categories";
 import { getAttributeLibrary } from "@/features/attributes/db/attributes";
 import { CategoryForm } from "@/features/categories/components/CategoryForm";
+import { RemountOnNavigation } from "@/components/forms/RemountOnNavigation";
 import { DEFAULT_LOCALE, NON_DEFAULT_LOCALES } from "@/i18n/config";
 import {
   getCategoryName,
@@ -91,33 +92,35 @@ export default async function EditCategoryPage({
         </PageHeader>
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
-        {/* Fresh key forces remount on each page render so unsaved edits
-            don't persist across navigations (Next.js can preserve the
-            form's in-memory state otherwise). */}
-        <CategoryForm
-          key={crypto.randomUUID()}
-          mode="edit"
-          categoryId={id}
-          parentOptions={parentOptions}
-          attributeLibrary={attributeLibrary}
-          categoryAttributeMap={categoryAttributeMap}
-          defaultValues={{
-            name: en?.name ?? "",
-            slug: en?.slug ?? "",
-            parentId: category.parentId,
-            imageUrl: category.imageUrl ?? "",
-            description: en?.description ?? "",
-            order: category.order,
-            isActive: category.isActive,
-            isFeatured: category.isFeatured,
-            translations: nonDefault,
-            attributes: category.attributes.map((a) => ({
-              attributeId: a.attributeId,
-              order: a.order,
-              isFilterable: a.isFilterable,
-            })),
-          }}
-        />
+        {/* Remounts only when the user navigates away and back, so a
+            half-edited form never reopens as if it were the saved record.
+            NOT a fresh key per render: that also tore the form down mid-save,
+            whenever a Server Action revalidated this page. */}
+        <RemountOnNavigation>
+          <CategoryForm
+            mode="edit"
+            categoryId={id}
+            parentOptions={parentOptions}
+            attributeLibrary={attributeLibrary}
+            categoryAttributeMap={categoryAttributeMap}
+            defaultValues={{
+              name: en?.name ?? "",
+              slug: en?.slug ?? "",
+              parentId: category.parentId,
+              imageUrl: category.imageUrl ?? "",
+              description: en?.description ?? "",
+              order: category.order,
+              isActive: category.isActive,
+              isFeatured: category.isFeatured,
+              translations: nonDefault,
+              attributes: category.attributes.map((a) => ({
+                attributeId: a.attributeId,
+                order: a.order,
+                isFilterable: a.isFilterable,
+              })),
+            }}
+          />
+        </RemountOnNavigation>
       </div>
     </div>
   );

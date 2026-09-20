@@ -236,6 +236,7 @@
     "deleteConfirm": "Obriši \"{title}\"?",
     "cannotUndo": "Ova akcija se ne može poništiti.",
     "duplicated": "Proizvod dupliran",
+    "productDeleted": "Proizvod obrisan",
     "editCopy": "Izmeni kopiju",
     "edit": "Izmeni",
     "view": "Prikaži",
@@ -535,7 +536,10 @@
         "orgName": "Organizacija",
         "deletedClerkUserId": "Obrisani korisnik",
         "promotedUserId": "Unapređeni korisnik",
-        "productCount": "Broj proizvoda"
+        "productCount": "Broj proizvoda",
+        "fee": "Provizija",
+        "orderCancelled": "Narudžbina otkazana",
+        "paid": "Isplaćeno"
       },
       "values": {
         "USER": "Korisnik",
@@ -569,7 +573,8 @@
           "reversal_failed": "Storniranje isplate neuspešno"
         },
         "cod_balance": {
-          "settled": "Provizija za pouzeće namirena"
+          "settled": "Provizija za pouzeće namirena",
+          "credit_paid": "Kredit pouzeća isplaćen"
         },
         "return": {
           "requested": "Povraćaj zatražen",
@@ -630,7 +635,8 @@
         "coupon": {
           "created": "Kupon kreiran",
           "updated": "Kupon izmenjen",
-          "deleted": "Kupon obrisan"
+          "deleted": "Kupon obrisan",
+          "duplicated": "Kupon dupliran"
         },
         "review": {
           "approved": "Recenzija odobrena",
@@ -798,6 +804,8 @@
     "creating": "Kreiranje...",
     "saveChanges": "Sačuvaj izmene",
     "saving": "Čuvanje...",
+    "updated": "Kategorija je izmenjena",
+    "created": "Kategorija kreirana",
     "deleted": "Kategorija obrisana",
     "deleting": "Brisanje...",
     "searchPlaceholder": "Pretraži kategorije...",
@@ -868,6 +876,8 @@
     "creating": "Kreiranje...",
     "saveChanges": "Sačuvaj izmene",
     "saving": "Čuvanje...",
+    "updated": "Atribut je izmenjen",
+    "created": "Atribut kreiran",
     "deleted": "Atribut obrisan",
     "deleting": "Brisanje...",
     "searchPlaceholder": "Pretraži atribute...",
@@ -932,7 +942,9 @@
     "rejectedReason": "Nije objavljeno: {reason}",
     "deleteConfirm": "Obrisati vašu recenziju?",
     "deleteDesc": "Ovo trajno uklanja vašu ocenu i komentar. Ne može se poništiti.",
-    "deleting": "Brisanje..."
+    "deleting": "Brisanje...",
+    "deleted": "Recenzija obrisana",
+    "updated": "Recenzija izmenjena"
   },
   "search": {
     "result": "rezultat",
@@ -996,6 +1008,8 @@
     "description": "Opis",
     "descPlaceholder": "Kratak opis brenda...",
     "products": "Proizvodi",
+    "brandUpdated": "Brend je izmenjen",
+    "brandCreated": "Brend kreiran",
     "brandDeleted": "Brend obrisan",
     "deleteConfirm": "Obriši \"{name}\"?",
     "deleteDesc": "Proizvodi povezani sa ovim brendom će imati brend obrisan. Ovo se ne može poništiti.",
@@ -1045,6 +1059,8 @@
     "name": "Naziv",
     "slug": "Slug",
     "products": "Proizvodi",
+    "tagUpdated": "Tag je izmenjen",
+    "tagCreated": "Tag kreiran",
     "tagDeleted": "Tag obrisan",
     "deleteConfirm": "Obriši \"{name}\"?",
     "deleteDesc": "Proizvodi koji nose ovaj tag će ga izgubiti. Ovo se ne može poništiti.",
@@ -1120,8 +1136,6 @@
     "title": "Došlo je do greške",
     "pageDescription": "Došlo je do neočekivane greške pri učitavanju ove stranice.",
     "productsBody": "Nismo uspeli da učitamo traženu stranicu proizvoda. Pokušajte ponovo.",
-    "productBody": "Nismo uspeli da učitamo ovaj proizvod. Pokušajte ponovo.",
-    "productHistoryBody": "Nismo uspeli da učitamo istoriju ovog proizvoda. Pokušajte ponovo.",
     "genericDescription": "Došlo je do neočekivane greške. Možete pokušati ponovo.",
     "tryAgain": "Pokušaj ponovo"
   },
@@ -1516,10 +1530,12 @@
     "allSaved": "Sve izmene su sačuvane",
     "saveBlocked": "Nije moguće sačuvati: {message}",
     "saveBlockedMore": "Nije moguće sačuvati: {message} (+{count} još)",
+    "orderBlocked": "Nije moguće poručiti: {message}",
+    "orderBlockedMore": "Nije moguće poručiti: {message} (+{count} još)",
     "discard": "Poništi",
     "save": "Sačuvaj izmene",
     "saving": "Čuvanje...",
-    "changed": "Izmenjeno",
+    "emptyValue": "(prazno)",
     "savedValue": "Sačuvano: {value}",
     "on": "Uključeno",
     "off": "Isključeno",
@@ -1555,7 +1571,8 @@
       "charge": "Naplata",
       "refund": "Povraćaj",
       "payout": "Isplata",
-      "fee": "Provizija"
+      "fee": "Provizija",
+      "feeCredit": "Kupon vraćen"
     },
     "txStatus": {
       "pending": "Na čekanju",
@@ -1582,6 +1599,8 @@
     "cancelled": "Otkazano",
     "refunded": "Refundirano",
     "partiallyRefunded": "Delimično refundirano",
+    "feeVoided": "Poništeno",
+    "feePartlyVoided": "Delimično poništeno",
     "returnInProgress": "Povraćaj u toku",
     "cashOnDelivery": "Plaćanje pouzećem",
     "card": "Kartica",
@@ -1607,28 +1626,40 @@
     "deliverDescription": "Označite narudžbinu kao isporučenu kada je kupac primi. Za pouzeće, nakon isporuke potvrdite naplatu.",
     "markDelivered": "Označi isporučeno",
     "markedDelivered": "Narudžbina označena kao isporučena.",
-    "cancelOrder": "Otkaži narudžbinu",
+    "cancelOrder": "Otkaži svoje artikle",
     "markedCancelled": "Narudžbina otkazana.",
     "codPaymentDescription": "Naplata pouzećem je na čekanju. Potvrdite kada primite novac od kupca.",
     "markPaymentReceived": "Označi naplaćeno",
     "markingPaymentReceived": "Označavanje...",
     "markedPaymentReceived": "Naplata potvrđena.",
-    "cancelConfirmTitle": "Otkazati narudžbinu?",
-    "cancelConfirmDesc": "Ovo se ne može poništiti. Zaliha se vraća, a kupac dobija obaveštenje o otkazivanju.",
+    "cancelConfirmTitle": "Otkazati svoje artikle u ovoj narudžbini?",
+    "cancelConfirmDesc": "Ovo se ne može poništiti. Povlače se i vraćaju na stanje samo vaši artikli. Ako u narudžbini ima i drugih prodavaca, njihovi artikli ostaju netaknuti i narudžbina za njih i dalje traje. Kupac dobija obaveštenje.",
     "keepOrder": "Zadrži narudžbinu",
     "cancellingOrder": "Otkazivanje...",
-    "couponSellerNote": "Vaša isplata je pun međuzbir umanjen za standardnu proviziju ({percent}%) - isto kao i bez kupona. Popust koji je kupac dobio (kupon {code}) snosi platforma iz svoje provizije, a ne iz vaše isplate.",
-    "paymentHistoryCouponNote": "Naplata je iznos koji je kupac platio nakon kupona {code}. Popust finansira platforma i ne umanjuje vašu isplatu.",
+    "couponSellerNote": "Vaša isplata je pun međuzbir umanjen za standardnu proviziju ({percent}%) - isto kao i bez kupona. Popust od {amount} koji je kupac dobio (kupon {code}) snosi platforma iz svoje provizije, a ne iz vaše isplate - zato i nije red u računu iznad.",
     "platformFee": "Provizija platforme ({percent}%)",
     "yourPayout": "Vaša isplata",
     "payoutReversed": "Storno isplate (povraćaji)",
+    "codReversedLabel": "Vraćena roba",
     "payoutAfterRefunds": "Konačna isplata",
+    "externalRefundNotDeductedNote": "Za ovu narudžbinu je {amount} vraćeno kupcu van aplikacije. Taj iznos NIJE skinut sa vaše isplate - snosi ga platforma. Ako cela narudžbina bude refundirana, ceo transfer se stornira, i to se onda vidi gore kao storno.",
+    "codAfterRefundsLabel": "Konačna zarada",
     "payoutAfterCancellation": "Isplata nakon otkazivanja",
     "cancelledNoPayoutNote": "Narudžbina je otkazana pre naplate, pa isplate po njoj nema.",
     "shippingCollected": "Dostava (naplaćena)",
     "codBalanceNettedLabel": "Zadržano za dug od pouzeća",
     "codBalanceNettedNote": "Deo ove isplate je zadržan da izmiri proviziju koju vaša organizacija duguje od prethodnih narudžbina plaćenih pouzećem. Preostali dug pogledajte na stranici isplata.",
-    "codDebtRestoredNote": "Ova narudžbina je refundirana, pa se zadržanih {amount} vratilo na vaš dug od pouzeća kao provizija koju dugujete - taj deo isplate nikada nije ni stigao na vaš račun, samo vam je tada umanjio dug."
+    "codCommissionCreditedNote": "Roba iz ove narudžbine je vraćena, pa vam je {amount} provizije vraćeno na saldo pouzeća, i ostalo je {remaining}.",
+    "codCreditReducedNote": "Roba iz ove narudžbine je vraćena, pa je kredit koji vam dugujemo umanjen za {amount}, i ostalo je {remaining}.",
+    "codDebtRestoredNote": "Ova narudžbina je refundirana, pa se zadržanih {amount} vratilo na vaš dug od pouzeća kao provizija koju dugujete - taj deo isplate nikada nije ni stigao na vaš račun, samo vam je tada umanjio dug.",
+    "codToCollect": "Za naplatu pouzećem",
+    "codGoods": "Roba",
+    "couponPlatformFunded": "Kupon {code} (snosi platforma)",
+    "codOwedToPlatform": "Zaduženje COD salda",
+    "codOwedToYou": "Odobrenje COD salda",
+    "codBalancePooledNote": "Saldo se vodi zbirno po valuti, za sve vaše narudžbine, a ne po narudžbini - trenutno stanje je na stranici Isplate, i može već biti naplaćeno ili isplaćeno.",
+    "codEarnings": "Vama ostaje",
+    "codToCollectNote": "Naplatite od kupca tačno ovoliko. Kupon se skida sa keša na vratima, a platforma vam ga vraća kroz umanjenu proviziju - vaša zarada je ista kao i bez kupona."
   },
   "interactions": {
     "frequentlyBoughtTogetherEyebrow": "Kupljeno zajedno",
@@ -1735,6 +1766,8 @@
       "edit": "Izmeni",
       "duplicate": "Dupliraj"
     },
+    "updated": "Kupon je izmenjen",
+    "created": "Kupon kreiran",
     "deleted": "Kupon obrisan",
     "duplicated": "Kupon dupliran",
     "deleteDesc": "Ova radnja se ne može opozvati.",
@@ -1766,8 +1799,10 @@
     "delivered": "Isporučeno",
     "unfulfilled": "Nije poslato",
     "notShipped": "Još nije poslato",
+    "cancelled": "Otkazano",
     "shippedOn": "Poslato {date}",
     "deliveredOn": "Isporučeno {date}",
+    "cancelledOn": "Prodavac otkazao {date}",
     "carrier": "Kurir",
     "tracking": "Broj za praćenje",
     "updateTracking": "Izmeni praćenje",
@@ -1780,7 +1815,7 @@
     "markingDelivered": "Označavanje...",
     "markedDelivered": "Označeno kao isporučeno",
     "trackingUpdated": "Praćenje ažurirano",
-    "description": "Dodaj kurira i broj za praćenje, pa označi porudžbinu kao poslatu da obavestiš kupca.",
+    "description": "Dodaj kurira i broj za praćenje, pa označi svoje artikle kao poslate da obavestiš kupca.",
     "carrierPlaceholder": "npr. DHL",
     "trackingPlaceholder": "Broj za praćenje",
     "cancel": "Otkaži"
@@ -1820,7 +1855,8 @@
     "markRefunded": "Označi vraćeno",
     "refunding": "Refundacija u toku...",
     "refundDone": "Refundacija izvršena",
-    "returnAfterDelivery": "Povraćaj možeš zatražiti nakon što proizvod bude isporučen."
+    "returnAfterDelivery": "Povraćaj možeš zatražiti nakon što proizvod bude isporučen.",
+    "sellerCancelledHint": "Ovaj prodavac je povukao svoje artikle iz narudžbine, pa nema šta da se vrati."
   },
   "payouts": {
     "pageTitle": "Isplate",
@@ -1862,7 +1898,9 @@
     "codBalanceNettedPill": "Zadržano za COD dug",
     "codBalanceNettedNote": "Deo ove isplate je zadržan da izmiri proviziju od pouzeća koju vaša organizacija duguje.",
     "connecting": "Preusmeravanje na Stripe...",
-    "toggleDetails": "Prikaži/sakrij detalje"
+    "toggleDetails": "Prikaži/sakrij detalje",
+    "codCreditTitle": "Platforma duguje vama",
+    "codCreditDesc": "Kupon na narudžbini sa plaćanjem pouzećem bio je veći od naše provizije na njoj, pa ste na vratima naplatili manje nego što ste zaradili. Razlika se dodaje na vašu sledeću Stripe isplatu u istoj valuti."
   },
   "actionErrors": {
     "forbidden": "Nije dozvoljeno",
@@ -1947,10 +1985,10 @@
   },
   "adminCodBalances": {
     "title": "COD dugovi",
-    "description": "Provizija koju organizacije duguju platformi od narudžbina plaćenih pouzećem, na čekanju naplate.",
+    "description": "Provizija koju organizacije duguju platformi od narudžbina plaćenih pouzećem, na čekanju naplate - i obrnuto, kada je kupon koji smo finansirali bio veći od naše provizije na njemu.",
     "organization": "Organizacija",
     "currency": "Valuta",
-    "owed": "Duguje",
+    "owed": "Saldo",
     "actions": "Akcije",
     "settle": "Naplati",
     "empty": "Nema nenaplaćenih COD dugova",
@@ -1962,7 +2000,17 @@
     "confirmSettle": "Potvrdi",
     "settled": "Naplaćeno {amount}",
     "amountTooHigh": "Iznos ne može biti veći od trenutnog duga.",
-    "settling": "Naplaćivanje..."
+    "settling": "Naplaćivanje...",
+    "weOwe": "Dugujemo {amount}",
+    "creditNote": "Odlazi uz sledeću isplatu",
+    "payAction": "Isplati",
+    "payTitle": "Isplata kredita: {org}",
+    "payDesc": "Zabeleži novac vraćen van aplikacije (bankovni prenos, gotovina). Kredit se odmah umanjuje i upisuje se u zapisnik.",
+    "amountPaidLabel": "Isplaćen iznos",
+    "creditNow": "Trenutno im dugujemo: {amount}",
+    "amountTooHighCredit": "Iznos ne može biti veći od kredita.",
+    "paying": "Isplaćujem...",
+    "paidOut": "Isplaćeno {amount}"
   },
   "money": {
     "useConverted": "Vrati preračunato",

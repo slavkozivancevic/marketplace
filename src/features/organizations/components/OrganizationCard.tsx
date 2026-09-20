@@ -1,9 +1,11 @@
 "use client";
 
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "@/components/ui/sonner";
+import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +35,8 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
   const t = useTranslations("organization");
   const tUsers = useTranslations("users");
   const [isPending, startTransition] = useTransition();
+  const announceToggled = useAnnounceWhenSettled(isPending);
+  const router = useRouter();
 
   const handleVerifyToggle = () => {
     startTransition(async () => {
@@ -43,11 +47,16 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
       if (result && "error" in result) {
         toast.error(result.message);
       } else {
-        toast.success(
-          organization.verified
+        // The badge on this card is server-rendered, so the toggle only becomes
+        // visible when the card re-renders. Refreshing inside the transition
+        // keeps the button busy until then and lands the toast with the badge
+        // rather than ahead of it.
+        announceToggled({
+          message: organization.verified
             ? t("orgUnverified")
             : t("orgVerified"),
-        );
+        });
+        router.refresh();
       }
     });
   };

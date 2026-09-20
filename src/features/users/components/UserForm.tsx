@@ -8,6 +8,7 @@ import { useForm, useFormState } from "react-hook-form";
 import { useHasFormErrors } from "@/lib/forms/useSaveBlockedReason";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { toast } from "@/components/ui/sonner";
+import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
 import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
 import { FieldChangedHint } from "@/components/forms/FieldChangedHint";
@@ -46,6 +47,7 @@ export function UserForm({ userId, currentRole, onSuccess }: UserFormProps) {
   const tForm = useTranslations("form");
   const onInvalid = useInvalidToast();
   const [isPending, startTransition] = useTransition();
+  const announceSaved = useAnnounceWhenSettled(isPending);
   const navGeneration = useNavigationGeneration();
 
   const form = useForm<UpdateUserRoleInput>({
@@ -99,7 +101,11 @@ export function UserForm({ userId, currentRole, onSuccess }: UserFormProps) {
       if (result && "error" in result) {
         toast.error(result.message);
       } else {
-        toast.success(t("roleUpdated"));
+        // `values: { role: currentRole }` re-baselines this form the moment the
+        // server-confirmed role arrives, which is also when the Discard/Update
+        // controls disappear. Queueing the toast for that commit keeps the
+        // confirmation with the change instead of a beat ahead of it.
+        announceSaved({ message: t("roleUpdated") });
         onSuccess?.();
       }
     });

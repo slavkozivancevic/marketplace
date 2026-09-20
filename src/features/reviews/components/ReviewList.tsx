@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -61,6 +63,44 @@ interface ReviewListProps {
 
 export function ReviewList({ reviews, currentUserId, productId }: ReviewListProps) {
   const t = useTranslations("reviews");
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  // The delete lives here, not in the card: the card is the thing that
+  // disappears, and a transition owned by an unmounted component can never
+  // report that it finished. The list survives the row it deletes - it survives
+  // the last one too, since the parent always renders it.
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteOpenId, setDeleteOpenId] = useState<string | null>(null);
+  const [isDeleting, startDelete] = useTransition();
+  const announceDeleted = useAnnounceWhenSettled(isDeleting);
+
+  const handleDelete = (reviewId: string) => {
+    setDeletingId(reviewId);
+    startDelete(async () => {
+      const result = await deleteReview(reviewId);
+      if (isActionErrorResult(result)) {
+        // Leave the dialog open so the failure (e.g. a rate limit) stays
+        // readable next to the button that caused it.
+        toast.error(result.message);
+        setDeletingId(null);
+        return;
+      }
+      // The card is server-rendered, so only a refresh removes it - and inside
+      // this transition that refresh keeps the confirm button spinning until the
+      // card is actually gone. The dialog is rendered inside the card and goes
+      // with it, and the queued toast fires in that same frame.
+      announceDeleted({ message: t("deleted") });
+      // Other views of the same data are client-cached (the product grid's
+      // rating, the breakdown bars); they are not what the user is looking at,
+      // so they refresh alongside rather than gate anything.
+      queryClient.invalidateQueries({ queryKey: ["products", "public"] });
+      queryClient.invalidateQueries({
+        queryKey: ["product", "rating-breakdown", productId],
+      });
+      router.refresh();
+    });
+  };
+
   if (reviews.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">{t("noReviews")}</p>
@@ -75,6 +115,10 @@ export function ReviewList({ reviews, currentUserId, productId }: ReviewListProp
           review={review}
           isOwner={currentUserId === review.user.id}
           productId={productId}
+          isDeleting={isDeleting && deletingId === review.id}
+          deleteOpen={deleteOpenId === review.id}
+          onDeleteOpenChange={(open) => setDeleteOpenId(open ? review.id : null)}
+          onDelete={() => handleDelete(review.id)}
         />
       ))}
     </div>
@@ -85,51 +129,41 @@ function ReviewItem({
   review,
   isOwner,
   productId,
+  isDeleting,
+  deleteOpen,
+  onDeleteOpenChange,
+  onDelete,
 }: {
   review: SerializedProductReview;
   isOwner: boolean;
   productId: string;
+  /**
+   * Delete state is owned by the list - see the note there. The dialog is never
+   * closed by hand on success: the card it lives in is removed by the refresh,
+   * in the same frame the spinner stops and the toast appears.
+   */
+  isDeleting: boolean;
+  deleteOpen: boolean;
+  onDeleteOpenChange: (open: boolean) => void;
+  onDelete: () => void;
 }) {
   const t = useTranslations("reviews");
   const tCommon = useTranslations("common");
   const dl = dateLocale(useLocale());
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [editRating, setEditRating] = useState(review.rating);
   const [editComment, setEditComment] = useState(review.comment ?? "");
   const [error, setError] = useState<string | null>(null);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  // Separate transitions for save vs delete: they render different spinners
-  // (Save button vs trash icon). Sharing one made the trash icon briefly spin
-  // after a save, since the transition was still settling as the form closed.
+  // Saving stays here (unlike the delete): an edited card is still on screen
+  // afterwards, so this component is around to see its own transition finish.
   const [isSaving, startSave] = useTransition();
-  const [isDeleting, startDelete] = useTransition();
-
-  // Close the confirm dialog once the delete settles.
-  const wasDeleting = useRef(false);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (wasDeleting.current && !isDeleting) setDeleteOpen(false);
-    wasDeleting.current = isDeleting && deleteOpen;
-  }, [isDeleting, deleteOpen]);
+  const announceSaved = useAnnounceWhenSettled(isSaving);
 
   // "(edited)" reflects an author content edit only - moderation status writes
   // (approve/reject) bump updatedAt but must not flag the review as edited.
   const isEdited = review.editedAt != null;
-
-  const handleDelete = () => {
-    startDelete(async () => {
-      const result = await deleteReview(review.id);
-      if (isActionErrorResult(result)) {
-        // Surface the failure (e.g. rate limit) - the confirm dialog has closed,
-        // so a toast is the right channel for this row action.
-        toast.error(result.message);
-      } else {
-        queryClient.invalidateQueries({ queryKey: ["products", "public"] });
-        queryClient.invalidateQueries({ queryKey: ["product", "rating-breakdown", productId] });
-      }
-    });
-  };
 
   const handleEdit = () => {
     setEditRating(review.rating);
@@ -160,9 +194,17 @@ function ReviewItem({
       if (isActionErrorResult(result)) {
         setError(result.message);
       } else {
-        setIsEditing(false);
+        // The card is server-rendered: `router.refresh()` inside the transition
+        // holds the Save spinner until the new text is on screen, and closing
+        // the editor in the same transition means it never flips back to read
+        // mode still showing the old text. The toast waits for that frame too.
+        announceSaved({ message: t("updated") });
         queryClient.invalidateQueries({ queryKey: ["products", "public"] });
-        queryClient.invalidateQueries({ queryKey: ["product", "rating-breakdown", productId] });
+        queryClient.invalidateQueries({
+          queryKey: ["product", "rating-breakdown", productId],
+        });
+        router.refresh();
+        setIsEditing(false);
       }
     });
   };
@@ -275,7 +317,7 @@ function ReviewItem({
                 open={deleteOpen}
                 onOpenChange={(next) => {
                   if (isDeleting) return;
-                  setDeleteOpen(next);
+                  onDeleteOpenChange(next);
                 }}
               >
                 <AlertDialogTrigger asChild>
@@ -305,7 +347,7 @@ function ReviewItem({
                     <AlertDialogAction
                       onClick={(e) => {
                         e.preventDefault();
-                        handleDelete();
+                        onDelete();
                       }}
                       disabled={isDeleting}
                       variant="destructiveSolid"

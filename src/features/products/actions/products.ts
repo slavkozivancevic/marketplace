@@ -1,8 +1,7 @@
 "use server";
 
 import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
-import { redirect } from "next/navigation";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { decimalToCents } from "@/lib/currency";
 import { decimalToMinor, type MoneySet } from "@/lib/money";
 import { buildMoneySet, type MoneyInput } from "@/lib/money-input";
@@ -32,12 +31,9 @@ import {
   unarchiveProduct as workflowUnarchive,
 } from "../services/productWorkflow";
 
-// Callers pass unlocalized paths; we re-prefix with the request locale so
-// the user lands on the same-language URL without a middleware bounce.
-async function localizedRedirect(redirectTo: string): Promise<never> {
-  const locale = await getLocale();
-  redirect(`/${locale}${redirectTo}`);
-}
+// Every action here hands its redirect target back to the caller instead of
+// redirecting (see createProduct for why), so there is no server-side navigation
+// left to localize. The client re-prefixes with the request locale.
 
 /**
  * Shape of a single row from the CSV import.
@@ -89,10 +85,19 @@ export type BulkCreateResult = {
   errors: { row: number; message: string }[];
 };
 
+/**
+ * Hands the redirect target back rather than performing it. `redirect()` unwinds
+ * by throwing, so an action ending in one never returns - and everything the
+ * form had queued after the await (the success toast, clearing the saved draft)
+ * was unreachable. Saving a product simply never confirmed itself.
+ *
+ * The default stays here, in one place, and travels back with the result; the
+ * form navigates once it has told the user what happened.
+ */
 export async function createProduct(
   unsafeData: CreateProductInput,
   redirectTo = "/admin/products",
-): Promise<void | ActionErrorResult> {
+): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
     const parsed = createProductSchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
 
@@ -127,18 +132,18 @@ export async function createProduct(
       })),
     });
     await recordAudit({ action: "product.created", entityType: "Product", entityId: created.id });
+    return { ok: true, redirectTo };
   } catch (error) {
     return handleActionError(error);
   }
-
-  await localizedRedirect(redirectTo);
 }
 
+/** Hands the redirect target back instead of performing it - see createProduct. */
 export async function updateProduct(
   id: string,
   unsafeData: UpdateProductInput,
   redirectTo = `/admin/products/${id}`,
-): Promise<void | ActionErrorResult> {
+): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
     const parsed = updateProductSchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
 
@@ -173,17 +178,26 @@ export async function updateProduct(
       })),
     });
     await recordAudit({ action: "product.updated", entityType: "Product", entityId: id });
+    return { ok: true, redirectTo };
   } catch (error) {
     return handleActionError(error);
   }
-
-  await localizedRedirect(redirectTo);
 }
 
+/**
+ * Hands the redirect target back instead of performing it - see createProduct.
+ * `null` means the caller stays put (a list row deleting in place), and comes
+ * back as a null target.
+ *
+ * Required, with no default: deleting is the one product action that really
+ * does move the user, and where it moves them depends on which surface the
+ * button is on. An `/admin/products` default silently sent sellers into a page
+ * their role cannot open, so every caller now names its own list.
+ */
 export async function deleteProduct(
   id: string,
-  redirectTo: string | null = "/admin/products",
-): Promise<void | ActionErrorResult> {
+  redirectTo: string | null,
+): Promise<{ ok: true; redirectTo: string | null } | ActionErrorResult> {
   try {
     const ctx = await resolveRequestContext();
     requirePermission(ctx, "product:delete");
@@ -191,11 +205,10 @@ export async function deleteProduct(
 
     await repo.delete(id);
     await recordAudit({ action: "product.deleted", entityType: "Product", entityId: id });
+    return { ok: true, redirectTo };
   } catch (error) {
     return handleActionError(error);
   }
-
-  if (redirectTo) await localizedRedirect(redirectTo);
 }
 
 export async function rollbackProductVersion(
@@ -219,64 +232,65 @@ export async function rollbackProductVersion(
   }
 }
 
+/**
+ * A status transition changes the product IN PLACE - it does not move the user.
+ *
+ * These used to take a `redirectTo` and hand it back, which is why the same
+ * Publish button kept the admin on the product and threw the seller out to
+ * `/dashboard/my-products`: the two call sites disagreed about a target that a
+ * status change has no business having. Only `deleteProduct` below still takes
+ * one, because deleting really does destroy the page the button is sitting on.
+ */
 export async function publishProduct(
   productId: string,
-  redirectTo = `/admin/products/${productId}`,
-): Promise<void | ActionErrorResult> {
+): Promise<{ ok: true } | ActionErrorResult> {
   try {
     const ctx = await resolveRequestContext();
     await workflowPublish(ctx, productId);
     await recordAudit({ action: "product.published", entityType: "Product", entityId: productId });
+    return { ok: true };
   } catch (error) {
     return handleActionError(error);
   }
-
-  await localizedRedirect(redirectTo);
 }
 
 export async function unpublishProduct(
   productId: string,
-  redirectTo = `/admin/products/${productId}`,
-): Promise<void | ActionErrorResult> {
+): Promise<{ ok: true } | ActionErrorResult> {
   try {
     const ctx = await resolveRequestContext();
     await workflowUnpublish(ctx, productId);
     await recordAudit({ action: "product.unpublished", entityType: "Product", entityId: productId });
+    return { ok: true };
   } catch (error) {
     return handleActionError(error);
   }
-
-  await localizedRedirect(redirectTo);
 }
 
 export async function archiveProduct(
   productId: string,
-  redirectTo = `/admin/products/${productId}`,
-): Promise<void | ActionErrorResult> {
+): Promise<{ ok: true } | ActionErrorResult> {
   try {
     const ctx = await resolveRequestContext();
     await workflowArchive(ctx, productId);
     await recordAudit({ action: "product.archived", entityType: "Product", entityId: productId });
+    return { ok: true };
   } catch (error) {
     return handleActionError(error);
   }
-
-  await localizedRedirect(redirectTo);
 }
 
 export async function unarchiveProduct(
   productId: string,
-  redirectTo = `/admin/products/${productId}`,
-): Promise<void | ActionErrorResult> {
+): Promise<{ ok: true } | ActionErrorResult> {
   try {
     const ctx = await resolveRequestContext();
     await workflowUnarchive(ctx, productId);
     await recordAudit({ action: "product.unarchived", entityType: "Product", entityId: productId });
+    return { ok: true };
   } catch (error) {
     return handleActionError(error);
   }
-
-  await localizedRedirect(redirectTo);
 }
 
 export async function bulkUpdateProductStatus(
@@ -347,7 +361,7 @@ export async function duplicateProduct(
       action: "product.duplicated",
       entityType: "Product",
       entityId: copy.id,
-      diff: { from: id },
+      diff: { from: copy.sourceLabel, fromId: id },
     });
 
     const t = await getTranslations("actionErrors");

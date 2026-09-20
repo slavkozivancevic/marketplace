@@ -9,6 +9,7 @@ import { getPendingInvitesByOrg } from "@/features/organizations/db/invites";
 import { CacheTags } from "@/lib/cache/tags";
 import { OrganizationSettingsForm } from "@/features/organizations/components/OrganizationSettingsForm";
 import { OrgShippingForm } from "@/features/organizations/components/OrgShippingForm";
+import { RemountOnNavigation } from "@/components/forms/RemountOnNavigation";
 import { InviteForm } from "@/features/organizations/components/InviteForm";
 import { InviteList } from "@/features/organizations/components/InviteList";
 import { MemberList } from "@/features/organizations/components/MemberList";
@@ -87,15 +88,21 @@ export default async function OrganizationPage() {
             {/* MoneySets, not bare cents: the fee the seller typed is carried
                 through per currency. The flat rate always exists, so its set
                 does too; the threshold is optional and so is its set. */}
-            <OrgShippingForm
-              key={crypto.randomUUID()}
-              flatRate={requireMoney(
-                organization.shippingFlatRateMoney,
-                "Organization.shippingFlatRateMoney",
-              )}
-              freeThreshold={parseMoney(organization.shippingFreeThresholdMoney)}
-              canEdit={canEdit}
-            />
+            {/* Remounts only when the user navigates away and back, so the
+                fee fields reopen on the saved values rather than on a
+                half-typed edit. NOT a fresh key per render: that also tore the
+                form down mid-save, every time the action revalidated this page,
+                killing the pending transition and the toast waiting on it. */}
+            <RemountOnNavigation>
+              <OrgShippingForm
+                flatRate={requireMoney(
+                  organization.shippingFlatRateMoney,
+                  "Organization.shippingFlatRateMoney",
+                )}
+                freeThreshold={parseMoney(organization.shippingFreeThresholdMoney)}
+                canEdit={canEdit}
+              />
+            </RemountOnNavigation>
           </CardContent>
         </Card>
 
@@ -120,7 +127,10 @@ export default async function OrganizationPage() {
                 <CardTitle>{t("organization.inviteMember")}</CardTitle>
               </CardHeader>
               <CardContent>
-                <InviteForm key={crypto.randomUUID()} />
+                {/* No remount key: the form resets its own fields on the
+                    navigation-generation counter. A fresh key per render also
+                    destroyed the send in flight. */}
+                <InviteForm />
               </CardContent>
             </Card>
 

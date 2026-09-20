@@ -15,6 +15,8 @@ import {
 import { deriveOrderStatus } from "@/features/orders/status";
 import { recordAudit, SYSTEM_ACTOR } from "@/features/audit/db/audit";
 import { recordCouponUsage } from "@/features/coupons/db/coupons";
+import { buildSellerParts, createSellerParts } from "@/features/orders/db/sellerParts";
+import { refundedToBuyer, refundableFromBuyer } from "@/features/orders/db/refundState";
 import { cacheTag } from "next/cache";
 import { CacheTags } from "@/lib/cache/tags";
 import { revalidateOrderCache } from "./cache";
@@ -41,7 +43,19 @@ export async function getUserOrders(userId: string) {
         orderBy: { id: "asc" },
         include: {
           product: { select: { translations: { select: { locale: true, title: true } } } },
-          variant: { select: { sku: true } },
+          variant: {
+            select: {
+              sku: true,
+              // The row names the variant the way every other surface does -
+              // the option labels, with the SKU only as a last resort when a
+              // variant has no options to name it by.
+              attributeValues: {
+                select: {
+                  option: { select: { translations: { select: { locale: true, label: true } } } },
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -123,7 +137,19 @@ export async function getUserOrdersPage({
         orderBy: { id: "asc" },
         include: {
           product: { select: { translations: { select: { locale: true, title: true } } } },
-          variant: { select: { sku: true } },
+          variant: {
+            select: {
+              sku: true,
+              // The row names the variant the way every other surface does -
+              // the option labels, with the SKU only as a last resort when a
+              // variant has no options to name it by.
+              attributeValues: {
+                select: {
+                  option: { select: { translations: { select: { locale: true, label: true } } } },
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -249,6 +275,15 @@ export async function getOrderByStripeSessionId(stripeSessionId: string) {
           variant: {
             select: {
               sku: true,
+              // The confirmation names the variant the way the order page does,
+              // which needs the option labels - not the SKU it used to print.
+              attributeValues: {
+                select: {
+                  option: {
+                    select: { translations: { select: { locale: true, label: true } } },
+                  },
+                },
+              },
               media: {
                 orderBy: { order: "asc" },
                 take: 1,
@@ -459,6 +494,26 @@ export async function fulfillOrder({
   const subtotalCents = itemsWithPrice.reduce((s, i) => s + i.price * i.quantity, 0);
   const discountAmount = Math.max(0, subtotalCents - (totalCents - shippingTotal));
 
+  // Which seller each line belongs to. Needed twice: to build the order's seller
+  // parts inside the transaction, and to invalidate the right product caches
+  // after it.
+  const uniqueProductIds = [...new Set(items.map((i) => i.productId))];
+  const allProducts = await prisma.product.findMany({
+    where: { id: { in: uniqueProductIds } },
+    select: { id: true, organizationId: true },
+  });
+  const orgByProduct = new Map(allProducts.map((p) => [p.id, p.organizationId]));
+
+  const sellerParts = buildSellerParts({
+    items: itemsWithPrice.map((item) => {
+      const organizationId = orgByProduct.get(item.productId);
+      if (!organizationId) throw new Error(`Product ${item.productId} not found`);
+      return { organizationId, price: item.price, quantity: item.quantity };
+    }),
+    shippingByOrg,
+    discountAmount,
+  });
+
   const order = await prisma.$transaction(async (tx) => {
     // Atomic stock decrement - raw SQL WHERE stock >= quantity prevents overselling.
     // If affected rows = 0, another concurrent transaction already took the last unit.
@@ -527,6 +582,10 @@ export async function fulfillOrder({
       },
     });
 
+    // One sub-order per seller, created with the order: the order's own axes are
+    // aggregated from these, so it must never exist without them.
+    await createSellerParts(tx, order.id, sellerParts);
+
     // Ledger: card payment was captured by Stripe before this webhook fired.
     await tx.paymentTransaction.create({
       data: {
@@ -561,11 +620,6 @@ export async function fulfillOrder({
     productIds: items.map((i) => i.productId),
   });
 
-  const uniqueProductIds = [...new Set(items.map((i) => i.productId))];
-  const allProducts = await prisma.product.findMany({
-    where: { id: { in: uniqueProductIds } },
-    select: { id: true, organizationId: true },
-  });
   // Route Handler variant: this path is reached only from the Stripe webhook.
   allProducts.forEach((p) =>
     revalidateProductCacheFromRoute(p.organizationId, p.id),
@@ -647,6 +701,24 @@ export async function createCodOrder({
   const subtotalCents = itemsWithPrice.reduce((s, i) => s + i.price * i.quantity, 0);
   const discountAmount = Math.max(0, subtotalCents - (totalInCurrency - shippingTotal));
 
+  // Which seller each line belongs to - same two uses as in the card path above.
+  const uniqueProductIds = [...new Set(items.map((i) => i.productId))];
+  const allProducts = await prisma.product.findMany({
+    where: { id: { in: uniqueProductIds } },
+    select: { id: true, organizationId: true },
+  });
+  const orgByProduct = new Map(allProducts.map((p) => [p.id, p.organizationId]));
+
+  const sellerParts = buildSellerParts({
+    items: itemsWithPrice.map((item) => {
+      const organizationId = orgByProduct.get(item.productId);
+      if (!organizationId) throw new Error(`Product ${item.productId} not found`);
+      return { organizationId, price: item.price, quantity: item.quantity };
+    }),
+    shippingByOrg,
+    discountAmount,
+  });
+
   const order = await prisma.$transaction(async (tx) => {
     for (const item of itemsWithPrice) {
       if (item.variantId) {
@@ -712,6 +784,10 @@ export async function createCodOrder({
       },
     });
 
+    // One sub-order per seller, created with the order: the order's own axes are
+    // aggregated from these, so it must never exist without them.
+    await createSellerParts(tx, created.id, sellerParts);
+
     // Ledger: COD cash is collected on delivery, so the charge starts PENDING
     // (no provider id - there is no PSP transaction for cash).
     await tx.paymentTransaction.create({
@@ -743,11 +819,6 @@ export async function createCodOrder({
     productIds: items.map((i) => i.productId),
   });
 
-  const uniqueProductIds = [...new Set(items.map((i) => i.productId))];
-  const allProducts = await prisma.product.findMany({
-    where: { id: { in: uniqueProductIds } },
-    select: { id: true, organizationId: true },
-  });
   allProducts.forEach((p) => revalidateProductCache(p.organizationId, p.id));
 
   return order;
@@ -824,13 +895,19 @@ export async function reconcileStripeRefund(
       });
     }
 
-    const agg = await tx.paymentTransaction.aggregate({
-      where: { orderId: order.id, type: PaymentTransactionType.REFUND },
-      _sum: { amount: true },
-    });
-
-    const refundedTotal = agg._sum.amount ?? 0;
-    if (refundedTotal >= order.total && order.paymentStatus !== PaymentStatus.REFUNDED) {
+    // Measured in what the BUYER got back, against what they paid for goods -
+    // the same question the app's own return flow asks, so the two can share an
+    // order without disagreeing about whether it is done (see `refundState.ts`).
+    // This used to compare the raw sum of REFUND rows against `order.total`, a
+    // bar that carries delivery: refunding the goods alone from the Stripe
+    // dashboard could never reach it, so the order stayed PARTIALLY_REFUNDED and
+    // `reverseSellerPayoutsForOrder` below - which only runs on the crossing -
+    // never clawed back a transfer for goods the buyer no longer had.
+    const refundedTotal = await refundedToBuyer(tx, order.id);
+    if (
+      refundedTotal >= refundableFromBuyer(order) &&
+      order.paymentStatus !== PaymentStatus.REFUNDED
+    ) {
       await tx.order.update({
         where: { id: order.id },
         data: { paymentStatus: PaymentStatus.REFUNDED, status: OrderStatus.REFUNDED },

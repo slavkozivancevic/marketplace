@@ -8,7 +8,10 @@ import { productRepository } from "@/features/products/db/products";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { requirePermission } from "@/lib/auth/permissions";
 import { CacheTags } from "@/lib/cache/tags";
-import { isActionErrorResult } from "@/features/common/errors/domainErrors";
+import {
+  handleActionError,
+  isActionErrorResult,
+} from "@/features/common/errors/domainErrors";
 import { SerializedProductHistory } from "@/types/types";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
@@ -64,7 +67,7 @@ export default async function AdminProductHistoryPage({
         <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
           <Alert variant="destructive">
             <AlertTitle>{t("admin.errorLoadingHistory")}</AlertTitle>
-            <AlertDescription>{t("errorPage.productHistoryBody")}</AlertDescription>
+            <AlertDescription>{result.message}</AlertDescription>
           </Alert>
         </div>
       </div>
@@ -136,7 +139,10 @@ async function fetchProductHistory(
       // currency it was priced in rather than being reconverted today.
       priceMoney: requireMoney(entry.priceMoney, `ProductHistory.priceMoney on ${entry.id}`),
     }));
-  } catch {
-    return { error: true, message: "Failed to load product history" };
+  } catch (error) {
+    // Same as the detail page next door: handleActionError translates a domain
+    // failure and reports an unexpected one, where the bare catch swallowed
+    // both and showed one hardcoded English line.
+    return handleActionError(error);
   }
 }

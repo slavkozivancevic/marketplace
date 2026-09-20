@@ -89,7 +89,7 @@ model Organization {
   connectedAccount   ConnectedAccount?
   payoutTransactions PaymentTransaction[]
   returns            Return[]
-  shipments          Shipment[]
+  orderParts         OrderSellerPart[]
   balances           OrgBalance[]
 }
 
@@ -126,8 +126,12 @@ model OrgBalance {
   id             String   @id @default(uuid())
   organizationId String
   currency       String
-  // Smallest unit of `currency`. Never negative - accrued by COD FEE rows,
-  // reduced by COD refunds and by netting against a same-currency payout.
+  // Smallest unit of `currency`, and SIGNED. Positive is COD commission this org
+  // owes; negative is the platform owing THEM, which is a real state, not a
+  // floor that was missed: a coupon deeper than the commission is funded by the
+  // platform, and the difference rides out with the next same-currency payout or
+  // is paid out on its own from the admin. Accrued by COD FEE rows, reduced by
+  // COD refunds, by netting against a payout, and by settlement.
   owedAmount     Int      @default(0)
   updatedAt      DateTime @updatedAt
 
@@ -654,7 +658,7 @@ enum PaymentStatus {
   REFUNDED
 }
 
-// Goods axis, derived from per-seller Shipments + a delivery confirmation.
+// Goods axis, aggregated from the order's non-cancelled OrderSellerParts.
 enum FulfillmentStatus {
   UNFULFILLED
   PARTIALLY_FULFILLED
@@ -701,11 +705,15 @@ model Order {
   // Two orthogonal axes are the source of truth; `status` is derived from them.
   paymentStatus     PaymentStatus     @default(UNPAID)
   fulfillmentStatus FulfillmentStatus @default(UNFULFILLED)
+  // Set only once EVERY seller part is cancelled - one seller withdrawing does
+  // not cancel the buyer's order.
   cancelledAt       DateTime?
   // Derived display stage (kept in sync from the axes + cancelledAt).
   status            OrderStatus       @default(PENDING)
   // Stored in the smallest unit of `currency` (cents, para, etc.). `total` is the
-  // amount actually charged (already net of any coupon discount).
+  // amount actually charged (already net of any coupon discount). Recomputed
+  // from the non-cancelled OrderSellerParts whenever a seller cancels its part,
+  // so a COD courier never collects for goods that are no longer coming.
   total             Int
   // Coupon applied at checkout. `couponCode` is a snapshot (survives coupon edits/
   // deletes); `discountAmount` is in the order currency. Platform-funded: sellers
@@ -745,7 +753,7 @@ model Order {
   user                User                 @relation(fields: [userId], references: [id])
   paymentTransactions PaymentTransaction[]
   returns             Return[]
-  shipments           Shipment[]
+  sellerParts         OrderSellerPart[]
   invoice             Invoice?
   coupon              Coupon?              @relation(fields: [couponId], references: [id], onDelete: SetNull)
 
@@ -806,20 +814,46 @@ model Invoice {
   order Order @relation(fields: [orderId], references: [id])
 }
 
-// Per-seller shipment within an order. Carts are multi-seller, so each seller
-// fulfills (ships) its own items independently - one row per (order, seller).
-// The presence of a row means that seller's portion is FULFILLED; there is no
-// separate status field. Tracking is optional (some sellers ship without it).
-model Shipment {
-  id             String    @id @default(uuid())
+// One seller's share of an order - the sub-order every marketplace has under a
+// multi-seller cart. The buyer still has a single Order (one payment, one
+// coupon, one address); this is the unit a SELLER acts on, so no seller can
+// ever ship, cancel or settle another seller's goods.
+//
+// One row per (order, seller), created with the order - not on first shipment,
+// or a cancellation before shipping would have nowhere to live. The order's own
+// axes are derived by aggregating the parts that are NOT cancelled.
+model OrderSellerPart {
+  id             String @id @default(uuid())
   orderId        String
   organizationId String
+
+  // Lifecycle. The timestamps are the source of truth and `status` is derived
+  // from them (deriveSellerPartStatus), stored only so the seller order list can
+  // filter on one column - the same split Order.status has against its axes.
+  shippedAt    DateTime?
+  deliveredAt  DateTime?
+  cancelledAt  DateTime?
+  // This seller confirmed it collected its COD cash. The order's paymentStatus
+  // reaches PAID only once every active part is settled.
+  codSettledAt DateTime?
+
+  status SellerPartStatus @default(PENDING)
+
+  // Tracking is optional - some sellers ship without it.
   trackingNumber String?
   carrier        String?
-  shippedAt      DateTime  @default(now())
-  // Per-seller delivery confirmation. The order reaches fulfillmentStatus
-  // DELIVERED only once every seller's shipment is delivered.
-  deliveredAt    DateTime?
+
+  // This part's money, snapshotted in the ORDER's currency (like Order.total and
+  // OrderItem.price - these are charged amounts, not catalogue prices, so they
+  // never go through MoneySet). Snapshotted rather than recomputed so cancelling
+  // one part yields an exact new order total.
+  //
+  // `discountShare` is this part's pro-rata slice of Order.discountAmount, split
+  // by itemsSubtotal with the rounding remainder given to the largest part, so
+  // the shares always add back up to the order's discount exactly.
+  itemsSubtotal  Int
+  shippingAmount Int @default(0)
+  discountShare  Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -830,6 +864,15 @@ model Shipment {
   @@unique([orderId, organizationId])
   @@index([orderId])
   @@index([organizationId])
+}
+
+// Per-seller lifecycle stage, derived from the part's timestamps. CANCELLED is
+// terminal and takes the part out of every order-level aggregate.
+enum SellerPartStatus {
+  PENDING
+  SHIPPED
+  DELIVERED
+  CANCELLED
 }
 
 // Return / RMA request, scoped to one seller org within an order (carts are
@@ -898,7 +941,11 @@ model PaymentTransaction {
   // transfer) so the seller dashboard can list its payouts; null on CHARGE /
   // REFUND, which are buyer-side and can span multiple orgs in one order.
   organizationId String?
-  // Smallest unit of `currency` (cents, para...). Always positive.
+  // Smallest unit of `currency` (cents, para...). SIGNED on FEE rows, where the
+  // sign is the direction: positive is commission the seller owes the platform,
+  // negative is the platform owing the seller - a COD coupon that ran deeper
+  // than the commission on it, or the one-off correction for the orders that
+  // predate that netting. Every other type is positive.
   amount         Int
   currency       String                   @default("usd")
   // Provider metadata, failure reason, or COD note.

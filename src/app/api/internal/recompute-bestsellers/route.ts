@@ -32,7 +32,14 @@ export async function POST(request: NextRequest) {
         SELECT oi."productId" AS product_id, SUM(oi.quantity) AS qty
         FROM "OrderItem" oi
         JOIN "Order" o ON o.id = oi."orderId"
+        -- Goods a seller withdrew were never sold. The order can still be PAID
+        -- around them (the other sellers delivered and collected), so filtering
+        -- on the order alone would let a cancelled seller's units keep ranking.
+        JOIN "Product" sold ON sold.id = oi."productId"
+        JOIN "OrderSellerPart" part
+          ON part."orderId" = o.id AND part."organizationId" = sold."organizationId"
         WHERE o."paymentStatus" IN ('PAID', 'PARTIALLY_REFUNDED')
+          AND part."cancelledAt" IS NULL
           AND o."createdAt" >= NOW() - (INTERVAL '1 day' * ${BESTSELLER_WINDOW_DAYS})
         GROUP BY oi."productId"
       ),

@@ -3,6 +3,8 @@ import { NotFoundError } from "@/features/common/errors/domainErrors";
 import { revalidateCategoryCache } from "./cache";
 import { slugify } from "@/lib/utils";
 import { copyName } from "@/lib/i18n/copyName";
+import { copyIdentifier } from "@/lib/copyIdentifier";
+import { CATEGORY_NAME_MAX_LENGTH, CATEGORY_SLUG_MAX_LENGTH } from "../schema/categories";
 import { refreshProductSearchText } from "@/features/products/db/products";
 import { recordSlugChanges } from "@/lib/seo/slugHistory";
 import { createWithUniqueSlugRetry } from "@/lib/db/uniqueSlugRetry";
@@ -493,6 +495,13 @@ export async function deleteCategory(id: string) {
   revalidateCategoryCache(id);
 }
 
+/** The source's default-locale name, for the audit trail's "Copied from". */
+function sourceLabelOf(
+  translations: readonly { locale: string; name: string }[],
+): string {
+  return translations.find((t) => t.locale === DEFAULT_LOCALE)?.name ?? "";
+}
+
 export async function duplicateCategory(id: string) {
   const source = await prisma.category.findUnique({
     where: { id },
@@ -508,11 +517,11 @@ export async function duplicateCategory(id: string) {
   // with its localized "Copy of" (copyName) - the admin list displays the
   // viewer-locale name, so a prefix only on the default locale left e.g. the
   // sr list showing a row identical to the source.
-  const suffix = Date.now().toString(36);
+  const now = Date.now();
   const rows: CategoryTranslationRow[] = source.translations.map((t) => ({
     locale: t.locale,
-    name: copyName(t.locale, t.name),
-    slug: `${t.slug}-copy-${suffix}`,
+    name: copyName(t.locale, t.name, CATEGORY_NAME_MAX_LENGTH),
+    slug: copyIdentifier(t.slug, CATEGORY_SLUG_MAX_LENGTH, now),
     description: t.description,
   }));
 
@@ -549,5 +558,7 @@ export async function duplicateCategory(id: string) {
   });
 
   revalidateCategoryCache(category.id);
-  return category;
+  // `sourceLabel` is the source's default-locale name: the audit trail then
+  // reads "Copied from: Obuca" instead of a UUID no reader can resolve.
+  return { ...category, sourceLabel: sourceLabelOf(source.translations) };
 }

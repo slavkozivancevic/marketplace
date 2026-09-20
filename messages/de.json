@@ -128,7 +128,7 @@
     "transactions": "Transaktionen"
   },
   "home": {
-    "badge": "Jetzt live – heute mit dem Verkauf beginnen",
+    "badge": "Jetzt live - heute mit dem Verkauf beginnen",
     "headline": "MarketVerse",
     "headlineGradient": "Für Wachstum konzipiert",
     "subheadline": "Eine moderne Enterprise-Commerce-Plattform, auf der Verkäufer florieren und Käufer außergewöhnliche Produkte entdecken.",
@@ -236,6 +236,7 @@
     "deleteConfirm": "\"{title}\" löschen?",
     "cannotUndo": "Diese Aktion kann nicht rückgängig gemacht werden.",
     "duplicated": "Produkt dupliziert",
+    "productDeleted": "Produkt gelöscht",
     "editCopy": "Kopie bearbeiten",
     "edit": "Bearbeiten",
     "view": "Ansehen",
@@ -457,7 +458,7 @@
     "orderFailedDesc": "Einer oder mehrere Artikel Ihrer Bestellung waren vor der Zahlungsabwicklung nicht mehr auf Lager. Ihre Zahlung wurde vollständig erstattet und sollte innerhalb weniger Werktage erscheinen.",
     "continueShopping": "Weiter einkaufen",
     "processing": "Ihre Bestellung wird bearbeitet",
-    "processingDesc": "Ihre Zahlung ist eingegangen. Ihre Bestellung wird bestätigt – dies dauert in der Regel nur einen Moment. Bitte aktualisieren Sie die Seite, falls sie sich nicht bald aktualisiert.",
+    "processingDesc": "Ihre Zahlung ist eingegangen. Ihre Bestellung wird bestätigt - dies dauert in der Regel nur einen Moment. Bitte aktualisieren Sie die Seite, falls sie sich nicht bald aktualisiert.",
     "refresh": "Aktualisieren",
     "paymentSuccessful": "Zahlung erfolgreich",
     "thankYou": "Vielen Dank für Ihre Bestellung! Eine Bestätigungs-E-Mail wurde an Sie gesendet.",
@@ -535,7 +536,10 @@
         "orgName": "Organisation",
         "deletedClerkUserId": "Gelöschter Benutzer",
         "promotedUserId": "Beförderter Benutzer",
-        "productCount": "Anzahl Produkte"
+        "productCount": "Anzahl Produkte",
+        "fee": "Provision",
+        "orderCancelled": "Bestellung storniert",
+        "paid": "Ausgezahlt"
       },
       "values": {
         "USER": "Benutzer",
@@ -569,7 +573,8 @@
           "reversal_failed": "Stornierung der Auszahlung fehlgeschlagen"
         },
         "cod_balance": {
-          "settled": "Nachnahme-Guthaben beglichen"
+          "settled": "Nachnahme-Guthaben beglichen",
+          "credit_paid": "Nachnahme-Guthaben ausgezahlt"
         },
         "return": {
           "requested": "Rücksendung angefragt",
@@ -630,7 +635,8 @@
         "coupon": {
           "created": "Gutschein erstellt",
           "updated": "Gutschein aktualisiert",
-          "deleted": "Gutschein gelöscht"
+          "deleted": "Gutschein gelöscht",
+          "duplicated": "Gutschein dupliziert"
         },
         "review": {
           "approved": "Bewertung genehmigt",
@@ -716,7 +722,7 @@
     "createProduct": "Neues Produkt erstellen",
     "createProductDesc": "Füllen Sie das Formular aus, um ein neues Produkt hinzuzufügen.",
     "bulkTitle": "Massenoperationen",
-    "bulkDesc": "Filtern Sie Produkte nach beliebigen Kombinationen von Bedingungen und wenden Sie dann eine einzelne Aktion an – oder wählen und verwalten Sie manuell oder importieren Sie aus CSV.",
+    "bulkDesc": "Filtern Sie Produkte nach beliebigen Kombinationen von Bedingungen und wenden Sie dann eine einzelne Aktion an - oder wählen und verwalten Sie manuell oder importieren Sie aus CSV.",
     "brands": "Marken",
     "brandsDesc": "Produktmarken verwalten.",
     "categories": "Kategorien",
@@ -798,6 +804,8 @@
     "creating": "Erstelle...",
     "saveChanges": "Änderungen speichern",
     "saving": "Speichere...",
+    "updated": "Kategorie aktualisiert",
+    "created": "Kategorie erstellt",
     "deleted": "Kategorie gelöscht",
     "deleting": "Lösche...",
     "searchPlaceholder": "Kategorien suchen...",
@@ -868,6 +876,8 @@
     "creating": "Wird erstellt...",
     "saveChanges": "Änderungen speichern",
     "saving": "Wird gespeichert...",
+    "updated": "Attribut aktualisiert",
+    "created": "Attribut erstellt",
     "deleted": "Attribut gelöscht",
     "deleting": "Wird gelöscht...",
     "searchPlaceholder": "Attribute suchen...",
@@ -932,7 +942,9 @@
     "rejectedReason": "Nicht veröffentlicht: {reason}",
     "deleteConfirm": "Ihre Bewertung löschen?",
     "deleteDesc": "Dies entfernt Ihre Bewertung und Ihren Kommentar dauerhaft. Kann nicht rückgängig gemacht werden.",
-    "deleting": "Wird gelöscht..."
+    "deleting": "Wird gelöscht...",
+    "deleted": "Bewertung gelöscht",
+    "updated": "Bewertung aktualisiert"
   },
   "search": {
     "result": "Ergebnis",
@@ -996,6 +1008,8 @@
     "description": "Beschreibung",
     "descPlaceholder": "Kurze Beschreibung der Marke...",
     "products": "Produkte",
+    "brandUpdated": "Marke aktualisiert",
+    "brandCreated": "Marke erstellt",
     "brandDeleted": "Marke gelöscht",
     "deleteConfirm": "\"{name}\" löschen?",
     "deleteDesc": "Produkte, die mit dieser Marke verknüpft sind, verlieren die Markenzuordnung. Dies kann nicht rückgängig gemacht werden.",
@@ -1045,6 +1059,8 @@
     "name": "Name",
     "slug": "Slug",
     "products": "Produkte",
+    "tagUpdated": "Tag aktualisiert",
+    "tagCreated": "Tag erstellt",
     "tagDeleted": "Tag gelöscht",
     "deleteConfirm": "\"{name}\" löschen?",
     "deleteDesc": "Produkte mit diesem Tag verlieren ihn. Dies kann nicht rückgängig gemacht werden.",
@@ -1120,8 +1136,6 @@
     "title": "Etwas ist schiefgelaufen",
     "pageDescription": "Beim Laden dieser Seite ist ein unerwarteter Fehler aufgetreten.",
     "productsBody": "Die angeforderte Produktseite konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
-    "productBody": "Dieses Produkt konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
-    "productHistoryBody": "Der Verlauf dieses Produkts konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "genericDescription": "Ein unerwarteter Fehler ist aufgetreten. Sie können es erneut versuchen.",
     "tryAgain": "Erneut versuchen"
   },
@@ -1423,7 +1437,7 @@
   },
   "csvImport": {
     "step1Title": "1. Vorlage herunterladen",
-    "step1Desc": "Füllen Sie die CSV-Vorlage mit Ihren Produktdaten. Bilder können nicht per CSV importiert werden – fügen Sie sie nach dem Import hinzu.",
+    "step1Desc": "Füllen Sie die CSV-Vorlage mit Ihren Produktdaten. Bilder können nicht per CSV importiert werden - fügen Sie sie nach dem Import hinzu.",
     "downloadTemplate": "CSV-Vorlage herunterladen",
     "step2Title": "2. CSV hochladen oder einfügen",
     "dropHint": "Eine <strong>.csv</strong>-Datei hier ablegen oder <span>klicken zum Durchsuchen</span>",
@@ -1516,10 +1530,12 @@
     "allSaved": "Alle Änderungen gespeichert",
     "saveBlocked": "Speichern nicht möglich: {message}",
     "saveBlockedMore": "Speichern nicht möglich: {message} (+{count} weitere)",
+    "orderBlocked": "Bestellung nicht möglich: {message}",
+    "orderBlockedMore": "Bestellung nicht möglich: {message} (+{count} weitere)",
     "discard": "Verwerfen",
     "save": "Änderungen speichern",
     "saving": "Wird gespeichert...",
-    "changed": "Bearbeitet",
+    "emptyValue": "(leer)",
     "savedValue": "Gespeichert: {value}",
     "on": "Ein",
     "off": "Aus",
@@ -1555,7 +1571,8 @@
       "charge": "Belastung",
       "refund": "Erstattung",
       "payout": "Auszahlung",
-      "fee": "Provision"
+      "fee": "Provision",
+      "feeCredit": "Gutschein erstattet"
     },
     "txStatus": {
       "pending": "Ausstehend",
@@ -1582,6 +1599,8 @@
     "cancelled": "Storniert",
     "refunded": "Erstattet",
     "partiallyRefunded": "Teilweise erstattet",
+    "feeVoided": "Storniert",
+    "feePartlyVoided": "Teilweise storniert",
     "returnInProgress": "Rückgabe in Bearbeitung",
     "cashOnDelivery": "Nachnahme",
     "card": "Karte",
@@ -1607,28 +1626,40 @@
     "deliverDescription": "Markieren Sie diese Bestellung als geliefert, sobald der Käufer sie erhalten hat. Bei Nachnahme bestätigen Sie anschließend den Zahlungseingang.",
     "markDelivered": "Als geliefert markieren",
     "markedDelivered": "Bestellung als geliefert markiert.",
-    "cancelOrder": "Bestellung stornieren",
+    "cancelOrder": "Meine Artikel stornieren",
     "markedCancelled": "Bestellung storniert.",
     "codPaymentDescription": "Die Nachnahme-Zahlung ist ausstehend. Bestätigen Sie, sobald Sie das Bargeld vom Käufer erhalten haben.",
     "markPaymentReceived": "Zahlung erhalten",
     "markingPaymentReceived": "Wird markiert...",
     "markedPaymentReceived": "Zahlung bestätigt.",
-    "cancelConfirmTitle": "Bestellung stornieren?",
-    "cancelConfirmDesc": "Dies kann nicht rückgängig gemacht werden. Der Bestand wird zurückgebucht und der Käufer wird über die Stornierung benachrichtigt.",
+    "cancelConfirmTitle": "Ihre Artikel in dieser Bestellung stornieren?",
+    "cancelConfirmDesc": "Dies kann nicht rückgängig gemacht werden. Nur Ihre eigenen Artikel werden zurückgezogen und dem Bestand gutgeschrieben. Sind weitere Verkäufer an dieser Bestellung beteiligt, bleiben deren Artikel unberührt und die Bestellung läuft für sie weiter. Der Käufer wird benachrichtigt.",
     "keepOrder": "Bestellung behalten",
     "cancellingOrder": "Wird storniert...",
-    "couponSellerNote": "Ihre Auszahlung ist die volle Zwischensumme abzüglich der standardmäßigen {percent}%-Plattformgebühr - genau wie ohne Gutschein. Der Rabatt des Käufers (Gutschein {code}) wird von der Plattform aus ihrer Gebühr getragen, nicht von Ihrer Auszahlung abgezogen.",
-    "paymentHistoryCouponNote": "Die Belastung ist der vom Käufer nach Gutschein {code} gezahlte Betrag. Der Rabatt wird von der Plattform finanziert und mindert Ihre Auszahlung nicht.",
+    "couponSellerNote": "Ihre Auszahlung ist der volle Zwischensumme abzüglich der Standardprovision ({percent}%) - genau wie ganz ohne Gutschein. Die {amount}, die der Käufer gespart hat (Gutschein {code}), trägt die Plattform aus ihrer Provision, nicht Ihre Auszahlung - deshalb steht der Betrag oben nicht als Zeile.",
     "platformFee": "Plattformgebühr ({percent}%)",
     "yourPayout": "Ihre Auszahlung",
     "payoutReversed": "Auszahlungsstorno (Rückerstattungen)",
+    "codReversedLabel": "Zurückgegebene Ware",
     "payoutAfterRefunds": "Auszahlung nach Rückerstattungen",
+    "externalRefundNotDeductedNote": "Für diese Bestellung wurden dem Käufer {amount} außerhalb der App erstattet. Dieser Betrag wurde Ihrer Auszahlung NICHT abgezogen - die Plattform trägt ihn. Wird die gesamte Bestellung erstattet, wird der komplette Transfer zurückgebucht, und das erscheint oben als Storno.",
+    "codAfterRefundsLabel": "Endgültiger Verdienst",
     "payoutAfterCancellation": "Auszahlung nach Stornierung",
     "cancelledNoPayoutNote": "Diese Bestellung wurde vor dem Zahlungseingang storniert, daher gibt es dafür keine Auszahlung.",
     "shippingCollected": "Versand (eingezogen)",
     "codBalanceNettedLabel": "Einbehalten für geschuldete Nachnahme-Provision",
     "codBalanceNettedNote": "Ein Teil dieser Auszahlung wurde einbehalten, um die Provision zu begleichen, die Ihre Organisation aus früheren Nachnahme-Bestellungen schuldet. Den verbleibenden Saldo finden Sie auf der Auszahlungsseite.",
-    "codDebtRestoredNote": "Diese Bestellung wurde erstattet, daher wurden die oben einbehaltenen {amount} als geschuldete Provision wieder Ihrem Nachnahme-Saldo zugebucht - dieser Teil der Auszahlung hat Ihr Konto nie erreicht, er hat damals nur Ihre Schuld verringert."
+    "codCommissionCreditedNote": "Waren aus dieser Bestellung kamen zurück, daher wurden {amount} Provision Ihrem Nachnahme-Saldo gutgeschrieben, womit {remaining} verbleiben.",
+    "codCreditReducedNote": "Waren aus dieser Bestellung kamen zurück, daher ist das Guthaben, das wir Ihnen schulden, um {amount} gesunken, womit {remaining} verbleiben.",
+    "codDebtRestoredNote": "Diese Bestellung wurde erstattet, daher wurden die oben einbehaltenen {amount} als geschuldete Provision wieder Ihrem Nachnahme-Saldo zugebucht - dieser Teil der Auszahlung hat Ihr Konto nie erreicht, er hat damals nur Ihre Schuld verringert.",
+    "codToCollect": "Bei Lieferung einzuziehen",
+    "codGoods": "Waren",
+    "couponPlatformFunded": "Gutschein {code} (von der Plattform getragen)",
+    "codOwedToPlatform": "Ihrem Nachnahme-Saldo belastet",
+    "codOwedToYou": "Ihrem Nachnahme-Saldo gutgeschrieben",
+    "codBalancePooledNote": "Salden werden je Währung über alle Ihre Bestellungen geführt, nicht je Bestellung - den aktuellen Stand finden Sie auf Ihrer Auszahlungsseite; er kann bereits beglichen oder ausgezahlt sein.",
+    "codEarnings": "Ihnen bleibt",
+    "codToCollectNote": "Ziehen Sie genau diesen Betrag beim Käufer ein. Der Gutschein geht vom Bargeld an der Tür ab, und die Plattform erstattet ihn über eine geringere Provision - Ihr Erlös ist derselbe wie ohne Gutschein."
   },
   "interactions": {
     "frequentlyBoughtTogetherEyebrow": "Zusammen gekauft",
@@ -1735,6 +1766,8 @@
       "edit": "Bearbeiten",
       "duplicate": "Duplizieren"
     },
+    "updated": "Gutschein aktualisiert",
+    "created": "Gutschein erstellt",
     "deleted": "Gutschein gelöscht",
     "duplicated": "Gutschein dupliziert",
     "deleteDesc": "Diese Aktion kann nicht rückgängig gemacht werden.",
@@ -1766,8 +1799,10 @@
     "delivered": "Geliefert",
     "unfulfilled": "Nicht versendet",
     "notShipped": "Noch nicht versendet",
+    "cancelled": "Storniert",
     "shippedOn": "Versendet am {date}",
     "deliveredOn": "Geliefert am {date}",
+    "cancelledOn": "Vom Verkäufer storniert am {date}",
     "carrier": "Versanddienst",
     "tracking": "Sendungsverfolgung",
     "updateTracking": "Tracking aktualisieren",
@@ -1780,7 +1815,7 @@
     "markingDelivered": "Wird markiert...",
     "markedDelivered": "Als geliefert markiert",
     "trackingUpdated": "Tracking aktualisiert",
-    "description": "Fügen Sie Versanddienst und Sendungsnummer hinzu und markieren Sie die Bestellung als versendet, um den Käufer zu benachrichtigen.",
+    "description": "Fügen Sie Versanddienst und Sendungsnummer hinzu und markieren Sie Ihre Artikel als versendet, um den Käufer zu benachrichtigen.",
     "carrierPlaceholder": "z. B. DHL",
     "trackingPlaceholder": "Sendungsnummer",
     "cancel": "Abbrechen"
@@ -1820,7 +1855,8 @@
     "markRefunded": "Als erstattet markieren",
     "refunding": "Erstattung läuft...",
     "refundDone": "Erstattung ausgeführt",
-    "returnAfterDelivery": "Sie können eine Rücksendung anfordern, sobald dieser Artikel zugestellt wurde."
+    "returnAfterDelivery": "Sie können eine Rücksendung anfordern, sobald dieser Artikel zugestellt wurde.",
+    "sellerCancelledHint": "Dieser Verkäufer hat seine Artikel aus der Bestellung zurückgezogen, es gibt also nichts zurückzugeben."
   },
   "payouts": {
     "pageTitle": "Auszahlungen",
@@ -1862,7 +1898,9 @@
     "codBalanceNettedPill": "Nachnahme-Schuld",
     "codBalanceNettedNote": "Ein Teil dieser Auszahlung wurde einbehalten, um die geschuldete Nachnahme-Provision Ihrer Organisation zu begleichen.",
     "connecting": "Weiterleitung zu Stripe...",
-    "toggleDetails": "Details ein-/ausblenden"
+    "toggleDetails": "Details ein-/ausblenden",
+    "codCreditTitle": "Ihnen erstattet",
+    "codCreditDesc": "Ein Gutschein auf einer Nachnahmebestellung lag über unserer Provision darauf, Sie haben an der Tür also weniger Bargeld eingezogen als Sie verdient haben. Die Differenz kommt zu Ihrer nächsten Stripe-Auszahlung in derselben Währung hinzu."
   },
   "actionErrors": {
     "forbidden": "Nicht erlaubt",
@@ -1947,10 +1985,10 @@
   },
   "adminCodBalances": {
     "title": "Nachnahme-Salden",
-    "description": "Provision, die Organisationen der Plattform aus Nachnahme-Bestellungen schulden, noch nicht beglichen.",
+    "description": "Provision, die Organisationen der Plattform aus Nachnahmebestellungen schulden und noch offen ist - und umgekehrt, wenn ein von uns getragener Gutschein über unserer Provision darauf lag.",
     "organization": "Organisation",
     "currency": "Währung",
-    "owed": "Geschuldet",
+    "owed": "Saldo",
     "actions": "Aktionen",
     "settle": "Begleichen",
     "empty": "Keine offenen Nachnahme-Salden",
@@ -1962,7 +2000,17 @@
     "confirmSettle": "Bestätigen",
     "settled": "{amount} beglichen",
     "amountTooHigh": "Der Betrag darf den aktuell geschuldeten Saldo nicht überschreiten.",
-    "settling": "Wird beglichen..."
+    "settling": "Wird beglichen...",
+    "weOwe": "Wir schulden {amount}",
+    "creditNote": "Geht mit der nächsten Auszahlung raus",
+    "payAction": "Auszahlen",
+    "payTitle": "Guthaben an {org} auszahlen",
+    "payDesc": "Erfassen Sie Geld, das außerhalb der App zurückgegeben wurde (Überweisung, Bargeld). Das Guthaben sinkt sofort und wird im Prüfprotokoll festgehalten.",
+    "amountPaidLabel": "Ausgezahlter Betrag",
+    "creditNow": "Derzeit geschuldet: {amount}",
+    "amountTooHighCredit": "Der Betrag darf das offene Guthaben nicht übersteigen.",
+    "paying": "Wird ausgezahlt...",
+    "paidOut": "{amount} ausgezahlt"
   },
   "money": {
     "useConverted": "Wieder umrechnen",

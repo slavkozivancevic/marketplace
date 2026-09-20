@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Copy, Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
+import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
 import { SearchInput } from "@/components/search/SearchInput";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -53,13 +54,9 @@ export function AdminAttributesPage({
   const [isPending, startTransition] = useTransition();
   const [isNavigating, startNavigate] = useTransition();
   const [isDuplicating, startDuplicate] = useTransition();
-
-  const wasPending = useRef(false);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (wasPending.current && !isPending) setDeleteOpenId(null);
-    wasPending.current = isPending;
-  }, [isPending]);
+  // Toasts wait for the refreshed list, so they land with the row they describe.
+  const announceDeleted = useAnnounceWhenSettled(isPending);
+  const announceDuplicated = useAnnounceWhenSettled(isDuplicating);
 
   const filtered = useMemo(() => {
     if (!search) return attributes;
@@ -75,9 +72,24 @@ export function AdminAttributesPage({
     setDeletingId(id);
     startTransition(async () => {
       const result = await deleteAttributeAction(id);
-      if (result && "error" in result) toast.error(result.message);
-      else toast.success(t("deleted"));
-      setDeletingId(null);
+      if (result && "error" in result) {
+        // Leave the dialog open so the reason stays readable, and re-arm the
+        // confirm button for a retry.
+        toast.error(result.message);
+        setDeletingId(null);
+        return;
+      }
+      // Neither closed nor announced here - the row is still on screen. The
+      // refresh below carries the transition, so the spinner runs until the
+      // refreshed list drops the row; the dialog is rendered inside that row and
+      // unmounts with it, and the queued toast fires in the same frame. This also
+      // settles the old exit-animation problem for good: there is no animation
+      // left to play with a button snapped back to its idle state, because the
+      // popup is gone the instant its row is.
+      //
+      // `deletingId` stays set for the same reason it always did.
+      announceDeleted({ message: t("deleted") });
+      router.refresh();
     });
   };
 
@@ -85,18 +97,22 @@ export function AdminAttributesPage({
     setDuplicatingId(id);
     startDuplicate(async () => {
       const result = await duplicateAttributeAction(id);
-      if ("id" in result) {
-        toast.success(t("duplicated"), {
-          action: {
-            label: t("editCopy"),
-            onClick: () =>
-              router.push(`/${locale}/admin/attributes/${result.id}/edit`),
-          },
-        });
-      } else {
+      if (!("id" in result)) {
         toast.error(result.message);
+        setDuplicatingId(null);
+        return;
       }
-      setDuplicatingId(null);
+      const copyId = result.id;
+      // The copy exists on the server; the list still doesn't show it. Announce
+      // it when it does - the spinner runs until then, for the same reason.
+      announceDuplicated({
+        message: t("duplicated"),
+        action: {
+          label: t("editCopy"),
+          onClick: () => router.push(`/${locale}/admin/attributes/${copyId}/edit`),
+        },
+      });
+      router.refresh();
     });
   };
 

@@ -5,7 +5,14 @@ import { DEFAULT_LOCALE, NON_DEFAULT_LOCALES } from "@/i18n/config";
 import type { AttributeType } from "@/generated/prisma/client";
 import { revalidateAttributeCache } from "./cache";
 import { createWithUniqueSlugRetry } from "@/lib/db/uniqueSlugRetry";
-import { OPTION_TYPES, type AttributeInput } from "../schema/attributes";
+import {
+  ATTRIBUTE_KEY_MAX_LENGTH,
+  ATTRIBUTE_LABEL_MAX_LENGTH,
+  OPTION_TYPES,
+  type AttributeInput,
+} from "../schema/attributes";
+import { copyIdentifier } from "@/lib/copyIdentifier";
+import { copyName } from "@/lib/i18n/copyName";
 
 export { getAttributeLabel } from "../utils/translations";
 
@@ -302,18 +309,19 @@ export async function duplicateAttribute(id: string) {
   });
   if (!source) throw new NotFoundError(`Attribute ${id} not found`);
 
-  // Suffix the key so the copy can never collide on the unique constraint;
-  // prefix only the default-locale label with "Copy of" (mirrors the
-  // product/category duplicate convention).
-  const suffix = Date.now().toString(36);
+  // Suffix the key so the copy can never collide on the unique constraint, and
+  // prefix EVERY locale's label with its localized "Copy of" (copyName) - the
+  // admin list displays the viewer-locale label, so the old English prefix on
+  // the default locale alone left e.g. the sr list showing a row identical to
+  // the source. Now matches the brand/category/tag duplicate convention.
   const labelRows = source.translations.map((tr) => ({
     locale: tr.locale,
-    label: tr.locale === DEFAULT_LOCALE ? `Copy of ${tr.label}` : tr.label,
+    label: copyName(tr.locale, tr.label, ATTRIBUTE_LABEL_MAX_LENGTH),
   }));
 
   const created = await prisma.attribute.create({
     data: {
-      key: `${source.key}-copy-${suffix}`,
+      key: copyIdentifier(source.key, ATTRIBUTE_KEY_MAX_LENGTH),
       type: source.type,
       unit: source.unit,
       order: source.order,
@@ -334,5 +342,11 @@ export async function duplicateAttribute(id: string) {
   });
 
   revalidateAttributeCache(created.id);
-  return created;
+  // `sourceLabel` is the source's default-locale label: the audit trail then
+  // reads "Copied from: Size" instead of a UUID no reader can resolve.
+  return {
+    ...created,
+    sourceLabel:
+      source.translations.find((t) => t.locale === DEFAULT_LOCALE)?.label ?? "",
+  };
 }

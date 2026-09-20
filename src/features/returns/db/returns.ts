@@ -10,12 +10,14 @@ import {
 } from "@/generated/prisma/client";
 import { NotFoundError, ForbiddenError } from "@/features/common/errors/domainErrors";
 import { MOCK_CONNECT } from "@/features/payments/mock";
-import { sellerNetAmount, platformFeeAmount } from "@/features/payments/config";
+import { sellerNetAmount, sellerNetSlice } from "@/features/payments/config";
+import { couponSliceAt, codCommissionBack } from "@/features/orders/db/sellerParts";
+import { refundedToBuyer, refundableFromBuyer } from "@/features/orders/db/refundState";
 import { deriveOrderStatus } from "@/features/orders/status";
 import { recordAudit } from "@/features/audit/db/audit";
 import { revalidateOrderCache } from "@/features/orders/db/cache";
 import { revalidateProductCache } from "@/features/products/db/cache";
-import { getLabel } from "@/features/attributes/utils/translations";
+import { getVariantLabel } from "@/features/attributes/utils/translations";
 import { getProductTitle } from "@/features/products/utils/translations";
 import { getEmailThumbUrl } from "@/services/emailThumb";
 import {
@@ -43,15 +45,24 @@ const TRANSITIONS: Record<ReturnStatus, { to: ReturnStatus; by: ReturnActor }[]>
 export type ReturnItemSelection = { orderItemId: string; quantity: number };
 
 /**
- * Resolves a return's lines to `{ name, quantity, imageUrl }` for email
- * notifications. Names are localized in the order's locale (a snapshot, matching
- * how order emails render item names), with the variant label appended. The
- * image is an email-renderable JPEG (variant image, else product image).
+ * Resolves a return's lines to `{ name, variantLabel, quantity, imageUrl }` for
+ * email notifications. Names are localized in the order's locale (a snapshot,
+ * matching how order emails render item names), with the variant kept as its own
+ * field so the email can print it on a second line. The image is an
+ * email-renderable JPEG (variant image, else product image).
  */
 async function getReturnLines(
   returnId: string,
   locale: string,
-): Promise<{ name: string; quantity: number; price: number; imageUrl: string | null }[]> {
+): Promise<
+  {
+    name: string;
+    variantLabel: string | null;
+    quantity: number;
+    price: number;
+    imageUrl: string | null;
+  }[]
+> {
   const mediaSelect = { url: true, thumbUrl: true, key: true, thumbKey: true } as const;
   const items = await prisma.returnItem.findMany({
     where: { returnId },
@@ -95,15 +106,16 @@ async function getReturnLines(
       // can HAVE a translation row whose title was left blank, and `??` would
       // then hand back that empty string instead of falling back to English.
       const title = getProductTitle(ri.orderItem.product, locale);
-      const variantLabel = ri.orderItem.variant?.attributeValues
-        .map((av) => getLabel(av.option.translations, locale))
-        .join(" / ");
+      const variantLabel = getVariantLabel(ri.orderItem.variant, locale);
       const src = ri.orderItem.variant?.media[0]?.media ?? ri.orderItem.product.media[0] ?? null;
       const imageUrl = src
         ? await getEmailThumbUrl(src.key, src.thumbKey, src.thumbUrl ?? src.url)
         : null;
       return {
-        name: variantLabel ? `${title} (${variantLabel})` : title,
+        // Name and variant travel apart - the email puts the variant on its own
+        // line under the name, the way every screen in the app does.
+        name: title,
+        variantLabel,
         quantity: ri.quantity,
         price: ri.orderItem.price,
         imageUrl,
@@ -192,13 +204,16 @@ export async function createReturn({
     throw new ForbiddenError({ key: "returnBlockedExternalRefund" });
   }
   // ...and the buyer can only return goods they have actually received. So this
-  // seller's shipment must be marked DELIVERED - shipped-but-in-transit is not
-  // yet returnable (the buyer doesn't have the items).
-  const shipment = await prisma.shipment.findUnique({
+  // seller's part must be marked delivered - shipped-but-in-transit is not yet
+  // returnable (the buyer doesn't have the items), and a part the seller
+  // cancelled was never delivered at all.
+  const part = await prisma.orderSellerPart.findUnique({
     where: { orderId_organizationId: { orderId, organizationId } },
-    select: { deliveredAt: true },
+    select: { deliveredAt: true, cancelledAt: true },
   });
-  if (!shipment?.deliveredAt) throw new ForbiddenError({ key: "returnNotShipped" });
+  if (!part?.deliveredAt || part.cancelledAt) {
+    throw new ForbiddenError({ key: "returnNotShipped" });
+  }
 
   // The seller's order items (id -> ordered quantity) - bounds the selection.
   const orgItems = await prisma.orderItem.findMany({
@@ -272,7 +287,6 @@ async function settleReturnRefund(
       userId: true,
       currency: true,
       total: true,
-      discountAmount: true,
       shippingTotal: true,
       paymentMethod: true,
       fulfillmentStatus: true,
@@ -323,33 +337,27 @@ async function settleReturnRefund(
   const refundAmount = lines.reduce((s, l) => s + l.price * l.quantity, 0);
   if (refundAmount <= 0) throw new NotFoundError("Nothing to refund");
 
-  // What the BUYER actually gets back. With a platform-funded coupon the buyer
-  // only paid (gross - discount), so refunding the full gross would exceed the
-  // captured amount (Stripe rejects it) and over-count toward "fully refunded".
-  // Scale the buyer refund to their paid share; cumulative proportional rounding
-  // makes the per-return refunds sum to exactly order.total once all is returned.
-  const orderGross = order.total + order.discountAmount;
-  // The same gross WITHOUT delivery. Every REFUND ledger row is the value of
-  // returned units, and delivery is never refunded, so `orderGross` (which
-  // carries `shippingTotal` through `order.total`) is a bar the rows can never
-  // clear: an order with every item returned stayed PARTIALLY_REFUNDED forever
-  // whenever delivery had been charged. That is not cosmetic - the bestseller
-  // recompute counts PAID and PARTIALLY_REFUNDED, so a fully returned order
-  // kept ranking, and the seller's order page never went terminal.
-  const refundableGross = orderGross - order.shippingTotal;
-  const priorAgg = await prisma.paymentTransaction.aggregate({
-    where: { orderId, type: PaymentTransactionType.REFUND },
+  // How much of the buyer's coupon rode on the units coming back - read off
+  // THIS SELLER'S PART, and cumulative so a line returned unit by unit still
+  // adds up (see `couponSliceAt`). `priorOrgGross` is the running total of this
+  // seller's returns on this order, and every figure below slices against it.
+  const part = await prisma.orderSellerPart.findUnique({
+    where: { orderId_organizationId: { orderId, organizationId } },
+    select: { itemsSubtotal: true, discountShare: true },
+  });
+  const priorOrgAgg = await prisma.paymentTransaction.aggregate({
+    where: { orderId, organizationId, type: PaymentTransactionType.REFUND },
     _sum: { amount: true },
   });
-  const priorRefundedGross = priorAgg._sum.amount ?? 0;
-  const grossToPaid = (gross: number) =>
-    order.discountAmount > 0 && orderGross > 0
-      ? Math.round((gross * order.total) / orderGross)
-      : gross;
-  const buyerRefund = Math.max(
-    0,
-    grossToPaid(priorRefundedGross + refundAmount) - grossToPaid(priorRefundedGross),
-  );
+  const priorOrgGross = priorOrgAgg._sum.amount ?? 0;
+  const couponBack =
+    couponSliceAt(priorOrgGross + refundAmount, part) - couponSliceAt(priorOrgGross, part);
+
+  // What the BUYER actually gets back: the gross of the returned units, less the
+  // coupon that was riding on them. Refunding the full gross would hand back
+  // money they never paid (and Stripe would reject it as over the captured
+  // amount). Delivery is not in here and never is.
+  const buyerRefund = Math.max(0, refundAmount - couponBack);
 
   // Refund handling differs by payment method: card refunds go back through
   // Stripe; COD "refunds" are cash returned out of band, recorded for audit.
@@ -400,13 +408,14 @@ async function settleReturnRefund(
     // capped at whatever of that transfer hasn't already been reversed by an
     // earlier return on this same order.
     if (payout) {
-      const priorOrgRefundAgg = await prisma.paymentTransaction.aggregate({
-        where: { orderId, organizationId, type: PaymentTransactionType.REFUND },
-        _sum: { amount: true },
-      });
-      const priorOrgRefundGross = priorOrgRefundAgg._sum.amount ?? 0;
-      const priorClawback = sellerNetAmount(priorOrgRefundGross);
-      const thisClawback = sellerNetAmount(refundAmount);
+      const priorClawback = sellerNetAmount(priorOrgGross);
+      // Sliced off the same running total as the coupon and the COD commission,
+      // not computed on this return alone: `sellerNetAmount` rounds, so two
+      // returns of 5 would reverse 4 + 4 where one return of 10 reverses 9, and
+      // the seller would quietly keep the odd unit. It also has to agree with
+      // `priorClawback` right above - that one IS cumulative, so a per-return
+      // figure would be measured against a bar of a different shape.
+      const thisClawback = sellerNetSlice(priorOrgGross, refundAmount);
       const alreadyReversed = Math.min(priorClawback, payout.amount);
       const remainingReversible = Math.max(0, payout.amount - alreadyReversed);
       const reversalAmount = Math.min(thisClawback, remainingReversible);
@@ -493,36 +502,51 @@ async function settleReturnRefund(
     // commission share of the refunded gross back through the running balance
     // (see markCodPaymentReceived, where it was accrued). Stripe orders never
     // touch this - their fee is simply withheld from the transfer, so nothing
-    // was ever accrued to reverse. Floor at 0 / cap at the current balance:
-    // it should always cover this (the full order's fee was accrued up front),
-    // but never let a rounding edge case push the balance negative.
+    // was ever accrued to reverse.
+    //
+    // Reversed NET of the coupon, exactly as it was accrued: what went onto the
+    // balance was `commission - coupon share`, so what comes off has to be the
+    // same shape or the seller is left owing a commission on goods they no
+    // longer hold. `refundAmount` is the gross and `buyerRefund` what the buyer
+    // actually got back, so the difference IS this slice's share of the coupon.
+    //
+    // No cap at the current balance: a negative balance is a real state now (the
+    // platform owing the seller, see markCodPaymentReceived), so clamping here
+    // would silently keep money that isn't the platform's. The accrual always
+    // precedes the refund - a COD return is only eligible once the cash has been
+    // confirmed - so this reverses something that was really booked.
     if (!isStripe) {
-      const feeBack = platformFeeAmount(refundAmount);
-      if (feeBack > 0) {
-        const balance = await tx.orgBalance.findUnique({
+      // Cumulative on both halves, for the same reason the coupon slice is:
+      // `platformFeeAmount` rounds, so summing it over three separate returns
+      // need not equal charging it once on the whole. `codCommissionBack` takes
+      // the difference at the new running total against the old one, which
+      // telescopes to exactly what was accrued, however the units came back -
+      // and it is the same function the seller's order page reads the credit
+      // off, so the number on screen is the number on the balance.
+      const feeBack = codCommissionBack(priorOrgGross, refundAmount, part);
+      if (feeBack !== 0) {
+        await tx.orgBalance.upsert({
           where: { organizationId_currency: { organizationId, currency: order.currency } },
+          create: {
+            organizationId,
+            currency: order.currency,
+            owedAmount: -feeBack,
+          },
+          update: { owedAmount: { decrement: feeBack } },
         });
-        const decrement = Math.min(feeBack, balance?.owedAmount ?? 0);
-        if (decrement > 0) {
-          await tx.orgBalance.update({
-            where: { organizationId_currency: { organizationId, currency: order.currency } },
-            data: { owedAmount: { decrement } },
-          });
-        }
       }
     }
 
-    // Move the payment axis: fully REFUNDED once cumulative refunds cover the
-    // order's refundable gross - the item subtotal before any coupon, delivery
-    // excluded because it is never given back. Otherwise PARTIALLY_REFUNDED.
-    // Recompute the derived display status.
-    const agg = await tx.paymentTransaction.aggregate({
-      where: { orderId, type: PaymentTransactionType.REFUND },
-      _sum: { amount: true },
-    });
-    const refundedTotal = agg._sum.amount ?? 0;
+    // Move the payment axis: fully REFUNDED once the buyer has had back
+    // everything they paid for goods. Asked in buyer-paid money rather than off
+    // this function's own gross ledger rows, because a manual Stripe refund can
+    // sit in the same order and is recorded in the buyer's money - see
+    // `refundState.ts`. Delivery is on neither side: it is never given back.
+    const refundedTotal = await refundedToBuyer(tx, orderId);
     const nextPayment =
-      refundedTotal >= refundableGross ? PaymentStatus.REFUNDED : PaymentStatus.PARTIALLY_REFUNDED;
+      refundedTotal >= refundableFromBuyer(order)
+        ? PaymentStatus.REFUNDED
+        : PaymentStatus.PARTIALLY_REFUNDED;
     await tx.order.update({
       where: { id: orderId },
       data: {

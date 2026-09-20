@@ -6,7 +6,7 @@ import { s3, S3_BUCKET } from "@/services/s3";
 import { prisma } from "@/core/db/prisma";
 import { formatPrice } from "@/lib/currency";
 import type { Currency } from "@/lib/currency-config";
-import { getLabel } from "@/features/attributes/utils/translations";
+import { getVariantLabel } from "@/features/attributes/utils/translations";
 import { getProductTitle } from "@/features/products/utils/translations";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { NotFoundError } from "@/features/common/errors/domainErrors";
@@ -46,10 +46,16 @@ async function fetchThumb(url: string | null): Promise<string | null> {
 
 const orderInclude = {
   invoice: true,
+  // Sellers still in the order. An invoice bills what was actually sold, and the
+  // order's totals are recomputed from the active parts when a seller withdraws,
+  // so a cancelled seller's lines have to drop out with them - otherwise the
+  // listed items would not add up to the subtotal printed beneath them.
+  sellerParts: { select: { organizationId: true, cancelledAt: true } },
   items: {
     include: {
       product: {
         select: {
+          organizationId: true,
           translations: { select: { locale: true, title: true } },
           organization: { select: { name: true } },
           media: {
@@ -89,16 +95,21 @@ async function buildInvoiceData(order: OrderWithInvoice, number: number): Promis
   const fmtDate = (d: Date) =>
     new Date(d).toLocaleDateString(dl, { year: "numeric", month: "long", day: "numeric" });
 
+  // Bill only the sellers still in the order - see the note on `orderInclude`.
+  const withdrawnOrgs = new Set(
+    order.sellerParts.filter((p) => p.cancelledAt != null).map((p) => p.organizationId),
+  );
+  const billableItems = order.items.filter(
+    (item) => !withdrawnOrgs.has(item.product.organizationId),
+  );
+
   const lines: InvoiceLine[] = await Promise.all(
-    order.items.map(async (item) => {
+    billableItems.map(async (item) => {
       // `getProductTitle` (not a raw `find(locale)?.title ?? ...`) - a locale
       // can HAVE a translation row whose title was left blank, and `??` would
       // then print an empty line item instead of falling back to English.
       const title = getProductTitle(item.product, locale);
-      const variantLabel =
-        item.variant?.attributeValues
-          .map((av) => getLabel(av.option.translations, locale))
-          .join(" / ") || null;
+      const variantLabel = getVariantLabel(item.variant, locale);
       const variantImg = item.variant?.media[0]?.media;
       const productImg = item.product.media[0];
       const imageUrl =

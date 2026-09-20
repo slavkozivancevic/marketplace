@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+/** Longest name and slug the form accepts. Exported because
+ *  `duplicateCategory` writes straight to the DB, bypassing this schema and
+ *  any column length - a copy that outgrew the form would exist as a row the
+ *  edit form then refuses to save. Both sides must read the same numbers. */
+export const CATEGORY_NAME_MAX_LENGTH = 100;
+export const CATEGORY_SLUG_MAX_LENGTH = 200;
+
 const urlOrEmpty = z
   .string()
   .refine((v) => v === "" || /^https?:\/\/.+/.test(v), {
@@ -14,10 +21,10 @@ const translationsSchema = z
     z.string(),
     z
       .object({
-        name: z.string().max(100).optional(),
+        name: z.string().max(CATEGORY_NAME_MAX_LENGTH).optional(),
         // Locale-specific URL slug. Left empty, the repo falls back to
         // `slugify(translatedName)`.
-        slug: z.string().max(200).optional(),
+        slug: z.string().max(CATEGORY_SLUG_MAX_LENGTH).optional(),
         description: z.string().max(500).optional(),
       })
       .optional(),
@@ -36,7 +43,7 @@ const categoryAttributesSchema = z.array(
 );
 
 export const categorySchema = z.object({
-  name: z.string().trim().min(1).max(100),
+  name: z.string().trim().min(1).max(CATEGORY_NAME_MAX_LENGTH),
   slug: z.string().optional(),
   parentId: z.string().optional().nullable(),
   imageUrl: urlOrEmpty,

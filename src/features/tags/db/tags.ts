@@ -3,6 +3,8 @@ import { NotFoundError } from "@/features/common/errors/domainErrors";
 import { revalidateTagCache, revalidateTagProductCaches } from "./cache";
 import { slugify } from "@/lib/utils";
 import { copyName } from "@/lib/i18n/copyName";
+import { copyIdentifier } from "@/lib/copyIdentifier";
+import { TAG_NAME_MAX_LENGTH, TAG_SLUG_MAX_LENGTH } from "../schema/tags";
 import { refreshProductSearchText } from "@/features/products/db/products";
 import { recordSlugChanges } from "@/lib/seo/slugHistory";
 import { createWithUniqueSlugRetry } from "@/lib/db/uniqueSlugRetry";
@@ -188,6 +190,13 @@ export async function deleteTag(id: string) {
   revalidateTagCache(id);
 }
 
+/** The source's default-locale name, for the audit trail's "Copied from". */
+function sourceLabelOf(
+  translations: readonly { locale: string; name: string }[],
+): string {
+  return translations.find((t) => t.locale === DEFAULT_LOCALE)?.name ?? "";
+}
+
 export async function duplicateTag(id: string) {
   const source = await prisma.tag.findUnique({
     where: { id },
@@ -200,11 +209,11 @@ export async function duplicateTag(id: string) {
   // localized "Copy of" (copyName) - the admin list displays the
   // viewer-locale name, so a prefix only on the default locale would leave
   // e.g. the sr list showing a row identical to the source.
-  const suffix = Date.now().toString(36);
+  const now = Date.now();
   const rows: TagTranslationRow[] = source.translations.map((t) => ({
     locale: t.locale,
-    name: copyName(t.locale, t.name),
-    slug: `${t.slug}-copy-${suffix}`,
+    name: copyName(t.locale, t.name, TAG_NAME_MAX_LENGTH),
+    slug: copyIdentifier(t.slug, TAG_SLUG_MAX_LENGTH, now),
   }));
 
   const tag = await prisma.$transaction(async (tx) => {
@@ -223,5 +232,7 @@ export async function duplicateTag(id: string) {
   });
 
   revalidateTagCache(tag.id);
-  return tag;
+  // `sourceLabel` is the source's default-locale name: the audit trail then
+  // reads "Copied from: Novo" instead of a UUID no reader can resolve.
+  return { ...tag, sourceLabel: sourceLabelOf(source.translations) };
 }

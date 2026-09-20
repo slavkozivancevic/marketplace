@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { randomUUID } from "node:crypto";
-import { releaseSellerPayout, getOrgPayoutsPage } from "./payouts";
+import { releaseSellerPayout, getOrgPayoutsPage, payOutCodCredit } from "./payouts";
 import { fulfillOrder } from "@/features/orders/db/orders";
 import {
   prisma,
@@ -78,6 +78,137 @@ describe("releaseSellerPayout", () => {
     expect(payout?.providerId).toMatch(/^tr_mock_/);
   });
 
+  /**
+   * The running balance cuts both ways. A COD order whose coupon ran deeper than
+   * the platform's commission leaves the PLATFORM owing the seller (see
+   * markCodPaymentReceived) - the seller took less cash at the door than their
+   * earnings, on the platform's promise to make it up. The only way that money
+   * reaches them is the next real transfer, so it has to ride out with it and be
+   * cleared from the books in the same breath.
+   */
+  it("pays out a COD coupon credit along with the next transfer and clears it", async () => {
+    const { order, org } = await paidOrderForSeller({ orgShipping: 200, qty: 2 });
+    await createConnectedAccount({ organizationId: org.id, payoutsEnabled: true });
+    await prisma.orgBalance.create({
+      data: { organizationId: org.id, currency: order.currency, owedAmount: -300 },
+    });
+
+    await releaseSellerPayout({ orderId: order.id, organizationId: org.id });
+
+    const payout = await prisma.paymentTransaction.findFirstOrThrow({
+      where: { orderId: order.id, organizationId: org.id, type: "PAYOUT" },
+    });
+    // 2000 of earnings plus the 300 the platform owed back.
+    expect(payout.amount).toBe(2300);
+    expect(payout.note).toContain("300");
+
+    const balance = await prisma.orgBalance.findFirstOrThrow({
+      where: { organizationId: org.id },
+    });
+    // Settled in full - a credit paid twice would be money invented.
+    expect(balance.owedAmount).toBe(0);
+  });
+
+  it("hands a COD credit back by hand when no transfer will ever carry it", async () => {
+    // A seller who only ever sells cash-on-delivery never gets a Stripe
+    // transfer, so the automatic route above never runs for them and the credit
+    // would sit on our books indefinitely. The admin path is the way out.
+    const { org, order } = await paidOrderForSeller();
+    await prisma.orgBalance.create({
+      data: { organizationId: org.id, currency: order.currency, owedAmount: -500 },
+    });
+
+    const paid = await payOutCodCredit({
+      organizationId: org.id,
+      currency: order.currency,
+      amount: 500,
+    });
+
+    expect(paid).toBe(500);
+    const balance = await prisma.orgBalance.findFirstOrThrow({
+      where: { organizationId: org.id },
+    });
+    expect(balance.owedAmount).toBe(0);
+  });
+
+  it("never turns a credit into a debt, however much is typed", async () => {
+    const { org, order } = await paidOrderForSeller();
+    await prisma.orgBalance.create({
+      data: { organizationId: org.id, currency: order.currency, owedAmount: -500 },
+    });
+
+    // Clamped to what is actually outstanding - the seller owes nothing here and
+    // must not be made to.
+    const paid = await payOutCodCredit({
+      organizationId: org.id,
+      currency: order.currency,
+      amount: 900,
+    });
+
+    expect(paid).toBe(500);
+    const balance = await prisma.orgBalance.findFirstOrThrow({
+      where: { organizationId: org.id },
+    });
+    expect(balance.owedAmount).toBe(0);
+  });
+
+  it("pays out nothing when the balance is a debt, not a credit", async () => {
+    const { org, order } = await paidOrderForSeller();
+    await prisma.orgBalance.create({
+      data: { organizationId: org.id, currency: order.currency, owedAmount: 400 },
+    });
+
+    const paid = await payOutCodCredit({
+      organizationId: org.id,
+      currency: order.currency,
+      amount: 400,
+    });
+
+    // Paying out against a debt would be the platform handing over money it is
+    // owed, twice over.
+    expect(paid).toBe(0);
+    const balance = await prisma.orgBalance.findFirstOrThrow({
+      where: { organizationId: org.id },
+    });
+    expect(balance.owedAmount).toBe(400);
+  });
+
+  /**
+   * Balances are per (org, currency) and the netting is same-currency only -
+   * there is no rate in this path and there must not be one, because it would
+   * turn a bookkeeping entry into an exchange-rate bet. Pinned in both
+   * directions: a debt in another currency must not shrink this payout, and a
+   * credit in another currency must not pad it.
+   */
+  it("ignores a balance held in a different currency", async () => {
+    const { order, org } = await paidOrderForSeller({ orgShipping: 200, qty: 2 });
+    await createConnectedAccount({ organizationId: org.id, payoutsEnabled: true });
+    await prisma.orgBalance.createMany({
+      data: [
+        { organizationId: org.id, currency: "eur", owedAmount: 900 },
+        { organizationId: org.id, currency: "rsd", owedAmount: -900 },
+      ],
+    });
+
+    await releaseSellerPayout({ orderId: order.id, organizationId: org.id });
+
+    const payout = await prisma.paymentTransaction.findFirstOrThrow({
+      where: { orderId: order.id, organizationId: org.id, type: "PAYOUT" },
+    });
+    // The order is in usd: neither the eur debt nor the rsd credit may touch it.
+    expect(payout.amount).toBe(2000);
+    expect(payout.note).toBeNull();
+
+    const balances = await prisma.orgBalance.findMany({
+      where: { organizationId: org.id },
+      orderBy: { currency: "asc" },
+    });
+    expect(balances.map((b) => [b.currency, b.owedAmount])).toEqual([
+      ["eur", 900],
+      ["rsd", -900],
+    ]);
+  });
+
   it("is idempotent - a second release does not create a second payout", async () => {
     const { order, org } = await paidOrderForSeller({ qty: 2 });
     await createConnectedAccount({ organizationId: org.id, payoutsEnabled: true });
@@ -89,6 +220,26 @@ describe("releaseSellerPayout", () => {
       where: { orderId: order.id, organizationId: org.id, type: "PAYOUT" },
     });
     expect(count).toBe(1);
+  });
+
+  // The payout's own notification used to sit inside the try whose catch writes
+  // a FAILED payout row. A publisher that threw therefore stamped a phantom
+  // FAILED row next to the SUCCEEDED one, and the seller's payouts page showed a
+  // transfer failing that had in fact gone through.
+  it("does not record a failure when only the notification breaks", async () => {
+    const { order, org } = await paidOrderForSeller({ qty: 2 });
+    await createConnectedAccount({ organizationId: org.id, payoutsEnabled: true });
+
+    const { publishPayoutReleased } = await import("@/services/notifications");
+    vi.mocked(publishPayoutReleased).mockRejectedValueOnce(new Error("SNS down"));
+
+    await releaseSellerPayout({ orderId: order.id, organizationId: org.id });
+
+    const payouts = await prisma.paymentTransaction.findMany({
+      where: { orderId: order.id, organizationId: org.id, type: "PAYOUT" },
+    });
+    expect(payouts).toHaveLength(1);
+    expect(payouts[0].status).toBe("SUCCEEDED");
   });
 
   it("records a PENDING payout when the seller is not connected", async () => {

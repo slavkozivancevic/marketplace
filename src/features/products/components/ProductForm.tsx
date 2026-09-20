@@ -7,6 +7,7 @@ import { useForm, useFormState, useWatch, Resolver, FieldErrors } from "react-ho
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/sonner";
+import { setFlash } from "@/lib/navigation/flash";
 import {
   Form,
   FormControl,
@@ -715,6 +716,12 @@ export function ProductForm({
   const router = useRouter();
   const { rates, currency } = useCurrencyStore();
   const [isPending, startTransition] = useTransition();
+  /**
+   * The save landed and we are on our way out. Kept separate from `isPending`,
+   * which stays true through the navigation that follows - see the note where
+   * this is set. The button stays disabled either way, so a settled form can
+   * still not be submitted twice.
+   */
 
   // The client Router Cache can serve a stale RSC payload when the user
   // returns to the edit page after a prior save (e.g. they changed the slug,
@@ -1402,9 +1409,19 @@ export function ProductForm({
       if (result && "error" in result) {
         toast.error(result.message);
       } else {
+        // The action used to redirect, which meant throwing past all of this -
+        // no toast, and a draft that was never cleared. It now hands the target
+        // back so the save can confirm itself before the page moves.
         clearDraft();
-        toast.success(mode === "create" ? t("created") : t("updated"));
+        // Queued, not raised. The transition stays pending all the way through
+        // the navigation that follows, so a toast raised here would sit next to a
+        // button still spinning "Saving..." and claim the opposite. The save is
+        // confirmed where its result is visible - the page we are heading for -
+        // and FlashHost raises it the moment we land there.
+        const target = `/${locale}${result.redirectTo}`;
+        setFlash(t(mode === "update" ? "updated" : "created"), { path: target });
         onSuccess?.();
+        router.push(target);
       }
     });
   };

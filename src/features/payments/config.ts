@@ -25,3 +25,24 @@ export function sellerNetAmount(subtotal: number): number {
 export function platformFeeAmount(subtotal: number): number {
   return subtotal - sellerNetAmount(subtotal);
 }
+
+/**
+ * Both amounts above ROUND, so charging them once on a whole is not the same as
+ * charging them on each piece: at 10%, a subtotal of 10 keeps a fee of 1, while
+ * two slices of 5 keep 1 each. Whenever goods come back a piece at a time -
+ * returns - the amount unwound has to be the DIFFERENCE between the figure at
+ * the new running total and the figure at the old one. That telescopes to
+ * exactly the amount originally charged once the last unit is back, however the
+ * units were grouped into returns.
+ *
+ * `priorGross` is everything already returned for this (order, seller); `gross`
+ * is what is coming back now.
+ */
+export function sellerNetSlice(priorGross: number, gross: number): number {
+  return sellerNetAmount(priorGross + gross) - sellerNetAmount(priorGross);
+}
+
+/** The commission half of {@link sellerNetSlice}, on the same running total. */
+export function platformFeeSlice(priorGross: number, gross: number): number {
+  return platformFeeAmount(priorGross + gross) - platformFeeAmount(priorGross);
+}

@@ -81,10 +81,15 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
     startDelete(async () => {
       const result = await deleteProduct(product.id, null);
       if (result && "error" in result) {
+        // Leave the dialog open so the reason stays readable.
         toast.error(result.message);
-      } else {
-        queryClient.invalidateQueries({ queryKey: ["products"] });
+        return;
       }
+      // Awaited: `invalidateQueries` resolves once the refetch has landed, which
+      // is the moment this card leaves the grid - see the note in ProductTable.
+      // The spinner runs until then, and the confirm dialog goes with the card.
+      await queryClient.invalidateQueries({ queryKey: ["products"] });
+      toast.success(t("productDeleted"));
     });
   };
 
@@ -96,7 +101,9 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
         return;
       }
       const copyId = result.id;
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      // Awaited for the same reason as the delete above: the copy is announced
+      // once it is actually in the grid, not when the server says it exists.
+      await queryClient.invalidateQueries({ queryKey: ["products"] });
       toast.success(t("duplicated"), {
         action: {
           label: t("editCopy"),

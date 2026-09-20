@@ -10,6 +10,7 @@ import {
   createProduct,
   createVariant,
   createConnectedAccount,
+  createCoupon,
 } from "../../../../test/integration/helpers";
 
 // reconcileStripeRefund now pulls in payments/db/payouts.ts (to claw back seller
@@ -237,6 +238,66 @@ describe("reconcileStripeRefund - external (dashboard) refunds", () => {
     });
     return { order, sessionId, product };
   }
+
+  /** The same order, but with delivery charged and a coupon applied. */
+  async function cardOrderWithShipping() {
+    const user = await createUser();
+    const org = await createOrganization();
+    const product = await createProduct({ organizationId: org.id, price: 1000, stock: 5 });
+    const coupon = await createCoupon({ code: "EXT20", value: 20 });
+    const sessionId = `cs_${randomUUID()}`;
+    // Goods 2000, coupon 400, delivery 300 - the buyer pays 1900 and has paid
+    // 1600 of that for the goods themselves.
+    const order = await fulfillOrder({
+      userId: user.id,
+      stripeSessionId: sessionId,
+      totalCents: 2000 - 400 + 300,
+      currency: "usd",
+      exchangeRate: 1,
+      items: [{ productId: product.id, variantId: null, quantity: 2 }],
+      shipping: SHIPPING,
+      shippingTotal: 300,
+      shippingByOrg: { [org.id]: 300 },
+      couponId: coupon.id,
+      couponCode: "EXT20",
+    });
+    return { order, sessionId, org, product };
+  }
+
+  it("closes an order refunded from the dashboard for the goods alone", async () => {
+    // Delivery is never refunded, so a merchant refunding this order hands back
+    // the 1600 the buyer paid for goods and keeps the 300 delivery. Measured
+    // against `order.total` (1900) that never arrives, and the order sat at
+    // PARTIALLY_REFUNDED for good - which also meant the seller's transfer was
+    // never clawed back, since that only happens on the crossing.
+    const { order, sessionId } = await cardOrderWithShipping();
+
+    const result = await reconcileStripeRefund(sessionId, [{ id: "re_goods", amount: 1600 }]);
+
+    expect(result).toMatchObject({ kind: "full" });
+    const refreshed = await prisma.order.findUnique({ where: { id: order.id } });
+    expect(refreshed?.paymentStatus).toBe("REFUNDED");
+  });
+
+  it("still counts a dashboard refund that includes the delivery", async () => {
+    // Refunding the whole charge is just as final - the extra 300 does not
+    // change the answer, it only overshoots the bar.
+    const { order, sessionId } = await cardOrderWithShipping();
+
+    await reconcileStripeRefund(sessionId, [{ id: "re_all", amount: 1900 }]);
+
+    const refreshed = await prisma.order.findUnique({ where: { id: order.id } });
+    expect(refreshed?.paymentStatus).toBe("REFUNDED");
+  });
+
+  it("leaves an order short of the goods total partially refunded", async () => {
+    const { order, sessionId } = await cardOrderWithShipping();
+
+    await reconcileStripeRefund(sessionId, [{ id: "re_half", amount: 800 }]);
+
+    const refreshed = await prisma.order.findUnique({ where: { id: order.id } });
+    expect(refreshed?.paymentStatus).toBe("PARTIALLY_REFUNDED");
+  });
 
   it("marks the order REFUNDED and restocks on a full external refund", async () => {
     const { order, sessionId, product } = await cardOrder(5, 2); // total 2000, stock -> 3

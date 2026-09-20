@@ -1,9 +1,7 @@
 "use server";
 
 import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getLocale } from "next-intl/server";
 import { couponSchema, type CouponInput } from "../schema/coupons";
 import {
   createCoupon,
@@ -22,10 +20,8 @@ import { getCurrencyRates } from "@/features/currency/db/currencyRates";
 import { CouponType } from "@/generated/prisma/client";
 import type { ActionErrorResult } from "@/types/types";
 
-async function localizedRedirect(path: string): Promise<never> {
-  const locale = await getLocale();
-  redirect(`/${locale}${path}`);
-}
+// Every action here hands its redirect target back to the caller instead of
+// redirecting, so there is no server-side navigation left to localize.
 
 /** Drop the cached coupon list + edit pages so fresh data shows after a mutation
  *  (the client Router Cache would otherwise serve stale form values). */
@@ -76,9 +72,15 @@ async function toMutationData(data: CouponInput, existingId?: string) {
   };
 }
 
+/**
+ * Hands the redirect target back instead of performing it. `redirect()` unwinds
+ * by throwing, so the form never got to adopt the saved values as its new
+ * baseline - it stayed "dirty" while navigating, which is exactly what the
+ * unsaved-changes guard watches for.
+ */
 export async function createCouponAction(
   unsafe: CouponInput,
-): Promise<void | ActionErrorResult> {
+): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
     await requireRole("ADMIN");
     const parsed = couponSchema.safeParse(unsafe, { error: await getServerZodErrorMap() });
@@ -91,16 +93,17 @@ export async function createCouponAction(
     const created = await createCoupon(await toMutationData(parsed.data));
     await recordAudit({ action: "coupon.created", entityType: "Coupon", entityId: created.id });
     revalidateCoupons();
+    return { ok: true, redirectTo: "/admin/coupons" };
   } catch (error) {
     return handleActionError(error);
   }
-  await localizedRedirect("/admin/coupons");
 }
 
+/** Hands the redirect target back instead of performing it - see createCouponAction. */
 export async function updateCouponAction(
   id: string,
   unsafe: CouponInput,
-): Promise<void | ActionErrorResult> {
+): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
     await requireRole("ADMIN");
     const parsed = couponSchema.safeParse(unsafe, { error: await getServerZodErrorMap() });
@@ -113,10 +116,10 @@ export async function updateCouponAction(
     await updateCoupon(id, await toMutationData(parsed.data, id));
     await recordAudit({ action: "coupon.updated", entityType: "Coupon", entityId: id });
     revalidateCoupons();
+    return { ok: true, redirectTo: "/admin/coupons" };
   } catch (error) {
     return handleActionError(error);
   }
-  await localizedRedirect("/admin/coupons");
 }
 
 // Delete is an inline row action (not a form submit), so it returns a result
@@ -141,7 +144,15 @@ export async function duplicateCouponAction(
   try {
     await requireRole("ADMIN");
     const copy = await duplicateCoupon(id);
-    await recordAudit({ action: "coupon.created", entityType: "Coupon", entityId: copy.id, diff: { from: copy.sourceCode } });
+    await recordAudit({
+      // `.duplicated`, not `.created`: every other entity distinguishes the
+      // two, and a coupon copy logged as a create is indistinguishable from
+      // one an admin typed out by hand.
+      action: "coupon.duplicated",
+      entityType: "Coupon",
+      entityId: copy.id,
+      diff: { from: copy.sourceLabel, fromId: id },
+    });
     revalidateCoupons();
     return { ok: true, id: copy.id };
   } catch (error) {

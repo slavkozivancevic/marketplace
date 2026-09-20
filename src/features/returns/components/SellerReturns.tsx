@@ -10,10 +10,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/sonner";
+import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
 import { formatPrice } from "@/lib/currency";
 import type { Currency } from "@/lib/currency-config";
 import { approveReturn, rejectReturn, refundReturn } from "@/features/returns/actions/returns";
 import type { ActionErrorResult } from "@/types/types";
+import { ReturnItemLine } from "./ReturnItemLine";
 
 type ReturnLine = {
   orderItemId: string;
@@ -49,6 +51,10 @@ export function SellerReturns({
   const locale = useLocale();
   const refreshOrderViews = useRefreshOrderViews();
   const [isPending, start] = useTransition();
+  // Approve, reject and refund all run through the one transition below, so they
+  // share an announcer: the toast fires in the commit that repaints this row with
+  // its new status, never before it.
+  const announce = useAnnounceWhenSettled(isPending);
   const [rejectFor, setRejectFor] = useState<string | null>(null);
   const [note, setNote] = useState("");
   // A single transition drives every row's buttons, so track which return + which
@@ -80,7 +86,7 @@ export function SellerReturns({
         setPending(null);
         return;
       }
-      toast.success(ok);
+      announce({ message: ok });
       setRejectFor(null);
       setNote("");
       // Leave `pending` set: refreshOrderViews() re-renders this row with its new
@@ -110,7 +116,11 @@ export function SellerReturns({
                 <ul className="space-y-0.5 text-xs text-muted-foreground">
                   {r.items.map((l) => (
                     <li key={l.orderItemId}>
-                      {l.variantLabel ? `${l.title} (${l.variantLabel})` : l.title} × {l.quantity}
+                      <ReturnItemLine
+                        title={l.title}
+                        variantLabel={l.variantLabel}
+                        quantity={l.quantity}
+                      />
                     </li>
                   ))}
                 </ul>

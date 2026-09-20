@@ -1,4 +1,5 @@
 import { prisma } from "@/core/db/prisma";
+import { pickActiveMembership } from "@/features/organizations/db/activeOrg";
 import { syncClerkUserMetadata } from "@/services/clerk";
 import { UserRole } from "@/generated/prisma/client";
 
@@ -33,12 +34,28 @@ export async function validateAuthSync({
     throw new Error("User has no membership");
   }
 
-  // Prefer the stored activeOrgId, but fall back to first membership
+  // Prefer the stored activeOrgId, but fall back by standing (own org first)
   // if the user was removed from that org since the last session sync.
-  const preferredOrgId = user.activeOrgId;
-  const membership =
-    (preferredOrgId && user.memberships.find((m) => m.orgId === preferredOrgId)) ||
-    user.memberships[0];
+  const membership = pickActiveMembership(user.activeOrgId, user.memberships)!;
+
+  // The fallback fired, so the stored pointer names an org this user is not in.
+  // Write the correction back: every page that reads `User.activeOrgId` on its
+  // own (the dashboard shell, my-products) trusts that column, and a pointer
+  // left dangling there turns the owner of an org into a read-only guest in it.
+  // Removal now repoints it in the same transaction, so this only catches rows
+  // that were already broken - and heals them on first sight.
+  //
+  // No cache invalidation here on purpose: this runs during render as often as
+  // in a Server Action, and `revalidateTag` is a mutation API that throws when
+  // called while rendering. It is not needed either - the readers all resolve
+  // the effective org through `pickActiveMembership`, so a cached user row
+  // carrying the stale pointer still lands on the same organization.
+  if (user.activeOrgId !== membership.orgId) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { activeOrgId: membership.orgId },
+    });
+  }
 
   const context = {
     clerkUserId,

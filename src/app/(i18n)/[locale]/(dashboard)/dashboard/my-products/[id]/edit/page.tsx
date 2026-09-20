@@ -15,6 +15,7 @@ import { CacheTags } from "@/lib/cache/tags";
 import { getAllBrands } from "@/features/brands/db/brands";
 import { getCategoryTree } from "@/features/categories/db/categories";
 import { getAllTags } from "@/features/tags/db/tags";
+import { pickActiveMembership } from "@/features/organizations/db/activeOrg";
 import {
   fetchAttributeSelector,
   fetchCategoryAttributeMap,
@@ -46,24 +47,36 @@ async function ProductEditContent({ productId }: { productId: string }) {
 
   const user = await prisma.user.findUnique({
     where: { clerkUserId },
-    select: { id: true, activeOrgId: true },
+    select: {
+      id: true,
+      activeOrgId: true,
+      memberships: {
+        select: {
+          orgId: true,
+          role: true,
+          createdAt: true,
+          organization: { select: { verified: true } },
+        },
+      },
+    },
   });
 
   if (!user) notFound();
 
-  const membership = await prisma.membership.findUnique({
-    where: {
-      userId_orgId: {
-        userId: user.id,
-        orgId: product.organizationId,
-      },
-    },
-    select: { role: true, organization: { select: { verified: true } } },
-  });
+  const membership = user.memberships.find(
+    (m) => m.orgId === product.organizationId,
+  );
 
   if (!membership) notFound();
 
-  if (user.activeOrgId !== product.organizationId) {
+  // See the detail page: the stored active org only counts when a membership
+  // still backs it, or editing your own product reads as the wrong org.
+  const activeOrgId = pickActiveMembership(
+    user.activeOrgId,
+    user.memberships,
+  )?.orgId;
+
+  if (activeOrgId !== product.organizationId) {
     return (
       <Alert variant="destructive">
         <AlertTitle>{t("myProducts.wrongOrg")}</AlertTitle>

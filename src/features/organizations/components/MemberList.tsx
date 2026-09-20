@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "@/components/ui/sonner";
+import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ActionButton";
@@ -46,6 +47,30 @@ export function MemberList({ members, currentUserId, canManage, currentUserRole 
   const t = useTranslations("organization");
   const tUsers = useTranslations("users");
   const router = useRouter();
+  // Removal is owned here, not by the row: the row is the thing that
+  // disappears, and a transition owned by an unmounted component can never
+  // report that it finished - so its toast would never be raised.
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [isRemoving, startRemove] = useTransition();
+  const announceRemoved = useAnnounceWhenSettled(isRemoving);
+
+  const handleRemove = (userId: string) => {
+    setRemovingId(userId);
+    startRemove(async () => {
+      const result = await removeMemberAction(userId);
+      if (result && "error" in result) {
+        // Leave the dialog open so the reason stays readable.
+        toast.error(result.message);
+        setRemovingId(null);
+        return;
+      }
+      // The member row is server-rendered and still on screen. The refresh runs
+      // inside this transition, so the confirm button spins until the row is
+      // gone - the dialog goes with it - and the toast lands in that frame.
+      announceRemoved({ message: t("memberRemoved") });
+      router.refresh();
+    });
+  };
 
   // When another user accepts an invite the membership list changes on the
   // server, but that mutation can't reach this already-rendered page on the
@@ -67,6 +92,8 @@ export function MemberList({ members, currentUserId, canManage, currentUserRole 
           currentUserId={currentUserId}
           canManage={canManage}
           currentUserRole={currentUserRole}
+          isRemoving={isRemoving && removingId === member.user.id}
+          onRemove={() => handleRemove(member.user.id)}
           t={t}
           tUsers={tUsers}
         />
@@ -85,6 +112,8 @@ function MemberRow({
   currentUserId,
   canManage,
   currentUserRole,
+  isRemoving,
+  onRemove,
   t,
   tUsers,
 }: {
@@ -92,13 +121,19 @@ function MemberRow({
   currentUserId: string;
   canManage: boolean;
   currentUserRole: MembershipRole;
+  /** Removal state lives in the list - see the note there. */
+  isRemoving: boolean;
+  onRemove: () => void;
   t: ReturnType<typeof useTranslations<"organization">>;
   tUsers: ReturnType<typeof useTranslations<"users">>;
 }) {
   const tForm = useTranslations("form");
   const tCommon = useTranslations("common");
-  const [isPendingRemove, startRemoveTransition] = useTransition();
+  const router = useRouter();
+  // The role change stays here: this row survives it, so it can see its own
+  // transition finish.
   const [isPendingRole, startRoleTransition] = useTransition();
+  const announceRoleChanged = useAnnounceWhenSettled(isPendingRole);
 
   // Stage the role locally so picking from the dropdown doesn't fire the action
   // (and its notification) immediately - the change is applied only on Save,
@@ -113,25 +148,19 @@ function MemberRow({
     canManage && !isOwner && !isSelf &&
     (currentUserRole === MembershipRole.OWNER || member.role !== MembershipRole.ADMIN);
 
-  const handleRemove = () => {
-    startRemoveTransition(async () => {
-      const result = await removeMemberAction(member.user.id);
-      if (result && "error" in result) {
-        toast.error(result.message);
-      } else {
-        toast.success(t("memberRemoved"));
-      }
-    });
-  };
-
   const handleRoleSave = () => {
     startRoleTransition(async () => {
       const result = await updateMemberRoleAction(member.user.id, pendingRole);
       if (result && "error" in result) {
         toast.error(result.message);
-      } else {
-        toast.success(t("roleChanged"));
+        return;
       }
+      // `roleDirty` compares against the server's `member.role`, so the staged
+      // change - and the Save/Discard bar with it - only clears once the
+      // refreshed row arrives. Running that refresh inside the transition keeps
+      // the Save button spinning until then and lets the toast land with it.
+      announceRoleChanged({ message: t("roleChanged") });
+      router.refresh();
     });
   };
 
@@ -165,7 +194,7 @@ function MemberRow({
             <Select
               value={pendingRole}
               onValueChange={(v) => setPendingRole(v as MembershipRole)}
-              disabled={isPendingRole || isPendingRemove}
+              disabled={isPendingRole || isRemoving}
             >
               <SelectTrigger className="h-8 w-32 text-xs">
                 {/* Explicit label so it shows pre-hydration (Radix's
@@ -190,13 +219,13 @@ function MemberRow({
               confirmText={t("removeMember")}
               cancelText={tCommon("cancel")}
               loadingText={t("removing")}
-              isLoading={isPendingRemove}
-              onConfirm={handleRemove}
+              isLoading={isRemoving}
+              onConfirm={onRemove}
             >
               <Button
                 variant="ghostDestructive"
                 size="sm"
-                disabled={isPendingRemove || isPendingRole}
+                disabled={isRemoving || isPendingRole}
               >
                 {t("removeMember")}
               </Button>
@@ -218,14 +247,14 @@ function MemberRow({
             size="sm"
             variant="outline"
             onClick={() => setPendingRole(member.role)}
-            disabled={isPendingRole || isPendingRemove}
+            disabled={isPendingRole || isRemoving}
           >
             {tForm("discard")}
           </Button>
           <Button
             size="sm"
             onClick={handleRoleSave}
-            disabled={isPendingRole || isPendingRemove}
+            disabled={isPendingRole || isRemoving}
           >
             {isPendingRole && <Loader2 className="animate-spin" />}
             {isPendingRole ? tForm("saving") : tForm("save")}

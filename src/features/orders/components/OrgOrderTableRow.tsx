@@ -8,8 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import type { OrgOrderListItem } from "../db/orgOrders";
 import type { Currency } from "@/lib/currency-config";
 import { formatPrice } from "@/lib/currency";
+import { getVariantLabel } from "@/features/attributes/utils/translations";
 import { getProductTitle } from "@/features/products/utils/translations";
-import { deriveOrderStatus } from "../status";
+import {
+  deriveOrderStatus,
+  deriveSellerPartStage,
+  sellerPartRefundState,
+} from "../status";
 import { orderStatusKey, orderStatusVariant } from "../statusBadge";
 import { cn } from "@/lib/utils";
 // Grid template is owned by the skeleton module so the two can never drift.
@@ -25,6 +30,14 @@ export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
   const locale = useLocale();
   const dl = dateLocale(locale);
 
+  // Everything this row says about refunds is about THIS seller's goods: what
+  // the org had refunded on the order, against what its own part was worth.
+  const orgRefund = {
+    refundedGross: order.orgRefundedGross,
+    itemsSubtotal: order.sellerPart?.itemsSubtotal ?? 0,
+  };
+  const refundState = sellerPartRefundState(orgRefund, order.paymentStatus);
+
   const itemSummary = order.items
     .map((i) => {
       // Org order rows display titles in the buyer's order-time locale so
@@ -33,7 +46,8 @@ export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
       // can HAVE a translation row whose title was left blank, and `??` would
       // then hand back that empty string instead of falling back to English.
       const title = getProductTitle(i.product, order.locale);
-      const label = i.variant?.sku ? `${title} (${i.variant.sku})` : title;
+      const variantLabel = getVariantLabel(i.variant, order.locale) ?? i.variant?.sku ?? null;
+      const label = variantLabel ? `${title} (${variantLabel})` : title;
       return i.quantity > 1 ? `${label} ×${i.quantity}` : label;
     })
     .join(", ");
@@ -104,15 +118,27 @@ export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
           )}
           {/* Partial refund: the derived status still reads e.g. "Completed", so
               flag it here (full refunds already show as the main "Refunded").
-              Steel text pill - consistent with the order detail + payouts pages. */}
-          {order.paymentStatus === "PARTIALLY_REFUNDED" && (
+              Steel text pill - consistent with the order detail + payouts pages.
+              THIS seller's own goods, not the order's payment axis: that axis
+              carries every seller's refunds, so it put this pill on the row of a
+              seller who had never had a single unit come back. */}
+          {refundState === "partial" && (
             <Badge variant="outline" className="text-[10px] text-steel border-steel/40">
               {t("partiallyRefunded")}
             </Badge>
           )}
           <PaymentMethodIcon method={order.paymentMethod} />
           {(() => {
-            const ds = deriveOrderStatus(order);
+            // This seller's own stage, not the order's: in a multi-seller order
+            // the two genuinely differ, and the seller is owed its own.
+            const ds = order.sellerPart
+              ? deriveSellerPartStage({
+                  part: order.sellerPart,
+                  paymentMethod: order.paymentMethod,
+                  orderPaymentStatus: order.paymentStatus,
+                  orgRefund,
+                })
+              : deriveOrderStatus(order);
             return (
               <Badge variant={orderStatusVariant(ds)}>{t(orderStatusKey(ds))}</Badge>
             );

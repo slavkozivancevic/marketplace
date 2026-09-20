@@ -47,9 +47,10 @@ const KNOWN_ACTIONS = new Set([
   "brand.created", "brand.updated", "brand.deleted", "brand.duplicated",
   "category.created", "category.updated", "category.deleted", "category.duplicated",
   "attribute.created", "attribute.updated", "attribute.deleted", "attribute.duplicated",
-  "coupon.created", "coupon.updated", "coupon.deleted",
+  "coupon.created", "coupon.updated", "coupon.deleted", "coupon.duplicated",
   "review.approved", "review.rejected",
-  "cod_balance.settled", "payout.reversed", "payout.reversal_failed",
+  "cod_balance.settled", "cod_balance.credit_paid",
+  "payout.reversed", "payout.reversal_failed",
   "organization.member_removed", "organization.owner_promoted", "organization.catalog_deactivated",
   "organization.org_deleted",
   "tag.created", "tag.updated", "tag.deleted", "tag.duplicated",
@@ -100,7 +101,9 @@ function renderDiff(diff: AuditLogItem["diff"], labels: Labels): string | null {
   if (!diff || typeof diff !== "object") return null;
   // "byFilter" is an internal flag; "kind"/"orgId" on organization.* outcomes
   // just restate the action name and entityId, so they'd be pure noise here.
-  const INTERNAL_KEYS = new Set(["byFilter", "kind", "orgId"]);
+  // "fromId" is the machine link to a duplicate's source, kept in the record
+  // but not rendered - the readable "from" beside it is what a reader needs.
+  const INTERNAL_KEYS = new Set(["byFilter", "kind", "orgId", "fromId"]);
   const entries = Object.entries(diff as Record<string, unknown>).filter(([k]) => !INTERNAL_KEYS.has(k));
   if (entries.length === 0) return null;
   return entries
@@ -145,7 +148,7 @@ function Row({ row, dl, labels }: { row: AuditLogItem; dl: string; labels: Label
           <span className="font-mono text-muted-foreground">#{row.entityId.slice(-8)}</span>
         )}
       </div>
-      <div className="text-xs text-muted-foreground line-clamp-2" title={diff ?? undefined}>{diff ?? "—"}</div>
+      <div className="text-xs text-muted-foreground line-clamp-2" title={diff ?? undefined}>{diff ?? "-"}</div>
     </div>
   );
 }

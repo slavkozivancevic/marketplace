@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useNavigationGeneration } from "@/lib/navigation/navGeneration";
+import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
 import { useTranslations } from "next-intl";
 import { Loader2, X } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
@@ -36,6 +38,8 @@ export function InviteForm() {
   const t = useTranslations("invite");
   const onInvalid = useInvalidToast();
   const [isPending, startTransition] = useTransition();
+  const announceSent = useAnnounceWhenSettled(isPending);
+  const router = useRouter();
 
   const navGeneration = useNavigationGeneration();
 
@@ -77,8 +81,13 @@ export function InviteForm() {
       if (result && "error" in result) {
         toast.error(result.message);
       } else {
-        toast.success(t("success"));
         form.reset();
+        // The pending invite is server-rendered in the list below, so the send
+        // only becomes visible when that list re-renders. `router.refresh()`
+        // inside this transition keeps the button spinning until it does, and
+        // the toast lands with the row rather than ahead of it.
+        announceSent({ message: t("success") });
+        router.refresh();
       }
     });
   };

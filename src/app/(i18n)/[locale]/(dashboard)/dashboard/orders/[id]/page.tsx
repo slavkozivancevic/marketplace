@@ -9,7 +9,7 @@ import { prisma } from "@/core/db/prisma";
 import { getOrderById, getExternalRefundedTotal } from "@/features/orders/db/orders";
 import { getReturnedQuantities, getOrderReturns } from "@/features/returns/db/returns";
 import { BuyerReturns } from "@/features/returns/components/BuyerReturns";
-import { getOrderShipments } from "@/features/shipments/db/shipments";
+import { getOrderSellerParts } from "@/features/shipments/db/shipments";
 import { deriveOrderStatus } from "@/features/orders/status";
 import { orderStatusKey, orderStatusVariant } from "@/features/orders/statusBadge";
 import { PageHeader } from "@/components/PageHeader";
@@ -21,7 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { formatPrice } from "@/lib/currency";
 import type { Currency } from "@/lib/currency-config";
-import { getLabel } from "@/features/attributes/utils/translations";
+import { getVariantLabel } from "@/features/attributes/utils/translations";
 import { getProductTitle } from "@/features/products/utils/translations";
 
 interface OrderDetailPageProps {
@@ -61,13 +61,13 @@ export default async function OrderDetailPage({
   const returnEligible =
     order.paymentStatus === "PAID" || order.paymentStatus === "PARTIALLY_REFUNDED";
   const invoiceable = order.paymentStatus !== "UNPAID";
-  const [returnedQty, orderReturns, orderShipments, externalRefunded] = await Promise.all([
+  const [returnedQty, orderReturns, orderParts, externalRefunded] = await Promise.all([
     getReturnedQuantities(order.id),
     getOrderReturns(order.id),
-    getOrderShipments(order.id),
+    getOrderSellerParts(order.id),
     getExternalRefundedTotal(order.id),
   ]);
-  const shipmentByOrg = new Map(orderShipments.map((s) => [s.organizationId, s]));
+  const partByOrg = new Map(orderParts.map((p) => [p.organizationId, p]));
   const hasActiveReturn = orderReturns.some((r) =>
     ["REQUESTED", "APPROVED", "SHIPPED"].includes(r.status),
   );
@@ -88,10 +88,7 @@ export default async function OrderDetailPage({
       // can HAVE a translation row whose title was left blank, and `??` would
       // then hand back that empty string instead of falling back to English.
       const title = getProductTitle(it.product, order.locale);
-      const variantLabel =
-        it.variant?.attributeValues
-          .map((av) => getLabel(av.option.translations, order.locale))
-          .join(" / ") || null;
+      const variantLabel = getVariantLabel(it.variant, order.locale);
       return [
         it.id,
         {
@@ -105,24 +102,27 @@ export default async function OrderDetailPage({
   );
 
   // Group the order's items by seller, with each item's still-returnable qty.
-  // A seller's items become returnable only once paid AND that seller's shipment
-  // is DELIVERED - you return goods you've received, not ones still in transit.
+  // A seller's items become returnable only once paid AND that seller's part is
+  // delivered - you return goods you've received, not ones still in transit, and
+  // never goods from a seller that withdrew (nothing was ever delivered).
   const returnSellerMap = new Map<
     string,
-    { organizationId: string; name: string; shipped: boolean; delivered: boolean; canReturn: boolean; items: { orderItemId: string; title: string; variantLabel: string | null; returnable: number }[] }
+    { organizationId: string; name: string; shipped: boolean; delivered: boolean; cancelled: boolean; canReturn: boolean; items: { orderItemId: string; title: string; variantLabel: string | null; returnable: number }[] }
   >();
   for (const it of order.items) {
     const info = itemInfo.get(it.id)!;
     let group = returnSellerMap.get(info.organizationId);
     if (!group) {
-      const sh = shipmentByOrg.get(info.organizationId);
-      const delivered = sh?.deliveredAt != null;
+      const part = partByOrg.get(info.organizationId);
+      const delivered = part?.deliveredAt != null;
+      const cancelled = part?.cancelledAt != null;
       group = {
         organizationId: info.organizationId,
         name: info.orgName,
-        shipped: !!sh,
+        shipped: part?.shippedAt != null,
         delivered,
-        canReturn: returnEligible && delivered,
+        cancelled,
+        canReturn: returnEligible && delivered && !cancelled,
         items: [],
       };
       returnSellerMap.set(info.organizationId, group);
@@ -258,35 +258,52 @@ export default async function OrderDetailPage({
           </CardHeader>
           <CardContent className="space-y-0 text-sm">
             {returnSellers.map((seller, i) => {
-              const sh = shipmentByOrg.get(seller.organizationId);
+              const part = partByOrg.get(seller.organizationId);
               return (
                 <div key={seller.organizationId}>
                   {i > 0 && <Separator className="my-3" />}
                   <div className="flex items-center justify-between gap-3">
                     <span className="font-medium">{seller.name}</span>
-                    {sh?.deliveredAt ? (
+                    {/* Cancelled wins: a seller that withdrew is not "delivered",
+                        whatever happened before it pulled out. */}
+                    {part?.cancelledAt ? (
+                      <Badge variant="destructive" className="text-[10px]">{t("shipments.cancelled")}</Badge>
+                    ) : part?.deliveredAt ? (
                       <Badge variant="default" className="text-[10px]">{t("shipments.delivered")}</Badge>
-                    ) : sh ? (
+                    ) : part?.shippedAt ? (
                       <Badge variant="outline" className="text-[10px]">{t("shipments.shipped")}</Badge>
                     ) : (
                       <Badge variant="secondary" className="text-[10px]">{t("shipments.notShipped")}</Badge>
                     )}
                   </div>
-                  {sh && (
+                  {part?.cancelledAt && (
                     <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
                       <p>
-                        {t("shipments.shippedOn", {
-                          date: new Date(sh.shippedAt).toLocaleDateString(dl, {
+                        {t("shipments.cancelledOn", {
+                          date: new Date(part.cancelledAt).toLocaleDateString(dl, {
                             year: "numeric",
                             month: "short",
                             day: "numeric",
                           }),
                         })}
                       </p>
-                      {sh.deliveredAt && (
+                    </div>
+                  )}
+                  {!part?.cancelledAt && part?.shippedAt && (
+                    <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
+                      <p>
+                        {t("shipments.shippedOn", {
+                          date: new Date(part.shippedAt).toLocaleDateString(dl, {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          }),
+                        })}
+                      </p>
+                      {part.deliveredAt && (
                         <p>
                           {t("shipments.deliveredOn", {
-                            date: new Date(sh.deliveredAt).toLocaleDateString(dl, {
+                            date: new Date(part.deliveredAt).toLocaleDateString(dl, {
                               year: "numeric",
                               month: "short",
                               day: "numeric",
@@ -294,10 +311,10 @@ export default async function OrderDetailPage({
                           })}
                         </p>
                       )}
-                      {sh.carrier && <p>{t("shipments.carrier")}: {sh.carrier}</p>}
-                      {sh.trackingNumber && (
+                      {part.carrier && <p>{t("shipments.carrier")}: {part.carrier}</p>}
+                      {part.trackingNumber && (
                         <p>
-                          {t("shipments.tracking")}: <span className="font-mono">{sh.trackingNumber}</span>
+                          {t("shipments.tracking")}: <span className="font-mono">{part.trackingNumber}</span>
                         </p>
                       )}
                     </div>
@@ -309,8 +326,12 @@ export default async function OrderDetailPage({
         </Card>
 
         {/* Show the returns card once anything has shipped (so a not-yet-returnable
-            seller can explain "available after delivery"), or there are returns. */}
-        {(returnEligible || orderReturns.length > 0 || orderShipments.length > 0) && (
+            seller can explain "available after delivery"), or there are returns.
+            Checked on shippedAt, not on the parts existing - every order has had
+            a part per seller since it was created. */}
+        {(returnEligible ||
+          orderReturns.length > 0 ||
+          orderParts.some((p) => p.shippedAt != null)) && (
           <BuyerReturns
             orderId={order.id}
             sellers={returnSellers}
@@ -333,21 +354,27 @@ export default async function OrderDetailPage({
                 productMedia?.thumbUrl ??
                 productMedia?.url ??
                 null;
-              // Localize each option value to the order's locale (the language
-              // the buyer used), same as the title below.
-              const variantLabel = item.variant?.attributeValues
-                .map((av) => getLabel(av.option.translations, order.locale))
-                .join(" / ");
+              // Localized to the order's locale (the language the buyer
+              // used), same as the title below.
+              const variantLabel = getVariantLabel(item.variant, order.locale);
               // Order detail page is rendered server-side with no useLocale()
               // context wired through here yet - the email already captured
               // the buyer's locale on the order row; show the title in the
               // active UI locale (falling back to default).
               const productTitle = getProductTitle(item.product, order.locale);
+              // The seller of this line withdrew. The line stays visible - the
+              // buyer ordered it and is owed the news - but it no longer counts
+              // toward the totals below, which are rebuilt from the sellers still
+              // in the order. Without the marker the items would simply not add
+              // up to the subtotal printed under them.
+              const itemCancelled = partByOrg.get(item.product.organizationId)?.cancelledAt != null;
 
               return (
                 <div key={item.id}>
                   {index > 0 && <Separator className="my-3" />}
-                  <div className="flex gap-4 items-center">
+                  <div
+                    className={`flex gap-4 items-center ${itemCancelled ? "opacity-60" : ""}`}
+                  >
                     <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded border">
                       {imageUrl ? (
                         <RetryImage
@@ -363,7 +390,12 @@ export default async function OrderDetailPage({
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm">
-                        {productTitle}
+                        <span className={itemCancelled ? "line-through" : ""}>{productTitle}</span>
+                        {itemCancelled && (
+                          <Badge variant="destructive" className="ml-2 text-[10px] align-middle">
+                            {t("shipments.cancelled")}
+                          </Badge>
+                        )}
                       </p>
                       {variantLabel && (
                         <p className="text-xs text-muted-foreground">
@@ -374,7 +406,9 @@ export default async function OrderDetailPage({
                         {formatPrice(item.price, order.currency as Currency, locale)} × {item.quantity}
                       </p>
                     </div>
-                    <p className="font-semibold text-sm">
+                    <p
+                      className={`font-semibold text-sm ${itemCancelled ? "line-through text-muted-foreground" : ""}`}
+                    >
                       {formatPrice(item.price * item.quantity, order.currency as Currency, locale)}
                     </p>
                   </div>

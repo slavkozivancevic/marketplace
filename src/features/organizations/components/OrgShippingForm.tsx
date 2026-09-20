@@ -7,6 +7,8 @@ import { useTranslations, useLocale } from "next-intl";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/sonner";
+import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
+import { useWhenSettled } from "@/lib/hooks/useWhenSettled";
 import { useInvalidToast } from "@/lib/forms/useInvalidToast";
 import { useUnsavedChangesWarning } from "@/lib/forms/useUnsavedChangesWarning";
 import {
@@ -14,6 +16,7 @@ import {
   useSaveBlockedReason,
 } from "@/lib/forms/useSaveBlockedReason";
 import { FormSaveBar } from "@/components/forms/FormSaveBar";
+import { ChangedHint } from "@/components/forms/ChangedHint";
 import { MoneyField } from "@/components/forms/MoneyField";
 import { useCurrencyStore } from "@/store/currency";
 import { formatPrice } from "@/lib/currency";
@@ -42,10 +45,11 @@ export function OrgShippingForm({
 }) {
   const t = useTranslations("organization");
   const locale = useLocale();
-  const tForm = useTranslations("form");
   const onInvalid = useInvalidToast();
   const { rates, currency } = useCurrencyStore();
   const [isPending, start] = useTransition();
+  const announceSaved = useAnnounceWhenSettled(isPending);
+  const whenSettled = useWhenSettled(isPending);
 
   const { handleSubmit, control, setValue, reset } =
     useForm<UpdateOrganizationShippingInput>({
@@ -93,20 +97,33 @@ export function OrgShippingForm({
   const onSubmit = (data: UpdateOrganizationShippingInput) => {
     start(async () => {
       const res = await updateOrganizationShippingAction(data);
-      if (res && "error" in res) toast.error(res.message);
-      else toast.success(t("shippingUpdated"));
+      if (res && "error" in res) {
+        toast.error(res.message);
+        return;
+      }
+      // Adopt the just-saved values as the new baseline. This form has neither a
+      // `values` prop nor a re-baseline effect, so without this the "unsaved
+      // changes" bar stayed up after a successful save until the page was
+      // remounted - the save announced itself while the screen still claimed
+      // the edits were unsaved.
+      //
+      // Deferred to the settled frame: re-baselining while the save is still in
+      // flight clears the dirty flags, so the "saved value" hints under the
+      // fields disappear, the content above the save bar shrinks, and the bar
+      // jumps up with its spinner still running.
+      whenSettled(() => reset(data));
+      // Announced when the bar actually collapses to "all changes saved", not
+      // when the action returns. This form never navigates, so that collapse is
+      // the only place the save becomes visible - and the toast used to beat it
+      // there by a frame or more.
+      announceSaved({ message: t("shippingUpdated") });
     });
   };
 
   return (
     <form noValidate onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-4 max-w-md">
       <div className="space-y-1.5">
-        <Label className="flex items-center gap-1.5">
-          {t("shippingFlatRate")}
-          {dirtyFields.shippingFlatRate && (
-            <span className="size-1.5 rounded-full bg-amber-500" aria-hidden />
-          )}
-        </Label>
+        <Label>{t("shippingFlatRate")}</Label>
         <MoneyField
           aria-invalid={!!errors.shippingFlatRate}
           value={flat ?? emptyMoneyInput(currency)}
@@ -124,14 +141,10 @@ export function OrgShippingForm({
         )}
         {/* Saved-value reminder is additive while editing; the instructional
             hint always stays so the field never loses its explanation. */}
-        {dirtyFields.shippingFlatRate && (
-          <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500">
-            <span className="size-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden />
-            {tForm("savedValue", {
-              value: fmtSaved(flatRate, flat?.currency ?? currency),
-            })}
-          </p>
-        )}
+        <ChangedHint
+          changed={!!dirtyFields.shippingFlatRate}
+          savedText={fmtSaved(flatRate, flat?.currency ?? currency)}
+        />
         <p className="text-xs text-muted-foreground">{t("shippingFlatRateHint")}</p>
       </div>
 
@@ -161,12 +174,7 @@ export function OrgShippingForm({
 
       {freeEnabled && (
         <div className="space-y-1.5">
-          <Label className="flex items-center gap-1.5">
-            {t("shippingFreeThreshold")}
-            {dirtyFields.shippingFreeThreshold && (
-              <span className="size-1.5 rounded-full bg-amber-500" aria-hidden />
-            )}
-          </Label>
+          <Label>{t("shippingFreeThreshold")}</Label>
           <MoneyField
             aria-invalid={!!errors.shippingFreeThreshold}
             value={threshold ?? emptyMoneyInput(currency)}
@@ -184,16 +192,17 @@ export function OrgShippingForm({
               {errors.shippingFreeThreshold.amount.message}
             </p>
           )}
-          {/* Saved-value reminder only when there's a saved threshold to compare;
-              the instructional hint always stays below it. */}
-          {dirtyFields.shippingFreeThreshold && freeThreshold != null && (
-            <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500">
-              <span className="size-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden />
-              {tForm("savedValue", {
-                value: fmtSaved(freeThreshold, threshold?.currency ?? currency),
-              })}
-            </p>
-          )}
+          {/* With no saved threshold the hint says so ("Saved: (empty)") rather
+              than vanishing - free shipping having been off IS the baseline the
+              seller is changing. The instructional hint always stays below it. */}
+          <ChangedHint
+            changed={!!dirtyFields.shippingFreeThreshold}
+            savedText={
+              freeThreshold != null
+                ? fmtSaved(freeThreshold, threshold?.currency ?? currency)
+                : null
+            }
+          />
           <p className="text-xs text-muted-foreground">{t("shippingFreeThresholdHint")}</p>
         </div>
       )}

@@ -243,8 +243,8 @@ export async function deleteUser(clerkUserId: string) {
         data: { status: "CANCELED" },
       });
 
-      // Organization.id is ON DELETE RESTRICT from Product/Shipment/Return,
-      // and ConnectedAccount cascades. A hard delete only succeeds for a
+      // Organization.id is ON DELETE RESTRICT from Product/OrderSellerPart/
+      // Return, and ConnectedAccount cascades. A hard delete only succeeds for a
       // truly empty org - any org that has ever sold something would throw
       // mid-transaction and roll back the whole deleteUser call (leaving
       // the Clerk-deleted user's row live in our DB). Check first instead
@@ -252,7 +252,7 @@ export async function deleteUser(clerkUserId: string) {
       const [productCount, shipmentCount, returnCount, connectedAccount] =
         await Promise.all([
           tx.product.count({ where: { organizationId: membership.orgId } }),
-          tx.shipment.count({ where: { organizationId: membership.orgId } }),
+          tx.orderSellerPart.count({ where: { organizationId: membership.orgId } }),
           tx.return.count({ where: { organizationId: membership.orgId } }),
           tx.connectedAccount.findUnique({
             where: { organizationId: membership.orgId },
