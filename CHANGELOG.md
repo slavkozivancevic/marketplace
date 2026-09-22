@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.3.0](https://github.com/slavkozivancevic/marketplace/compare/v0.2.0...v0.3.0) (2026-09-22)
+
+
+### Features
+
+* **chat:** show when the other side is typing, without moving the page under you ([#19](https://github.com/slavkozivancevic/marketplace/issues/19)) ([d487d5e](https://github.com/slavkozivancevic/marketplace/commit/d487d5e09fd3ff9351ab844d3373314dee001852))
+* **infra:** grant Grafana Cloud read-only CloudWatch access ([#7](https://github.com/slavkozivancevic/marketplace/issues/7)) ([47a83a2](https://github.com/slavkozivancevic/marketplace/commit/47a83a2db816eee7fe04789827ff8feb072ebf2f))
+* **money:** store one exact amount per currency and stop prices drifting ([#14](https://github.com/slavkozivancevic/marketplace/issues/14)) ([739bdea](https://github.com/slavkozivancevic/marketplace/commit/739bdea31c5e54de8675bbc5ae2d7a4594365cd6))
+* **observability:** request-scoped logging, CloudWatch metrics and alarms ([#6](https://github.com/slavkozivancevic/marketplace/issues/6)) ([60fdaf6](https://github.com/slavkozivancevic/marketplace/commit/60fdaf6b01d6d1a3a08312c4e558fe97db556266))
+* **orders:** one sub-order per seller, and refunds that close the books exactly ([#16](https://github.com/slavkozivancevic/marketplace/issues/16)) ([59b4935](https://github.com/slavkozivancevic/marketplace/commit/59b4935812f28fe48f73fa8b2ca8f01fa93f593a))
+* product warranty and origin, full loading-skeleton coverage ([#12](https://github.com/slavkozivancevic/marketplace/issues/12)) ([1f67617](https://github.com/slavkozivancevic/marketplace/commit/1f676176ab02d96b5a8cde6cec2049073d17b951))
+
+
+### Bug Fixes
+
+* **admin:** refuse deletes that lose data, unify confirmation dialogs ([#18](https://github.com/slavkozivancevic/marketplace/issues/18)) ([3724419](https://github.com/slavkozivancevic/marketplace/commit/3724419326f803f79be73f0f5baa0b884e8735ff))
+* harden cold-start and unmatched-path handling ([#9](https://github.com/slavkozivancevic/marketplace/issues/9)) ([2cf4fc4](https://github.com/slavkozivancevic/marketplace/commit/2cf4fc4c95a531c58788bdfbb32a28d77d9ecf3c))
+* **header:** auth cluster grouping and mobile panel dismissal ([#13](https://github.com/slavkozivancevic/marketplace/issues/13)) ([aea1250](https://github.com/slavkozivancevic/marketplace/commit/aea12507a6cca9b51febedf628e02bdfeca4cef7))
+* **observability:** separate database wake-ups from slow queries ([#8](https://github.com/slavkozivancevic/marketplace/issues/8)) ([459459c](https://github.com/slavkozivancevic/marketplace/commit/459459c6b189dad7f16e4aee4db45dff8270251c))
+* **orders:** a COD part collected before a return still counted as unpaid ([#17](https://github.com/slavkozivancevic/marketplace/issues/17)) ([033f9c5](https://github.com/slavkozivancevic/marketplace/commit/033f9c5c9d60e210d51cdfad0bd871d6e06c4ee3))
+* **orders:** stop losing coupon and payout work, and quiet the staging alarms ([#15](https://github.com/slavkozivancevic/marketplace/issues/15)) ([5e2667a](https://github.com/slavkozivancevic/marketplace/commit/5e2667aea5e7b56ac7b19285e5ce19efe8e980ba))
+* **seo:** return 404 for unknown routes outside the storefront ([#11](https://github.com/slavkozivancevic/marketplace/issues/11)) ([a79bb3b](https://github.com/slavkozivancevic/marketplace/commit/a79bb3bcea5611b09ae7eedff22e75b07e4e8357))
+* **seo:** return a real 404 for unservable storefront URLs ([#10](https://github.com/slavkozivancevic/marketplace/issues/10)) ([229690d](https://github.com/slavkozivancevic/marketplace/commit/229690dfc09eaf6ca7d567e9475fb93fae03851a))
+
+
+### Build & Maintenance
+
+* **actions:** bump all actions to node24 runtimes ([#3](https://github.com/slavkozivancevic/marketplace/issues/3)) ([840da23](https://github.com/slavkozivancevic/marketplace/commit/840da23780498b66f81a1b2d9caa6d6108a0a405))
+* **release:** author Release PRs with a PAT so their checks run ([#5](https://github.com/slavkozivancevic/marketplace/issues/5)) ([8f9dda7](https://github.com/slavkozivancevic/marketplace/commit/8f9dda7d790978db94f786f72e19f9a11ad223da))
+
 ## [0.2.0](https://github.com/slavkozivancevic/marketplace/compare/v0.1.0...v0.2.0) (2026-08-22)
 
 
