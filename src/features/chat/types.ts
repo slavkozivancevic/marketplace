@@ -33,4 +33,5 @@ export type WsIncomingEvent =
   | { type: "NEW_MESSAGE"; message: ChatMessage }
   | { type: "MESSAGE_READ"; conversationId: string; readerId: string; messageIds: string[]; readAt: string }
   | { type: "REACTION_UPDATE"; conversationId: string; messageId: string; reactorId: string; emoji: string; messageText: string; reactions: ReactionMap }
+  | { type: "TYPING"; conversationId: string; userId: string; isTyping: boolean }
   | { type: "CONVERSATION_DELETED"; conversationId: string };

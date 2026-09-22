@@ -1,7 +1,13 @@
 "use client";
 import { logger } from "@/lib/logger";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useCallback,
+} from "react";
 import { format, isToday, isYesterday } from "date-fns";
 import {
   Send,
@@ -27,6 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChatMessage } from "../types";
 import { UserProfile } from "../hooks/useUserProfiles";
+import { TypingBubble } from "./TypingIndicator";
 
 type Attachment = {
   key: string;
@@ -56,9 +63,20 @@ interface Props {
   currentUserId: string;
   isLoading: boolean;
   profiles?: Record<string, UserProfile>;
+  /** Participants currently composing in this conversation (never includes us). */
+  typingUserIds?: string[];
   onSend: (text: string, attachments: Attachment[]) => void;
   onMarkRead: (messageIds: string[]) => void;
+  /**
+   * Takes the conversation id on purpose. The cleanup that fires a "stop"
+   * captures the id the thread was mounted with, so leaving a conversation can
+   * never announce a stop against the one the user just moved to.
+   */
+  onTyping?: (conversationId: string, isTyping: boolean) => void;
 }
+
+/** Silence after the last keystroke before we declare the burst over. */
+const TYPING_IDLE_MS = 3000;
 
 const ALLOWED_TYPES = [
   "image/jpeg",
@@ -824,8 +842,10 @@ export function MessageThread({
   currentUserId,
   isLoading,
   profiles = {},
+  typingUserIds = [],
   onSend,
   onMarkRead,
+  onTyping,
 }: Props) {
   const [text, setText] = useState("");
   const [pendingAttachments, setPendingAttachments] = useState<
@@ -839,6 +859,14 @@ export function MessageThread({
   useEffect(() => {
     pendingRef.current = pendingAttachments;
   }, [pendingAttachments]);
+  // Same ref-mirror trick for onTyping: the cleanup below must not re-run just
+  // because the parent handed us a fresh closure.
+  const onTypingRef = useRef(onTyping);
+  useEffect(() => {
+    onTypingRef.current = onTyping;
+  }, [onTyping]);
+  const typingIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingActiveRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -864,21 +892,43 @@ export function MessageThread({
   // Jump to the actual bottom of the scroll container.
   // Images use a fixed-size container (w-48 h-48) for both loading and loaded
   // states, so scrollHeight is already the final value when this fires.
+  //
+  // Assigns the clamped maximum rather than scrollHeight - the browser clamps
+  // either way, but knowing the exact target lets us skip a pointless write.
   const jumpToBottom = useCallback(() => {
     const container = scrollRef.current;
-    if (container) container.scrollTop = container.scrollHeight;
+    if (!container) return;
+    const max = container.scrollHeight - container.clientHeight;
+    if (Math.abs(container.scrollTop - max) < 0.5) return;
+    container.scrollTop = max;
   }, []);
 
   // Whenever new messages arrive: pin to bottom and jump.
-  useEffect(() => {
+  //
+  // useLayoutEffect, not useEffect: the jump has to land in the same frame the
+  // new row is committed. As a passive effect it ran after paint, so there was
+  // one frame showing the grown content at the old scroll position - a visible
+  // twitch on every message, and one that would not have matched how the
+  // typing row below moves.
+  useLayoutEffect(() => {
     pinnedToBottom.current = true;
     jumpToBottom();
   }, [messages.length, jumpToBottom]);
 
   // When reactions change (badge appears/disappears), maintain scroll position if pinned.
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (pinnedToBottom.current) jumpToBottom();
   }, [reactions, jumpToBottom]);
+
+  // The typing row appearing or disappearing changes the container's height by
+  // exactly one row. Re-pin ONLY when the user was already at the bottom: if
+  // they have scrolled up into history, a peer starting to type must not move
+  // their view a single pixel. On the way out the browser's own scrollTop
+  // clamp and this jump agree, so nothing shifts either.
+  const someoneTyping = typingUserIds.length > 0;
+  useLayoutEffect(() => {
+    if (pinnedToBottom.current) jumpToBottom();
+  }, [someoneTyping, jumpToBottom]);
 
   useEffect(() => {
     const unread = messages
@@ -904,6 +954,17 @@ export function MessageThread({
       container.scrollHeight - container.scrollTop - container.clientHeight;
     pinnedToBottom.current = distanceFromBottom < 50;
     setShowScrollBtn(distanceFromBottom > 60);
+
+    // The floating date tells you WHERE IN HISTORY you are - and pinned to the
+    // bottom you are not in history, you are at the live end, where the date
+    // is the one thing you already know.
+    //
+    // This also settles a whole class of false positives at once, instead of
+    // chasing them one by one: the first load, a message landing, the typing
+    // row appearing, and - the one that has no write to hang a flag on - the
+    // browser clamping scrollTop by itself when the typing row vanishes from
+    // under a bottom-pinned view. Every one of those happens at the bottom.
+    if (pinnedToBottom.current) return;
 
     const containerTop = container.getBoundingClientRect().top;
     const msgEls = container.querySelectorAll<HTMLElement>("[data-msg-date]");
@@ -993,6 +1054,48 @@ export function MessageThread({
     setUploadError(null);
   }, []);
 
+  /**
+   * Ends the burst for `convId` - takes it explicitly so the unmount cleanup
+   * can pass the id it captured rather than whatever is current by then.
+   * Costs nothing when no burst was open: the socket hook drops a stop that
+   * had no start.
+   */
+  const stopTyping = useCallback((convId: string | null) => {
+    if (typingIdleTimerRef.current) {
+      clearTimeout(typingIdleTimerRef.current);
+      typingIdleTimerRef.current = null;
+    }
+    if (!typingActiveRef.current) return;
+    typingActiveRef.current = false;
+    if (convId) onTypingRef.current?.(convId, false);
+  }, []);
+
+  /**
+   * Called on every keystroke. The socket hook throttles this down to one
+   * frame every few seconds, so the per-keystroke call is free; all this does
+   * is (re)arm the silence timer that ends the burst.
+   */
+  const startTyping = useCallback(
+    (convId: string | null) => {
+      if (!convId) return;
+      typingActiveRef.current = true;
+      onTypingRef.current?.(convId, true);
+      if (typingIdleTimerRef.current) clearTimeout(typingIdleTimerRef.current);
+      typingIdleTimerRef.current = setTimeout(
+        () => stopTyping(convId),
+        TYPING_IDLE_MS,
+      );
+    },
+    [stopTyping],
+  );
+
+  // Leaving the thread (or switching conversation) ends the burst against the
+  // conversation it started in.
+  useEffect(() => {
+    const convId = conversationId;
+    return () => stopTyping(convId);
+  }, [conversationId, stopTyping]);
+
   const handleSend = useCallback(() => {
     const trimmed = applyEmojiShortcodes(text.trim());
     const done = pendingAttachments.filter((a) => a.status === "done");
@@ -1008,14 +1111,21 @@ export function MessageThread({
     }));
     onSend(trimmed, attachments);
     playSendSound();
+    // The message itself tells the peer we stopped, so this only tears down
+    // our local timer - the socket hook swallows the redundant stop frame.
+    stopTyping(conversationId);
     setText("");
     setPendingAttachments([]);
     setUploadError(null);
-  }, [text, pendingAttachments, onSend]);
+  }, [text, pendingAttachments, onSend, conversationId, stopTyping]);
 
   const handleTextChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const newText = e.target.value;
+      // An empty box is not composing - stop immediately rather than waiting
+      // out the silence timer.
+      if (newText.trim()) startTyping(conversationId);
+      else stopTyping(conversationId);
       const pos = e.target.selectionStart ?? newText.length;
       const before = newText.slice(0, pos);
       const sep = Math.max(before.lastIndexOf(" "), before.lastIndexOf("\n"));
@@ -1033,7 +1143,7 @@ export function MessageThread({
       }
       setText(newText);
     },
-    [],
+    [conversationId, startTyping, stopTyping],
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -1088,7 +1198,10 @@ export function MessageThread({
           </div>
 
           {messages.length === 0 && (
-            <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+            // flex-1, not h-full: it has to share the column with the typing
+            // row when the other side is composing the very first message,
+            // rather than force the container into an overflow.
+            <div className="flex items-center justify-center flex-1 text-sm text-muted-foreground">
               No messages yet. Say hello!
             </div>
           )}
@@ -1299,6 +1412,17 @@ export function MessageThread({
               </div>
             );
           })}
+          {/* Typing row - last flow child before the bottom marker, so
+              scrollHeight always includes it and bottomRef stays the true
+              bottom. Mounted only while someone is typing; see TypingBubble
+              for why its height must be final on the first frame. */}
+          {someoneTyping && (
+            <TypingBubble
+              key={typingUserIds[0]}
+              userId={typingUserIds[0]}
+              profile={profiles[typingUserIds[0]]}
+            />
+          )}
           <div ref={bottomRef} />
         </div>
 

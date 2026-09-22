@@ -19,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useChatStore } from "../store/chatStore";
 import { useChatToken } from "../hooks/useChatToken";
 import { useChatSocket } from "../hooks/useChatSocket";
+import { useTypingExpiry } from "../hooks/useTypingExpiry";
 import { unlockAudioContext } from "../utils/chatSounds";
 import { useConversations } from "../hooks/useConversations";
 import { useMessages } from "../hooks/useMessages";
@@ -129,8 +130,12 @@ function ChatDrawerRootInner() {
   const { data: tokenData } = useChatToken();
   const currentUserId = tokenData?.userId ?? "";
   // Socket lives here so it stays connected regardless of drawer open/close state
-  const { sendMessage, markRead } = useChatSocket(tokenData?.token, currentUserId);
+  const { sendMessage, sendTyping, markRead } = useChatSocket(tokenData?.token, currentUserId);
   const { isOpen, close, bootstrapUnread } = useChatStore();
+
+  // Lives here, not in the drawer body: the inbox row's "typing..." has to
+  // expire even while the drawer is closed.
+  useTypingExpiry();
 
   // Fetch conversations here (always mounted) so we can bootstrap unread
   // badges before the drawer is ever opened. React Query deduplicates this
@@ -192,6 +197,7 @@ function ChatDrawerRootInner() {
         <ChatDrawerInner
           currentUserId={currentUserId}
           sendMessage={sendMessage}
+          sendTyping={sendTyping}
           markRead={markRead}
         />
       </SheetContent>
@@ -202,13 +208,14 @@ function ChatDrawerRootInner() {
 interface InnerProps {
   currentUserId: string;
   sendMessage: (conversationId: string, text: string, attachments?: { key: string; type: string; width?: number; height?: number; filename?: string; size?: number }[]) => void;
+  sendTyping: (conversationId: string, isTyping: boolean) => void;
   markRead: (conversationId: string, messageIds: string[]) => void;
 }
 
-function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
+function ChatDrawerInner({ currentUserId, sendMessage, sendTyping, markRead }: InnerProps) {
   const t = useTranslations("chat");
   const tCommon = useTranslations("common");
-  const { selectedConvId, close, setSelectedConvId, convUnread, readStatus } = useChatStore();
+  const { selectedConvId, close, setSelectedConvId, convUnread, readStatus, typing } = useChatStore();
   const queryClient = useQueryClient();
 
   const { data: convsData, isLoading: convsLoading } = useConversations();
@@ -234,6 +241,11 @@ function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
   }, [selectedConvId, queryClient]);
 
   const inThread = !!selectedConvId;
+
+  const typingInSelected = useMemo(
+    () => Object.keys(typing[selectedConvId ?? ""] ?? {}),
+    [typing, selectedConvId]
+  );
 
   const [search, setSearch] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -325,8 +337,10 @@ function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
             currentUserId={currentUserId}
             isLoading={msgsLoading}
             profiles={profiles}
+            typingUserIds={typingInSelected}
             onSend={(text, attachments) => sendMessage(selectedConvId!, text, attachments)}
             onMarkRead={(ids) => markRead(selectedConvId!, ids)}
+            onTyping={sendTyping}
           />
         ) : (
           <div className="flex flex-col h-full">
@@ -347,6 +361,7 @@ function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
                 profilesLoading={profilesLoading}
                 convUnread={convUnread}
                 readStatus={readStatus}
+                typing={typing}
                 onSelect={setSelectedConvId}
                 isLoading={convsLoading}
                 isSearching={!!search.trim()}

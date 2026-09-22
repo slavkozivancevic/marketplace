@@ -357,6 +357,42 @@
   animation: app-loader-dot 1.2s ease-in-out infinite;
 }
 
+/* Chat typing indicator - same rhythm as the loader dots, smaller travel so it
+   sits calmly inside a message bubble. `transform`/`opacity` only: the row is
+   inside the message scroll container and must never change its own height,
+   or every frame of the animation would move the scroll position. */
+@keyframes chat-typing-dot {
+  0%, 70%, 100% { opacity: 0.3; transform: translateY(0); }
+  35% { opacity: 1; transform: translateY(-3px); }
+}
+
+.chat-typing-dot {
+  animation: chat-typing-dot 1.3s ease-in-out infinite;
+}
+
+/* Entrance for the typing row. It runs on mount, so the row is laid out at its
+   final height in the very first frame and only `opacity`/`transform` move
+   after that - the scroll container's height changes exactly once, in the
+   commit the layout effect re-pins against. */
+@keyframes chat-typing-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.chat-typing-enter {
+  animation: chat-typing-enter 180ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-typing-dot {
+    animation: none;
+    opacity: 0.55;
+  }
+  .chat-typing-enter {
+    animation: none;
+  }
+}
+
 /* ===== SUBTLE GLOBAL BACKGROUND IMAGE ===== */
 /* `absolute`, not `fixed`: it fills whatever positioned wrapper it's dropped
    into - `.app-shell` on a normal page, the `fixed inset-0` overlay in

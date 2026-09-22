@@ -1430,6 +1430,8 @@
     "deleting": "Brisanje...",
     "delete": "Obriši",
     "searchPlaceholder": "Pretraži razgovore...",
+    "typing": "kuca...",
+    "isTyping": "{name} kuca...",
     "messageSeller": "Poruka prodavcu",
     "openingConversation": "Otvaranje...",
     "ownProduct": "Vaš proizvod",

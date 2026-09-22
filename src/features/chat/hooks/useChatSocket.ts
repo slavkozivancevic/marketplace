@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { env } from "@/env/client";
 import { WsIncomingEvent, ChatMessage, Conversation } from "../types";
-import { useChatStore } from "../store/chatStore";
+import { useChatStore, TYPING_HEARTBEAT_MS } from "../store/chatStore";
 import { playReceiveSound } from "../utils/chatSounds";
 
 type ReactionsResponse = { reactions: Record<string, Record<string, string[]>> };
@@ -35,6 +35,10 @@ function attachmentMeta(attachments: { type: string; filename?: string }[]): {
 export function useChatSocket(token: string | undefined, currentUserId: string) {
   const queryClient = useQueryClient();
   const wsRef = useRef<WebSocket | null>(null);
+  // conversationId → epoch ms of the last "start" frame we sent for it.
+  // Throttles the heartbeat so a long message costs a handful of frames
+  // instead of one per keystroke.
+  const typingSentAtRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     if (!token) return;
@@ -66,6 +70,11 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
           const msg = data.message;
           // Ensure readBy is always an array - older Lambda versions may omit it
           const safeMsg: ChatMessage = { ...msg, readBy: msg.readBy ?? [] };
+
+          // The message itself proves they stopped typing. Without this the
+          // dots hang around behind the new bubble until the TTL expires,
+          // which is the detail that makes an indicator look broken.
+          useChatStore.getState().setTyping(msg.conversationId, msg.senderId, false);
 
           // Inject into messages cache only if the conversation is already cached.
           // If it isn't, leave the cache empty so useMessages fetches the full
@@ -240,6 +249,18 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
           }
         }
 
+        if (data.type === "TYPING") {
+          // Ephemeral by design: no cache write, no sound, no unread bump.
+          // Our own echo can never reach us (the Lambda skips the sender), but
+          // guard anyway so a future multi-device fan-out can't show us our
+          // own dots.
+          if (data.userId !== currentUserId) {
+            useChatStore
+              .getState()
+              .setTyping(data.conversationId, data.userId, data.isTyping);
+          }
+        }
+
         if (data.type === "CONVERSATION_DELETED") {
           // Remove from conversation list cache
           queryClient.setQueryData<{ conversations: Conversation[] }>(
@@ -256,6 +277,7 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
           // Invalidate message and search caches for this conversation
           void queryClient.removeQueries({ queryKey: ["chat-messages", data.conversationId] });
           void queryClient.removeQueries({ queryKey: ["conversation-search"] });
+          useChatStore.getState().clearTyping(data.conversationId);
           // If the deleted conversation is open, close it
           const { selectedConvId, setSelectedConvId } = useChatStore.getState();
           if (selectedConvId === data.conversationId) {
@@ -272,6 +294,9 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
       ws.onclose = (event) => {
         logger.info("[chat] WebSocket closed", event.code, event.reason);
         wsRef.current = null;
+        // The next burst after a reconnect must send a fresh start rather than
+        // be throttled against a timestamp from the dead socket.
+        typingSentAtRef.current = {};
         if (!closed && event.code !== 1000) {
           setTimeout(connect, 3000);
         }
@@ -342,6 +367,11 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
     // Track read status in the store - sender has read their own message
     useChatStore.getState().setReadStatus(conversationId, [currentUserId]);
 
+    // The message clears the peer's indicator on arrival, so the composer's
+    // follow-up stop has nothing left to announce - drop the throttle entry
+    // and `sendTyping` will skip that frame entirely.
+    delete typingSentAtRef.current[conversationId];
+
     wsRef.current.send(
       JSON.stringify({ action: "sendMessage", conversationId, text, attachments })
     );
@@ -367,6 +397,32 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
     }, 800);
   };
 
+  /**
+   * Tells the other participants whether we are composing.
+   *
+   * Cost control lives here, not on the server: a "start" goes out at most
+   * once every TYPING_HEARTBEAT_MS per conversation, and a "stop" is only sent
+   * if a "start" actually preceded it - so leaving an untouched thread, or
+   * blurring an empty composer, costs nothing at all.
+   */
+  const sendTyping = (conversationId: string, isTyping: boolean) => {
+    if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+
+    const lastSentAt = typingSentAtRef.current[conversationId];
+
+    if (isTyping) {
+      if (lastSentAt && Date.now() - lastSentAt < TYPING_HEARTBEAT_MS) return;
+      typingSentAtRef.current[conversationId] = Date.now();
+    } else {
+      if (!lastSentAt) return;
+      delete typingSentAtRef.current[conversationId];
+    }
+
+    wsRef.current.send(
+      JSON.stringify({ action: "typing", conversationId, isTyping })
+    );
+  };
+
   const markRead = (conversationId: string, messageIds: string[]) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(
@@ -375,5 +431,5 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
     }
   };
 
-  return { sendMessage, markRead };
+  return { sendMessage, sendTyping, markRead };
 }
