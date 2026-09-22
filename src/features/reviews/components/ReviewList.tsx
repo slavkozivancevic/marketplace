@@ -15,17 +15,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ActionButton } from "@/components/ActionButton";
 import { Pencil, Trash2, Loader2 } from "lucide-react";
 import { StarRating } from "./StarRating";
 import { deleteReview, updateReview } from "../actions/reviews";
@@ -313,57 +303,23 @@ function ReviewItem({
               >
                 <Pencil className="h-4 w-4" />
               </Button>
-              <AlertDialog
+              <ActionButton
                 open={deleteOpen}
-                onOpenChange={(next) => {
-                  if (isDeleting) return;
-                  onDeleteOpenChange(next);
-                }}
+                onOpenChange={onDeleteOpenChange}
+                title={t("deleteConfirm")}
+                description={t("deleteDesc")}
+                confirmText={tCommon("delete")}
+                loadingText={t("deleting")}
+                isLoading={isDeleting}
+                onConfirm={onDelete}
               >
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    disabled={isDeleting}
-                  >
-                    {isDeleting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                    <span className="sr-only">{tCommon("delete")}</span>
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>{t("deleteConfirm")}</AlertDialogTitle>
-                    <AlertDialogDescription>{t("deleteDesc")}</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel disabled={isDeleting}>
-                      {tCommon("cancel")}
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={(e) => {
-                        e.preventDefault();
-                        onDelete();
-                      }}
-                      disabled={isDeleting}
-                      variant="destructiveSolid"
-                    >
-                      {isDeleting ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          {t("deleting")}
-                        </>
-                      ) : (
-                        tCommon("delete")
-                      )}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                {/* Resting control - the dialog's confirm button carries the
+                    spinner. */}
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Trash2 className="h-4 w-4" />
+                  <span className="sr-only">{tCommon("delete")}</span>
+                </Button>
+              </ActionButton>
             </div>
           )}
         </div>

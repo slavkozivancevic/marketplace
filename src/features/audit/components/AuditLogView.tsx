@@ -39,7 +39,8 @@ const KNOWN_ACTIONS = new Set([
   "order.refunded", "order.partially_refunded", "payout.released",
   "return.requested", "return.approved", "return.rejected", "return.shipped", "return.refunded",
   "user.role_changed", "member.role_changed", "member.removed",
-  "member.invite_accepted", "member.invite_declined", "organization.verified_changed",
+  "member.invite_accepted", "member.invite_declined", "member.invite_revoked",
+  "organization.verified_changed",
   "product.created", "product.updated", "product.deleted", "product.duplicated",
   "product.published", "product.unpublished", "product.archived", "product.unarchived",
   "product.rolled_back", "product.bulk_status", "product.bulk_deleted", "product.bulk_created",
@@ -203,6 +204,9 @@ export function AuditLogView({
     deletedClerkUserId: t("fields.deletedClerkUserId"),
     promotedUserId: t("fields.promotedUserId"),
     productCount: t("fields.productCount"),
+    // What was deleted. The row is gone by the time anyone reads this, so the
+    // name is the only thing that identifies it.
+    name: t("fields.name"),
   };
   // Enum-like values (roles, statuses, booleans) are translated; identifiers
   // (UUIDs, field names, currency codes, numbers) fall through unchanged.

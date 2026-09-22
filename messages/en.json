@@ -537,6 +537,7 @@
         "deletedClerkUserId": "Deleted user",
         "promotedUserId": "Promoted user",
         "productCount": "Product count",
+        "name": "Name",
         "fee": "Commission",
         "orderCancelled": "Order cancelled",
         "paid": "Paid out"
@@ -590,7 +591,8 @@
           "role_changed": "Member role changed",
           "removed": "Member removed",
           "invite_accepted": "Invite accepted",
-          "invite_declined": "Invite declined"
+          "invite_declined": "Invite declined",
+          "invite_revoked": "Invite revoked"
         },
         "organization": {
           "verified_changed": "Organization verification changed",
@@ -823,7 +825,8 @@
     "cancel": "Cancel",
     "deleteConfirm": "Delete \"{name}\"?",
     "deleteDesc": "This action cannot be undone.",
-    "deleteHasChildren": "This department has {count} subcategories that will also be affected.",
+    "deleteHasChildren": "This department has {count} subcategories. Move or delete them first - a department with subcategories cannot be deleted.",
+    "deleteHasProducts": "This category holds {count} products. Move them to another category first - a category with products cannot be deleted.",
     "attributesTitle": "Category Filters",
     "attributesDesc": "Assign filterable attributes shoppers can use to narrow this category. Attributes from parent departments are inherited automatically.",
     "inheritedAttributes": "Inherited from parent",
@@ -897,7 +900,8 @@
     "cancel": "Cancel",
     "deleteConfirm": "Delete \"{name}\"?",
     "deleteDesc": "This action cannot be undone.",
-    "deleteInUse": "This attribute is used by {categories} categories and {products} products. Removing it deletes those assignments and values.",
+    "deleteInUse": "This attribute holds {count} values on products. Remove it from those products first - an attribute in use cannot be deleted.",
+    "deleteFromCategories": "It is assigned to {count} categories; those assignments will be removed.",
     "editTitleLoading": "Edit Attribute"
   },
   "cart": {
@@ -1012,7 +1016,8 @@
     "brandCreated": "Brand created",
     "brandDeleted": "Brand deleted",
     "deleteConfirm": "Delete \"{name}\"?",
-    "deleteDesc": "Products linked to this brand will have their brand cleared. This cannot be undone.",
+    "deleteDesc": "This action cannot be undone.",
+    "deleteInUse": "This brand is used by {count} products. Reassign or delete them first - a brand in use cannot be deleted.",
     "brandName": "Brand Name",
     "slugDesc": "URL-friendly identifier. Auto-generated from name.",
     "logoUrl": "Logo URL",
@@ -1093,7 +1098,13 @@
     "expiredHeading": "Invite Expired",
     "expiredBody": "This invite has expired. Please ask your organization owner to send a new invite.",
     "usedHeading": "Invite Already Used",
-    "usedBody": "This invite has already been used or canceled.",
+    "usedBody": "You have already accepted this invite. The organization is on your dashboard.",
+    "declinedHeading": "Invite Declined",
+    "declinedBody": "You declined this invite. Ask the organization to send a new one if that was a mistake.",
+    "revokedHeading": "Invite Withdrawn",
+    "revokedBody": "The organization withdrew this invite. Contact them if you think it should still stand.",
+    "endedHeading": "Invite No Longer Valid",
+    "endedBody": "This invite is no longer valid. Ask the organization to send a new one.",
     "goToDashboard": "Go to Dashboard",
     "yourRole": "Your role:",
     "expiresOn": "Invite expires on {date}.",
@@ -1101,6 +1112,8 @@
     "decline": "Decline",
     "accepting": "Accepting...",
     "declining": "Declining...",
+    "accepted": "You joined the organization",
+    "declined": "Invite declined",
     "wrongAccountHeading": "Wrong Account",
     "wrongAccountBody": "This invite was sent to {email}. Sign out and sign in with that email address to accept it."
   },
@@ -1561,7 +1574,8 @@
     "search": "Search",
     "loadingDetails": "Loading product details...",
     "stuckMessage": "This is taking longer than usual.",
-    "reloadPage": "Reload page"
+    "reloadPage": "Reload page",
+    "close": "Close"
   },
   "orgOrders": {
     "readOnly": "Read-only access",
@@ -1916,6 +1930,11 @@
     "bulkLimitExceeded": "This bulk operation exceeds the allowed limit",
     "bulkCategoryLimit": "The selected filter matches {count} products, but bulk category changes are limited to {limit} at a time. Narrow the filter and try again.",
     "internalError": "Something went wrong. Please try again.",
+    "inUse": "This record is still in use and cannot be deleted.",
+    "categoryHasChildren": "This department still has {count} subcategories. Move or delete them first.",
+    "categoryHasProducts": "This category still holds {count} products. Move them to another category first.",
+    "attributeInUse": "This attribute still holds {count} values on products. Remove it from those products first.",
+    "brandInUse": "This brand is still used by {count} products. Reassign or delete them first.",
     "returnNotEligible": "This order is not eligible for a return.",
     "returnBlockedExternalRefund": "This order already has a manual refund issued outside the app - contact support to proceed.",
     "returnNotShipped": "You can request a return once this seller's items are delivered.",

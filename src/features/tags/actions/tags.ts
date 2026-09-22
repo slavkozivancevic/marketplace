@@ -80,8 +80,13 @@ export async function deleteTagAction(
 ): Promise<{ ok: true } | ActionErrorResult> {
   try {
     await requireRole("ADMIN");
-    await deleteTag(id);
-    await recordAudit({ action: "tag.deleted", entityType: "Tag", entityId: id });
+    const name = await deleteTag(id);
+    await recordAudit({
+      action: "tag.deleted",
+      entityType: "Tag",
+      entityId: id,
+      diff: { name },
+    });
     return { ok: true };
   } catch (error) {
     return handleActionError(error);

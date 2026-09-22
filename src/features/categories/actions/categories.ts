@@ -87,8 +87,16 @@ export async function deleteCategoryAction(
 ): Promise<{ ok: true } | ActionErrorResult> {
   try {
     await requireRole("ADMIN");
-    await deleteCategory(id);
-    await recordAudit({ action: "category.deleted", entityType: "Category", entityId: id });
+    // The name goes into the audit entry because the row itself is gone: an id
+    // alone cannot tell you what was deleted, which is exactly the hole the
+    // 2026-09-21 category delete fell into.
+    const name = await deleteCategory(id);
+    await recordAudit({
+      action: "category.deleted",
+      entityType: "Category",
+      entityId: id,
+      diff: { name },
+    });
     return { ok: true };
   } catch (error) {
     return handleActionError(error);

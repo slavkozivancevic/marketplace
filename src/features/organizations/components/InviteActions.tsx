@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
+import { setFlash } from "@/lib/navigation/flash";
 import { acceptInviteAction, declineInviteAction } from "../actions/invites";
 
 interface InviteActionsProps {
@@ -31,14 +32,28 @@ export function InviteActions({ token }: InviteActionsProps) {
       // Accepting switched the active org server-side; refresh so the session
       // token is reissued with the new org before landing on the dashboard.
       router.refresh();
-      router.push(`/${locale}/dashboard/organization`);
+      // Queued rather than raised: this button keeps spinning through the
+      // navigation, so a toast here would sit next to a pending control on the
+      // page being left. FlashHost raises it on the organization page, which is
+      // where the result - the org you just joined - is visible.
+      const target = `/${locale}/dashboard/organization`;
+      setFlash(t("accepted"), { path: target });
+      router.push(target);
     });
   };
 
   const handleDecline = () => {
     startDeclineTransition(async () => {
-      await declineInviteAction(token);
-      router.push(`/${locale}/dashboard`);
+      const result = await declineInviteAction(token);
+      if (result && "error" in result) {
+        toast.error(result.message);
+        return;
+      }
+      // Declining leaves nothing on screen to show for it, so the confirmation
+      // is the only feedback there is - same flash treatment as accepting.
+      const target = `/${locale}/dashboard`;
+      setFlash(t("declined"), { path: target });
+      router.push(target);
     });
   };
 

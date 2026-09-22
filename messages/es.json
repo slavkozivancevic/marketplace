@@ -537,6 +537,7 @@
         "deletedClerkUserId": "Usuario eliminado",
         "promotedUserId": "Usuario ascendido",
         "productCount": "Cantidad de productos",
+        "name": "Nombre",
         "fee": "Comisión",
         "orderCancelled": "Pedido cancelado",
         "paid": "Pagado"
@@ -590,7 +591,8 @@
           "role_changed": "Rol de miembro cambiado",
           "removed": "Miembro eliminado",
           "invite_accepted": "Invitación aceptada",
-          "invite_declined": "Invitación rechazada"
+          "invite_declined": "Invitación rechazada",
+          "invite_revoked": "Invitación revocada"
         },
         "organization": {
           "verified_changed": "Verificación de organización cambiada",
@@ -823,7 +825,8 @@
     "cancel": "Cancelar",
     "deleteConfirm": "¿Eliminar \"{name}\"?",
     "deleteDesc": "Esta acción no se puede deshacer.",
-    "deleteHasChildren": "Este departamento tiene {count} subcategorías que también se verán afectadas.",
+    "deleteHasChildren": "Este departamento tiene {count} subcategorías. Muévelas o elimínalas primero: un departamento con subcategorías no se puede eliminar.",
+    "deleteHasProducts": "Esta categoría contiene {count} productos. Muévelos a otra categoría primero: una categoría con productos no se puede eliminar.",
     "attributesTitle": "Filtros de categoría",
     "attributesDesc": "Asigna atributos filtrables que los compradores pueden usar para acotar esta categoría. Los atributos de los departamentos superiores se heredan automáticamente.",
     "inheritedAttributes": "Heredado del superior",
@@ -897,7 +900,8 @@
     "cancel": "Cancelar",
     "deleteConfirm": "¿Eliminar \"{name}\"?",
     "deleteDesc": "Esta acción no se puede deshacer.",
-    "deleteInUse": "Este atributo lo usan {categories} categorías y {products} productos. Al quitarlo se eliminan esas asignaciones y valores.",
+    "deleteInUse": "Este atributo tiene {count} valores en productos. Quítalo de esos productos primero: un atributo en uso no se puede eliminar.",
+    "deleteFromCategories": "Está asignado a {count} categorías; esas asignaciones se eliminarán.",
     "editTitleLoading": "Editar atributo"
   },
   "cart": {
@@ -1012,7 +1016,8 @@
     "brandCreated": "Marca creada",
     "brandDeleted": "Marca eliminada",
     "deleteConfirm": "¿Eliminar \"{name}\"?",
-    "deleteDesc": "Los productos vinculados a esta marca perderán la asociación. Esto no se puede deshacer.",
+    "deleteDesc": "Esta acción no se puede deshacer.",
+    "deleteInUse": "Esta marca la usan {count} productos. Reasígnalos o elimínalos primero: una marca en uso no se puede eliminar.",
     "brandName": "Nombre de la marca",
     "slugDesc": "Identificador apto para URL. Se genera automáticamente a partir del nombre.",
     "logoUrl": "URL del logotipo",
@@ -1093,7 +1098,13 @@
     "expiredHeading": "Invitación caducada",
     "expiredBody": "Esta invitación ha caducado. Pide al propietario de tu organización una nueva invitación.",
     "usedHeading": "Invitación ya utilizada",
-    "usedBody": "Esta invitación ya ha sido utilizada o cancelada.",
+    "usedBody": "Ya has aceptado esta invitación. La organización está en tu panel.",
+    "declinedHeading": "Invitación rechazada",
+    "declinedBody": "Rechazaste esta invitación. Pide una nueva a la organización si fue un error.",
+    "revokedHeading": "Invitación retirada",
+    "revokedBody": "La organización retiró esta invitación. Contáctala si crees que debería seguir vigente.",
+    "endedHeading": "La invitación ya no es válida",
+    "endedBody": "Esta invitación ya no es válida. Pide una nueva a la organización.",
     "goToDashboard": "Ir al panel",
     "yourRole": "Tu rol:",
     "expiresOn": "La invitación caduca el {date}.",
@@ -1101,6 +1112,8 @@
     "decline": "Rechazar",
     "accepting": "Aceptando...",
     "declining": "Rechazando...",
+    "accepted": "Te has unido a la organización",
+    "declined": "Invitación rechazada",
     "wrongAccountHeading": "Cuenta incorrecta",
     "wrongAccountBody": "Esta invitación se envió a {email}. Cierra sesión e inicia sesión con esa dirección de correo electrónico para aceptarla."
   },
@@ -1561,7 +1574,8 @@
     "search": "Buscar",
     "loadingDetails": "Cargando detalles del producto...",
     "stuckMessage": "Esto está tardando más de lo habitual.",
-    "reloadPage": "Recargar página"
+    "reloadPage": "Recargar página",
+    "close": "Cerrar"
   },
   "orgOrders": {
     "readOnly": "Acceso de solo lectura",
@@ -1916,6 +1930,11 @@
     "bulkLimitExceeded": "Esta operación masiva supera el límite permitido",
     "bulkCategoryLimit": "El filtro seleccionado coincide con {count} productos, pero los cambios masivos de categorías están limitados a {limit} a la vez. Acota el filtro e inténtalo de nuevo.",
     "internalError": "Algo salió mal. Inténtalo de nuevo.",
+    "inUse": "Este registro todavía está en uso y no se puede eliminar.",
+    "categoryHasChildren": "Este departamento todavía tiene {count} subcategorías. Muévelas o elimínalas primero.",
+    "categoryHasProducts": "Esta categoría todavía contiene {count} productos. Muévelos a otra categoría primero.",
+    "attributeInUse": "Este atributo todavía tiene {count} valores en productos. Quítalo de esos productos primero.",
+    "brandInUse": "Esta marca todavía la usan {count} productos. Reasígnalos o elimínalos primero.",
     "returnNotEligible": "Este pedido no es elegible para una devolución.",
     "returnBlockedExternalRefund": "Este pedido ya tiene un reembolso manual emitido fuera de la aplicación - contacta con soporte para continuar.",
     "returnNotShipped": "Puedes solicitar una devolución una vez que este vendedor entregue tus artículos.",

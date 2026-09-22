@@ -205,14 +205,14 @@ export async function declineInvite(token: string) {
     throw new NotFoundError('Invite not found');
   }
 
-  // Only a still-pending invite transitions to CANCELED (and notifies). Guards
+  // Only a still-pending invite transitions to DECLINED (and notifies). Guards
   // against re-declining an already-final invite double-firing the email/audit.
   const wasPending = invite.status === InviteStatus.PENDING;
 
   if (wasPending) {
     await prisma.invite.update({
       where: { token },
-      data: { status: InviteStatus.CANCELED },
+      data: { status: InviteStatus.DECLINED },
     });
 
     revalidateOrganizationInvites(invite.orgId);
@@ -242,10 +242,19 @@ export async function cancelInvite(inviteId: string, orgId: string) {
     throw new NotFoundError("Invite not found");
   }
 
-  await prisma.invite.update({
-    where: { id: inviteId },
-    data: { status: InviteStatus.CANCELED },
-  });
+  // Same guard declineInvite carries: only the real PENDING -> REVOKED
+  // transition counts, so a double-click or a stale row left over from another
+  // admin revoking first cannot write the audit entry twice.
+  const wasPending = invite.status === InviteStatus.PENDING;
 
-  revalidateOrganizationInvites(orgId);
+  if (wasPending) {
+    await prisma.invite.update({
+      where: { id: inviteId },
+      data: { status: InviteStatus.REVOKED },
+    });
+
+    revalidateOrganizationInvites(orgId);
+  }
+
+  return { id: invite.id, email: invite.email, role: invite.role, wasPending };
 }

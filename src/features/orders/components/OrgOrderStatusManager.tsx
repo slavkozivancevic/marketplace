@@ -6,17 +6,7 @@ import { XCircle, Loader2, BadgeDollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ActionButton } from "@/components/ActionButton";
 import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
 import { markCodPaymentReceived, cancelOrder } from "../actions/updateOrgOrderStatus";
 import { useRefreshOrderViews } from "../hooks/useRefreshOrderViews";
@@ -44,51 +34,29 @@ function CancelOrderButton({
 }) {
   const t = useTranslations("orgOrders");
   return (
-    <AlertDialog
+    <ActionButton
       open={open}
-      onOpenChange={(next) => {
-        if (loading) return; // keep the dialog open while the action runs
-        onOpenChange(next);
-      }}
+      onOpenChange={onOpenChange}
+      title={t("cancelConfirmTitle")}
+      description={t("cancelConfirmDesc")}
+      confirmText={t("cancelOrder")}
+      loadingText={t("cancellingOrder")}
+      cancelText={t("keepOrder")}
+      isLoading={loading}
+      onConfirm={onConfirm}
     >
-      <AlertDialogTrigger asChild>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={disabled}
-          className="border-destructive text-destructive pointer-fine:hover:bg-destructive/10 pointer-fine:hover:text-destructive"
-        >
-          <XCircle className="mr-2 h-4 w-4" />
-          {t("cancelOrder")}
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{t("cancelConfirmTitle")}</AlertDialogTitle>
-          <AlertDialogDescription>{t("cancelConfirmDesc")}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={loading}>{t("keepOrder")}</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={(e) => {
-              e.preventDefault();
-              onConfirm();
-            }}
-            disabled={loading}
-            variant="destructiveSolid"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                {t("cancellingOrder")}
-              </>
-            ) : (
-              t("cancelOrder")
-            )}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      {/* Resting control - the dialog's confirm button carries the spinner.
+          `disabled` covers the other actions on this card, not this one. */}
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={disabled}
+        className="border-destructive text-destructive pointer-fine:hover:bg-destructive/10 pointer-fine:hover:text-destructive"
+      >
+        <XCircle className="mr-2 h-4 w-4" />
+        {t("cancelOrder")}
+      </Button>
+    </ActionButton>
   );
 }
 

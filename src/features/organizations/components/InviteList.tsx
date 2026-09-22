@@ -66,7 +66,7 @@ export function InviteList({ invites, canManage }: InviteListProps) {
               </Badge>
               {canManage && (
                 <Button
-                  variant="ghost"
+                  variant="ghostDestructive"
                   size="sm"
                   disabled={isPending}
                   onClick={() => handleCancel(invite.id)}

@@ -30,17 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 // table and its loading state can never describe different columns.
 import { REVIEW_COLS as GRID, ReviewSkeletonRow as SkeletonRow } from "./ReviewTableSkeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ActionButton } from "@/components/ActionButton";
 import { useRouter } from "@/i18n/navigation";
 import { toast } from "@/components/ui/sonner";
 import { getProductTitle } from "@/features/products/utils/translations";
@@ -123,31 +113,15 @@ function RowActions({
           moderate, so suppressing it would be rating manipulation, not
           moderation. Such rows are read-only here. */}
       {review.status !== "REJECTED" && !!review.comment ? (
-        <AlertDialog
+        <ActionButton
           open={rejectOpen}
           onOpenChange={(next) => {
-            if (isRejecting) return;
             setRejectOpen(next);
             if (next) setReason("");
           }}
-        >
-          <AlertDialogTrigger asChild>
-            <Button
-              size="icon"
-              variant="ghostDestructive"
-              className="h-8 w-8"
-              disabled={busy}
-              title={t("reject")}
-            >
-              {isRejecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
-              <span className="sr-only">{t("reject")}</span>
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{t("rejectConfirm")}</AlertDialogTitle>
-              <AlertDialogDescription>{t("rejectDesc")}</AlertDialogDescription>
-            </AlertDialogHeader>
+          title={t("rejectConfirm")}
+          description={t("rejectDesc")}
+          body={
             <Textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
@@ -156,28 +130,26 @@ function RowActions({
               maxLength={500}
               disabled={isRejecting}
             />
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isRejecting}>{tc("cancel")}</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={(e) => {
-                  e.preventDefault();
-                  onReject(review.id, reason);
-                }}
-                disabled={isRejecting}
-                variant="destructiveSolid"
-              >
-                {isRejecting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    {t("rejecting")}
-                  </>
-                ) : (
-                  t("reject")
-                )}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          }
+          confirmText={t("reject")}
+          loadingText={t("rejecting")}
+          cancelText={tc("cancel")}
+          isLoading={isRejecting}
+          onConfirm={() => onReject(review.id, reason)}
+        >
+          {/* Resting control - the dialog's confirm button carries the spinner.
+              `busy` is this row's other action (approve), not this one. */}
+          <Button
+            size="icon"
+            variant="ghostDestructive"
+            className="h-8 w-8"
+            disabled={busy}
+            title={t("reject")}
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">{t("reject")}</span>
+          </Button>
+        </ActionButton>
       ) : (
         <span className="h-8 w-8" aria-hidden />
       )}

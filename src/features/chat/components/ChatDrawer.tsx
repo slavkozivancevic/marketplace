@@ -2,22 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { MessageCircle, ArrowLeft, Trash2, Loader2, X } from "lucide-react";
+import { MessageCircle, ArrowLeft, Trash2, X } from "lucide-react";
 import { SearchInput } from "@/components/search/SearchInput";
 import { SignedIn, useAuth } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ActionButton } from "@/components/ActionButton";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -303,34 +293,23 @@ function ChatDrawerInner({ currentUserId, sendMessage, markRead }: InnerProps) {
         </SheetTitle>
         <div className="ml-auto flex items-center gap-0.5 shrink-0">
           {inThread && (
-            <AlertDialog
+            <ActionButton
               open={deleteDialogOpen}
-              onOpenChange={(open) => { if (!deleting) setDeleteDialogOpen(open); }}
+              onOpenChange={setDeleteDialogOpen}
+              title={t("deleteConversation")}
+              description={t("deleteConversationDesc")}
+              confirmText={t("delete")}
+              loadingText={t("deleting")}
+              cancelText={tCommon("cancel")}
+              isLoading={deleting}
+              onConfirm={() => void handleDeleteConversation()}
             >
-              <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon-sm">
-                  <Trash2 className="size-4 text-muted-foreground" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>{t("deleteConversation")}</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {t("deleteConversationDesc")}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={deleting}>{tCommon("cancel")}</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={(e) => { e.preventDefault(); void handleDeleteConversation(); }}
-                    disabled={deleting}
-                    variant="destructiveSolid"
-                  >
-                    {deleting ? <><Loader2 className="size-4 animate-spin" /> {t("deleting")}</> : t("delete")}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              {/* Resting control - the dialog's confirm button carries the
+                  spinner. */}
+              <Button variant="ghost" size="icon-sm">
+                <Trash2 className="size-4 text-muted-foreground" />
+              </Button>
+            </ActionButton>
           )}
           <Button variant="ghost" size="icon-sm" onClick={close}>
             <X className="size-4" />

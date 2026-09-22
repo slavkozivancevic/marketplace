@@ -1,5 +1,6 @@
 import { prisma } from "@/core/db/prisma";
 import { NotFoundError } from "@/features/common/errors/domainErrors";
+import { assertNotInUse } from "@/features/common/db/assertNotInUse";
 import { revalidateCategoryCache } from "./cache";
 import { slugify } from "@/lib/utils";
 import { copyName } from "@/lib/i18n/copyName";
@@ -487,12 +488,29 @@ export async function updateCategory(id: string, data: CategoryMutationData) {
   return category;
 }
 
-export async function deleteCategory(id: string) {
-  const existing = await prisma.category.findUnique({ where: { id } });
+/** Returns the deleted category's default-locale name, for the audit trail. */
+export async function deleteCategory(id: string): Promise<string> {
+  const existing = await prisma.category.findUnique({
+    where: { id },
+    select: {
+      translations: { select: { locale: true, name: true } },
+      _count: { select: { children: true, products: true } },
+    },
+  });
   if (!existing) throw new NotFoundError(`Category ${id} not found`);
+
+  // Subcategories first: they are the blocker that looks like data loss. The
+  // delete itself would succeed - `Category.parent` has no `onDelete`, so the
+  // children are re-parented to the root rather than removed - and the admin
+  // reads that as "it deleted my subcategories". See assertNotInUse.
+  assertNotInUse([
+    { count: existing._count.children, key: "categoryHasChildren" },
+    { count: existing._count.products, key: "categoryHasProducts" },
+  ]);
 
   await prisma.category.delete({ where: { id } });
   revalidateCategoryCache(id);
+  return sourceLabelOf(existing.translations);
 }
 
 /** The source's default-locale name, for the audit trail's "Copied from". */

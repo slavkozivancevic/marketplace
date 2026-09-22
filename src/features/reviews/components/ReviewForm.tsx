@@ -42,6 +42,25 @@ export function ReviewForm({ productId, orderId }: ReviewFormProps) {
       if (isActionErrorResult(result)) {
         setError(result.message);
       } else {
+        // No success toast here, deliberately - and none is missing.
+        //
+        // The write revalidates this page (revalidateReviewCache ->
+        // revalidatePath on the product route), so the transition stays pending
+        // until the new payload lands, and that payload replaces this form with
+        // the review itself - carrying the "awaiting moderation" hint when it
+        // isn't approved yet. The result IS the confirmation, and it arrives on
+        // the falling edge of the spinner.
+        //
+        // An announced toast could not be raised from here anyway:
+        // useAnnounceWhenSettled fires from an effect, and this component is
+        // gone by then (ProductReviewsSection stops rendering it once a review
+        // exists). That is the same reason review deletion had to be lifted out
+        // of the card and into ReviewList.
+        //
+        // Not awaited: these only refresh the rating shown in other React Query
+        // views (cards, breakdown), which are not what the user is looking at,
+        // and awaiting them would hold the spinner past the moment the review
+        // appears.
         queryClient.invalidateQueries({ queryKey: ["products", "public"] });
         queryClient.invalidateQueries({ queryKey: ["product", "rating-breakdown", productId] });
       }

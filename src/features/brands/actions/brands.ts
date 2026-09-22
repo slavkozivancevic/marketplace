@@ -81,8 +81,13 @@ export async function deleteBrandAction(
 ): Promise<{ ok: true } | ActionErrorResult> {
   try {
     await requireRole("ADMIN");
-    await deleteBrand(id);
-    await recordAudit({ action: "brand.deleted", entityType: "Brand", entityId: id });
+    const name = await deleteBrand(id);
+    await recordAudit({
+      action: "brand.deleted",
+      entityType: "Brand",
+      entityId: id,
+      diff: { name },
+    });
     return { ok: true };
   } catch (error) {
     return handleActionError(error);

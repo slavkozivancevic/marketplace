@@ -182,12 +182,23 @@ export async function updateTag(id: string, data: TagMutationData) {
   return tag;
 }
 
-export async function deleteTag(id: string) {
-  const existing = await prisma.tag.findUnique({ where: { id } });
+/**
+ * Returns the deleted tag's default-locale name, for the audit trail.
+ *
+ * No `assertNotInUse` here, deliberately: a tag is a label, and ProductTag
+ * cascading away takes nothing with it that was not already visible on the tag
+ * itself. Categories, attributes and brands are structure - see the guards there.
+ */
+export async function deleteTag(id: string): Promise<string> {
+  const existing = await prisma.tag.findUnique({
+    where: { id },
+    select: { translations: { select: { locale: true, name: true } } },
+  });
   if (!existing) throw new NotFoundError(`Tag ${id} not found`);
 
   await prisma.tag.delete({ where: { id } });
   revalidateTagCache(id);
+  return sourceLabelOf(existing.translations);
 }
 
 /** The source's default-locale name, for the audit trail's "Copied from". */

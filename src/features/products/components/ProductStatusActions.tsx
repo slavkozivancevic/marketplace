@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
@@ -66,6 +66,10 @@ export function ProductStatusActions({
   const [isArchiving, startArchive] = useTransition();
   const [isUnarchiving, startUnarchive] = useTransition();
   const [isDeleting, startDelete] = useTransition();
+  // Never closed by hand on success: the delete navigates away and the whole
+  // page - dialog included - goes with it, while the spinner runs through the
+  // navigation. On failure it stays open with the reason in a toast.
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const handlePublish = () => {
     startPublish(async () => {
@@ -156,6 +160,8 @@ export function ProductStatusActions({
       )}
 
       <ActionButton
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
         title={t("deleteProduct")}
         description={t("deleteProductDesc")}
         confirmText={tCommon("delete")}
@@ -182,9 +188,10 @@ export function ProductStatusActions({
           });
         }}
       >
-        <Button variant="destructive" size="sm" disabled={isDeleting}>
-          {isDeleting && <Loader2 className="animate-spin" />}
-          {isDeleting ? t("deleting") : t("deleteProduct")}
+        {/* Resting control - ActionButton disables it and the dialog's confirm
+            button carries the spinner. */}
+        <Button variant="destructive" size="sm">
+          {t("deleteProduct")}
         </Button>
       </ActionButton>
     </div>

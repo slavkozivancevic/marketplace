@@ -19,17 +19,7 @@ import { SearchInput } from "@/components/search/SearchInput";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ActionButton } from "@/components/ActionButton";
 import { deleteCategoryAction, duplicateCategoryAction } from "../actions/categories";
 import type { CategoryListItem } from "../db/categories";
 import { getCategoryName } from "../utils/translations";
@@ -293,61 +283,33 @@ export function AdminCategoriesPage({
                       : <Copy className="h-4 w-4" />}
                     <span className="sr-only">{t("duplicate")}</span>
                   </Button>
-                  <AlertDialog
+                  <ActionButton
                     open={deleteOpenId === row.id}
-                    onOpenChange={(next) => {
-                      const rowBusy = isPending && deletingId === row.id;
-                      if (rowBusy) return;
-                      setDeleteOpenId(next ? row.id : null);
-                    }}
+                    onOpenChange={(next) => setDeleteOpenId(next ? row.id : null)}
+                    title={t("deleteConfirm", { name: getCategoryName(row, locale) })}
+                    description={t("deleteDesc")}
+                    // Both of these are refused by deleteCategory() as well -
+                    // this only means the admin finds out before clicking,
+                    // instead of through an error toast.
+                    blockedReason={
+                      row._count.children > 0
+                        ? t("deleteHasChildren", { count: row._count.children })
+                        : row._count.products > 0
+                          ? t("deleteHasProducts", { count: row._count.products })
+                          : undefined
+                    }
+                    confirmText={t("delete")}
+                    loadingText={t("deleting")}
+                    isLoading={isPending && deletingId === row.id}
+                    onConfirm={() => handleDelete(row.id)}
                   >
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled={isPending && deletingId === row.id}
-                      >
-                        {isPending && deletingId === row.id
-                          ? <Loader2 className="h-4 w-4 animate-spin text-destructive" />
-                          : <Trash2 className="h-4 w-4 text-destructive" />}
-                        <span className="sr-only">{t("delete")}</span>
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          {t("deleteConfirm", { name: getCategoryName(row, locale) })}
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          {row._count.children > 0
-                            ? t("deleteHasChildren", { count: row._count.children })
-                            : t("deleteDesc")}
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isPending && deletingId === row.id}>
-                          {t("cancel")}
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleDelete(row.id);
-                          }}
-                          disabled={isPending && deletingId === row.id}
-                          variant="destructiveSolid"
-                        >
-                          {isPending && deletingId === row.id ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              {t("deleting")}
-                            </>
-                          ) : (
-                            t("delete")
-                          )}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                    {/* Resting control - the dialog's confirm button carries
+                        the spinner. */}
+                    <Button variant="ghost" size="icon">
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                      <span className="sr-only">{t("delete")}</span>
+                    </Button>
+                  </ActionButton>
                 </div>
               </div>
             );

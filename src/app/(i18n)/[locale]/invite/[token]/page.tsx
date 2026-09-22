@@ -14,6 +14,22 @@ import { Link } from "@/i18n/navigation";
 import { InviteActions } from "@/features/organizations/components/InviteActions";
 import { InviteStatus } from "@/generated/prisma/client";
 
+// One wording per ending. The page used to answer every non-pending invite with
+// "already used or canceled", which is a lie told to the one person most likely
+// to read it: someone whose invite the organization quietly withdrew.
+//
+// CANCELED is the legacy value that meant declining AND revoking at once. Rows
+// that still carry it are the ones the backfill could not prove either way, so
+// they get the one statement that is certainly true instead of a guess.
+const ENDED_COPY = {
+  [InviteStatus.ACCEPTED]: { heading: "usedHeading", body: "usedBody" },
+  [InviteStatus.DECLINED]: { heading: "declinedHeading", body: "declinedBody" },
+  [InviteStatus.REVOKED]: { heading: "revokedHeading", body: "revokedBody" },
+  [InviteStatus.CANCELED]: { heading: "endedHeading", body: "endedBody" },
+} as const;
+
+const EXPIRED_COPY = { heading: "expiredHeading", body: "expiredBody" } as const;
+
 interface InvitePageProps {
   params: Promise<{ token: string }>;
 }
@@ -29,8 +45,15 @@ export default async function InvitePage({ params }: InvitePageProps) {
 
   if (!invite) return notFound();
 
-  const isExpired = invite.expiresAt < new Date();
-  const isInvalid = invite.status !== InviteStatus.PENDING || isExpired;
+  // A final status outranks the clock: an invite you already accepted should
+  // say so even after it has sailed past expiresAt. Only a still-pending one is
+  // reported as expired.
+  const endedCopy =
+    invite.status === InviteStatus.PENDING
+      ? invite.expiresAt < new Date()
+        ? EXPIRED_COPY
+        : null
+      : ENDED_COPY[invite.status];
 
   if (!userId) {
     // Build a fully-localized sign-in URL with a same-locale return path so
@@ -39,17 +62,13 @@ export default async function InvitePage({ params }: InvitePageProps) {
     redirect(signInUrl);
   }
 
-  if (isInvalid) {
+  if (endedCopy) {
     return (
       <div className="w-full max-w-md space-y-6">
         <InviteHeading title={t("invalidTitle")} description={t("invalidDesc")} />
         <Alert variant="destructive">
-          <AlertTitle>
-            {isExpired ? t("expiredHeading") : t("usedHeading")}
-          </AlertTitle>
-          <AlertDescription>
-            {isExpired ? t("expiredBody") : t("usedBody")}
-          </AlertDescription>
+          <AlertTitle>{t(endedCopy.heading)}</AlertTitle>
+          <AlertDescription>{t(endedCopy.body)}</AlertDescription>
         </Alert>
         <Button asChild className="w-full">
           <Link href="/dashboard">{t("goToDashboard")}</Link>

@@ -1,5 +1,6 @@
 import { prisma } from "@/core/db/prisma";
 import { NotFoundError } from "@/features/common/errors/domainErrors";
+import { assertNotInUse } from "@/features/common/db/assertNotInUse";
 import { slugify } from "@/lib/utils";
 import { DEFAULT_LOCALE, NON_DEFAULT_LOCALES } from "@/i18n/config";
 import type { AttributeType } from "@/generated/prisma/client";
@@ -34,7 +35,9 @@ export type AttributeListItem = {
   unit: string | null;
   order: number;
   translations: LabelRow[];
-  _count: { options: number; categories: number; values: number };
+  // `variantValues` rides along so the admin list can block a delete on exactly
+  // what deleteAttribute() blocks on - values on products AND on variant axes.
+  _count: { options: number; categories: number; values: number; variantValues: number };
 };
 
 export type AttributeDetail = {
@@ -59,7 +62,7 @@ export async function getAllAttributes(): Promise<AttributeListItem[]> {
       unit: true,
       order: true,
       translations: { select: { locale: true, label: true } },
-      _count: { select: { options: true, categories: true, values: true } },
+      _count: { select: { options: true, categories: true, values: true, variantValues: true } },
     },
   });
 }
@@ -281,11 +284,28 @@ export async function updateAttribute(id: string, data: AttributeInput) {
   revalidateAttributeCache(id);
 }
 
-export async function deleteAttribute(id: string) {
-  const existing = await prisma.attribute.findUnique({ where: { id } });
+/** Returns the deleted attribute's key, for the audit trail. */
+export async function deleteAttribute(id: string): Promise<string> {
+  const existing = await prisma.attribute.findUnique({
+    where: { id },
+    select: { key: true, _count: { select: { values: true, variantValues: true } } },
+  });
   if (!existing) throw new NotFoundError(`Attribute ${id} not found`);
+
+  // Values entered on products (and on variant axes) cascade away with the
+  // attribute and cannot be reconstructed. Category assignments deliberately do
+  // NOT block: those are configuration, they cost nothing to redo, and blocking
+  // on them would make a mis-assigned attribute undeletable.
+  assertNotInUse([
+    {
+      count: existing._count.values + existing._count.variantValues,
+      key: "attributeInUse",
+    },
+  ]);
+
   await prisma.attribute.delete({ where: { id } });
   revalidateAttributeCache(id);
+  return existing.key;
 }
 
 export async function duplicateAttribute(id: string) {

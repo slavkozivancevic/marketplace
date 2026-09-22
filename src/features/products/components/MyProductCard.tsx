@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -68,6 +68,7 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
   const queryClient = useQueryClient();
   const [isDeleting, startDelete] = useTransition();
   const [isDuplicating, startDuplicate] = useTransition();
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   // Stored per-currency amounts; no rate on the display path.
   const { format, amount: moneyAmount } = useMoney();
@@ -81,7 +82,9 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
     startDelete(async () => {
       const result = await deleteProduct(product.id, null);
       if (result && "error" in result) {
-        // Leave the dialog open so the reason stays readable.
+        // The dialog stays open with the reason in the toast next to it - the
+        // card is still there and the delete can be retried from where it was
+        // attempted.
         toast.error(result.message);
         return;
       }
@@ -89,6 +92,7 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
       // is the moment this card leaves the grid - see the note in ProductTable.
       // The spinner runs until then, and the confirm dialog goes with the card.
       await queryClient.invalidateQueries({ queryKey: ["products"] });
+      setDeleteOpen(false);
       toast.success(t("productDeleted"));
     });
   };
@@ -226,6 +230,8 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
                 {isDuplicating ? t("duplicating") : t("duplicate")}
               </Button>
               <ActionButton
+                open={deleteOpen}
+                onOpenChange={setDeleteOpen}
                 title={t("deleteProduct")}
                 description={t("deleteConfirm", { title: localTitle })}
                 confirmText={tCommon("delete")}
@@ -233,18 +239,11 @@ export function MyProductCard({ canWrite, product }: MyProductCardProps) {
                 isLoading={isDeleting}
                 onConfirm={handleDelete}
               >
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={isDeleting}
-                  className="flex-1 gap-1.5"
-                >
-                  {isDeleting ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-3.5 w-3.5" />
-                  )}
-                  {isDeleting ? t("deleting") : tCommon("delete")}
+                {/* Resting control - ActionButton disables it and the dialog's
+                    confirm button carries the spinner. */}
+                <Button variant="destructive" size="sm" className="flex-1 gap-1.5">
+                  <Trash2 className="h-3.5 w-3.5" />
+                  {tCommon("delete")}
                 </Button>
               </ActionButton>
             </>

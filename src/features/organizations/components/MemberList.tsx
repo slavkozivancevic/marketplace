@@ -134,6 +134,9 @@ function MemberRow({
   // transition finish.
   const [isPendingRole, startRoleTransition] = useTransition();
   const announceRoleChanged = useAnnounceWhenSettled(isPendingRole);
+  // Never closed by hand: a successful removal unmounts this row and the dialog
+  // goes with it. On failure it stays open, next to the toast that says why.
+  const [removeOpen, setRemoveOpen] = useState(false);
 
   // Stage the role locally so picking from the dropdown doesn't fire the action
   // (and its notification) immediately - the change is applied only on Save,
@@ -212,6 +215,8 @@ function MemberRow({
 
           {canActOnMember && (
             <ActionButton
+              open={removeOpen}
+              onOpenChange={setRemoveOpen}
               title={t("removeMemberTitle")}
               description={t("removeMemberConfirm", {
                 name: member.user.name || member.user.email,
@@ -222,11 +227,10 @@ function MemberRow({
               isLoading={isRemoving}
               onConfirm={onRemove}
             >
-              <Button
-                variant="ghostDestructive"
-                size="sm"
-                disabled={isRemoving || isPendingRole}
-              >
+              {/* Resting control. ActionButton adds the `isRemoving` half of
+                  the disabled state; the role write is a separate action on the
+                  same row, so that half stays here. */}
+              <Button variant="ghostDestructive" size="sm" disabled={isPendingRole}>
                 {t("removeMember")}
               </Button>
             </ActionButton>
