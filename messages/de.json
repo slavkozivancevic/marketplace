@@ -1430,6 +1430,8 @@
     "deleting": "Lösche...",
     "delete": "Löschen",
     "searchPlaceholder": "Konversationen suchen...",
+    "typing": "schreibt...",
+    "isTyping": "{name} schreibt...",
     "messageSeller": "Nachricht an Verkäufer",
     "openingConversation": "Wird geöffnet...",
     "ownProduct": "Ihr Produkt",

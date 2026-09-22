@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Conversation } from "../types";
 import { UserProfile } from "../hooks/useUserProfiles";
+import { TypingPreview } from "./TypingIndicator";
 
 interface Props {
   conversations: Conversation[];
@@ -16,6 +17,8 @@ interface Props {
   profilesLoading: boolean;
   convUnread: Record<string, number>;
   readStatus: Record<string, string[]>;
+  /** conversationId → userId → expiry. Only presence matters here. */
+  typing: Record<string, Record<string, number>>;
   onSelect: (id: string) => void;
   isLoading: boolean;
   isSearching?: boolean;
@@ -41,6 +44,7 @@ export function ConversationList({
   profilesLoading,
   convUnread,
   readStatus,
+  typing,
   onSelect,
   isLoading,
   isSearching = false,
@@ -81,6 +85,8 @@ export function ConversationList({
         const displayName = profile?.name ?? "";
         const initials = getInitials(profile?.name, "");
         const isSelected = conv.conversationId === selectedId;
+        const isTyping =
+          Object.keys(typing[conv.conversationId] ?? {}).length > 0;
         const isMine = conv.lastMessageSenderId === currentUserId;
         const unread = convUnread[conv.conversationId] ?? 0;
         const attachType = conv.lastAttachmentType;
@@ -150,7 +156,11 @@ export function ConversationList({
                   )}
                 </div>
               </div>
-              {showReaction ? (
+              {/* Typing outranks both previews - it is the newer fact, and it
+                  is what the row is telling you right now. */}
+              {isTyping ? (
+                <TypingPreview />
+              ) : showReaction ? (
                 <p className="text-xs text-muted-foreground truncate mt-0.5">
                   <span className="truncate">
                     {reactionActorName ? `${reactionActorName} ` : ""}{conv.lastReactionPreview}
