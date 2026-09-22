@@ -103,7 +103,23 @@ export async function cancelInviteAction(
       throw new ForbiddenError({ key: "onlyOwnersAndAdminsCancelInvites" });
     }
 
-    await cancelInvite(inviteId, ctx.organizationId);
+    const revoked = await cancelInvite(inviteId, ctx.organizationId);
+
+    // Revoking withdraws someone's pending access, which is exactly the kind of
+    // change the audit log exists for - accepting and declining were recorded
+    // from the start, this side was not, so an admin could pull a colleague's
+    // invite and leave no trace of who did it. Gated on the real transition so a
+    // repeat click cannot append a second entry to an append-only table. The
+    // actor resolves from the request context: unlike a decline, the person
+    // acting here is the signed-in admin.
+    if (revoked.wasPending) {
+      await recordAudit({
+        action: "member.invite_revoked",
+        entityType: "Invite",
+        entityId: revoked.id,
+        diff: { email: revoked.email, role: revoked.role },
+      });
+    }
 
     revalidatePath("/[locale]/dashboard/organization", "page");
   } catch (error) {

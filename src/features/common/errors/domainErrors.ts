@@ -114,6 +114,23 @@ export class TooManyRequestsError extends Error {
   }
 }
 
+/**
+ * A record cannot be deleted because something still points at it.
+ *
+ * Its own category: these are not permission failures and not conflicts, they
+ * are "the database would happily do this and you would lose data". See
+ * `assertNotInUse` for what throws it and why the database is not the guard.
+ */
+export class InUseError extends Error {
+  readonly i18n: ErrorI18n;
+  constructor(arg: string | ErrorI18n = "This record is still in use") {
+    const { i18n, message } = normalizeI18n(arg, "inUse", "This record is still in use");
+    super(message);
+    this.i18n = i18n;
+    this.name = "InUseError";
+  }
+}
+
 export class NotFoundError extends Error {
   readonly i18n: ErrorI18n;
   constructor(arg: string | ErrorI18n = "Not found") {

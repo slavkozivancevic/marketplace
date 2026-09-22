@@ -537,6 +537,7 @@
         "deletedClerkUserId": "Obrisani korisnik",
         "promotedUserId": "Unapređeni korisnik",
         "productCount": "Broj proizvoda",
+        "name": "Naziv",
         "fee": "Provizija",
         "orderCancelled": "Narudžbina otkazana",
         "paid": "Isplaćeno"
@@ -590,7 +591,8 @@
           "role_changed": "Promenjena uloga člana",
           "removed": "Član uklonjen",
           "invite_accepted": "Pozivnica prihvaćena",
-          "invite_declined": "Pozivnica odbijena"
+          "invite_declined": "Pozivnica odbijena",
+          "invite_revoked": "Pozivnica povučena"
         },
         "organization": {
           "verified_changed": "Promenjena verifikacija organizacije",
@@ -823,7 +825,8 @@
     "cancel": "Otkaži",
     "deleteConfirm": "Obriši \"{name}\"?",
     "deleteDesc": "Ova akcija se ne može poništiti.",
-    "deleteHasChildren": "Ovo odeljenje ima {count} potkategorija koje će takođe biti pogođene.",
+    "deleteHasChildren": "Ovo odeljenje ima {count} potkategorija. Prvo ih premestite ili obrišite - odeljenje sa potkategorijama ne može da se obriše.",
+    "deleteHasProducts": "Ova kategorija sadrži {count} proizvoda. Prvo ih premestite u drugu kategoriju - kategorija sa proizvodima ne može da se obriše.",
     "attributesTitle": "Filteri kategorije",
     "attributesDesc": "Dodelite atribute za filtriranje kojima kupci sužavaju ovu kategoriju. Atributi sa nadređenih odeljenja se automatski nasleđuju.",
     "inheritedAttributes": "Nasleđeno od roditelja",
@@ -897,7 +900,8 @@
     "cancel": "Otkaži",
     "deleteConfirm": "Obrisati \"{name}\"?",
     "deleteDesc": "Ova akcija se ne može opozvati.",
-    "deleteInUse": "Ovaj atribut koristi {categories} kategorija i {products} proizvoda. Uklanjanje briše te dodele i vrednosti.",
+    "deleteInUse": "Ovaj atribut ima {count} vrednosti na proizvodima. Prvo ga uklonite sa tih proizvoda - atribut u upotrebi ne može da se obriše.",
+    "deleteFromCategories": "Dodeljen je na {count} kategorija; te dodele će biti uklonjene.",
     "editTitleLoading": "Izmeni atribut"
   },
   "cart": {
@@ -1012,7 +1016,8 @@
     "brandCreated": "Brend kreiran",
     "brandDeleted": "Brend obrisan",
     "deleteConfirm": "Obriši \"{name}\"?",
-    "deleteDesc": "Proizvodi povezani sa ovim brendom će imati brend obrisan. Ovo se ne može poništiti.",
+    "deleteDesc": "Ova akcija se ne može poništiti.",
+    "deleteInUse": "Ovaj brend koristi {count} proizvoda. Prvo im dodelite drugi brend ili ih obrišite - brend u upotrebi ne može da se obriše.",
     "brandName": "Naziv brenda",
     "slugDesc": "URL-friendly identifikator. Automatski se generiše iz naziva.",
     "logoUrl": "URL loga",
@@ -1093,7 +1098,13 @@
     "expiredHeading": "Pozivnica je istekla",
     "expiredBody": "Ova pozivnica je istekla. Zamolite vlasnika organizacije da pošalje novu pozivnicu.",
     "usedHeading": "Pozivnica je već iskorišćena",
-    "usedBody": "Ova pozivnica je već iskorišćena ili otkazana.",
+    "usedBody": "Već ste prihvatili ovu pozivnicu. Organizacija vas čeka na kontrolnoj tabli.",
+    "declinedHeading": "Pozivnica odbijena",
+    "declinedBody": "Odbili ste ovu pozivnicu. Ako je to bila greška, zamolite organizaciju da pošalje novu.",
+    "revokedHeading": "Pozivnica povučena",
+    "revokedBody": "Organizacija je povukla ovu pozivnicu. Obratite im se ako mislite da i dalje treba da važi.",
+    "endedHeading": "Pozivnica više ne važi",
+    "endedBody": "Ova pozivnica više ne važi. Zamolite organizaciju da pošalje novu.",
     "goToDashboard": "Idi na kontrolnu tablu",
     "yourRole": "Vaša uloga:",
     "expiresOn": "Pozivnica ističe {date}.",
@@ -1101,6 +1112,8 @@
     "decline": "Odbij",
     "accepting": "Prihvatanje...",
     "declining": "Odbijanje...",
+    "accepted": "Pridružili ste se organizaciji",
+    "declined": "Pozivnica odbijena",
     "wrongAccountHeading": "Pogrešan nalog",
     "wrongAccountBody": "Ova pozivnica je poslata na {email}. Odjavite se i prijavite se sa tom imejl adresom da biste je prihvatili."
   },
@@ -1561,7 +1574,8 @@
     "search": "Pretraži",
     "loadingDetails": "Učitavanje detalja proizvoda...",
     "stuckMessage": "Ovo traje duže nego obično.",
-    "reloadPage": "Osveži stranicu"
+    "reloadPage": "Osveži stranicu",
+    "close": "Zatvori"
   },
   "orgOrders": {
     "readOnly": "Pristup samo za čitanje",
@@ -1916,6 +1930,11 @@
     "bulkLimitExceeded": "Ova masovna operacija prelazi dozvoljeni limit",
     "bulkCategoryLimit": "Izabrani filter obuhvata {count} proizvoda, a masovna izmena kategorija je ograničena na {limit} odjednom. Suzite filter i pokušajte ponovo.",
     "internalError": "Nešto je pošlo po zlu. Pokušajte ponovo.",
+    "inUse": "Ovaj zapis je još u upotrebi i ne može se obrisati.",
+    "categoryHasChildren": "Ovo odeljenje još ima {count} potkategorija. Prvo ih premestite ili obrišite.",
+    "categoryHasProducts": "Ova kategorija još sadrži {count} proizvoda. Prvo ih premestite u drugu kategoriju.",
+    "attributeInUse": "Ovaj atribut još ima {count} vrednosti na proizvodima. Prvo ga uklonite sa tih proizvoda.",
+    "brandInUse": "Ovaj brend još koristi {count} proizvoda. Prvo im dodelite drugi brend ili ih obrišite.",
     "returnNotEligible": "Ova porudžbina ne ispunjava uslove za povraćaj.",
     "returnBlockedExternalRefund": "Ova porudžbina već ima ručni povraćaj novca izvan aplikacije - obratite se podršci za dalji povraćaj.",
     "returnNotShipped": "Povraćaj možete zatražiti kada prodavac isporuči vaše artikle.",

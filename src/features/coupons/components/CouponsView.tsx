@@ -33,17 +33,7 @@ import { Button } from "@/components/ui/button";
 // table and its loading state can never describe different columns.
 import { COUPON_COLS as GRID, CouponSkeletonRow as SkeletonRow } from "./CouponTableSkeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ActionButton } from "@/components/ActionButton";
 import { useRouter, usePathname } from "@/i18n/navigation";
 import { toast } from "@/components/ui/sonner";
 import type { CouponListItem } from "../db/coupons";
@@ -122,51 +112,22 @@ function RowActions({
         {isDuplicating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
         <span className="sr-only">{t("table.duplicate")}</span>
       </Button>
-      <AlertDialog
+      <ActionButton
         open={deleteOpen}
-        onOpenChange={(next) => {
-          if (isDeleting) return;
-          onDeleteOpenChange(next);
-        }}
+        onOpenChange={onDeleteOpenChange}
+        title={t("deleteConfirm", { code })}
+        description={t("deleteDesc")}
+        confirmText={tc("delete")}
+        loadingText={t("deleting")}
+        isLoading={isDeleting}
+        onConfirm={() => onDelete(id)}
       >
-        <AlertDialogTrigger asChild>
-          <Button
-            size="icon"
-            variant="ghostDestructive"
-            className="h-8 w-8"
-            disabled={isDeleting}
-          >
-            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            <span className="sr-only">{tc("delete")}</span>
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("deleteConfirm", { code })}</AlertDialogTitle>
-            <AlertDialogDescription>{t("deleteDesc")}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>{tc("cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                onDelete(id);
-              }}
-              disabled={isDeleting}
-              variant="destructiveSolid"
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {t("deleting")}
-                </>
-              ) : (
-                tc("delete")
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {/* Resting control - the dialog's confirm button carries the spinner. */}
+        <Button size="icon" variant="ghostDestructive" className="h-8 w-8">
+          <Trash2 className="h-4 w-4" />
+          <span className="sr-only">{tc("delete")}</span>
+        </Button>
+      </ActionButton>
     </div>
   );
 }

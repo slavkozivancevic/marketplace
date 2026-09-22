@@ -1,15 +1,15 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ActionButton";
 import { toast } from "@/components/ui/sonner";
 import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
+import { useWhenSettled } from "@/lib/hooks/useWhenSettled";
 import { rollbackProductVersion } from "@/features/products/actions/products";
 import { SerializedProductHistory } from "@/types/types";
 import { useMoney } from "@/lib/useMoney";
@@ -74,6 +74,10 @@ function HistoryRow({
   const { format } = useMoney();
   const [isPending, startTransition] = useTransition();
   const announceRolledBack = useAnnounceWhenSettled(isPending);
+  // The rolled-back row stays on screen, so this is one of the few dialogs that
+  // has to close itself - on the settled frame, with the toast, never before.
+  const closeWhenSettled = useWhenSettled(isPending);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const router = useRouter();
   const locale = useLocale();
   const dl = dateLocale(locale);
@@ -90,6 +94,7 @@ function HistoryRow({
         announceRolledBack({
           message: t("historyRollbackSuccess", { version: entry.version }),
         });
+        closeWhenSettled(() => setConfirmOpen(false));
         router.push(`/${locale}/admin/products/${productId}/history`);
         router.refresh();
       }
@@ -136,19 +141,19 @@ function HistoryRow({
       <div role="cell">
         {!isLatest && (
           <ActionButton
+            open={confirmOpen}
+            onOpenChange={setConfirmOpen}
             title={t("historyRollbackTitle")}
             description={t("historyRollbackDesc", { version: entry.version })}
             confirmText={t("historyRollback")}
             loadingText={t("historyRollingBack")}
-            // Without this the dialog had no way to know the action had
-            // finished: it prevents Radix's auto-close and then waits for
-            // `isLoading` to fall, so it simply stayed open after a rollback.
             isLoading={isPending}
             onConfirm={handleRollback}
           >
-            <Button variant="outline" size="sm" disabled={isPending}>
-              {isPending && <Loader2 className="animate-spin" />}
-              {isPending ? t("historyRollingBack") : t("historyRollback")}
+            {/* Resting control - ActionButton disables it and the dialog's
+                confirm button carries the spinner. */}
+            <Button variant="outline" size="sm">
+              {t("historyRollback")}
             </Button>
           </ActionButton>
         )}

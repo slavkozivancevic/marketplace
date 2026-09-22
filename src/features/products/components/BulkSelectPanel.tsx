@@ -20,17 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ActionButton } from "@/components/ActionButton";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { bulkUpdateProductStatus, bulkDeleteProducts } from "@/features/products/actions/products";
@@ -208,50 +198,23 @@ export function BulkSelectPanel() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <AlertDialog
+            <ActionButton
               open={deleteOpen}
-              onOpenChange={(next) => {
-                if (isDeleting) return;
-                setDeleteOpen(next);
-              }}
+              onOpenChange={setDeleteOpen}
+              title={t("deleteConfirm", { count: selectedCount })}
+              description={t("deleteDesc")}
+              confirmText={t("deleteAction", { count: selectedCount })}
+              loadingText={tCommon("deleting")}
+              isLoading={isDeleting}
+              onConfirm={handleDelete}
             >
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm" disabled={isBusy} className="gap-1.5">
-                  <Trash2 className="h-3.5 w-3.5" />
-                  {t("delete")}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    {t("deleteConfirm", { count: selectedCount })}
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {t("deleteDesc")}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={isDeleting}>{tCommon("cancel")}</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleDelete();
-                    }}
-                    disabled={isDeleting}
-                    variant="destructiveSolid"
-                  >
-                    {isDeleting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        {tCommon("deleting")}
-                      </>
-                    ) : (
-                      t("deleteAction", { count: selectedCount })
-                    )}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              {/* Resting control. The status dropdown next to it shares this
+                  row's busy flag, hence the explicit `disabled`. */}
+              <Button variant="destructive" size="sm" disabled={isBusy} className="gap-1.5">
+                <Trash2 className="h-3.5 w-3.5" />
+                {t("delete")}
+              </Button>
+            </ActionButton>
 
             <Button
               variant="ghost"

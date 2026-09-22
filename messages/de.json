@@ -537,6 +537,7 @@
         "deletedClerkUserId": "Gelöschter Benutzer",
         "promotedUserId": "Beförderter Benutzer",
         "productCount": "Anzahl Produkte",
+        "name": "Name",
         "fee": "Provision",
         "orderCancelled": "Bestellung storniert",
         "paid": "Ausgezahlt"
@@ -590,7 +591,8 @@
           "role_changed": "Mitgliederrolle geändert",
           "removed": "Mitglied entfernt",
           "invite_accepted": "Einladung angenommen",
-          "invite_declined": "Einladung abgelehnt"
+          "invite_declined": "Einladung abgelehnt",
+          "invite_revoked": "Einladung zurückgezogen"
         },
         "organization": {
           "verified_changed": "Organisationsverifizierung geändert",
@@ -823,7 +825,8 @@
     "cancel": "Abbrechen",
     "deleteConfirm": "\"{name}\" löschen?",
     "deleteDesc": "Diese Aktion kann nicht rückgängig gemacht werden.",
-    "deleteHasChildren": "Diese Abteilung hat {count} Unterkategorien, die ebenfalls betroffen sind.",
+    "deleteHasChildren": "Diese Abteilung hat {count} Unterkategorien. Verschieben oder löschen Sie diese zuerst - eine Abteilung mit Unterkategorien kann nicht gelöscht werden.",
+    "deleteHasProducts": "Diese Kategorie enthält {count} Produkte. Verschieben Sie sie zuerst in eine andere Kategorie - eine Kategorie mit Produkten kann nicht gelöscht werden.",
     "attributesTitle": "Kategoriefilter",
     "attributesDesc": "Weisen Sie filterbare Attribute zu, mit denen Käufer diese Kategorie eingrenzen. Attribute übergeordneter Abteilungen werden automatisch vererbt.",
     "inheritedAttributes": "Vom übergeordneten Element geerbt",
@@ -897,7 +900,8 @@
     "cancel": "Abbrechen",
     "deleteConfirm": "\"{name}\" löschen?",
     "deleteDesc": "Diese Aktion kann nicht rückgängig gemacht werden.",
-    "deleteInUse": "Dieses Attribut wird von {categories} Kategorien und {products} Produkten verwendet. Beim Entfernen werden diese Zuweisungen und Werte gelöscht.",
+    "deleteInUse": "Dieses Attribut hat {count} Werte an Produkten. Entfernen Sie es zuerst von diesen Produkten - ein verwendetes Attribut kann nicht gelöscht werden.",
+    "deleteFromCategories": "Es ist {count} Kategorien zugewiesen; diese Zuweisungen werden entfernt.",
     "editTitleLoading": "Attribut bearbeiten"
   },
   "cart": {
@@ -1012,7 +1016,8 @@
     "brandCreated": "Marke erstellt",
     "brandDeleted": "Marke gelöscht",
     "deleteConfirm": "\"{name}\" löschen?",
-    "deleteDesc": "Produkte, die mit dieser Marke verknüpft sind, verlieren die Markenzuordnung. Dies kann nicht rückgängig gemacht werden.",
+    "deleteDesc": "Diese Aktion kann nicht rückgängig gemacht werden.",
+    "deleteInUse": "Diese Marke wird von {count} Produkten verwendet. Weisen Sie ihnen zuerst eine andere Marke zu oder löschen Sie sie - eine verwendete Marke kann nicht gelöscht werden.",
     "brandName": "Markenname",
     "slugDesc": "URL-freundlicher Bezeichner. Automatisch aus dem Namen generiert.",
     "logoUrl": "Logo-URL",
@@ -1093,7 +1098,13 @@
     "expiredHeading": "Einladung abgelaufen",
     "expiredBody": "Diese Einladung ist abgelaufen. Bitten Sie den Inhaber Ihrer Organisation um eine neue Einladung.",
     "usedHeading": "Einladung bereits verwendet",
-    "usedBody": "Diese Einladung wurde bereits verwendet oder storniert.",
+    "usedBody": "Sie haben diese Einladung bereits angenommen. Die Organisation finden Sie in Ihrem Dashboard.",
+    "declinedHeading": "Einladung abgelehnt",
+    "declinedBody": "Sie haben diese Einladung abgelehnt. Bitten Sie die Organisation um eine neue, falls das ein Versehen war.",
+    "revokedHeading": "Einladung zurückgezogen",
+    "revokedBody": "Die Organisation hat diese Einladung zurückgezogen. Wenden Sie sich an sie, wenn sie weiter gelten sollte.",
+    "endedHeading": "Einladung nicht mehr gültig",
+    "endedBody": "Diese Einladung ist nicht mehr gültig. Bitten Sie die Organisation um eine neue.",
     "goToDashboard": "Zum Dashboard",
     "yourRole": "Ihre Rolle:",
     "expiresOn": "Die Einladung läuft am {date} ab.",
@@ -1101,6 +1112,8 @@
     "decline": "Ablehnen",
     "accepting": "Akzeptiere...",
     "declining": "Lehne ab...",
+    "accepted": "Sie sind der Organisation beigetreten",
+    "declined": "Einladung abgelehnt",
     "wrongAccountHeading": "Falsches Konto",
     "wrongAccountBody": "Diese Einladung wurde an {email} gesendet. Melden Sie sich ab und mit dieser E-Mail-Adresse wieder an, um sie anzunehmen."
   },
@@ -1561,7 +1574,8 @@
     "search": "Suchen",
     "loadingDetails": "Produktdetails werden geladen...",
     "stuckMessage": "Das dauert länger als gewöhnlich.",
-    "reloadPage": "Seite neu laden"
+    "reloadPage": "Seite neu laden",
+    "close": "Schließen"
   },
   "orgOrders": {
     "readOnly": "Schreibgeschützter Zugriff",
@@ -1916,6 +1930,11 @@
     "bulkLimitExceeded": "Dieser Massenvorgang überschreitet das zulässige Limit",
     "bulkCategoryLimit": "Der gewählte Filter umfasst {count} Produkte, aber Massenänderungen von Kategorien sind auf {limit} gleichzeitig begrenzt. Grenzen Sie den Filter ein und versuchen Sie es erneut.",
     "internalError": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
+    "inUse": "Dieser Datensatz wird noch verwendet und kann nicht gelöscht werden.",
+    "categoryHasChildren": "Diese Abteilung hat noch {count} Unterkategorien. Verschieben oder löschen Sie diese zuerst.",
+    "categoryHasProducts": "Diese Kategorie enthält noch {count} Produkte. Verschieben Sie sie zuerst in eine andere Kategorie.",
+    "attributeInUse": "Dieses Attribut hat noch {count} Werte an Produkten. Entfernen Sie es zuerst von diesen Produkten.",
+    "brandInUse": "Diese Marke wird noch von {count} Produkten verwendet. Weisen Sie ihnen zuerst eine andere Marke zu oder löschen Sie sie.",
     "returnNotEligible": "Diese Bestellung ist nicht für eine Rückgabe berechtigt.",
     "returnBlockedExternalRefund": "Für diese Bestellung wurde bereits außerhalb der App eine manuelle Rückerstattung ausgestellt - wenden Sie sich an den Support, um fortzufahren.",
     "returnNotShipped": "Sie können eine Rückgabe anfragen, sobald dieser Verkäufer Ihre Artikel geliefert hat.",

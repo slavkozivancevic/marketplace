@@ -36,7 +36,23 @@ Never run `npm run build` casually - it is slow. Prefer `typecheck`.
   commit. When the user does commit, branch commits are `wip`; the PR title
   carries the real message (squash-merge).
 - **After editing `prisma/schema.prisma`, STOP.** Do not run `prisma migrate`.
-  Report the schema change and wait for the user to run the migration.
+  Report the schema change and wait for the user to run the migration. I run
+  every migration myself, and I run it ONE STEP AT A TIME: give me the EXACT
+  command for the current step and nothing else, then stop and wait for my
+  output. Do not list the remaining steps, do not preview them, do not say what
+  comes next - I have not run this one yet, and its result can change what the
+  next one should be. Fill the name argument in for me; a description of what to
+  do is not a command. Prefer a script that already exists in
+  `package.json` (`db:create-migration`, `db:migrate`, `db:migrate:up`,
+  `db:generate`, `db:check-drift`) over a raw `npx prisma` call, and reach for
+  `npx` only when no script covers it. Always state explicitly whether
+  `db:generate` is needed as its own step, and check the generated client rather
+  than assuming: in THIS repo (Prisma 7 + `prisma.config.ts`) `migrate dev` does
+  NOT regenerate it - the output carries no `Generated Prisma Client` line and
+  `src/generated/prisma/enums.ts` stays stale - so `db:generate` is its own step
+  after every migrate. Say what each step should print so I
+  can tell a success from a silent no-op. This is the same one-at-a-time rule as
+  questions and test steps: one command, my answer, then the next.
 - **Never deploy.** No `sst deploy` from this machine (Windows). Deploys go
   through CodePipeline on push.
 - **Never use an em dash** in code, comments, translations, docs or chat output.
@@ -128,6 +144,17 @@ new route MUST be registered in `routing.pathnames` or the proxy 404s it -
 `appRoutes.test.ts` walks the app directory and fails CI if you forget. On a
 not-found page, `<Link>` soft-navigation does not work - use `HardNavBoundary`.
 
+**Deletes with dependents.** The schema's referential actions do not protect
+anything: `Category.parent` has no `onDelete`, so deleting a department SetNulls
+its subcategories up to the root; `ProductCategory`, `ProductAttributeValue` and
+`ProductVariantAttributeValue` cascade; `Product.brand` SetNulls. Every one of
+those deletes succeeds and takes data with it silently, and the audit log
+records an id, so there is nothing to reconstruct from. The db layer refuses
+instead - `assertNotInUse` in `src/features/common/db/` throws `InUseError`, and
+the admin list passes the same condition to `ActionButton`'s `blockedReason` so
+the dialog explains it before the click. Any new delete path that has dependents
+gets a guard. Tags are the deliberate exception: a label carries nothing.
+
 **Verification gate.** An unverified org cannot create or edit products.
 Enforced in `requirePermission`, gated in the UI with
 `VerificationRequiredNotice`. Platform admins bypass it entirely.
@@ -183,6 +210,21 @@ label reads "Add X" not "New X".
 use `PendingLinkButton`. Action buttons swap both the icon (spinner) and the
 label (gerund) while pending, driven by a `pending {id, kind}` state, not a bare
 `isPending`.
+
+**Confirmation dialogs.** `ActionButton` is the only one - never hand-roll an
+`<AlertDialog>` with a spinner in its footer. Two rules it holds:
+
+*One action, one spinner.* The swap above belongs to the button that RUNS the
+action. A button that only opens a dialog is a resting control: disabled while
+the action runs (`ActionButton` clones the child and injects that itself),
+otherwise unchanged. A second spinner behind the overlay's blur is redundant,
+and a label swap there changes the button's width, so the page visibly shifts in
+the corner of the user's eye.
+
+*The caller owns `open`.* Closing is part of the result: usually the confirmed
+row unmounts and takes the dialog with it, and where the record survives the
+caller closes it on the settled frame (`useWhenSettled`). A FAILED action
+therefore leaves the dialog open, with the reason in a toast beside it.
 
 **Layout.** The shell never scrolls horizontally: `overflow-clip` on shell and
 main, and `min-w-0` alongside it (clip is not a scroll container, so it does not

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition, useId } from "react";
+import { useState, useTransition, useId } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Plus, Trash2, Search, AlertCircle, CheckCircle2, Loader2, ChevronDown, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -24,17 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ActionButton } from "@/components/ActionButton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/sonner";
@@ -1090,13 +1080,6 @@ export function ConditionalBulkPanel({
   const [lastResult, setLastResult] = useState<{ count: number; message: string } | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const wasExecuting = useRef(false);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (wasExecuting.current && !isExecuting) setConfirmOpen(false);
-    wasExecuting.current = isExecuting;
-  }, [isExecuting]);
-
   const addCondition = (type: ConditionType) => {
     if (conditions.some((c) => c.type === type)) return;
     const partners = MUTEX_PARTNERS[type] ?? [];
@@ -1249,8 +1232,18 @@ export function ConditionalBulkPanel({
         message: string;
         skippedWithVariants?: number;
       };
+      // Awaited, exactly like BulkSelectPanel: `invalidateQueries` resolves once
+      // the refetch has landed. The "Select & manage" tab next door is
+      // forceMounted, so its product query is live and still holding the rows
+      // this run just changed - announcing here without waiting stops the
+      // spinner, and hands over a result summary, while that list is stale.
+      // Everything below belongs to the result, so it all waits for this.
+      await queryClient.invalidateQueries({ queryKey: ["products"] });
+
+      // Closed here, in the frame that has something to show, and only on
+      // success - a failed run keeps the dialog up next to its error toast.
+      setConfirmOpen(false);
       setLastResult({ count: ok.count, message: ok.message });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
       setPreview(null);
 
       if (action.type === "delete") {
@@ -1467,66 +1460,39 @@ export function ConditionalBulkPanel({
 
         {/* Execute button + confirm dialog */}
         {preview !== null && (
-          <AlertDialog
+          <ActionButton
             open={confirmOpen}
-            onOpenChange={(next) => {
-              if (isExecuting) return;
-              setConfirmOpen(next);
-            }}
+            onOpenChange={setConfirmOpen}
+            title={action.type === "delete" ? t("confirmBulkDelete") : t("confirmBulkUpdate")}
+            description={confirmDescription()}
+            confirmText={confirmLabel()}
+            loadingText={t("executing")}
+            cancelText={tCommon("cancel")}
+            confirmVariant={action.type === "delete" ? "destructiveSolid" : "default"}
+            isLoading={isExecuting}
+            onConfirm={handleExecute}
           >
-            <AlertDialogTrigger asChild>
-              <Button
-                disabled={!canExecute || isExecuting}
-                variant={action.type === "delete" ? "destructive" : "default"}
-                className="w-fit gap-2"
-              >
-                {isExecuting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : action.type === "delete" ? (
-                  <Trash2 className="h-4 w-4" />
-                ) : null}
-                {isExecuting
-                  ? t("executing")
-                  : !hasConditions
-                  ? t("addConditionFirst")
-                  : effectivePreviewCount === 0
-                  ? t("noProductsToUpdate")
-                  : actionValueError(action.type, action.value)
-                  ? t("fixActionValue")
-                  : !isActionValid()
-                  ? t("selectActionValue")
-                  : confirmLabel()}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {action.type === "delete" ? t("confirmBulkDelete") : t("confirmBulkUpdate")}
-                </AlertDialogTitle>
-                <AlertDialogDescription>{confirmDescription()}</AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isExecuting}>{tCommon("cancel")}</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleExecute();
-                  }}
-                  disabled={isExecuting}
-                  variant={action.type === "delete" ? "destructiveSolid" : "default"}
-                >
-                  {isExecuting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      {t("executing")}
-                    </>
-                  ) : (
-                    confirmLabel()
-                  )}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            {/* Resting control. Swapping this label to "Executing..." also
+                changed the button's width, so the page visibly shifted behind
+                the dialog's blur while the user was reading the dialog. The
+                `disabled` here is the validity gate, not the pending state. */}
+            <Button
+              disabled={!canExecute}
+              variant={action.type === "delete" ? "destructive" : "default"}
+              className="w-fit gap-2"
+            >
+              {action.type === "delete" ? <Trash2 className="h-4 w-4" /> : null}
+              {!hasConditions
+                ? t("addConditionFirst")
+                : effectivePreviewCount === 0
+                ? t("noProductsToUpdate")
+                : actionValueError(action.type, action.value)
+                ? t("fixActionValue")
+                : !isActionValid()
+                ? t("selectActionValue")
+                : confirmLabel()}
+            </Button>
+          </ActionButton>
         )}
 
         {preview === null && !isPreviewing && (

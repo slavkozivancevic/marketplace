@@ -604,7 +604,18 @@ model ProductMedia {
 enum InviteStatus {
   PENDING
   ACCEPTED
+  // DEPRECATED - never written again, kept only for rows that predate the
+  // split below. It meant two different endings at once, so the invite page
+  // could only tell someone "already used or canceled" - wrong, and alarming,
+  // for a person whose invite had simply been withdrawn. Tombstoned rather
+  // than dropped: removing an enum value rewrites the type on a live table,
+  // while the two additions below are append-only and safe to ship. Retire it
+  // once no row carries it.
   CANCELED
+  // The invited person said no.
+  DECLINED
+  // The organization withdrew the invite.
+  REVOKED
 }
 
 model Invite {

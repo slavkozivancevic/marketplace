@@ -1,5 +1,6 @@
 import { prisma } from "@/core/db/prisma";
 import { NotFoundError } from "@/features/common/errors/domainErrors";
+import { assertNotInUse } from "@/features/common/db/assertNotInUse";
 import { revalidateBrandCache, revalidateBrandProductCaches } from "./cache";
 import { slugify } from "@/lib/utils";
 import { copyName } from "@/lib/i18n/copyName";
@@ -289,12 +290,26 @@ export async function updateBrand(id: string, data: BrandMutationData) {
   return brand;
 }
 
-export async function deleteBrand(id: string) {
-  const existing = await prisma.brand.findUnique({ where: { id } });
+/** Returns the deleted brand's default-locale name, for the audit trail. */
+export async function deleteBrand(id: string): Promise<string> {
+  const existing = await prisma.brand.findUnique({
+    where: { id },
+    select: {
+      translations: { select: { locale: true, name: true } },
+      // Live products only, matching the count the admin list shows - a
+      // soft-deleted product losing its brand is not worth blocking on.
+      _count: { select: { products: { where: { deletedAt: null } } } },
+    },
+  });
   if (!existing) throw new NotFoundError(`Brand ${id} not found`);
+
+  // `Product.brand` is optional with no `onDelete`, so the delete succeeds and
+  // blanks the brand on every product that carried it - no error, no trace.
+  assertNotInUse([{ count: existing._count.products, key: "brandInUse" }]);
 
   await prisma.brand.delete({ where: { id } });
   revalidateBrandCache(id);
+  return sourceLabelOf(existing.translations);
 }
 
 /** The source's default-locale name, for the audit trail's "Copied from". */

@@ -67,8 +67,13 @@ export async function deleteAttributeAction(
 ): Promise<{ ok: true } | ActionErrorResult> {
   try {
     await requireRole("ADMIN");
-    await deleteAttribute(id);
-    await recordAudit({ action: "attribute.deleted", entityType: "Attribute", entityId: id });
+    const key = await deleteAttribute(id);
+    await recordAudit({
+      action: "attribute.deleted",
+      entityType: "Attribute",
+      entityId: id,
+      diff: { name: key },
+    });
     return { ok: true };
   } catch (error) {
     return handleActionError(error);

@@ -12,17 +12,7 @@ import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 import { SearchInput } from "@/components/search/SearchInput";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ActionButton } from "@/components/ActionButton";
 import { deleteBrandAction, duplicateBrandAction } from "../actions/brands";
 import type { BrandListItem } from "../db/brands";
 import { getBrandDescription, getBrandName, getBrandSlug } from "../utils/translations";
@@ -138,50 +128,28 @@ function BrandTableRow({
               : <Copy className="h-4 w-4" />}
             <span className="sr-only">{t("brands.duplicate")}</span>
           </Button>
-          <AlertDialog
+          <ActionButton
             open={deleteOpen}
-            onOpenChange={(next) => {
-              if (isDeleting) return;
-              onDeleteOpenChange(next);
-            }}
+            onOpenChange={onDeleteOpenChange}
+            title={t("brands.deleteConfirm", { name: displayName })}
+            description={t("brands.deleteDesc")}
+            blockedReason={
+              brand._count.products > 0
+                ? t("brands.deleteInUse", { count: brand._count.products })
+                : undefined
+            }
+            confirmText={t("common.delete")}
+            loadingText={t("products.deleting")}
+            isLoading={isDeleting}
+            onConfirm={() => onDelete(brand.id)}
           >
-            <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="icon" disabled={isDeleting}>
-                {isDeleting
-                  ? <Loader2 className="h-4 w-4 animate-spin text-destructive" />
-                  : <Trash2 className="h-4 w-4 text-destructive" />}
-                <span className="sr-only">Delete</span>
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>{t("brands.deleteConfirm", { name: displayName })}</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {t("brands.deleteDesc")}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isDeleting}>{t("common.cancel")}</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={(e) => {
-                    e.preventDefault();
-                    onDelete(brand.id);
-                  }}
-                  disabled={isDeleting}
-                  variant="destructiveSolid"
-                >
-                  {isDeleting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      {t("products.deleting")}
-                    </>
-                  ) : (
-                    t("common.delete")
-                  )}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+            {/* Resting control - the dialog's confirm button carries the
+                spinner. */}
+            <Button variant="ghost" size="icon">
+              <Trash2 className="h-4 w-4 text-destructive" />
+              <span className="sr-only">Delete</span>
+            </Button>
+          </ActionButton>
         </div>
       </div>
     </div>

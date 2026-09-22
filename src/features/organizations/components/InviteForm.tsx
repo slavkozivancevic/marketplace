@@ -4,6 +4,7 @@ import { useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useNavigationGeneration } from "@/lib/navigation/navGeneration";
 import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
+import { useWhenSettled } from "@/lib/hooks/useWhenSettled";
 import { useTranslations } from "next-intl";
 import { Loader2, X } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
@@ -39,6 +40,9 @@ export function InviteForm() {
   const onInvalid = useInvalidToast();
   const [isPending, startTransition] = useTransition();
   const announceSent = useAnnounceWhenSettled(isPending);
+  // A second instance, not a second callback on the first: each hook holds one
+  // queued callback, so sharing one would drop whichever was queued first.
+  const clearWhenSettled = useWhenSettled(isPending);
   const router = useRouter();
 
   const navGeneration = useNavigationGeneration();
@@ -81,12 +85,19 @@ export function InviteForm() {
       if (result && "error" in result) {
         toast.error(result.message);
       } else {
-        form.reset();
         // The pending invite is server-rendered in the list below, so the send
         // only becomes visible when that list re-renders. `router.refresh()`
         // inside this transition keeps the button spinning until it does, and
         // the toast lands with the row rather than ahead of it.
         announceSent({ message: t("success") });
+        // Emptying the form belongs to the result too: clearing it up here wiped
+        // the address the user typed while the button was still spinning and the
+        // row it was sent to had yet to appear.
+        clearWhenSettled(() => {
+          // Unless they have started the next invite in the meantime - then the
+          // form is no longer showing what was just sent, and is theirs again.
+          if (form.getValues("email") === data.email) form.reset();
+        });
         router.refresh();
       }
     });

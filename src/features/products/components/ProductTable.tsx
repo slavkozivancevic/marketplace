@@ -9,17 +9,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ActionButton } from "@/components/ActionButton";
 import { toast } from "@/components/ui/sonner";
 import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 import { BrandLogo } from "@/features/brands/components/BrandLogo";
@@ -297,50 +287,23 @@ export function ProductTableRow({
                 : <Copy className="h-4 w-4" />}
               <span className="sr-only">{t("duplicate")}</span>
             </Button>
-            <AlertDialog
+            <ActionButton
               open={deleteOpen}
-              onOpenChange={(next) => {
-                if (isDeleting) return;
-                setDeleteOpen(next);
-              }}
+              onOpenChange={setDeleteOpen}
+              title={t("deleteConfirm", { title: localTitle })}
+              description={t("cannotUndo")}
+              confirmText={tCommon("delete")}
+              loadingText={t("deleting")}
+              isLoading={isDeleting}
+              onConfirm={handleDelete}
             >
-              <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon" disabled={isDeleting}>
-                  {isDeleting
-                    ? <Loader2 className="h-4 w-4 animate-spin text-destructive" />
-                    : <Trash2 className="h-4 w-4 text-destructive" />}
-                  <span className="sr-only">{tCommon("delete")}</span>
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>{t("deleteConfirm", { title: localTitle })}</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {t("cannotUndo")}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={isDeleting}>{tCommon("cancel")}</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleDelete();
-                    }}
-                    disabled={isDeleting}
-                    variant="destructiveSolid"
-                  >
-                    {isDeleting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        {t("deleting")}
-                      </>
-                    ) : (
-                      tCommon("delete")
-                    )}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              {/* Resting control - the dialog's confirm button carries the
+                  spinner. */}
+              <Button variant="ghost" size="icon">
+                <Trash2 className="h-4 w-4 text-destructive" />
+                <span className="sr-only">{tCommon("delete")}</span>
+              </Button>
+            </ActionButton>
           </div>
         </div>
       )}
