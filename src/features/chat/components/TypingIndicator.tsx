@@ -95,13 +95,16 @@ export function TypingBubble({ userId, profile }: BubbleProps) {
  * The inbox variant: replaces the last-message preview on a conversation row.
  * Same line height as the preview it stands in for, so the list never reflows
  * when someone starts or stops typing.
+ *
+ * Plain green text, no dots: the animated bubble already carries the motion
+ * inside the thread, and the inbox is a list you scan - a row that animates
+ * pulls the eye away from the rest of it.
  */
 export function TypingPreview() {
   const t = useTranslations("chat");
   return (
-    <p className="text-xs text-primary font-medium truncate mt-0.5 flex items-center gap-1.5">
-      <TypingDots />
-      <span className="truncate">{t("typing")}</span>
+    <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium truncate mt-0.5">
+      {t("typing")}
     </p>
   );
 }

@@ -8,7 +8,8 @@ import {
   useState,
   useCallback,
 } from "react";
-import { format, isToday, isYesterday } from "date-fns";
+import { format } from "date-fns";
+import { useTranslations } from "next-intl";
 import {
   Send,
   Paperclip,
@@ -34,6 +35,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ChatMessage } from "../types";
 import { UserProfile } from "../hooks/useUserProfiles";
 import { TypingBubble } from "./TypingIndicator";
+import { classifyDay, formatChatDate, formatChatTime } from "../utils/dateLabels";
 
 type Attachment = {
   key: string;
@@ -150,12 +152,6 @@ function isEmojiOnly(str: string): boolean {
     t.replace(/[\p{Extended_Pictographic}\uFE0E\uFE0F\u200D\u20E3\s]/gu, "")
       .length === 0
   );
-}
-
-function formatDateSeparator(date: Date): string {
-  if (isToday(date)) return "Today";
-  if (isYesterday(date)) return "Yesterday";
-  return format(date, "dd.MM.yyyy");
 }
 
 function getInitials(
@@ -847,7 +843,23 @@ export function MessageThread({
   onMarkRead,
   onTyping,
 }: Props) {
+  const t = useTranslations("chat");
   const [text, setText] = useState("");
+
+  /**
+   * The date divider, translated. Lives in the component because the wording
+   * needs `t` - the util deliberately returns which day it is, not a finished
+   * English string.
+   */
+  const dayLabel = useCallback(
+    (date: Date) => {
+      const kind = classifyDay(date);
+      if (kind === "today") return t("today");
+      if (kind === "yesterday") return t("yesterday");
+      return formatChatDate(date);
+    },
+    [t],
+  );
   const [pendingAttachments, setPendingAttachments] = useState<
     PendingAttachment[]
   >([]);
@@ -975,7 +987,7 @@ export function MessageThread({
         break;
       }
     }
-    if (topDate) setFloatingDate(formatDateSeparator(new Date(topDate)));
+    if (topDate) setFloatingDate(dayLabel(new Date(topDate)));
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     hideTimerRef.current = setTimeout(() => setFloatingDate(null), 1500);
   };
@@ -1234,7 +1246,7 @@ export function MessageThread({
                   <div className="flex items-center gap-3 my-2">
                     <div className="flex-1 border-t border-border" />
                     <span className="text-[11px] text-muted-foreground font-medium shrink-0">
-                      {formatDateSeparator(msgDate)}
+                      {dayLabel(msgDate)}
                     </span>
                     <div className="flex-1 border-t border-border" />
                   </div>
@@ -1396,7 +1408,7 @@ export function MessageThread({
 
                     <div className="flex items-center gap-1">
                       <span className="text-[10px] text-muted-foreground">
-                        {format(new Date(msg.createdAt), "HH:mm")}
+                        {formatChatTime(new Date(msg.createdAt))}
                       </span>
                       {isMine &&
                         (isTemp ? (
