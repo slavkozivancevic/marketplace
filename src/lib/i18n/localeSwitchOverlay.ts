@@ -13,10 +13,12 @@ import { HERO_IMAGE_URL } from "@/components/layout/hero-image";
  * untouched by all of that: created once at `start()`, it persists through
  * every commit of the switch and is faded + removed at `finish()`.
  *
- * The markup mirrors <AppLoader> exactly (same class strings, same
+ * The markup mirrors <LoaderVisual> exactly (same class strings, same
  * MarketVerse mark paths as <BrandMark>), so the compiled CSS already
- * contains every rule it needs (bm-* / brand-tile / brand-verse live in
- * globals.css) and the look stays identical to the boot/org-switch loader.
+ * contains every rule it needs (bm-* / brand-verse / brand-orbit-*
+ * live in globals.css) and the look stays identical to the
+ * boot/org-switch loader. Keep the two in step - a locale switch that showed a
+ * different loader than the boot gate would read as the app restarting.
  */
 
 type LocaleSwitchOverlayState = {
@@ -32,7 +34,7 @@ const FADE_MS = 500;
 /** MarketVerse mark, inlined so the overlay needs no React to render the same
  *  brand mark as <BrandMark>. Theme-aware through the bm-* classes; keep the
  *  paths and gradient ids in sync with brand-mark.tsx. */
-const MARK_SVG = `<svg viewBox="0 0 64 64" aria-hidden="true" class="h-9 w-9">
+const MARK_SVG = `<svg viewBox="0 0 64 64" aria-hidden="true" class="h-12 w-12">
   <defs>
     <linearGradient id="bm-tail-w" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f2eee7" stop-opacity="0"></stop><stop offset="0.55" stop-color="#c9c7d0" stop-opacity="0.5"></stop><stop offset="1" stop-color="#f2eee7"></stop></linearGradient>
     <linearGradient id="bm-tail-l" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0a0b1e" stop-opacity="0"></stop><stop offset="0.55" stop-color="#4a4956" stop-opacity="0.5"></stop><stop offset="1" stop-color="#0a0b1e"></stop></linearGradient>
@@ -57,31 +59,30 @@ function buildOverlay(brand: string): HTMLElement {
   root.className =
     "fixed inset-0 z-100 grid place-items-center bg-background transition-opacity duration-500 ease-out";
 
-  const dot = (delay: string) =>
-    `<span class="app-loader-dot h-1.5 w-1.5 rounded-full bg-primary${delay}"></span>`;
-
+  // Mirrors <BrandLockup size="loader" orientation="vertical" effect="orbit">
+  // as rendered by <LoaderVisual>. The comet, its track and the progress bar
+  // are plain CSS classes from globals.css on purpose: Tailwind never scans
+  // this string, so a utility appearing only here would not be generated.
   root.innerHTML = `
     <div class="page-background">
       <img src="${HERO_IMAGE_URL}" alt="" class="object-cover" style="position:absolute;inset:0;width:100%;height:100%" />
     </div>
-    <div class="flex flex-col items-center gap-8">
-      <div class="relative h-24 w-24">
-        <div class="app-loader-ring absolute inset-0 animate-spin rounded-full animation-duration-[1s]"></div>
-        <div class="absolute inset-0 grid place-items-center">
-          <div class="flex h-12 w-12 items-center justify-center rounded-2xl brand-tile shadow-lg shadow-primary/30 animate-pulse">
+    <span class="relative flex min-w-0 flex-col items-center gap-5">
+      <span class="relative block h-24 w-24">
+        <span class="brand-orbit-track"></span>
+        <span class="brand-orbit-comet"></span>
+        <span class="absolute inset-0 grid place-items-center">
+          <span class="flex shrink-0 items-center justify-center h-12 w-12">
             ${MARK_SVG}
-          </div>
-        </div>
-      </div>
-      <div class="flex flex-col items-center gap-3">
-        <span class="text-sm font-semibold uppercase tracking-[0.3em] pl-[0.3em] text-muted-foreground"></span>
-        <div class="flex items-center gap-1.5">
-          ${dot("")}
-          ${dot(" [animation-delay:0.15s]")}
-          ${dot(" [animation-delay:0.3s]")}
-        </div>
-      </div>
-    </div>`;
+          </span>
+        </span>
+      </span>
+      <span class="relative flex min-w-0 flex-col items-center gap-4">
+        <span class="relative inline-flex flex-col min-w-0">
+          <span class="relative text-sm font-semibold uppercase tracking-[0.3em] pl-[0.3em] text-muted-foreground"></span>
+        </span>
+      </span>
+    </span>`;
 
   // Two-tone wordmark, mirroring <BrandWordmark>. Static markup (no user
   // input), so innerHTML is safe here; the `brand` argument is kept for the

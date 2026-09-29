@@ -5,6 +5,31 @@
 @custom-variant dark (&:is(.dark *, .cosmos *));
 @custom-variant cosmos (&:is(.cosmos *));
 
+/*
+  `hoverable:` - use this in front of every `hover:` that REVEALS something
+  (a vignette lifting, a label appearing, an image cycle starting), never a
+  bare `hover:` and no longer `pointer-fine:`.
+
+  Two conditions, both required. The media query says the device can hover at
+  all. The `data-input-touch` attribute (set by src/lib/touchInput.ts while a
+  finger is in play) says a finger is not what is driving right now.
+
+  The media query alone was not enough: `:hover` LATCHES on a touch screen -
+  it applies on tap and stays until something else is touched - and the query
+  lies often enough to matter, since Chrome's device emulation can report a
+  fine pointer while dispatching touch events and a 2-in-1 laptop reports
+  hover while its owner is touching the screen. In both cases the reveal
+  appeared when the finger LIFTED, which read as the touch gesture firing
+  late when in fact it was `:hover` firing at all.
+*/
+@custom-variant hoverable {
+  @media (hover: hover) and (pointer: fine) {
+    &:is(html:not([data-input-touch]) *) {
+      @slot;
+    }
+  }
+}
+
 @utility container {
   margin-inline: auto;
 }
@@ -118,6 +143,11 @@
   --cosmos-blue: oklch(0.45 0.15 260);
   --steel: oklch(0.48 0.03 250);
   --hero-overlay: oklch(0 0 0 / 3%);
+  /* The brand violet, per theme: deep on light surfaces, luminous on dark.
+     Single source for the "Verse" half of the wordmark, the comet that
+     accompanies it, and the loader's progress bar - `--primary` is NOT this
+     colour (it is near-black here, near-white in dark, platinum in cosmos). */
+  --brand-accent: #5a30b9;
   --glass: oklch(1 0 0 / 70%);
   --glass-border: oklch(0 0 0 / 8%);
 
@@ -139,6 +169,7 @@
   --muted: oklch(0.885 0.012 240);
   --muted-foreground: oklch(0.46 0.012 240);
   --border: oklch(0.855 0.014 240);
+  --brand-accent: #5a30b9;
   --logo-light: oklch(0.99 0 0);
   --logo-dark: oklch(0.2 0 0);
 }
@@ -182,6 +213,7 @@
   --cosmos-purple: oklch(0.62 0.14 285);
   --cosmos-blue: oklch(0.55 0.18 260);
   --steel: oklch(0.68 0.03 250);
+  --brand-accent: #9076f3;
   --hero-overlay: oklch(0 0 0 / 50%);
   --glass: oklch(0.13 0 0 / 70%);
   --glass-border: oklch(1 0 0 / 10%);
@@ -233,6 +265,9 @@
   --cosmos-purple: oklch(0.55 0.15 288);
   --cosmos-blue: oklch(0.5 0.2 260);
   --steel: oklch(0.68 0.03 250);
+  /* A touch brighter than the dark theme's: cosmos surfaces carry their own
+     violet cast, so the accent has to clear it to still read as the brand. */
+  --brand-accent: #a48bff;
   --hero-overlay: oklch(0.1 0.04 275 / 60%);
   --glass: oklch(0.14 0.04 280 / 60%);
   --glass-border: oklch(0.55 0.1 285 / 25%);
@@ -326,35 +361,187 @@
   animation: skeleton-shimmer 1.5s ease-in-out infinite;
 }
 
-/* ===== APP LOADER (full-page boot spinner) ===== */
-/* A thin conic-gradient ring carved out with a radial mask, spun with
-   Tailwind's `animate-spin`. Sweeps from transparent to the brand colour. */
-.app-loader-ring {
+/* ===== BRAND LOCKUP =====
+   One visual language for the brand mark + wordmark wherever they appear
+   together: the home hero, the full-page loader and both headers. Everything
+   here is a PLAIN CSS class, never a Tailwind utility, because
+   `localeSwitchOverlay.ts` builds its copy of the loader as an innerHTML
+   string that Tailwind's scanner never sees - a new utility used only there
+   would simply not be generated.
+
+   The accent is `--brand-accent` (theme-tuned), never `--primary`: primary is
+   near-black on light, near-white on dark, and platinum in cosmos. */
+
+/* Soft violet aura behind the "Verse" half of the wordmark. It replaces the
+   travelling `text-gradient-platinum` fill the hero headline used to carry -
+   an animated rainbow on a headline is the single loudest "generated landing
+   page" tell, and a still glow survives all three themes without needing a
+   per-theme gradient. Rendered as its own positioned layer (not a `z-index:
+   -1` pseudo-element) so it can never slip behind the section background. */
+.brand-aura {
+  position: absolute;
+  inset: -0.55em -0.35em;
+  pointer-events: none;
+  background: radial-gradient(
+    58% 62% at 62% 50%,
+    color-mix(in oklch, var(--brand-accent) 30%, transparent) 0%,
+    color-mix(in oklch, var(--brand-accent) 10%, transparent) 45%,
+    transparent 72%
+  );
+  filter: blur(6px);
+}
+
+/* Tiny four-point sparkle in the brand accent - the same shape that fills the
+   brand mark's own star field, so the eyebrow chip is marked by something from
+   the logo rather than by decoration. It stands where a pinging green dot used
+   to ("Now live - start selling today"): the PULSE was the giveaway there, not
+   the dot, so this one does not move. */
+.brand-pip {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  background: var(--brand-accent);
+  clip-path: polygon(
+    50% 0%, 60% 40%, 100% 50%, 60% 60%,
+    50% 100%, 40% 60%, 0% 50%, 40% 40%
+  );
+}
+
+/* Comet sweep: a short tail with a bright head that crosses the lockup once
+   and leaves. The brand mark IS a comet, so this reads as the logo animating
+   itself rather than a generic shimmer. `translateX` percentages resolve
+   against the comet's own width (40% of the lockup), hence -100% -> 300%:
+   from just off the left edge to fully past the right one. */
+@keyframes brand-sweep {
+  0% { transform: translateX(-100%); opacity: 0; }
+  10% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateX(300%); opacity: 0; }
+}
+
+.brand-sweep {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.brand-sweep::before {
+  content: "";
+  position: absolute;
+  top: 18%;
+  left: 0;
+  width: 40%;
+  height: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in oklch, var(--brand-accent) 65%, transparent)
+  );
+  box-shadow: 0 0 10px color-mix(in oklch, var(--brand-accent) 45%, transparent);
+  opacity: 0;
+}
+
+/* Hero: runs once on mount, after the copy has settled. */
+.brand-sweep-auto::before {
+  animation: brand-sweep 1.9s cubic-bezier(0.3, 0, 0.2, 1) 0.45s both;
+}
+
+/* Header: runs on hover instead, replacing the `scale-105` bump the logo used
+   to do. Re-applying the animation on each hover restarts it.
+
+   `(pointer: fine)` for the same reason the buttons use `pointer-fine:hover:`
+   - on a touch screen `:hover` latches after the tap and the comet would sit
+     frozen mid-flight. Touch gets the same pass on `:active` instead, which
+     is the moment the logo is actually being pressed. */
+@media (hover: hover) and (pointer: fine) {
+  html:not([data-input-touch]) .group:hover .brand-sweep-hover::before {
+    animation: brand-sweep 1.4s cubic-bezier(0.3, 0, 0.2, 1) both;
+  }
+}
+
+/* Touch reaches it two ways: `:active` while the finger is actually pressing
+   the logo, and `data-touch-active` from the same touch-plus-small-swipe
+   gesture every card on the site uses (see `useTouchHover`). */
+.group:active .brand-sweep-hover::before,
+.group:focus-visible .brand-sweep-hover::before,
+.group[data-touch-active="true"] .brand-sweep-hover::before {
+  animation: brand-sweep 1.4s cubic-bezier(0.3, 0, 0.2, 1) both;
+}
+
+/* Comet orbit: the loader's spinner. Same comet, looping around the mark
+   instead of crossing it - a faint track, a tail that builds up over the last
+   110 degrees, and the head sitting exactly where the tail peaks (12 o'clock,
+   where the conic gradient wraps), so there is no seam to see. */
+@keyframes brand-orbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.brand-orbit-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in oklch, var(--brand-accent) 20%, transparent);
+}
+
+.brand-orbit-comet {
+  position: absolute;
+  inset: 0;
+  animation: brand-orbit 1.6s linear infinite;
+}
+
+.brand-orbit-comet::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
   background: conic-gradient(
     from 0deg,
-    transparent 0%,
-    oklch(from var(--color-primary) l c h / 0.1) 30%,
-    var(--color-primary) 100%
+    transparent 0deg,
+    transparent 250deg,
+    color-mix(in oklch, var(--brand-accent) 60%, transparent) 360deg
   );
   -webkit-mask: radial-gradient(
     farthest-side,
-    transparent calc(100% - 4px),
-    #000 calc(100% - 3px)
+    transparent calc(100% - 3px),
+    #000 calc(100% - 2px)
   );
   mask: radial-gradient(
     farthest-side,
-    transparent calc(100% - 4px),
-    #000 calc(100% - 3px)
+    transparent calc(100% - 3px),
+    #000 calc(100% - 2px)
   );
 }
 
-@keyframes app-loader-dot {
-  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
-  40% { opacity: 1; transform: translateY(-4px); }
+.brand-orbit-comet::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  margin-left: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--brand-accent);
+  box-shadow: 0 0 9px color-mix(in oklch, var(--brand-accent) 70%, transparent);
 }
 
-.app-loader-dot {
-  animation: app-loader-dot 1.2s ease-in-out infinite;
+/* The loader carries ONE moving thing: the comet. It used to be three
+   bouncing dots under the wordmark; those became an indeterminate bar, and a
+   bar under an orbiting comet is still two rhythms competing on one small
+   lockup. The orbit alone says "working". */
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-sweep::before {
+    animation: none;
+  }
+  /* The orbit stops but the comet stays put, so the loader still reads as a
+     brand mark with a mark of progress rather than a bare logo. */
+  .brand-orbit-comet {
+    animation: none;
+  }
 }
 
 /* Chat typing indicator - same rhythm as the loader dots, smaller travel so it
@@ -536,14 +723,10 @@
 }
 
 /* Two-tone brand wordmark: "Verse" carries the brand violet, tuned per theme
-   (deep violet on light surfaces, luminous violet on dark). Matches the email
-   header + Stripe lockups. */
+   (deep violet on light surfaces, luminous violet on dark) through
+   `--brand-accent`. Matches the email header + Stripe lockups. */
 .brand-verse {
-  color: #5a30b9;
-}
-.dark .brand-verse,
-.cosmos .brand-verse {
-  color: #9076f3;
+  color: var(--brand-accent);
 }
 
 /* MarketVerse mark (BrandMark + the inline copies in localeSwitchOverlay):
@@ -737,23 +920,321 @@
   opacity: 0.06;
 }
 
-/* ===== ENTERPRISE TEXT EFFECTS ===== */
-.text-gradient-platinum {
-  background: linear-gradient(135deg, var(--platinum), var(--steel), var(--platinum));
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-size: 200% 200%;
-  animation: gradient-shift 6s ease infinite;
+/* `.text-gradient-platinum` and `.text-gradient-cosmos` lived here: animated
+   gradient fills for headline text, used only by the home page's two section
+   headings. Both are gone with that page's rewrite - a headline whose colour
+   travels is the loudest single tell of a generated landing page, and the
+   brand's own accent (see `.brand-aura`) says more with less. */
+
+/* The brand strip's vignette, matching `.theme-vignette` on the category
+   collage, the department cards and the product cards: the logo sits under a
+   soft wash of the page colour at rest and clears when engaged, so every image
+   surface on the page behaves the same way. */
+.brand-logo-muted .theme-vignette {
+  border-radius: inherit;
 }
 
-.text-gradient-cosmos {
-  background: linear-gradient(135deg, var(--cosmos-blue), var(--cosmos-purple), var(--steel));
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-size: 200% 200%;
-  animation: gradient-shift 8s ease infinite;
+@media (hover: hover) and (pointer: fine) {
+  html:not([data-input-touch]) .brand-logo-muted:hover .theme-vignette {
+    opacity: 0;
+    transition-duration: 700ms;
+  }
+}
+
+.brand-logo-muted[data-touch-active="true"] .theme-vignette,
+.brand-logo-muted:focus-visible .theme-vignette {
+  opacity: 0;
+  transition-duration: 700ms;
+}
+
+/* Brand strip logos: desaturated and dimmed at rest, full colour when engaged.
+   The filter is aimed at the IMAGE, not at the link, because the link also
+   contains `<BrandLogo>`'s loading shimmer - dimming the whole element dragged
+   that shimmer down with it, so a logo still loading in the strip was a
+   visibly different grey from the identical `.skeleton-shimmer` on the
+   category images. Targeting `img` leaves the placeholder at exactly the
+   colour every other shimmer in the app uses. */
+.brand-logo-muted img {
+  filter: grayscale(1);
+  opacity: 0.75;
+  transition:
+    filter 300ms ease,
+    opacity 300ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html:not([data-input-touch]) .brand-logo-muted:hover img {
+    filter: grayscale(0);
+    opacity: 1;
+  }
+}
+
+.brand-logo-muted[data-touch-active="true"] img,
+.brand-logo-muted:focus-visible img {
+  filter: grayscale(0);
+  opacity: 1;
+}
+
+/* ===== SWAP =====
+   How one thing becomes another in the brand strip.
+
+   Without this React simply replaced the logo in place: one frame it is Nike,
+   the next it is Bosch, with nothing in between. The two halves are a matched
+   pair - the outgoing mark rises and blurs away while the incoming one settles
+   down into the same spot - so the change reads as a deliberate hand-off
+   rather than a glitch. They run at the same length and overlap completely,
+   which is what keeps the slot from ever looking empty mid-swap. */
+@keyframes brand-swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px) scale(0.9);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+@keyframes brand-swap-out {
+  from {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-7px) scale(0.9);
+    filter: blur(3px);
+  }
+}
+
+.brand-swap-in {
+  animation: brand-swap-in 520ms cubic-bezier(0.2, 0, 0.1, 1) both;
+}
+
+.brand-swap-out {
+  animation: brand-swap-out 520ms cubic-bezier(0.2, 0, 0.1, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-swap-in,
+  .brand-swap-out {
+    animation: none;
+  }
+  /* The outgoing layer is removed on a timer either way, so with the
+     animation off it must not sit opaque on top of the new one. */
+  .brand-swap-out {
+    opacity: 0;
+  }
+}
+
+/* Full-width hairline separating a band from the page (the brand strip).
+   NOT `border-border`: that token is tuned for control outlines - a card edge
+   against a card surface - and on the light theme its value (oklch 0.855) sits
+   so close to the page background (0.94) that a rule drawn across open
+   background is effectively invisible, while on dark it reads fine. Mixing
+   from `--foreground` instead keys the line to the theme's TEXT colour, so it
+   lands at the same apparent weight on light, dark and cosmos alike. */
+.band-rule {
+  border-top: 1px solid color-mix(in oklch, var(--foreground) 16%, transparent);
+  border-bottom: 1px solid color-mix(in oklch, var(--foreground) 16%, transparent);
+}
+
+/* ===== HERO MOSAIC (real catalogue images in the hero) ===== */
+/* Each column holds its tiles twice over and travels exactly half its height,
+   so the wrap lands on an identical frame and the loop is seamless. */
+@keyframes mosaic-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(0, -50%, 0); }
+}
+
+.mosaic-column {
+  animation: mosaic-drift var(--mosaic-duration, 44s) linear infinite;
+  will-change: transform;
+}
+
+.mosaic-column-reverse {
+  animation-direction: reverse;
+}
+
+/* Every tile is a link to its department, and a link that slides away under
+   the cursor is a link you cannot click - so pointing at the mosaic stops ALL
+   columns, not just the one under the pointer.
+
+   Gated on a real pointer, the same line the button variants draw: `:hover`
+   sticks on a touch screen after a tap, which would leave the columns frozen
+   until something else was touched. Touch reaches the tiles through
+   `:active` (a finger already holds them still) and keyboards through
+   `:focus-within`. */
+@media (hover: hover) and (pointer: fine) {
+  html:not([data-input-touch]) .mosaic-track:hover .mosaic-column {
+    animation-play-state: paused;
+  }
+}
+
+.mosaic-track:active .mosaic-column,
+.mosaic-track:focus-within .mosaic-column {
+  animation-play-state: paused;
+}
+
+/* Colourless fade at the top and bottom edges. A mask carries no colour of its
+   own, so it resolves identically on light, dark and cosmos - a gradient
+   overlay would need a per-theme value. */
+.mosaic-mask {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 14%,
+    #000 86%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 14%,
+    #000 86%,
+    transparent 100%
+  );
+}
+
+/* Edge vignette in the ACTIVE THEME's own background colour, so a photograph
+   blends into the page instead of being stamped onto it as a hard rectangle.
+   It fades out on hover (slower than it fades in - the reveal should feel like
+   the image opening up, the return like it settling back), which is why the
+   opacity transition lives here and the `opacity-0` comes from a
+   `group-hover` utility at the call site.
+
+   `color-mix` against `var(--background)` is what makes this theme-correct in
+   one rule: light, dark and cosmos each tint with their own surface, with no
+   per-theme override. Shared by the department cards and the hero mosaic so
+   the two read as the same material. */
+.theme-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transition: opacity 300ms ease;
+  background:
+    linear-gradient(
+      to right,
+      color-mix(in oklch, var(--background) 55%, transparent) 0%,
+      color-mix(in oklch, var(--background) 20%, transparent) 8%,
+      transparent 22%
+    ),
+    linear-gradient(
+      to left,
+      color-mix(in oklch, var(--background) 55%, transparent) 0%,
+      color-mix(in oklch, var(--background) 20%, transparent) 8%,
+      transparent 22%
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in oklch, var(--background) 55%, transparent) 0%,
+      color-mix(in oklch, var(--background) 20%, transparent) 8%,
+      transparent 22%
+    ),
+    linear-gradient(
+      to top,
+      color-mix(in oklch, var(--background) 55%, transparent) 0%,
+      color-mix(in oklch, var(--background) 20%, transparent) 8%,
+      transparent 22%
+    );
+}
+
+/* ===== HERO PARTICLES =====
+   Drifting specks behind the hero copy.
+
+   This is NOT the canvas that used to live here. That one ran ~120 dots and
+   drew a line between every pair inside a radius, every frame - the
+   constellation motif, which is the single most recognisable generated-landing
+   -page background there is, and an O(n2) pass per frame for the privilege.
+   What is left is the part worth keeping: a few faint specks, no lines, no
+   canvas, no JavaScript.
+
+   Four tiled gradient layers, each drifting exactly one tile per cycle so the
+   loop is seamless, at four different speeds so they never travel as a block.
+   Two minutes for the fastest pass - slow enough to read as depth rather than
+   as motion, which matters: the version of this hero that moved quickly made
+   people feel seasick.
+
+   The speck colour is mixed from `--foreground`, so it is dark on the light
+   theme and light on dark and cosmos without a single per-theme override. */
+/* Each layer travels exactly one of its own tiles per cycle, which is what
+   makes the loop seamless - and because the tiles are different sizes, the
+   layers cover different distances in the same time and so drift at different
+   apparent speeds, which is the parallax. Directions alternate so they never
+   move as one sheet. */
+@keyframes hero-particles {
+  from {
+    background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;
+  }
+  to {
+    background-position:
+      180px 150px, -220px 190px, 260px -170px,
+      -300px -240px, 160px 210px, -340px 260px;
+  }
+}
+
+.hero-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /*
+    Sized and weighted to actually be SEEN. The first attempt mixed the speck
+    at 34% and then put the whole layer at `opacity: 0.55` - about 19% alpha -
+    on dots under 2px across, spread over four tiles so large that the entire
+    hero held roughly thirty of them. It rendered, it animated, and it was
+    invisible. Six tighter tiles put ~180 specks in the same space, which is
+    the density the old canvas ran at, and the layer carries its alpha in the
+    colours instead of dimming itself twice.
+  */
+  --speck: color-mix(in oklch, var(--foreground) 55%, transparent);
+  --speck-soft: color-mix(in oklch, var(--foreground) 32%, transparent);
+  background-image:
+    radial-gradient(2.2px 2.2px at 30px 40px, var(--speck) 60%, transparent),
+    radial-gradient(1.6px 1.6px at 140px 90px, var(--speck-soft) 60%, transparent),
+    radial-gradient(2.8px 2.8px at 80px 130px, var(--speck-soft) 60%, transparent),
+    radial-gradient(2px 2px at 210px 60px, var(--speck) 60%, transparent),
+    radial-gradient(1.6px 1.6px at 60px 170px, var(--speck-soft) 60%, transparent),
+    radial-gradient(3px 3px at 260px 200px, var(--speck) 60%, transparent);
+  background-size:
+    180px 150px, 220px 190px, 260px 170px,
+    300px 240px, 160px 210px, 340px 260px;
+  /* 60s, so the widest-travelling layer moves about 6px a second. The image
+     wall that made people seasick moved at 30. */
+  animation: hero-particles 60s linear infinite;
+}
+
+/* Cosmos paints its own star field over the whole page already, so the hero
+   pulls back here or the two layers fight each other. */
+.cosmos .hero-particles {
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-particles {
+    animation: none;
+  }
+}
+
+/* Soft brand-tinted glow behind the mosaic, so it sits on the page instead of
+   being pasted onto it. */
+.hero-glow {
+  position: absolute;
+  pointer-events: none;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklch, var(--brand-accent) 18%, transparent) 0%,
+    transparent 100%
+  );
+  filter: blur(40px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mosaic-column {
+    animation: none;
+  }
 }
 
 /* ===== COSMOS STAR PARTICLES ===== */

@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/carousel";
 import { padForLoop } from "@/lib/carouselLoop";
 import type { DepartmentWithImages } from "../db/categories";
-import { getCategoryName } from "../utils/translations";
+import { getCategoryName, getCategorySlug } from "../utils/translations";
+import { useTouchHover, touchActiveAttr } from "@/hooks/useTouchHover";
 import { useLocale } from "next-intl";
 
 // ---------- Collage ----------
@@ -39,7 +40,7 @@ function DepartmentCollage({
         alt={name}
         fill
         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 240px, 260px"
-        className="object-cover transition-transform duration-500 group-hover:scale-105"
+        className="object-cover transition-transform duration-500 hoverable:group-hover:scale-105 group-data-[touch-active=true]:scale-105"
       />
     );
   }
@@ -54,7 +55,7 @@ function DepartmentCollage({
               alt={name}
               fill
               sizes="(max-width: 640px) 25vw, 130px"
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
+              className="object-cover transition-transform duration-500 hoverable:group-hover:scale-105 group-data-[touch-active=true]:scale-105"
             />
           </div>
         ))}
@@ -72,7 +73,7 @@ function DepartmentCollage({
             alt={name}
             fill
             sizes="(max-width: 640px) 25vw, 130px"
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            className="object-cover transition-transform duration-500 hoverable:group-hover:scale-105 group-data-[touch-active=true]:scale-105"
           />
         </div>
         {images.slice(1).map((url, i) => (
@@ -82,7 +83,7 @@ function DepartmentCollage({
               alt={name}
               fill
               sizes="(max-width: 640px) 25vw, 130px"
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
+              className="object-cover transition-transform duration-500 hoverable:group-hover:scale-105 group-data-[touch-active=true]:scale-105"
             />
           </div>
         ))}
@@ -100,7 +101,7 @@ function DepartmentCollage({
             alt={name}
             fill
             sizes="(max-width: 640px) 25vw, 130px"
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            className="object-cover transition-transform duration-500 hoverable:group-hover:scale-105 group-data-[touch-active=true]:scale-105"
           />
         </div>
       ))}
@@ -112,37 +113,36 @@ function DepartmentCollage({
 
 function DepartmentCard({ dept }: { dept: DepartmentWithImages }) {
   const locale = useLocale();
+  // Touch has no hover, so a touch that turns into a small swipe stands in for
+  // the cursor landing on the card - the same gesture the product grid uses.
+  // At rest the card looks exactly as it does on a desktop.
+  const { active: touchActive, containerRef, touchProps } = useTouchHover();
   const name = getCategoryName(dept, locale);
-  // Department cards now route to the dedicated category detail page in
-  // the visitor's active locale; falls back to the EN slug if the locale
-  // doesn't have its own translation row for this dept.
-  const slug =
-    dept.translations.find((tr) => tr.locale === locale)?.slug ??
-    dept.translations.find((tr) => tr.locale === "en")?.slug ??
-    dept.translations[0]?.slug ??
-    "";
+  // Department cards route to the dedicated category detail page in the
+  // visitor's active locale; `getCategorySlug` walks locale -> default locale
+  // -> any remaining row, which is the same fallback this used to spell out
+  // inline and the same one `<DepartmentMosaic>` needs.
+  const slug = getCategorySlug(dept, locale);
 
   return (
     <Link
       href={{ pathname: "/categories/[slug]", params: { slug } }}
-      className="group relative overflow-hidden rounded-xl border border-border/50 bg-card aspect-square flex flex-col items-center justify-end hover:border-border hover:shadow-lg hover:shadow-black/10 transition-all duration-300 hover:-translate-y-0.5 shrink-0"
+      ref={containerRef}
+      {...touchProps}
+      {...touchActiveAttr(touchActive)}
+      className="group relative overflow-hidden rounded-xl border border-border/50 bg-card aspect-square flex flex-col items-center justify-end hoverable:hover:border-border hoverable:hover:shadow-lg hoverable:hover:shadow-black/10 transition-all duration-300 hoverable:hover:-translate-y-0.5 data-[touch-active=true]:border-border data-[touch-active=true]:shadow-lg data-[touch-active=true]:shadow-black/10 data-[touch-active=true]:-translate-y-0.5 shrink-0"
     >
       <DepartmentCollage images={dept.productImages} name={name} />
 
       {/* Gradient overlay */}
       <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent" />
 
-      {/* Vignette - blends card edges into page background, fades on hover */}
+      {/* Vignette - blends card edges into page background, fades on hover.
+          Now `.theme-vignette` in globals.css, shared with the hero mosaic so
+          the two surfaces cannot drift apart. */}
       <div
-        className="pointer-events-none absolute inset-0 transition-opacity duration-300 group-hover:opacity-0 group-hover:duration-700"
-        style={{
-          background: ["to right", "to left", "to bottom", "to top"].map(dir =>
-            `linear-gradient(${dir},` +
-            `color-mix(in oklch, var(--background) 55%, transparent) 0%,` +
-            `color-mix(in oklch, var(--background) 20%, transparent) 8%,` +
-            `transparent 22%)`
-          ).join(", "),
-        }}
+        aria-hidden
+        className="theme-vignette hoverable:group-hover:opacity-0 hoverable:group-hover:duration-700 group-data-[touch-active=true]:opacity-0 group-data-[touch-active=true]:duration-700"
       />
 
       {/* Label */}
@@ -228,7 +228,7 @@ export function DepartmentCarousel({
   const columns = padForLoop(chunk(departments, rows));
 
   return (
-    <section className="py-12 sm:py-20 overflow-x-clip">
+    <section className="py-10 sm:py-14 overflow-x-clip">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex items-end justify-between mb-6">
