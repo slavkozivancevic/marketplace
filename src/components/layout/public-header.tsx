@@ -12,8 +12,7 @@ import { WishlistHeaderButton } from "@/features/wishlist/components/WishlistHea
 import { ChatDrawerTrigger } from "@/features/chat/components/ChatDrawer";
 import { Menu, X } from "lucide-react";
 import { useDismissable } from "@/hooks/useDismissable";
-import { BrandMark } from "./brand-mark";
-import { BrandWordmark } from "./brand-wordmark";
+import { BrandHomeLink } from "./brand-home-link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -97,30 +96,23 @@ export function PublicHeader({
           <div className="flex h-16 items-center gap-4">
             {/* Logo - flex-1 left rail keeps the center nav screen-centered */}
             <div className="flex flex-1 justify-start min-w-0">
-            <Link
-              href="/"
-              className="group flex items-center gap-2.5 min-w-0"
-            >
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg brand-tile transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/25 group-hover:scale-105 shrink-0">
-                <BrandMark className="h-7 w-7" />
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-lg font-bold tracking-tight leading-tight truncate">
-                  <BrandWordmark />
-                </span>
-                {/* Font-size scales down continuously below ~400px (down to
-                    a 4px floor) instead of a hard breakpoint jump - the
-                    avatar-only slot in the right rail (see below) leaves
-                    less room for this as the viewport narrows, and this
-                    keeps the full text visible (never clipped/ellipsized)
-                    at any width instead of just shrinking once. Tracking
-                    stays `0.2em` (relative), so it shrinks in lockstep with
-                    the font-size automatically - no separate rule needed. */}
-                <span className="text-[clamp(1.5px,5.47vw-11.3px,10px)] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight truncate">
-                  {t("header.tagline")}
-                </span>
-              </div>
-            </Link>
+            {/* The comet runs on hover, and on the touch gesture that
+                stands in for it - see <BrandHomeLink>. */}
+            <BrandHomeLink
+              tagline={
+                  /* Font-size scales down continuously below ~400px (down to
+                     a 4px floor) instead of a hard breakpoint jump - the
+                     avatar-only slot in the right rail (see below) leaves
+                     less room for this as the viewport narrows, and this
+                     keeps the full text visible (never clipped/ellipsized)
+                     at any width instead of just shrinking once. Tracking
+                     stays `0.2em` (relative), so it shrinks in lockstep with
+                     the font-size automatically - no separate rule needed. */
+                  <span className="text-[clamp(1.5px,5.47vw-11.3px,10px)] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight truncate">
+                    {t("header.tagline")}
+                  </span>
+              }
+            />
             </div>
 
             {/* Desktop Nav */}

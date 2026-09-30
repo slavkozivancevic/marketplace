@@ -169,8 +169,6 @@ type Tokens = {
   bmB: string;
   bmC: string;
   bmBagStroke: string;
-  bmTile: string;
-  bmTileBorder: string;
   // Bag interior - matches the tile family: ink silhouette on light,
   // neutral black on dark, deep-space navy in cosmos.
   bmBag: string;
@@ -193,8 +191,6 @@ const LIGHT: Tokens = {
   bmB: "#4a4956",
   bmC: "#6b6a78",
   bmBagStroke: "transparent",
-  bmTile: "transparent",
-  bmTileBorder: "transparent",
   bmBag: "#0a0b1e",
   imgOpacity: "0.08",
   imgFilter: "grayscale(1)",
@@ -213,8 +209,6 @@ const DARK: Tokens = {
   bmB: "#c9c7d0",
   bmC: "#a5a3b0",
   bmBagStroke: "#f2eee7",
-  bmTile: "#101011",
-  bmTileBorder: "rgb(255 255 255 / 10%)",
   bmBag: "#101011",
   imgOpacity: "0.05",
   imgFilter: "grayscale(1)",
@@ -233,8 +227,6 @@ const COSMOS: Tokens = {
   bmB: "#c9c7d0",
   bmC: "#a5a3b0",
   bmBagStroke: "#f2eee7",
-  bmTile: "#0a0b1e",
-  bmTileBorder: "rgb(255 255 255 / 10%)",
   bmBag: "#0a0b1e",
   imgOpacity: "0.07",
   imgFilter: "grayscale(0.4) hue-rotate(220deg)",
@@ -254,8 +246,6 @@ function vars(t: Tokens): string {
     `--bm-b:${t.bmB}`,
     `--bm-c:${t.bmC}`,
     `--bm-bag-stroke:${t.bmBagStroke}`,
-    `--bm-tile:${t.bmTile}`,
-    `--bm-tile-border:${t.bmTileBorder}`,
     `--bm-bag:${t.bmBag}`,
     `--img-opacity:${t.imgOpacity}`,
     `--img-filter:${t.imgFilter}`,
@@ -355,12 +345,13 @@ export function notFoundResponse(locale: string, theme?: string): NextResponse {
   .hdr { position: relative; display: flex; align-items: center; height: 4rem; }
   /* group flex items-center gap-2.5 shrink-0 */
   .brand { display: inline-flex; align-items: center; gap: 0.625rem; text-decoration: none; flex-shrink: 0; }
-  /* h-9 w-9 rounded-lg bg-primary */
+  /* Bare mark, no chip - mirrors <BrandLockup>, which dropped the tile
+     because it was theme-DEPENDENT: a visible rounded box with a border on
+     dark and cosmos, and nothing at all on light. The bm-* fills already
+     recolour the mark per theme, so bare is the consistent treatment. */
   .brand-mark {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 2.25rem; height: 2.25rem; border-radius: 0.625rem;
-    /* Theme-aware chip: transparent in light, dark brand tile on dark. */
-    background: var(--bm-tile); border: 1px solid var(--bm-tile-border);
+    width: 2.25rem; height: 2.25rem;
   }
   .brand-text { display: flex; flex-direction: column; }
   /* text-lg font-bold tracking-tight leading-tight */
@@ -413,10 +404,10 @@ export function notFoundResponse(locale: string, theme?: string): NextResponse {
      display:flex (block-level, like the real "flex items-center") avoids the
      inline-block baseline gap that would otherwise skew the column height. */
   .ftr-brand { display: flex; width: fit-content; align-items: center; gap: 0.625rem; text-decoration: none; }
+  /* Bare mark, as in the header above and in <BrandLockup>. */
   .ftr-brand-mark {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 2rem; height: 2rem; border-radius: 0.625rem;
-    background: var(--bm-tile); border: 1px solid var(--bm-tile-border);
+    width: 2rem; height: 2rem;
   }
   .ftr-brand-name { font-size: 1.125rem; line-height: 1.75rem; font-weight: 700; letter-spacing: -0.025em; }
   /* text-sm text-muted-foreground leading-relaxed max-w-xs, 1rem below brand */

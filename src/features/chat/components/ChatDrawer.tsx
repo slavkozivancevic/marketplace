@@ -22,11 +22,13 @@ import { useChatSocket } from "../hooks/useChatSocket";
 import { useTypingExpiry } from "../hooks/useTypingExpiry";
 import { unlockAudioContext } from "../utils/chatSounds";
 import { useConversations } from "../hooks/useConversations";
+import { usePresence } from "../hooks/usePresence";
 import { useMessages } from "../hooks/useMessages";
 import { useConversationSearch } from "../hooks/useConversationSearch";
 import { useUserProfiles } from "../hooks/useUserProfiles";
 import { ConversationList } from "./ConversationList";
 import { MessageThread } from "./MessageThread";
+import { PresenceLine } from "./PresenceLine";
 
 /**
  * Trigger button rendered in the header - visible only when signed in.
@@ -247,6 +249,9 @@ function ChatDrawerInner({ currentUserId, sendMessage, sendTyping, markRead }: I
     [typing, selectedConvId]
   );
 
+  // Only runs while a conversation is open - see usePresence.
+  const { data: presenceData, isLoading: presenceLoading } = usePresence(selectedConvId);
+
   const [search, setSearch] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -296,13 +301,22 @@ function ChatDrawerInner({ currentUserId, sendMessage, sendTyping, markRead }: I
             <ArrowLeft className="size-4" />
           </Button>
         )}
-        <SheetTitle className="text-sm font-semibold truncate">
-          {inThread
-            ? profilesLoading
-              ? <Skeleton className="h-4 w-28" />
-              : otherParticipantName || t("conversation")
-            : t("messages")}
-        </SheetTitle>
+        {/* min-w-0 so the name can still truncate once it sits in a column */}
+        <div className="flex flex-col min-w-0">
+          <SheetTitle className="text-sm font-semibold truncate">
+            {inThread
+              ? profilesLoading
+                ? <Skeleton className="h-4 w-28" />
+                : otherParticipantName || t("conversation")
+              : t("messages")}
+          </SheetTitle>
+          {inThread && (
+            <PresenceLine
+              presence={presenceData?.presence[otherParticipantId]}
+              isLoading={profilesLoading || (presenceLoading && !presenceData)}
+            />
+          )}
+        </div>
         <div className="ml-auto flex items-center gap-0.5 shrink-0">
           {inThread && (
             <ActionButton

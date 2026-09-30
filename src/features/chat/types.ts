@@ -29,6 +29,18 @@ export interface Conversation {
   createdAt: string;
 }
 
+/**
+ * `online` is derived server-side from whether the user still has an open
+ * connection, so it is never stale in the "forgot to clear it" sense.
+ * `lastSeenAt` is absent for someone who has never been online.
+ */
+export interface UserPresence {
+  online: boolean;
+  lastSeenAt?: string;
+}
+
+export type PresenceMap = Record<string, UserPresence>;
+
 export type WsIncomingEvent =
   | { type: "NEW_MESSAGE"; message: ChatMessage }
   | { type: "MESSAGE_READ"; conversationId: string; readerId: string; messageIds: string[]; readAt: string }

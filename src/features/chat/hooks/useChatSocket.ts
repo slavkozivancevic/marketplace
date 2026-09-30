@@ -4,8 +4,9 @@ import { logger } from "@/lib/logger";
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { env } from "@/env/client";
-import { WsIncomingEvent, ChatMessage, Conversation } from "../types";
+import { WsIncomingEvent, ChatMessage, Conversation, PresenceMap } from "../types";
 import { useChatStore, TYPING_HEARTBEAT_MS } from "../store/chatStore";
+import { presenceQueryKey } from "./usePresence";
 import { playReceiveSound } from "../utils/chatSounds";
 
 type ReactionsResponse = { reactions: Record<string, Record<string, string[]>> };
@@ -44,6 +45,24 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
     if (!token) return;
 
     let closed = false;
+
+    /**
+     * Anything arriving from someone proves they are connected right now, so
+     * we can mark them online without spending a request on it. Only touches
+     * an entry that already exists - if presence was never fetched for this
+     * conversation, nobody is looking at it.
+     */
+    function markOnline(conversationId: string, userId: string) {
+      queryClient.setQueryData<{ presence: PresenceMap }>(
+        presenceQueryKey(conversationId),
+        (old) => {
+          if (!old || old.presence[userId]?.online) return old;
+          return {
+            presence: { ...old.presence, [userId]: { online: true } },
+          };
+        }
+      );
+    }
 
     function connect() {
       if (closed) return;
@@ -144,6 +163,7 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
 
           // Increment unread badge and play sound if the message is from someone else
           if (msg.senderId !== currentUserId) {
+            markOnline(msg.conversationId, msg.senderId);
             const { isOpen, selectedConvId } = useChatStore.getState();
             if (!(isOpen && selectedConvId === msg.conversationId)) {
               useChatStore.getState().incrementUnread(msg.conversationId);
@@ -258,6 +278,8 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
             useChatStore
               .getState()
               .setTyping(data.conversationId, data.userId, data.isTyping);
+            // Even a "stopped typing" frame proves they are still connected.
+            markOnline(data.conversationId, data.userId);
           }
         }
 

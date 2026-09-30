@@ -1,13 +1,15 @@
 import Image from "next/image";
-import { BrandMark } from "./brand-mark";
-import { BrandWordmark } from "./brand-wordmark";
+import { BrandLockup } from "./brand-lockup";
 import { HERO_IMAGE_URL } from "./hero-image";
 
 /**
  * Shared visual content of the full-page branded loader: the faint background
- * photo, the spinning ring around the brand mark, and the wordmark + bouncing
- * dots underneath. No hooks, no Clerk/intl dependency - safe to render from a
- * plain Server Component.
+ * photo and the brand lockup with the comet orbiting the mark. No hooks, no
+ * Clerk/intl dependency - safe to render from a plain Server Component.
+ *
+ * The lockup is the same `<BrandLockup>` the home hero and both headers use,
+ * which is the point: the loader is the brand mark waiting, not an unrelated
+ * spinner that happens to have a logo in the middle of it.
  *
  * Used by both `<AppLoader>` (Clerk boot gate / org switch) and
  * `<BootLoaderFallback>` (the Suspense fallback around the locale's
@@ -18,6 +20,12 @@ import { HERO_IMAGE_URL } from "./hero-image";
  * omit its own copy of the image (image is `z-index: -1`, faint by design;
  * relying on the caller to see it through wasn't safe), so whichever loader
  * was active determined whether a background photo showed at all.
+ *
+ * There is a THIRD copy of this markup that React cannot share:
+ * `localeSwitchOverlay.ts` builds it as an innerHTML string outside React.
+ * Any change here has to be mirrored there, and the classes involved have to
+ * stay plain CSS classes from globals.css - Tailwind never scans that string,
+ * so a utility used only there is never generated.
  */
 export function LoaderVisual() {
   return (
@@ -33,27 +41,7 @@ export function LoaderVisual() {
         />
       </div>
 
-      <div className="flex flex-col items-center gap-8">
-        <div className="relative h-24 w-24">
-          <div className="app-loader-ring absolute inset-0 animate-spin rounded-full animation-duration-[1s]" />
-          <div className="absolute inset-0 grid place-items-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl brand-tile shadow-lg shadow-primary/30 animate-pulse">
-              <BrandMark className="h-9 w-9" />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-col items-center gap-3">
-          <span className="text-sm font-semibold uppercase tracking-[0.3em] pl-[0.3em] text-muted-foreground">
-            <BrandWordmark />
-          </span>
-          <div className="flex items-center gap-1.5">
-            <span className="app-loader-dot h-1.5 w-1.5 rounded-full bg-primary" />
-            <span className="app-loader-dot h-1.5 w-1.5 rounded-full bg-primary [animation-delay:0.15s]" />
-            <span className="app-loader-dot h-1.5 w-1.5 rounded-full bg-primary [animation-delay:0.3s]" />
-          </div>
-        </div>
-      </div>
+      <BrandLockup size="loader" orientation="vertical" effect="orbit" />
     </>
   );
 }

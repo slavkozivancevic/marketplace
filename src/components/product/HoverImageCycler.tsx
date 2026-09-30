@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { claimTouchCycle, releaseTouchCycle } from "./touchCycleCoordinator";
-import { useSupportsHover } from "@/hooks/useSupportsHover";
+import { useTouchHover } from "@/hooks/useTouchHover";
+import { isTouchInput } from "@/lib/touchInput";
 import { ImageUnavailable } from "@/components/ImageUnavailable";
 
 interface HoverImageCyclerProps {
@@ -27,9 +27,9 @@ interface HoverImageCyclerProps {
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1500;
 
-// How far a finger must travel before a touch counts as the start of a swipe
-// rather than a tap - the touch equivalent of the cursor landing on a card.
-const TOUCH_ACTIVATE_PX = 8;
+// How long a single-image card stays lit after the finger lifts. A card with
+// several images ends itself instead, on the lap back to the first frame.
+const SINGLE_IMAGE_HOLD_MS = 2600;
 
 export function HoverImageCycler({
   images,
@@ -58,10 +58,6 @@ export function HoverImageCycler({
     () => new Set(),
   );
   const [retryCounts, setRetryCounts] = useState<Record<string, number>>({});
-  // Devices whose primary input has no hover (touch/stylus) never fire
-  // mouseenter, so the cycle - and the vignette that's meant to lift while
-  // "hovered" - is driven by the finger instead (see the touch handlers).
-  const supportsHover = useSupportsHover();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const retryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   // Mirrors `index` for the interval callback, which needs the frame showing
@@ -70,8 +66,6 @@ export function HoverImageCycler({
   // Set once the finger lifts mid-cycle: keep going, but stop on the wrap
   // back to the first image.
   const finishingRef = useRef(false);
-  // Where the current touch started, until it either becomes a swipe or ends.
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // Mirror for the interval closure (state there would be stale).
   const loadedUrlsRef = useRef(loadedUrls);
@@ -113,14 +107,19 @@ export function HoverImageCycler({
 
   useEffect(() => {
     const retryTimers = retryTimersRef.current;
-    const container = containerRef.current;
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       for (const t of retryTimers) clearTimeout(t);
-      // Never leave the shared slot pointing at an unmounted card.
-      if (container) releaseTouchCycle(container);
     };
   }, []);
+
+  // A single-image card has no lap to run out, so the hook's hold timer ends
+  // it; a multi-image one keeps going until the cycle wraps and calls
+  // `deactivate` itself. Either way the vignette lifts, which is the part that
+  // used to be missing: the old code bailed out of touch entirely on
+  // `images.length <= 1`, so a product with one photograph could not be
+  // "hovered" on a phone at all.
+  const hasCycle = images.length > 1;
 
   const stopCycle = useCallback(() => {
     if (timerRef.current) {
@@ -131,8 +130,42 @@ export function HoverImageCycler({
     setIsHovered(false);
     indexRef.current = 0;
     setIndex(0);
-    if (containerRef.current) releaseTouchCycle(containerRef.current);
   }, []);
+
+  // The hook needs `handleEnter`, which needs `stopCycle`, which the hook also
+  // wires up - a ref breaks that ordering knot without reordering the file.
+  const handleEnterRef = useRef<() => void>(() => {});
+
+  const {
+    containerRef: touchContainerRef,
+    touchProps,
+    deactivate: endTouchHover,
+    supportsHover,
+  } = useTouchHover({
+    holdMs: hasCycle ? null : SINGLE_IMAGE_HOLD_MS,
+    onActivate: () => handleEnterRef.current(),
+    onDeactivate: stopCycle,
+    // Lifting the finger doesn't cut the cycle short - it lets it run to the
+    // end of the lap (back to the first image) and stop there, so a quick
+    // swipe is enough to see every image of the card you touched. Driven from
+    // the hook so it fires whichever route delivered the touch.
+    onRelease: () => {
+      if (timerRef.current) finishingRef.current = true;
+    },
+  });
+
+  // Ends the lap AND gives up the shared slot. `stopCycle` alone would leave
+  // the hook still holding the card active, so the next card's swipe would be
+  // the only thing that ever released it.
+  const endCycle = useCallback(() => {
+    stopCycle();
+    endTouchHover();
+  }, [stopCycle, endTouchHover]);
+
+  const endCycleRef = useRef(endCycle);
+  useEffect(() => {
+    endCycleRef.current = endCycle;
+  }, [endCycle]);
 
   const handleEnter = useCallback(() => {
     setIsHovered(true);
@@ -156,55 +189,13 @@ export function HoverImageCycler({
       setIndex(next);
       // Wrapped back to the first frame after the finger was lifted: the lap
       // the touch started has shown every image, so the card settles here.
-      if (finishingRef.current && next === 0) stopCycle();
+      if (finishingRef.current && next === 0) endCycleRef.current();
     }, intervalMs);
-  }, [images, intervalMs, stopCycle]);
+  }, [images, intervalMs]);
 
-  // Touch/stylus devices never fire mouseenter, so the finger stands in for
-  // the cursor: a touch that turns into a swipe (any direction - typically
-  // the page scroll the user was starting anyway) activates that one card,
-  // the same way moving the mouse onto a card does. A plain tap is left
-  // alone so it still opens the product.
-  const handleTouchStart = useCallback(
-    (e: React.TouchEvent) => {
-      if (supportsHover || images.length <= 1) return;
-      const touch = e.touches[0];
-      touchStartRef.current = touch
-        ? { x: touch.clientX, y: touch.clientY }
-        : null;
-    },
-    [supportsHover, images.length],
-  );
-
-  const handleTouchMove = useCallback(
-    (e: React.TouchEvent) => {
-      const start = touchStartRef.current;
-      const touch = e.touches[0];
-      if (!start || !touch) return;
-      if (
-        Math.hypot(touch.clientX - start.x, touch.clientY - start.y) <
-        TOUCH_ACTIVATE_PX
-      ) {
-        return;
-      }
-      // Activate once per touch, not on every subsequent move.
-      touchStartRef.current = null;
-      // The cycle outlives the touch (see below), so claiming the shared slot
-      // stops whichever card was still finishing its lap - one card animates
-      // at a time, exactly like a cursor moving between cards.
-      if (containerRef.current) claimTouchCycle(containerRef.current, stopCycle);
-      handleEnter();
-    },
-    [handleEnter, stopCycle],
-  );
-
-  // Lifting the finger doesn't cut the cycle short - it lets it run to the
-  // end of the lap (back to the first image) and stop there, so a quick swipe
-  // is enough to see every image of the card you touched.
-  const handleTouchEnd = useCallback(() => {
-    touchStartRef.current = null;
-    if (timerRef.current) finishingRef.current = true;
-  }, []);
+  useEffect(() => {
+    handleEnterRef.current = handleEnter;
+  }, [handleEnter]);
 
   if (images.length === 0) return null;
 
@@ -231,18 +222,34 @@ export function HoverImageCycler({
 
   return (
     <div
-      ref={containerRef}
+      ref={(el) => {
+        containerRef.current = el;
+        touchContainerRef(el);
+      }}
       className={cn(
         "relative overflow-hidden",
         images.length > 1 && "cursor-grab",
         className,
       )}
-      onMouseEnter={handleEnter}
-      onMouseLeave={stopCycle}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onTouchCancel={handleTouchEnd}
+      // A touch screen fires a synthetic `mouseenter` right after a tap, which
+      // would start the cycle on the tap rather than on the swipe - and leave
+      // it running, because no `mouseleave` follows until something else is
+      // touched. `isTouchInput()` is checked at call time rather than through
+      // the media query, because the query reports what the device CAN do and
+      // is wrong about it under emulation and on 2-in-1 laptops.
+      onMouseEnter={
+        supportsHover
+          ? () => {
+              if (isTouchInput()) return;
+              handleEnter();
+            }
+          : undefined
+      }
+      onMouseLeave={supportsHover ? stopCycle : undefined}
+      onTouchStart={touchProps.onTouchStart}
+      onTouchMove={touchProps.onTouchMove}
+      onTouchEnd={touchProps.onTouchEnd}
+      onTouchCancel={touchProps.onTouchCancel}
     >
       {!firstSettled && (
         <div className="absolute inset-0 z-10 skeleton-shimmer" />
@@ -274,29 +281,22 @@ export function HoverImageCycler({
           <PlayCircle className="text-white drop-shadow-lg" size={48} strokeWidth={1.5} />
         </div>
       )}
+      {/* `.theme-vignette` (globals.css), the same wash the department cards,
+          the hero collage and the brand strip carry. It used to be a hand-
+          rolled copy of the gradient right here, with a softer five-stop ramp
+          than the three-stop one the cards used - the identical effect, subtly
+          different on two pages. The shared rule now carries the softer ramp
+          and this renders it like everywhere else.
+
+          It sits after the images and before nothing that creates a stacking
+          context, so the `z-10` shimmer above stays above it: the wash appears
+          with the photograph, never over its placeholder. */}
       <div
+        aria-hidden
         className={cn(
-          "pointer-events-none absolute inset-0",
-          isHovered ? "opacity-0" : "opacity-100",
+          "theme-vignette",
+          isHovered && "opacity-0 duration-700",
         )}
-        style={{
-          background: [
-            "to right",
-            "to left",
-            "to bottom",
-            "to top",
-          ].map(dir =>
-            `linear-gradient(${dir},` +
-            `color-mix(in oklch, var(--background) 55%, transparent) 0%,` +
-            `color-mix(in oklch, var(--background) 30%, transparent) 7%,` +
-            `color-mix(in oklch, var(--background) 10%, transparent) 14%,` +
-            `color-mix(in oklch, var(--background) 2%, transparent) 20%,` +
-            `transparent 25%)`
-          ).join(", "),
-          transition: isHovered
-            ? "opacity 700ms ease"
-            : "opacity 300ms ease",
-        }}
       />
       {images.length > 1 && (
         <div className="pointer-events-none absolute bottom-2 left-0 right-0 flex justify-center gap-1">

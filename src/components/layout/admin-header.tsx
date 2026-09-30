@@ -1,12 +1,10 @@
 "use client";
 
-import { Link } from "@/i18n/navigation";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { HeaderAuth } from "./header-auth";
 import { PreferencesPopover } from "./preferences-popover";
-import { BrandMark } from "./brand-mark";
-import { BrandWordmark } from "./brand-wordmark";
+import { BrandHomeLink } from "./brand-home-link";
 import { cn } from "@/lib/utils";
 
 export function AdminHeader() {
@@ -33,22 +31,18 @@ export function AdminHeader() {
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-4">
-          <Link href="/" className="group flex items-center gap-2.5 min-w-0">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg brand-tile transition-all duration-300 group-hover:shadow-lg group-hover:shadow-primary/25 group-hover:scale-105 shrink-0">
-              <BrandMark className="h-7 w-7" />
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-lg font-bold tracking-tight leading-tight truncate">
-                <BrandWordmark />
-              </span>
-              {/* Font-size scales down continuously below ~400px (floor
-                  4px) instead of clipping - tracking (`0.2em`, relative)
-                  auto-shrinks with it, no separate rule needed. */}
-              <span className="text-[clamp(1.5px,5.47vw-11.3px,10px)] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight truncate">
-                {t("adminTagline")}
-              </span>
-            </div>
-          </Link>
+          {/* Same lockup, same comet, and the same touch gesture as every
+              other header - see <BrandHomeLink>. */}
+          <BrandHomeLink
+            tagline={
+                /* Font-size scales down continuously below ~400px (floor
+                   4px) instead of clipping - tracking (`0.2em`, relative)
+                   auto-shrinks with it, no separate rule needed. */
+                <span className="text-[clamp(1.5px,5.47vw-11.3px,10px)] font-medium uppercase tracking-[0.2em] text-muted-foreground leading-tight truncate">
+                  {t("adminTagline")}
+                </span>
+            }
+          />
 
           <div className="flex items-center gap-1 sm:gap-2">
             <PreferencesPopover />

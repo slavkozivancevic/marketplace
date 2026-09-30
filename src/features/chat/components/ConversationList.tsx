@@ -1,6 +1,5 @@
 "use client";
 
-import { formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
 import { MessageCircle, ImageIcon, FileText, Video, Paperclip, Clock, Check, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -8,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Conversation } from "../types";
 import { UserProfile } from "../hooks/useUserProfiles";
 import { TypingPreview } from "./TypingIndicator";
+import { classifyDay, formatChatDate, formatChatTime } from "../utils/dateLabels";
 
 interface Props {
   conversations: Conversation[];
@@ -50,6 +50,22 @@ export function ConversationList({
   isSearching = false,
 }: Props) {
   const t = useTranslations("chat");
+
+  /**
+   * Timestamp on a row: the clock within today, then the thread's own wording
+   * for yesterday, then the same date format the rest of the chat uses.
+   *
+   * Replaces `formatDistanceToNow(..., { addSuffix: false })`, which rendered
+   * "about 22 hours" - no "ago", vague about past or future, and English even
+   * in a Serbian UI.
+   */
+  const rowTimestamp = (at: Date) => {
+    const kind = classifyDay(at);
+    if (kind === "today") return formatChatTime(at);
+    if (kind === "yesterday") return t("yesterday");
+    return formatChatDate(at);
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col gap-1 p-2">
@@ -144,9 +160,7 @@ export function ConversationList({
                 <div className="flex items-center gap-1.5 shrink-0">
                   {conv.lastMessageAt && (
                     <span className="text-[11px] text-muted-foreground">
-                      {formatDistanceToNow(new Date(conv.lastMessageAt), {
-                        addSuffix: false,
-                      })}
+                      {rowTimestamp(new Date(conv.lastMessageAt))}
                     </span>
                   )}
                   {unread > 0 && (

@@ -46,6 +46,7 @@ import { SerializedPublicProduct } from "@/types/types";
 import { useMoney } from "@/lib/useMoney";
 import { formatPrice } from "@/lib/currency";
 import { cn } from "@/lib/utils";
+import { settleOnLoad } from "@/lib/imageSettle";
 
 type QuickViewProduct = SerializedPublicProduct & {
   ratingBreakdown: Record<number, number>;
@@ -391,10 +392,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                                 className="object-contain"
                                 priority={idx === 0}
                                 showShimmer={false}
-                                ref={(img) => {
-                                  if (img?.complete && img.naturalWidth > 0)
-                                    markSlideLoaded(m.id);
-                                }}
+                                ref={(img) => settleOnLoad(img, () => markSlideLoaded(m.id))}
                                 onLoad={() => markSlideLoaded(m.id)}
                                 onError={(_e, willRetry) => {
                                   if (!willRetry) markSlideLoaded(m.id);
@@ -444,10 +442,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                         sizes="36px"
                         className="object-cover"
                         showShimmer={false}
-                        ref={(img) => {
-                          if (img?.complete && img.naturalWidth > 0)
-                            markThumbLoaded(m.id);
-                        }}
+                        ref={(img) => settleOnLoad(img, () => markThumbLoaded(m.id))}
                         onLoad={() => markThumbLoaded(m.id)}
                         onError={(_e, willRetry) => {
                           if (!willRetry) markThumbLoaded(m.id);

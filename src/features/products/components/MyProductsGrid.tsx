@@ -5,7 +5,10 @@ import { cn } from "@/lib/utils";
 
 import { useInfiniteVirtualGrid } from "@/components/infinite/useInfiniteVirtualGrid";
 import { MyProductCard } from "./MyProductCard";
-import { SkeletonProductGridCard } from "@/components/ui/skeleton";
+import {
+  SkeletonProductGridCard,
+  SkeletonVirtualGridCover,
+} from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SerializedProductListItem } from "@/types/types";
 import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
@@ -91,6 +94,8 @@ export function MyProductsGrid({
   const {
     parentRef,
     virtualizer,
+    measureRow,
+    rowsMeasured,
     items,
     query,
     columnCount,
@@ -185,19 +190,58 @@ export function MyProductsGrid({
           ))}
         </div>
       ) : (
-        <div
-          style={{
-            height: virtualizer.getTotalSize(),
-            position: "relative",
-            width: "100%",
-          }}
-        >
-          {virtualizer.getVirtualItems().map((vRow) => {
-            if (isSentinelRow(vRow.index)) {
+        <div className="relative">
+          {!rowsMeasured && (
+            <SkeletonVirtualGridCover
+              columnCount={columnCount}
+              gap={gap}
+              amount={skeletonCount}
+            />
+          )}
+          <div
+            style={{
+              height: virtualizer.getTotalSize(),
+              position: "relative",
+              width: "100%",
+              /* Faded, not hidden, until the first row of products is measured,
+                 with the cover above standing in meanwhile - see the same note
+                 in PublicProductsGrid and `rowsMeasured` in
+                 useInfiniteVirtualGrid. `visibility` inherits and collides with
+                 the cards' own `transition-all`; opacity does not. */
+              opacity: rowsMeasured ? undefined : 0,
+              pointerEvents: rowsMeasured ? undefined : "none",
+            }}
+          >
+            {virtualizer.getVirtualItems().map((vRow) => {
+              if (isSentinelRow(vRow.index)) {
+                return (
+                  <div
+                    key="sentinel"
+                    ref={measureRow}
+                    data-index={vRow.index}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      transform: `translateY(${vRow.start}px)`,
+                      display: "grid",
+                      gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+                      gap: `${gap}px`,
+                    }}
+                  >
+                    {Array.from({ length: columnCount }).map((_, i) => (
+                      <SkeletonProductGridCard key={i} />
+                    ))}
+                  </div>
+                );
+              }
+
+              const rowItems = getRowItems(vRow.index);
               return (
                 <div
-                  key="sentinel"
-                  ref={virtualizer.measureElement}
+                  key={vRow.key}
+                  ref={measureRow}
                   data-index={vRow.index}
                   style={{
                     position: "absolute",
@@ -210,34 +254,11 @@ export function MyProductsGrid({
                     gap: `${gap}px`,
                   }}
                 >
-                  {Array.from({ length: columnCount }).map((_, i) => (
-                    <SkeletonProductGridCard key={i} />
-                  ))}
+                  {rowItems.map((product) => renderCard(product, canWrite))}
                 </div>
               );
-            }
-
-            const rowItems = getRowItems(vRow.index);
-            return (
-              <div
-                key={vRow.key}
-                ref={virtualizer.measureElement}
-                data-index={vRow.index}
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  transform: `translateY(${vRow.start}px)`,
-                  display: "grid",
-                  gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
-                  gap: `${gap}px`,
-                }}
-              >
-                {rowItems.map((product) => renderCard(product, canWrite))}
-              </div>
-            );
-          })}
+            })}
+          </div>
         </div>
       )}
     </div>

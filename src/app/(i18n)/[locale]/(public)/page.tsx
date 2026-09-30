@@ -4,21 +4,23 @@ import { safeAuth } from "@/lib/auth/safeAuth";
 import { Link, getPathname } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import { Button } from "@/components/ui/button";
-import {
-  ShieldCheck,
-  Zap,
-  Globe,
-  ArrowRight,
-} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ArrowRight } from "lucide-react";
 import { HeroBackground } from "@/components/layout/hero-background";
 import { Footer } from "@/components/layout/footer";
-import { BrandWordmark } from "@/components/layout/brand-wordmark";
-import { StatsSection } from "@/components/layout/stats-section";
+import { BrandLockup } from "@/components/layout/brand-lockup";
 import { getLocale, getTranslations } from "next-intl/server";
 import { cacheTag } from "next/cache";
 import { CacheTags } from "@/lib/cache/tags";
 import { getFeaturedDepartmentsWithImages } from "@/features/categories/db/categories";
 import { DepartmentCards } from "@/features/categories/components/DepartmentCards";
+import { DepartmentMosaic } from "@/features/categories/components/DepartmentMosaic";
+import {
+  MOSAIC_MIN_IMAGES,
+  countDepartmentImages,
+} from "@/features/categories/utils/mosaic";
+import { getAllBrands } from "@/features/brands/db/brands";
+import { BrandStrip } from "@/features/brands/components/BrandStrip";
 import { JsonLdScript } from "@/components/seo/JsonLdScript";
 import {
   absoluteUrl,
@@ -33,6 +35,27 @@ async function fetchFeaturedDepartments() {
   cacheTag(CacheTags.products.publicAll());
   return getFeaturedDepartmentsWithImages();
 }
+
+/** Brands with a logo and at least one product, for the strip under the hero. */
+async function fetchStripBrands() {
+  "use cache";
+  cacheTag(CacheTags.brands.all());
+  // `_count.products` is part of the list item, and it moves when a product is
+  // created or deleted rather than when a brand is edited - hence the product
+  // tag alongside the brand one.
+  cacheTag(CacheTags.products.publicAll());
+  const brands = await getAllBrands();
+  return brands
+    .filter((b) => (b.logoUrl || b.logoUrlDark) && b._count.products > 0)
+    .slice(0, BRAND_STRIP_LIMIT);
+}
+
+/**
+ * The strip shows eight at a time and rotates through them, so this is the
+ * size of the POOL it rotates within, not the number on screen. Capped so a
+ * large catalogue does not hand the client a list of every brand it owns.
+ */
+const BRAND_STRIP_LIMIT = 24;
 
 /** Shared so the Suspense fallback and both resolved states stay identical. */
 async function BrowseProductsButton({ primary = false }: { primary?: boolean }) {
@@ -134,7 +157,10 @@ export async function generateMetadata({
 export default async function HomePage() {
   const t = await getTranslations();
   const locale = await getLocale();
-  const featuredDepartments = await fetchFeaturedDepartments();
+  const [featuredDepartments, stripBrands] = await Promise.all([
+    fetchFeaturedDepartments(),
+    fetchStripBrands(),
+  ]);
 
   // ----- Site-wide JSON-LD -----
   // Organization + WebSite schemas live on the home page (the surface most
@@ -154,135 +180,238 @@ export default async function HomePage() {
     searchUrl: `${absoluteUrl(getPathname({ href: "/products", locale }))}?search=`,
   });
 
-  const features = [
-    {
-      icon: ShieldCheck,
-      title: t("home.security"),
-      description: t("home.securityDesc"),
-    },
-    {
-      icon: Zap,
-      title: t("home.performance"),
-      description: t("home.performanceDesc"),
-    },
-    {
-      icon: Globe,
-      title: t("home.scale"),
-      description: t("home.scaleDesc"),
-    },
+  // What the platform actually does, in the order a seller meets it. These
+  // replaced a Security / Performance / Scale trio whose copy described no
+  // particular product - every claim here is something this codebase does.
+  const pillars = [
+    { title: t("home.pillarPricesTitle"), description: t("home.pillarPricesDesc") },
+    { title: t("home.pillarPayoutsTitle"), description: t("home.pillarPayoutsDesc") },
+    { title: t("home.pillarLocalesTitle"), description: t("home.pillarLocalesDesc") },
   ];
+
+  // Small factual line under the hero CTAs. It stands where four animated
+  // counters used to sit ("2,500+ sellers", "$10M+ transactions") - numbers
+  // nothing in the system produced.
+  const facts = [
+    t("home.factLocales"),
+    t("home.factCurrencies"),
+    t("home.factCheckout"),
+    t("home.factCod"),
+  ];
+
+  // Both the threshold and the count come from a plain module, NOT from the
+  // `"use client"` mosaic component - a constant imported from a client module
+  // arrives here as a client-reference proxy, so `total >= MOSAIC_MIN_IMAGES`
+  // would be a number compared against an object: false every time, silently.
+  const split =
+    countDepartmentImages(featuredDepartments) >= MOSAIC_MIN_IMAGES;
 
   return (
     <div className="star-field flex-1 overflow-y-auto min-h-0">
       <JsonLdScript data={orgSchema} />
       <JsonLdScript data={websiteSchema} />
-      {/* Hero Section */}
-      <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden pt-14 sm:pt-0">
+      {/*
+        Hero. The old one was a centred stack - pinging "Now live" pill, huge
+        headline whose second line ran an animated platinum gradient, sub, two
+        centred buttons, four counters - over a particle-constellation canvas.
+        Every one of those is a generated-landing-page motif, and together they
+        made a marketplace front page that showed no merchandise at all.
+
+        It is an asymmetric split now: the claim on the left, the catalogue on
+        the right. `overflow-clip` contains both the backdrop glows and the
+        drifting mosaic, and `min-w-0` rides along with it - clip is not a
+        scroll container, so it does not pick up the automatic `min-size: 0`
+        that would otherwise stop a wide child from widening the whole shell.
+      */}
+      {/* No fixed tall hero below `lg`: the height comes from the content, so
+          a narrow screen gets no dead space above the fold and the first CTA
+          stays reachable. On wide screens the minimum used to be 86vh, which
+          on a short laptop window left a band of nothing above and below the
+          content; the wall beside the copy already gives the section its
+          height. */}
+      <section className="relative flex min-w-0 items-center overflow-clip pt-16 pb-12 sm:pt-14 lg:py-14">
         <HeroBackground />
 
-        {/* Hero overlay gradient */}
-        <div className="absolute inset-0 bg-linear-to-b from-background/60 via-background/40 to-background pointer-events-none" />
+        <div className="relative z-10 mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-8 px-4 sm:px-6 lg:grid-cols-12 lg:items-stretch lg:gap-10 lg:px-8">
+          {/*
+            The split only exists from `lg` up, where there is room for two
+            columns. Below that the copy is CENTRED, not left-aligned: a single
+            narrow column pinned to the left edge of a 900px-wide window leaves
+            the whole right half empty and reads as a broken layout rather than
+            an asymmetric one. `split` therefore drives both the alignment and
+            the grid spans, and with no catalogue images the hero stays centred
+            at every width - there is nothing for an off-centre column to
+            balance against.
+          */}
+          <div
+            className={cn(
+              "min-w-0 text-center",
+              // 6/6 at `lg`, 5/7 only from `xl`. A 5/12 column at 1024px is
+              // ~380px, which the wordmark and the two CTAs both outgrow -
+              // they then spill out of the grid track and under the mosaic.
+              split
+                ? "mx-auto max-w-2xl lg:col-span-5 lg:mx-0 lg:max-w-none lg:text-left"
+                : "mx-auto max-w-2xl",
+            )}
+          >
+            {/*
+              Three text layers, not four. There was an uppercase eyebrow above
+              the wordmark as well ("A marketplace of independent shops"), which
+              said roughly what the headline under it said and pushed the claim
+              further down the block. A hero that opens with a tracked label
+              nobody reads is the generated-landing-page opening; the lockup is
+              a better first thing to meet.
 
-        {/* Content */}
-        <div className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 text-center">
-          {/* Badge */}
-          <div className="animate-slide-down mb-8 inline-flex items-center gap-2 rounded-full border border-border/60 bg-muted/50 px-4 py-1.5 text-sm font-medium text-muted-foreground backdrop-blur-xs">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-            </span>
-            {t("home.badge")}
+              Hierarchy also had to flip: the wordmark used to be the only
+              element at full strength, with the actual claim beneath it smaller
+              AND in `muted-foreground`, so the whole hero read as one flat grey
+              block. The claim leads now; the wordmark introduces it.
+            */}
+            <h1
+              className={cn(
+                "animate-slide-up flex flex-col items-center gap-3",
+                split && "lg:items-start",
+              )}
+            >
+              <BrandLockup size="hero" effect="sweep" />
+              {/* Deliberately quieter than the wordmark above it: at full
+                  `foreground` and the same weight the two lines competed and
+                  neither led.
+
+                  `muted-foreground`, not an opacity of the text colour. Each
+                  theme DEFINES its own value for this token - a cool grey on
+                  light, a neutral one on dark, and a violet-cast one in cosmos
+                  - whereas `foreground/70` is the same mechanical fade of the
+                  same colour everywhere and reads as the heading dimmed rather
+                  than as a second voice. The lighter weight drops it back
+                  further still. */}
+              <span className="text-3xl font-medium tracking-tight text-balance text-muted-foreground sm:text-4xl lg:text-[2.5rem]/[1.1]">
+                {t("home.headlineLine2")}
+              </span>
+            </h1>
+
+            <p
+              className={cn(
+                "animate-slide-up delay-200 mx-auto mt-4 max-w-md text-base text-pretty text-muted-foreground opacity-0 sm:text-lg",
+                split && "lg:mx-0",
+              )}
+            >
+              {t("home.subheadline")}
+            </p>
+
+            <div
+              className={cn(
+                // `flex-wrap` is load-bearing: side by side the two CTAs are
+                // wider than the text column at the narrow end of `lg`, and
+                // without it they overflow the track instead of stacking.
+                "animate-slide-up delay-400 mt-9 flex flex-col flex-wrap gap-3 opacity-0 sm:flex-row sm:items-center sm:justify-center",
+                split && "lg:justify-start",
+              )}
+            >
+              <Button asChild size="lg" className="group h-12 px-8 text-base font-semibold">
+                <Link href="/products">
+                  {t("home.exploreProducts")}
+                  <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </Link>
+              </Button>
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="h-12 px-8 text-base font-semibold"
+              >
+                <Link href="/dashboard">{t("home.startSelling")}</Link>
+              </Button>
+            </div>
+
+            {/*
+              One line, with the brand's own sparkle as the separator between
+              facts rather than a mark in front of each. Previous passes made
+              this a row of pills and then a two-column checklist; both turned
+              four short facts into a block of furniture. As a single run they
+              read as one quiet credit line under the buttons, which is all
+              they need to be.
+            */}
+            <ul
+              className={cn(
+                "animate-fade-in delay-700 mt-9 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-sm text-muted-foreground opacity-0",
+                split && "lg:justify-start",
+              )}
+            >
+              {facts.map((fact, i) => (
+                <li key={fact} className="flex items-center gap-3">
+                  {i > 0 && <span aria-hidden className="brand-pip" />}
+                  {fact}
+                </li>
+              ))}
+            </ul>
           </div>
 
-          {/* Main heading */}
-          <h1 className="animate-slide-up text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
-            <BrandWordmark />
-            <br />
-            <span className="text-gradient-platinum">{t("home.headlineGradient")}</span>
-          </h1>
-
-          <p className="animate-slide-up delay-200 mx-auto mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl opacity-0">
-            {t("home.subheadline")}
-          </p>
-
-          {/* CTA Buttons */}
-          <div className="animate-slide-up delay-400 mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 opacity-0">
-            <Button
-              asChild
-              size="lg"
-              className="h-12 px-8 text-base font-semibold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 hover:-translate-y-0.5 group"
-            >
-              <Link href="/products">
-                {t("home.exploreProducts")}
-                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              size="lg"
-              className="h-12 px-8 text-base font-semibold backdrop-blur-xs hover:-translate-y-0.5 transition-all duration-300"
-            >
-              <Link href="/dashboard">{t("home.startSelling")}</Link>
-            </Button>
-          </div>
-
-          {/* Stats */}
-          <StatsSection />
+          {/* Catalogue. Below `lg` it sits under the copy, running the full
+              width of the container out to the same gutters the "Shop by
+              department" row uses. It used to share the copy's `max-w-2xl`
+              measure, which left a wide empty margin either side of it on
+              anything between a phone and a laptop. The COPY keeps a measure -
+              a line of text 900px wide is unreadable - the images do not. */}
+          {split && (
+            <div className="animate-fade-in delay-300 w-full min-w-0 opacity-0 lg:col-span-7">
+              <DepartmentMosaic departments={featuredDepartments} />
+            </div>
+          )}
         </div>
-
-        {/* Bottom fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-linear-to-t from-background to-transparent" />
       </section>
+
+      {/* Real brands from the catalogue, directly under the hero - the first
+          concrete thing after the claim. */}
+      <BrandStrip brands={stripBrands} label={t("home.brandsLabel")} />
 
       {/* Department Cards Section */}
       <DepartmentCards departments={featuredDepartments} />
 
-      {/* Features Section */}
-      <section className="relative py-24 sm:py-32">
+      {/*
+        Three pillars. This was a row of cards, each with a lucide icon in a
+        `bg-primary/10` rounded square, lifting on hover - the stock shape of a
+        generated feature grid, filled with copy ("Enterprise Security",
+        "Lightning Performance") that described no particular product.
+
+        It is a numbered editorial row now: a rule, a large muted numeral, and
+        one true sentence. No tiles to hover, nothing to lift.
+      */}
+      <section className="relative py-12 sm:py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              {t("home.whyChoose")}
-              <span className="text-gradient-cosmos">{t("home.whyChooseGradient")}</span>
+          <div className="max-w-2xl">
+            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              {t("home.pillarsTitle")}
             </h2>
-            <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-              {t("home.whyChooseDesc")}
+            <p className="mt-3 text-base text-muted-foreground sm:text-lg">
+              {t("home.pillarsDesc")}
             </p>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-3 sm:gap-8">
-            {features.map((feature) => {
-              const Icon = feature.icon;
-              return (
-                <div
-                  key={feature.title}
-                  className="group relative rounded-2xl border border-border/50 bg-card/50 p-8 backdrop-blur-xs transition-all duration-300 hover:border-border hover:bg-card hover:shadow-xl hover:shadow-black/5 hover:-translate-y-1"
-                >
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                    <Icon className="h-6 w-6" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2">
-                    {feature.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {feature.description}
-                  </p>
-                </div>
-              );
-            })}
+          <div className="mt-12 grid gap-y-10 sm:grid-cols-3 sm:gap-x-8 lg:gap-x-12">
+            {pillars.map((pillar, i) => (
+              <div key={pillar.title} className="min-w-0 border-t border-border pt-5">
+                <span className="block text-sm font-semibold tabular-nums text-muted-foreground/70">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <h3 className="mt-3 text-lg font-semibold text-balance">
+                  {pillar.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground text-pretty">
+                  {pillar.description}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="relative py-24 sm:py-32">
+      {/* CTA Section. The two `blur-3xl` orbs that used to float in the
+          corners are gone - another motif that says "template" more than it
+          says anything about the offer. */}
+      <section className="relative pb-16 sm:pb-20">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl border border-border/50 bg-card/80 p-10 sm:p-16 text-center backdrop-blur-xs">
-            {/* Decorative gradient orbs */}
-            <div className="absolute -top-24 -right-24 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
-            <div className="absolute -bottom-24 -left-24 h-48 w-48 rounded-full bg-accent/20 blur-3xl" />
-
+          <div className="relative overflow-hidden rounded-3xl border border-border/50 bg-card/80 p-8 text-center backdrop-blur-xs sm:p-16">
             <div className="relative z-10">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
                 {t("home.readyToStart")}

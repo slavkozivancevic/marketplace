@@ -3,8 +3,7 @@
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { APP_VERSION } from "@/lib/version";
-import { BrandMark } from "./brand-mark";
-import { BrandWordmark } from "./brand-wordmark";
+import { BrandHomeLink } from "./brand-home-link";
 
 export function Footer() {
   const t = useTranslations("footer");
@@ -33,14 +32,10 @@ export function Footer() {
         <div className="grid gap-8 py-12 sm:grid-cols-2 lg:grid-cols-4">
           {/* Brand */}
           <div className="space-y-4">
-            <Link href="/" className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg brand-tile">
-                <BrandMark className="h-6 w-6" />
-              </div>
-              <span className="text-lg font-bold tracking-tight">
-                <BrandWordmark />
-              </span>
-            </Link>
+            {/* The footer shares the header's lockup, comet and all, so the
+                brand reads the same at both ends of the page - including the
+                touch gesture. */}
+            <BrandHomeLink className="group flex items-center" />
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
               {t("tagline")}
             </p>
