@@ -15,6 +15,7 @@ import {
 import { MediaLightbox, type VideoHandoff } from "@/components/product/MediaLightbox";
 import { ZoomHint, useZoomHint } from "@/components/product/ZoomHint";
 import { cn } from "@/lib/utils";
+import { settleOnLoad } from "@/lib/imageSettle";
 import { IMAGE_ZOOM_FACTOR, IMAGE_ZOOM_LENS_SIZE } from "@/constants/constants";
 import type { MediaType } from "@/generated/prisma/client";
 
@@ -406,10 +407,7 @@ export function ProductImageCarousel({
                           className="object-cover"
                           priority={index === 0}
                           showShimmer={false}
-                          ref={(img) => {
-                            if (img?.complete && img.naturalWidth > 0)
-                              markImageLoaded(index);
-                          }}
+                          ref={(img) => settleOnLoad(img, () => markImageLoaded(index))}
                           onLoad={() => markImageLoaded(index)}
                           onError={(_e, willRetry) => {
                             if (!willRetry) markImageLoaded(index);
@@ -559,10 +557,7 @@ export function ProductImageCarousel({
                     sizes="64px"
                     className="object-cover"
                     showShimmer={false}
-                    ref={(img) => {
-                      if (img?.complete && img.naturalWidth > 0)
-                        markThumbLoaded(index);
-                    }}
+                    ref={(img) => settleOnLoad(img, () => markThumbLoaded(index))}
                     onLoad={() => markThumbLoaded(index)}
                     onError={(_e, willRetry) => {
                       if (!willRetry) markThumbLoaded(index);

@@ -1108,115 +1108,73 @@
 
    `color-mix` against `var(--background)` is what makes this theme-correct in
    one rule: light, dark and cosmos each tint with their own surface, with no
-   per-theme override. Shared by the department cards and the hero mosaic so
-   the two read as the same material. */
+   per-theme override.
+
+   Five stops, not three. Two different versions of this effect existed side by
+   side: the product grid hand-rolled a five-stop ramp inline, while the
+   department cards used a three-stop one, so the same wash was visibly softer
+   on `/products` than on the home page. The five-stop ramp won because it is
+   the smoother of the two, and the inline copy is gone - every image surface
+   in the app now shares this one rule. */
 .theme-vignette {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  /* Below the loading shimmer, never over it. The wash exists to blend a
+     PHOTOGRAPH into the page; while the photograph is still arriving there is
+     nothing to blend, and a shaded placeholder reads as half-loaded. The
+     shimmer is `z-10`, so `z-0` here settles it - but only while the two sit
+     in the same stacking context, which is why every call site keeps the
+     vignette inside the same layer as the image rather than beside it. An
+     animation or a transform on a wrapper in between creates a context of its
+     own and quietly reverses the order (that is exactly what the brand
+     strip's swap animation did). */
+  z-index: 0;
   transition: opacity 300ms ease;
   background:
     linear-gradient(
       to right,
       color-mix(in oklch, var(--background) 55%, transparent) 0%,
-      color-mix(in oklch, var(--background) 20%, transparent) 8%,
-      transparent 22%
+      color-mix(in oklch, var(--background) 30%, transparent) 7%,
+      color-mix(in oklch, var(--background) 10%, transparent) 14%,
+      color-mix(in oklch, var(--background) 2%, transparent) 20%,
+      transparent 25%
     ),
     linear-gradient(
       to left,
       color-mix(in oklch, var(--background) 55%, transparent) 0%,
-      color-mix(in oklch, var(--background) 20%, transparent) 8%,
-      transparent 22%
+      color-mix(in oklch, var(--background) 30%, transparent) 7%,
+      color-mix(in oklch, var(--background) 10%, transparent) 14%,
+      color-mix(in oklch, var(--background) 2%, transparent) 20%,
+      transparent 25%
     ),
     linear-gradient(
       to bottom,
       color-mix(in oklch, var(--background) 55%, transparent) 0%,
-      color-mix(in oklch, var(--background) 20%, transparent) 8%,
-      transparent 22%
+      color-mix(in oklch, var(--background) 30%, transparent) 7%,
+      color-mix(in oklch, var(--background) 10%, transparent) 14%,
+      color-mix(in oklch, var(--background) 2%, transparent) 20%,
+      transparent 25%
     ),
     linear-gradient(
       to top,
       color-mix(in oklch, var(--background) 55%, transparent) 0%,
-      color-mix(in oklch, var(--background) 20%, transparent) 8%,
-      transparent 22%
+      color-mix(in oklch, var(--background) 30%, transparent) 7%,
+      color-mix(in oklch, var(--background) 10%, transparent) 14%,
+      color-mix(in oklch, var(--background) 2%, transparent) 20%,
+      transparent 25%
     );
 }
 
-/* ===== HERO PARTICLES =====
-   Drifting specks behind the hero copy.
+/* The hero constellation is a CANVAS again - see hero-background.tsx.
 
-   This is NOT the canvas that used to live here. That one ran ~120 dots and
-   drew a line between every pair inside a radius, every frame - the
-   constellation motif, which is the single most recognisable generated-landing
-   -page background there is, and an O(n2) pass per frame for the privilege.
-   What is left is the part worth keeping: a few faint specks, no lines, no
-   canvas, no JavaScript.
-
-   Four tiled gradient layers, each drifting exactly one tile per cycle so the
-   loop is seamless, at four different speeds so they never travel as a block.
-   Two minutes for the fastest pass - slow enough to read as depth rather than
-   as motion, which matters: the version of this hero that moved quickly made
-   people feel seasick.
-
-   The speck colour is mixed from `--foreground`, so it is dark on the light
-   theme and light on dark and cosmos without a single per-theme override. */
-/* Each layer travels exactly one of its own tiles per cycle, which is what
-   makes the loop seamless - and because the tiles are different sizes, the
-   layers cover different distances in the same time and so drift at different
-   apparent speeds, which is the parallax. Directions alternate so they never
-   move as one sheet. */
-@keyframes hero-particles {
-  from {
-    background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;
-  }
-  to {
-    background-position:
-      180px 150px, -220px 190px, 260px -170px,
-      -300px -240px, 160px 210px, -340px 260px;
-  }
-}
-
-.hero-particles {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  /*
-    Sized and weighted to actually be SEEN. The first attempt mixed the speck
-    at 34% and then put the whole layer at `opacity: 0.55` - about 19% alpha -
-    on dots under 2px across, spread over four tiles so large that the entire
-    hero held roughly thirty of them. It rendered, it animated, and it was
-    invisible. Six tighter tiles put ~180 specks in the same space, which is
-    the density the old canvas ran at, and the layer carries its alpha in the
-    colours instead of dimming itself twice.
-  */
-  --speck: color-mix(in oklch, var(--foreground) 55%, transparent);
-  --speck-soft: color-mix(in oklch, var(--foreground) 32%, transparent);
-  background-image:
-    radial-gradient(2.2px 2.2px at 30px 40px, var(--speck) 60%, transparent),
-    radial-gradient(1.6px 1.6px at 140px 90px, var(--speck-soft) 60%, transparent),
-    radial-gradient(2.8px 2.8px at 80px 130px, var(--speck-soft) 60%, transparent),
-    radial-gradient(2px 2px at 210px 60px, var(--speck) 60%, transparent),
-    radial-gradient(1.6px 1.6px at 60px 170px, var(--speck-soft) 60%, transparent),
-    radial-gradient(3px 3px at 260px 200px, var(--speck) 60%, transparent);
-  background-size:
-    180px 150px, 220px 190px, 260px 170px,
-    300px 240px, 160px 210px, 340px 260px;
-  /* 60s, so the widest-travelling layer moves about 6px a second. The image
-     wall that made people seasick moved at 30. */
-  animation: hero-particles 60s linear infinite;
-}
-
-/* Cosmos paints its own star field over the whole page already, so the hero
-   pulls back here or the two layers fight each other. */
-.cosmos .hero-particles {
-  opacity: 0.5;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero-particles {
-    animation: none;
-  }
-}
+   A `.hero-particles` rule lived here for a while: six tiled radial
+   gradients drifting on a loop, which cost no JavaScript at all. It could
+   only ever draw DOTS, though. Lines between particles depend on the
+   distance between every pair, and a tiled background knows nothing about
+   where its neighbours are, so there was no version of this rule that could
+   join them. The canvas is back for the lines, and the rule is gone rather
+   than left to paint a second, unrelated field of specks over it. */
 
 /* Soft brand-tinted glow behind the mosaic, so it sits on the page instead of
    being pasted onto it. */

@@ -100,15 +100,33 @@ function BrandSlot({
     return () => clearTimeout(t);
   }, [brand]);
 
+  /*
+    The vignette belongs INSIDE each layer, not beside them.
+
+    `.brand-swap-in` carries an animation with `fill-mode: both`, and an
+    animation creates a stacking context - which trapped `<BrandLogo>`'s
+    loading shimmer (`z-10`) inside that layer, letting a sibling vignette
+    paint over it. The collage tiles and department cards have no such
+    animation, so there the shimmer won over the vignette, and the same
+    placeholder ended up shaded in one place and clean in another. Keeping the
+    vignette in the same stacking context as the shimmer makes the `z-10` win
+    everywhere: the wash appears with the logo, never over its placeholder.
+  */
   const renderLogo = (b: BrandListItem) => (
-    <BrandLogo
-      src={b.logoUrl}
-      srcDark={b.logoUrlDark}
-      backdrop={b.logoBackdrop}
-      backdropDark={b.logoBackdropDark}
-      name={getBrandName(b, locale)}
-      size={64}
-    />
+    <span className="relative block">
+      <BrandLogo
+        src={b.logoUrl}
+        srcDark={b.logoUrlDark}
+        backdrop={b.logoBackdrop}
+        backdropDark={b.logoBackdropDark}
+        name={getBrandName(b, locale)}
+        size={64}
+      />
+      {/* Same theme-coloured wash the category collage, the department cards
+          and the product cards carry, so every image surface on the page rests
+          and clears the same way. */}
+      <span aria-hidden className="theme-vignette rounded-sm" />
+    </span>
   );
 
   const logo = (
@@ -123,10 +141,6 @@ function BrandSlot({
       <span key={brand.id} className="brand-swap-in block">
         {renderLogo(brand)}
       </span>
-      {/* Same theme-coloured wash the category collage, the department cards
-          and the product cards carry, so every image surface on the page rests
-          and clears the same way. Sits above both swap layers. */}
-      <span aria-hidden className="theme-vignette rounded-sm" />
     </span>
   );
 

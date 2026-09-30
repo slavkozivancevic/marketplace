@@ -47,7 +47,7 @@ type Options<TItem> = {
  *       return (
  *         <div
  *           key={vRow.key}
- *           ref={virtualizer.measureElement}
+ *           ref={measureRow}
  *           data-index={vRow.index}
  *           style={{
  *             position: "absolute", top: 0, left: 0, width: "100%",
@@ -142,6 +142,34 @@ export function useInfiniteVirtualGrid<TItem>({
   const itemRowCount = Math.ceil(items.length / columnCount);
   const totalRowCount = itemRowCount + (query.hasNextPage ? 1 : 0);
 
+  /*
+    The estimate cannot be made right, so it is made invisible instead.
+
+    A virtualizer positions every row it has not measured yet from
+    `estimateSize`, measures them, then corrects. Card height is not knowable in
+    advance - it moves with the column count, the translated copy, whether a
+    product has a rating row or a struck-through sale price - so the estimate is
+    always wrong by something, and that correction is what the eye catches: the
+    visible GAP between row 1 and row 2 jumping (measured at 9px, then settling
+    to the real 24px) while the row heights themselves never changed.
+
+    Tuning the constant only shrinks the jump. `rowsMeasured` removes it: the
+    caller keeps its skeleton on screen until the first real row has reported a
+    height, by which point every position is derived from measurement rather
+    than from a guess. The grid stays MOUNTED and only faded out underneath
+    that skeleton - a transparent box still lays out, and laying out is what
+    produces the measurement being waited on. It must be faded and not hidden;
+    `SkeletonVirtualGridCover` has the reason.
+
+    It is a one-way latch on purpose. Resetting it on a width change sounds
+    right - the old measurements no longer describe the new layout - but it
+    would pull the skeleton back over a grid the user is actively resizing.
+    Worse, the reset was written as an effect, so it ran AFTER the ref callback
+    that had just set the flag in the same commit: the first paint latched
+    false, and nothing re-fires a stable ref to set it again.
+  */
+  const [rowsMeasured, setRowsMeasured] = useState(false);
+
   const virtualizer = useVirtualizer({
     count: totalRowCount,
     getScrollElement: () => scrollContainerRef?.current ?? parentRef.current,
@@ -185,9 +213,48 @@ export function useInfiniteVirtualGrid<TItem>({
     return items.slice(start, start + columnCount);
   };
 
+  // Read inside the ref callback, which must not be re-created per render (a
+  // new identity makes React detach and re-attach every row).
+  const itemRowCountRef = useRef(itemRowCount);
+  itemRowCountRef.current = itemRowCount;
+
+  /**
+   * Attach to each row instead of `virtualizer.measureElement`. It does
+   * everything that does, and additionally flips `rowsMeasured` once a row of
+   * PRODUCTS has reported a real height - the signal the caller waits on
+   * before revealing the grid.
+   *
+   * The sentinel row is deliberately not a signal. It is the tail placeholder
+   * for the next page, so it sits below everything already loaded - typically
+   * far below the fold - and it attaches before the item rows do. Letting it
+   * count is what put an empty column on screen: the skeleton was taken away
+   * on the strength of a row the user could not see, leaving the page
+   * background where the products were about to be.
+   */
+  const measureRow = useCallback(
+    (el: HTMLElement | null) => {
+      virtualizer.measureElement(el);
+      if (!el) return;
+      const index = Number(el.getAttribute("data-index"));
+      if (!(index < itemRowCountRef.current)) return;
+      // `> 1` rather than `> 0`: a row caught mid-layout reports a hairline
+      // height, and treating that as measured would reveal the grid one frame
+      // too early - exactly the jump this exists to prevent.
+      if (el.getBoundingClientRect().height > 1) setRowsMeasured(true);
+    },
+    [virtualizer],
+  );
+
   return {
     parentRef: parentRefCallback as unknown as React.RefObject<HTMLDivElement>,
     virtualizer,
+    measureRow,
+    // Measured AND currently rendering at least one row of products. The
+    // second half matters on the first commit of the virtualized branch: the
+    // virtualizer has no scroll rect yet, so it hands back an empty window (or
+    // the sentinel alone) while the wrapper already carries its full height.
+    // Revealing then paints an empty column.
+    rowsMeasured: rowsMeasured && virtualItems.some((v) => v.index < itemRowCount),
     items,
     query,
     isPlaceholderData: query.isPlaceholderData,

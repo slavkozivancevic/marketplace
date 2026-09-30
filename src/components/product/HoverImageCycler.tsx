@@ -281,29 +281,22 @@ export function HoverImageCycler({
           <PlayCircle className="text-white drop-shadow-lg" size={48} strokeWidth={1.5} />
         </div>
       )}
+      {/* `.theme-vignette` (globals.css), the same wash the department cards,
+          the hero collage and the brand strip carry. It used to be a hand-
+          rolled copy of the gradient right here, with a softer five-stop ramp
+          than the three-stop one the cards used - the identical effect, subtly
+          different on two pages. The shared rule now carries the softer ramp
+          and this renders it like everywhere else.
+
+          It sits after the images and before nothing that creates a stacking
+          context, so the `z-10` shimmer above stays above it: the wash appears
+          with the photograph, never over its placeholder. */}
       <div
+        aria-hidden
         className={cn(
-          "pointer-events-none absolute inset-0",
-          isHovered ? "opacity-0" : "opacity-100",
+          "theme-vignette",
+          isHovered && "opacity-0 duration-700",
         )}
-        style={{
-          background: [
-            "to right",
-            "to left",
-            "to bottom",
-            "to top",
-          ].map(dir =>
-            `linear-gradient(${dir},` +
-            `color-mix(in oklch, var(--background) 55%, transparent) 0%,` +
-            `color-mix(in oklch, var(--background) 30%, transparent) 7%,` +
-            `color-mix(in oklch, var(--background) 10%, transparent) 14%,` +
-            `color-mix(in oklch, var(--background) 2%, transparent) 20%,` +
-            `transparent 25%)`
-          ).join(", "),
-          transition: isHovered
-            ? "opacity 700ms ease"
-            : "opacity 300ms ease",
-        }}
       />
       {images.length > 1 && (
         <div className="pointer-events-none absolute bottom-2 left-0 right-0 flex justify-center gap-1">

@@ -205,6 +205,54 @@ export function SkeletonProductGrid({
   );
 }
 
+/**
+ * The skeleton that covers a virtualized product grid until its first row has
+ * been measured.
+ *
+ * It is a SIBLING of the grid's positioning wrapper, not a child: the wrapper
+ * is faded out with `opacity: 0` while it measures, and a child would fade
+ * with it.
+ *
+ * Opacity rather than `visibility`, which is what this looked like at first
+ * and is a trap. `visibility` inherits, so hiding the wrapper hands every card
+ * `visibility: hidden` as its own computed value - and `<Card>` carries
+ * `transition-all duration-300`, so each card then TRANSITIONS that inherited
+ * value and stays hidden long after the wrapper is visible again. Measured:
+ * cards mounted at the right position with `opacity: 1`, painting nothing,
+ * for 1.4s. Opacity does not inherit; it composites the subtree, so nothing
+ * inside the wrapper sees a style change at all.
+ *
+ * `columnCount` and `gap` come from the grid rather than from container
+ * queries so the placeholders sit exactly where the real cards will.
+ */
+export function SkeletonVirtualGridCover({
+  columnCount,
+  gap,
+  amount,
+}: {
+  columnCount: number;
+  gap: number;
+  amount: number;
+}) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        display: "grid",
+        gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+        gap: `${gap}px`,
+      }}
+    >
+      {Array.from({ length: amount }).map((_, i) => (
+        <SkeletonProductGridCard key={i} />
+      ))}
+    </div>
+  );
+}
+
 export function SkeletonProductGridCard({
   // The shared <ProductCard> only renders the add-to-cart button when given an
   // `onQuickView` handler (the grid does; the wishlist and carousels don't), so
@@ -754,18 +802,30 @@ export function SkeletonSearchToolbar({
 }: {
   withMobileFilter?: boolean;
 } = {}) {
+  /*
+    Mirrors row 1 of <DepartmentSearchBar>, measured rather than guessed:
+    `flex flex-wrap items-stretch gap-2`, with the search box, the mobile
+    filter button and the sort trigger as direct siblings.
+
+    Every one of those used to be off. The row was `items-center gap-3`
+    against a real `items-stretch gap-2`; the search box was capped at
+    `max-w-sm` (384px) against a real `max-w-lg` (512px, measured at 1280);
+    and the filter and sort sat inside an extra `gap-2` wrapper that the real
+    toolbar does not have, which shifted both of them sideways.
+  */
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <Skeleton className="h-8 flex-1 min-w-40 max-w-sm rounded-lg" />
-      <div className="flex items-center gap-2">
-        {/* <MobileFilterSheet> renders a default-size outline button below lg. */}
-        {withMobileFilter && <Skeleton className="lg:hidden h-8 w-9 rounded-lg sm:w-20" />}
-        {/* <SortSelect>'s trigger is `w-fit`, so its width follows the
-            translated label; capped at `max-w-28` below sm. This is the one
-            measurement a server-rendered placeholder cannot derive - it only
-            affects the control's own width, never the row height. */}
-        <Skeleton className="h-8 w-28 sm:w-44 rounded-lg" />
-      </div>
+    <div className="flex flex-wrap items-stretch gap-2">
+      <Skeleton className="h-8 flex-1 min-w-40 max-w-lg rounded-lg" />
+      {/* <MobileFilterSheet>, `lg:hidden`: icon-only below sm, icon + label
+          from sm up (measured 78px at 768). */}
+      {withMobileFilter && <Skeleton className="lg:hidden h-8 w-9 rounded-lg sm:w-20" />}
+      {/* <SortSelect>'s trigger is `w-fit`, so its width follows the translated
+          label - the one measurement a server-rendered placeholder cannot
+          derive. Below sm the real control is capped at `max-w-28`, so that
+          half is exact; above it the label runs free (268px for the Serbian
+          "Datum dodavanja: Najnoviji prvo"), and `sm:w-64` is sized from that
+          rather than from the old `sm:w-44`, which was nearly 100px short. */}
+      <Skeleton className="h-8 w-28 rounded-lg sm:w-64" />
     </div>
   );
 }

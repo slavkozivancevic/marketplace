@@ -6,7 +6,10 @@ import { cn } from "@/lib/utils";
 
 import React, { useState } from "react";
 import { useInfiniteVirtualGrid } from "@/components/infinite/useInfiniteVirtualGrid";
-import { SkeletonProductGridCard } from "@/components/ui/skeleton";
+import {
+  SkeletonProductGridCard,
+  SkeletonVirtualGridCover,
+} from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SerializedProductListItem } from "@/types/types";
 import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
@@ -71,6 +74,8 @@ export function PublicProductsGrid({
   const {
     parentRef,
     virtualizer,
+    measureRow,
+    rowsMeasured,
     items,
     query,
     columnCount,
@@ -84,7 +89,10 @@ export function PublicProductsGrid({
     queryFn: buildFetcher(filters, locale),
     minCardWidth: 280,
     gap: 24,
-    estimateRowHeight: 380,
+    estimateRowHeight: 353,
+    // Only governs the very first paint - the hook swaps in the first measured
+    // row height after that (see `measureRow`). Kept close to reality anyway:
+    // measured at 353px for the first row on a 1206px-wide, 4-column grid.
     scrollContainerRef,
     // Public listings reflect cross-tenant changes (publish/unpublish/archive,
     // media edits). The SSR prefetch now uses this exact key (currency included),
@@ -174,19 +182,70 @@ export function PublicProductsGrid({
             ))}
           </div>
         ) : (
-          <div
-            style={{
-              height: virtualizer.getTotalSize(),
-              position: "relative",
-              width: "100%",
-            }}
-          >
-            {virtualizer.getVirtualItems().map((vRow) => {
-              if (isSentinelRow(vRow.index)) {
+          <div className="relative">
+            {/* Stands in until the grid below has measured its first row of
+                products - without it the skeleton above has already given way
+                and the column is empty page background. */}
+            {!rowsMeasured && (
+              <SkeletonVirtualGridCover
+                columnCount={columnCount}
+                gap={gap}
+                amount={skeletonCount}
+              />
+            )}
+            <div
+              style={{
+                height: virtualizer.getTotalSize(),
+                position: "relative",
+                width: "100%",
+                /*
+                  Faded out until the first row of products has been measured,
+                  then revealed under the cover above.
+
+                  The virtualizer places rows it has not measured from an
+                  estimate and corrects afterwards, and card height cannot be
+                  estimated reliably - so that correction used to be visible as
+                  the gap between the first two rows briefly opening up and then
+                  snapping back. Opacity rather than `display` on purpose: the
+                  rows still lay out and still measure while faded, which is what
+                  produces the measurement being waited on. And opacity rather
+                  than `visibility`, which inherits - see the note on
+                  `SkeletonVirtualGridCover`.
+                */
+                opacity: rowsMeasured ? undefined : 0,
+                pointerEvents: rowsMeasured ? undefined : "none",
+              }}
+            >
+              {virtualizer.getVirtualItems().map((vRow) => {
+                if (isSentinelRow(vRow.index)) {
+                  return (
+                    <div
+                      key="sentinel"
+                      ref={measureRow}
+                      data-index={vRow.index}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        transform: `translateY(${vRow.start}px)`,
+                        display: "grid",
+                        gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+                        gap: `${gap}px`,
+                      }}
+                    >
+                      {Array.from({ length: columnCount }).map((_, i) => (
+                        <SkeletonProductGridCard key={i} />
+                      ))}
+                    </div>
+                  );
+                }
+
+                const rowItems = getRowItems(vRow.index);
                 return (
                   <div
-                    key="sentinel"
-                    ref={virtualizer.measureElement}
+                    key={vRow.key}
+                    ref={measureRow}
                     data-index={vRow.index}
                     style={{
                       position: "absolute",
@@ -199,34 +258,11 @@ export function PublicProductsGrid({
                       gap: `${gap}px`,
                     }}
                   >
-                    {Array.from({ length: columnCount }).map((_, i) => (
-                      <SkeletonProductGridCard key={i} />
-                    ))}
+                    {rowItems.map(renderCard)}
                   </div>
                 );
-              }
-
-              const rowItems = getRowItems(vRow.index);
-              return (
-                <div
-                  key={vRow.key}
-                  ref={virtualizer.measureElement}
-                  data-index={vRow.index}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    transform: `translateY(${vRow.start}px)`,
-                    display: "grid",
-                    gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
-                    gap: `${gap}px`,
-                  }}
-                >
-                  {rowItems.map(renderCard)}
-                </div>
-              );
-            })}
+              })}
+            </div>
           </div>
         )}
       </div>

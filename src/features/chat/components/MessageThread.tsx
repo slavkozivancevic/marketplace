@@ -27,6 +27,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { cn } from "@/lib/utils";
+import { settleOnLoad } from "@/lib/imageSettle";
 import { playSendSound } from "../utils/chatSounds";
 import { useReactions } from "../hooks/useReactions";
 import { Button } from "@/components/ui/button";
@@ -617,12 +618,10 @@ function InlineAttachmentDisplay({ attachment }: { attachment: Attachment }) {
                 src={url}
                 alt="attachment"
                 className="w-full h-full object-cover hover:opacity-90 transition-opacity"
-                // Cached images can be `complete` before React attaches
-                // onLoad; the ref callback catches that (same pattern as
-                // ProductImageCarousel / HoverImageCycler).
-                ref={(img) => {
-                  if (img?.complete && img.naturalWidth > 0) setImgLoaded(true);
-                }}
+                // Settles the shimmer however the image finishes - a
+                // `complete` check alone misses the one that lands between
+                // mount and React attaching `onLoad`. See settleOnLoad.
+                ref={(img) => settleOnLoad(img, () => setImgLoaded(true))}
                 onLoad={() => setImgLoaded(true)}
                 onError={() => setImgLoaded(true)}
               />

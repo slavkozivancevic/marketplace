@@ -13,6 +13,7 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
+import { settleOnLoad } from "@/lib/imageSettle";
 import type { MediaType } from "@/generated/prisma/client";
 
 export interface LightboxMediaItem {
@@ -260,10 +261,7 @@ export function MediaLightbox({
                         className="object-contain"
                         unoptimized={item.unoptimized}
                         showShimmer={false}
-                        ref={(img) => {
-                          if (img?.complete && img.naturalWidth > 0)
-                            markImageLoaded(i);
-                        }}
+                        ref={(img) => settleOnLoad(img, () => markImageLoaded(i))}
                         onLoad={() => markImageLoaded(i)}
                         onError={(_e, willRetry) => {
                           if (!willRetry) markImageLoaded(i);
