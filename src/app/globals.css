@@ -1030,6 +1030,86 @@
   }
 }
 
+/* ===== BRAND STRIP ROW =====
+   How many logos the band shows, and how big they are, is decided HERE rather
+   than in JS, for one reason: the server cannot measure a viewport. While the
+   count lived in React state behind a ResizeObserver, every cold load painted
+   one guess (four small logos) and then jumped to the real row once JS had
+   measured - the row's own skeleton disagreed with the row.
+
+   `@container`, not media queries, because the row's width is not a function
+   of the viewport's: from `lg` up the label sits INSIDE the row and takes
+   ~230px of it (and that width is translated, so it differs per locale), while
+   below `lg` the label is stacked above and the row has the full measure. The
+   container is the wrapper, so every query here reads the row's true width.
+
+   The columns are `1fr`, so the grid itself divides the width evenly and the
+   logo takes `min(--brand-strip-logo-max, 100%)` of its own column. That one
+   rule covers both ends: a full row fills the measure edge to edge, and a
+   catalogue with fewer brands than the row could hold caps each logo at the
+   max and lets the columns carry the slack as even air, instead of flinging
+   the few logos it has into the far corners.
+
+   The breakpoints are not taste. A row of n logos needs
+   `n * MIN_LOGO + (n - 1) * GAP`, which with the 56px floor and the 16px gap
+   below is `72n - 16` - so 272px buys a fourth logo, 344px a fifth, and so on
+   in 72px steps. Keep them in step with `MAX_VISIBLE` in BrandStrip.tsx, which
+   is what stops a 24-brand catalogue from becoming a sheet of stickers. */
+.brand-strip-container {
+  container-type: inline-size;
+  container-name: brand-strip;
+}
+
+
+.brand-strip-row {
+  --brand-strip-logo-max: 88px;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  column-gap: 16px;
+  align-items: center;
+}
+
+/* Three is what fits at the 56px floor in the narrowest container we support;
+   each query below buys exactly one more. */
+.brand-strip-row > li {
+  display: none;
+}
+.brand-strip-row > li:nth-child(-n + 3) {
+  display: block;
+}
+
+@container brand-strip (min-width: 272px) {
+  .brand-strip-row > li:nth-child(4) { display: block; }
+}
+@container brand-strip (min-width: 344px) {
+  .brand-strip-row > li:nth-child(5) { display: block; }
+}
+@container brand-strip (min-width: 416px) {
+  .brand-strip-row > li:nth-child(6) { display: block; }
+}
+@container brand-strip (min-width: 488px) {
+  .brand-strip-row > li:nth-child(7) { display: block; }
+}
+@container brand-strip (min-width: 560px) {
+  .brand-strip-row > li:nth-child(8) { display: block; }
+}
+@container brand-strip (min-width: 632px) {
+  .brand-strip-row > li:nth-child(9) { display: block; }
+}
+@container brand-strip (min-width: 704px) {
+  .brand-strip-row > li:nth-child(10) { display: block; }
+}
+
+/* The slot's own box - the link (or the span, for a brand with no slug). It
+   carries the width so that everything nested inside it, including the
+   `absolute inset-0` swap layers and the vignette, lines up with the LOGO
+   rather than with the full grid column. */
+.brand-strip-slot {
+  width: min(var(--brand-strip-logo-max), 100%);
+  margin-inline: auto;
+}
+
 /* Full-width hairline separating a band from the page (the brand strip).
    NOT `border-border`: that token is tuned for control outlines - a card edge
    against a card surface - and on the light theme its value (oklch 0.855) sits

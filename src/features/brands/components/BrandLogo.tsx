@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { BrandLogoLayer } from "./BrandLogoLayer";
 import { cn } from "@/lib/utils";
 
@@ -18,8 +19,21 @@ export type LogoBackdrop = "AUTO" | "LIGHT" | "DARK" | "NEUTRAL";
 interface BrandLogoProps {
   src: string | null | undefined;
   name: string;
-  /** Pixel size (square). Defaults to 40 - matches admin list cells. */
-  size?: number;
+  /**
+   * Size of the square chip. Defaults to 40 - matches admin list cells.
+   *
+   * A number is pixels, which is what every fixed-size surface wants. A STRING
+   * is used verbatim as a CSS length, for the one case a number cannot express:
+   * a chip whose size is decided by CSS rather than by the caller - the brand
+   * strip sizes its logos from the grid column they sit in (`"100%"`), so that
+   * the server-rendered row is already the right size at every width instead of
+   * waiting for JS to measure and correct it.
+   *
+   * In the string form the height comes from `aspect-ratio` rather than a
+   * matching length, since a percentage height would resolve against the
+   * parent's HEIGHT and not its width.
+   */
+  size?: number | string;
   /** `square` = `rounded-sm`, `circle` = `rounded-full`. */
   shape?: "square" | "circle";
   /** `default` is for plain panels/lists. `overlay` is for badges sitting on
@@ -36,6 +50,9 @@ interface BrandLogoProps {
   backdropDark?: LogoBackdrop;
   className?: string;
 }
+
+/** Largest a CSS-sized chip is ever drawn at - see `sizesHint` below. */
+const CSS_SIZED_HINT_PX = 96;
 
 /** Fixed (theme-independent) tile for a single asset, by its backdrop. */
 function tileFor(backdrop: LogoBackdrop): { surface: string; padded: boolean } {
@@ -72,6 +89,16 @@ export function BrandLogo({
 }: BrandLogoProps) {
   const radius = shape === "circle" ? "rounded-full" : "rounded-sm";
   const initials = name.slice(0, 2).toUpperCase();
+  const cssSize = typeof size === "string";
+  // The square box. See the `size` prop for why the string form squares itself
+  // with `aspect-ratio` instead of a second length.
+  const boxStyle: CSSProperties = cssSize
+    ? { width: size, aspectRatio: "1" }
+    : { width: size, height: size };
+  // `sizes` is a hint for the image candidate picker only, and these images are
+  // `unoptimized` (no srcset to pick from), so a CSS-sized chip can hand it the
+  // largest it will ever be drawn at rather than an exact number.
+  const sizesHint = cssSize ? CSS_SIZED_HINT_PX : size;
   // Pick the best asset per theme, each falling back to the other so a brand
   // that only filled one of the two URLs still shows a logo in both themes
   // (e.g. only `srcDark` set -> use it everywhere instead of dropping to
@@ -104,9 +131,14 @@ export function BrandLogo({
           className,
         )}
         style={{
-          width: size,
-          height: size,
-          fontSize: Math.max(10, Math.round(size * 0.35)),
+          ...boxStyle,
+          // `cqw` (not a percentage) because a percentage font-size resolves
+          // against the PARENT's font-size, not against this box's width. The
+          // container declaration right here is what `cqw` then refers to, so
+          // the two forms land on the same 35%-of-the-edge either way.
+          ...(cssSize
+            ? { containerType: "inline-size", fontSize: "max(10px, 35cqw)" }
+            : { fontSize: Math.max(10, Math.round(size * 0.35)) }),
         }}
         aria-label={name}
       >
@@ -128,12 +160,18 @@ export function BrandLogo({
         : tileFor(assetBackdrop);
     // A small inset lets transparent logos breathe and keeps them off the
     // rounded corners. Skip it for NEUTRAL logos that own their full canvas.
-    const pad = padded ? Math.round(size * 0.12) : 0;
+    // Padding is the one percentage that already resolves against the
+    // containing block's WIDTH, so the string form needs no special case.
+    const pad = padded
+      ? cssSize
+        ? `calc(${size} * 0.12)`
+        : Math.round(size * 0.12)
+      : 0;
     return (
       <BrandLogoLayer
         src={assetSrc}
         alt={name}
-        size={size}
+        size={sizesHint}
         surface={surface}
         pad={pad}
         visibility={visibility}
@@ -144,7 +182,7 @@ export function BrandLogo({
   return (
     <div
       className={cn("relative overflow-hidden", radius, frameBorder, className)}
-      style={{ width: size, height: size }}
+      style={boxStyle}
     >
       {hasDarkAsset ? (
         <>

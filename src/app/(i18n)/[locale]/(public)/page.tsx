@@ -51,9 +51,12 @@ async function fetchStripBrands() {
 }
 
 /**
- * The strip shows eight at a time and rotates through them, so this is the
- * size of the POOL it rotates within, not the number on screen. Capped so a
- * large catalogue does not hand the client a list of every brand it owns.
+ * Size of the POOL the strip rotates within, not the number on screen - how
+ * many fit on screen is solved from the row's measured width (see
+ * `BrandStrip`), and runs from four on a 320px phone to around ten on a wide
+ * desktop. The pool stays comfortably above that so the rotation always has
+ * somewhere to rotate to, and capped so a large catalogue does not hand the
+ * client a list of every brand it owns.
  */
 const BRAND_STRIP_LIMIT = 24;
 
