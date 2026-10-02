@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { cn } from "@/lib/utils";
 import { useTouchHover, touchActiveAttr } from "@/hooks/useTouchHover";
 import { BrandLogo } from "./BrandLogo";
 import { getBrandName, getBrandSlug } from "../utils/translations";
@@ -23,21 +22,36 @@ import type { BrandListItem } from "../db/brands";
  */
 
 /**
- * Visible slots per breakpoint. These MUST match the grid's column counts
- * below, because the grid is what guarantees a single row: a `flex-wrap` strip
- * put whatever did not fit onto a second line, centred on its own, which is
- * how eight logos ended up as a row of seven and an orphan.
+ * How many logos the row shows, and how big they are, is decided in CSS -
+ * `.brand-strip-row` in globals.css, with container queries on the row's own
+ * width. See that block for the arithmetic behind the breakpoints.
+ *
+ * It used to be a fixed 3 / 4 / 6 / 7 by VIEWPORT width, spread across the full
+ * measure with `justify-between`. Measured on the real page that left gaps of
+ * 123px at 480px wide, 195px at 900px and 229px at 1000px - four logos adrift
+ * in a band with room for eleven - because the viewport is the wrong input:
+ * from `lg` up the label sits inside the row and takes ~230px of it, and that
+ * width is translated, so it is not even the same per locale.
+ *
+ * Deriving it in JS instead (observe the row, solve for the count) fixed the
+ * spacing but not the SKELETON: the server cannot measure a viewport, so every
+ * cold load painted one guess - four small logos - and then jumped to the real
+ * row once JS had caught up. CSS has the width on the first paint, so the
+ * server-rendered row IS the final row, at every width, with no correction.
+ *
+ * What is left for JS is the rotation, and the only thing it needs from the
+ * layout is how many slots are currently on screen - which it READS BACK from
+ * the DOM rather than recomputing, so CSS stays the single source of truth.
  */
-const SLOTS_XL = 7;
 
 /**
- * The widest arrangement is what the rotation cycles over. It is deliberately
- * SMALLER than the pool the page fetches (`BRAND_STRIP_LIMIT`): with eight
- * qualifying brands and eight slots, every brand was already on screen, so the
- * "rotate so each one gets a turn" effect had nothing to rotate to and its
- * interval never even started.
+ * Slots rendered into the DOM. CSS reveals as many as fit and hides the rest,
+ * so this is the ceiling on how many can ever be on screen at once - without
+ * one, a full 24-brand catalogue would turn a wide band into a sheet of small
+ * stickers. Must stay in step with the last container query in
+ * `.brand-strip-row`.
  */
-const SLOTS = SLOTS_XL;
+const MAX_VISIBLE = 10;
 
 /** How long a slot holds before the next one changes. */
 const SWAP_MS = 3600;
@@ -46,16 +60,12 @@ const SWAP_MS = 3600;
  *  when its animation ends, not before. */
 const SWAP_FADE_MS = 520;
 
-/** Slots beyond the narrow column counts are hidden, never wrapped. */
-const SLOT_VISIBILITY = [
-  "flex",
-  "flex",
-  "flex",
-  "hidden sm:flex",
-  "hidden lg:flex",
-  "hidden lg:flex",
-  "hidden xl:flex",
-];
+/**
+ * The chip fills the slot box, which `.brand-strip-slot` has already sized from
+ * the grid column it sits in. See `BrandLogo`'s `size` prop for the string
+ * form - it is what lets a logo be sized by CSS instead of by the caller.
+ */
+const LOGO_SIZE = "100%";
 
 function BrandSlot({
   brand,
@@ -120,7 +130,7 @@ function BrandSlot({
         backdrop={b.logoBackdrop}
         backdropDark={b.logoBackdropDark}
         name={getBrandName(b, locale)}
-        size={64}
+        size={LOGO_SIZE}
       />
       {/* Same theme-coloured wash the category collage, the department cards
           and the product cards carry, so every image surface on the page rests
@@ -144,14 +154,23 @@ function BrandSlot({
     </span>
   );
 
-  /* `.brand-logo-muted` (globals.css) desaturates and dims at rest and clears
-     on hover, on the touch gesture and on keyboard focus. It is a CSS class
-     rather than Tailwind utilities here for one reason: it aims the filter at
-     the `img`, so `<BrandLogo>`'s loading shimmer keeps the same colour as
-     every other shimmer in the app instead of being dimmed along with it. */
-  const shell = "brand-logo-muted block";
+  /* Two classes, two jobs.
 
-  if (!slug) return <span className="brand-logo-muted block">{logo}</span>;
+     `.brand-strip-slot` is the slot's BOX: it takes its width from the grid
+     column (capped at `--brand-strip-logo-max`) and centres itself in it. That
+     width has to sit on THIS element rather than deeper in, because everything
+     inside - both swap layers and the vignette - is `absolute inset-0` and
+     would otherwise stretch across the whole column instead of hugging the
+     logo.
+
+     `.brand-logo-muted` desaturates and dims at rest and clears on hover, on
+     the touch gesture and on keyboard focus. It is a CSS class rather than
+     Tailwind utilities for one reason: it aims the filter at the `img`, so
+     `<BrandLogo>`'s loading shimmer keeps the same colour as every other
+     shimmer in the app instead of being dimmed along with it. */
+  const shell = "brand-strip-slot brand-logo-muted block";
+
+  if (!slug) return <span className={shell}>{logo}</span>;
 
   return (
     <Link
@@ -176,14 +195,43 @@ export function BrandStrip({
   brands: BrandListItem[];
   label: string;
 }) {
-  const visible = Math.min(SLOTS, brands.length);
+  // How many slots are ON SCREEN right now. CSS decides that (see the comment
+  // at the top of this file), so this reads the answer back out of the DOM
+  // instead of recomputing it - a second copy of the breakpoint arithmetic in
+  // JS is exactly the kind of thing that drifts from the stylesheet.
+  //
+  // A ref, not state: nothing in the render depends on it. Only the rotation
+  // interval reads it, and it must see the current value rather than the one
+  // captured when the interval was created.
+  const rowRef = useRef<HTMLUListElement>(null);
+  const visibleRef = useRef(0);
+  useEffect(() => {
+    const row = rowRef.current;
+    if (!row) return;
+    const recount = () => {
+      // A hidden slot is `display: none`, so it has no box.
+      visibleRef.current = [...row.children].filter(
+        (slot) => slot.getBoundingClientRect().width > 0,
+      ).length;
+    };
+    recount();
+    // Observing the row catches both a viewport resize and the container query
+    // flipping a slot on or off, since the latter only ever happens because the
+    // former changed the row's width.
+    const observer = new ResizeObserver(recount);
+    observer.observe(row);
+    return () => observer.disconnect();
+  }, []);
 
+  // Slots in the DOM. Fixed, server-rendered, and the same on every client:
+  // which of them are visible is CSS's business, not React's.
+  const slotCount = Math.min(MAX_VISIBLE, brands.length);
   const [shown, setShown] = useState<number[]>(() =>
-    Array.from({ length: visible }, (_, i) => i),
+    Array.from({ length: slotCount }, (_, i) => i),
   );
   // Next slot to change and next brand to bring in, both advancing round-robin
   // so the rotation walks the whole list rather than reshuffling the same few.
-  const cursor = useRef({ slot: 0, brand: visible });
+  const cursor = useRef({ slot: 0, brand: slotCount });
 
   // Which slot is under a cursor or a finger, read by the interval through a
   // ref so it always sees the current value rather than the one captured when
@@ -199,8 +247,6 @@ export function BrandStrip({
   }, []);
 
   useEffect(() => {
-    // Nothing held back, so nothing to rotate to.
-    if (brands.length <= visible) return;
     if (
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -209,36 +255,50 @@ export function BrandStrip({
     }
 
     const id = setInterval(() => {
+      const visible = visibleRef.current;
+      // Nothing held back, so nothing to rotate to. Checked per tick rather
+      // than per mount because the visible count moves with the window.
+      if (visible === 0 || brands.length <= visible) return;
+
       setShown((prev) => {
-        let slot = cursor.current.slot % prev.length;
+        let slot = cursor.current.slot % visible;
         // Step over the slot the user is pointing at. If every slot is
         // somehow engaged, skip this tick rather than swap under them.
         for (
           let guard = 0;
-          guard < prev.length && slot === engagedSlotRef.current;
+          guard < visible && slot === engagedSlotRef.current;
           guard++
         ) {
-          slot = (slot + 1) % prev.length;
+          slot = (slot + 1) % visible;
         }
         if (slot === engagedSlotRef.current) return prev;
+
+        // Only the VISIBLE slots decide what counts as already on screen - a
+        // brand parked in a hidden slot is fair game to bring in.
         let brand = cursor.current.brand % brands.length;
-        // Never show the same brand twice in the row at once.
         for (
           let guard = 0;
-          guard < brands.length && prev.includes(brand);
+          guard < brands.length && prev.slice(0, visible).includes(brand);
           guard++
         ) {
           brand = (brand + 1) % brands.length;
         }
         cursor.current = { slot: slot + 1, brand: brand + 1 };
+
         const next = [...prev];
+        // If the brand coming in was parked in a hidden slot, SWAP rather than
+        // copy: leaving it in both would show it twice the moment the window
+        // widens far enough to reveal that slot.
+        const parked = next.indexOf(brand);
+        const outgoing = next[slot];
         next[slot] = brand;
+        if (parked !== -1 && parked !== slot) next[parked] = outgoing;
         return next;
       });
     }, SWAP_MS);
 
     return () => clearInterval(id);
-  }, [brands.length, visible]);
+  }, [brands.length]);
 
   if (brands.length === 0) return null;
 
@@ -257,46 +317,32 @@ export function BrandStrip({
             {label}
           </p>
 
-          {/*
-            `flex-nowrap` with `justify-between`, not a wrapping row and not a
-            centred grid.
-
-            - No wrap: the original `flex-wrap` dropped whatever did not fit
-              onto a second line, centred on its own, which is how eight logos
-              became a row of seven and an orphan. How many are shown is
-              decided per breakpoint by SLOT_VISIBILITY, never by wrapping.
-            - `justify-between`: the first logo sits on the left edge and the
-              last on the right, so the row spans the full measure. A grid with
-              `justify-items-center` distributed them evenly but inset each one
-              inside its own cell, which left the row looking short of both
-              ends.
-            - `min-w-0` because this sits inside a flex row and must never be
-              what widens the shell.
-          */}
-          <ul className="flex w-full min-w-0 flex-1 flex-nowrap items-center justify-between gap-x-4">
-            {shown.map((brandIndex, slot) => {
-              const brand = brands[brandIndex % brands.length];
-              if (!brand) return null;
-              return (
-                // Keyed by SLOT, not by brand: the slot is the thing that
-                // persists, so React swaps the logo inside it rather than
-                // unmounting and remounting the row item.
-                <li
-                  key={slot}
-                  className={cn(
-                    "shrink-0 items-center justify-center",
-                    SLOT_VISIBILITY[slot] ?? "flex",
-                  )}
-                >
-                  <BrandSlot
-                    brand={brand}
-                    slot={slot}
-                    onEngagedChange={handleEngagedChange}
-                  />
-                </li>
-              );
-            })}
-          </ul>
+          {/* The container the row's queries read - see `.brand-strip-row`
+              in globals.css. It has to be a WRAPPER rather than the `<ul>`
+              itself, because a container query cannot style the element that
+              declares the container. `min-w-0` keeps this width a function of
+              the band, never of the logos inside it, which is what makes the
+              queries read the space actually available. */}
+          <div className="brand-strip-container w-full min-w-0 flex-1">
+            <ul className="brand-strip-row" ref={rowRef}>
+              {shown.map((brandIndex, slot) => {
+                const brand = brands[brandIndex % brands.length];
+                if (!brand) return null;
+                return (
+                  // Keyed by SLOT, not by brand: the slot is the thing that
+                  // persists, so React swaps the logo inside it rather than
+                  // unmounting and remounting the row item.
+                  <li key={slot}>
+                    <BrandSlot
+                      brand={brand}
+                      slot={slot}
+                      onEngagedChange={handleEngagedChange}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </div>
       </div>
     </section>

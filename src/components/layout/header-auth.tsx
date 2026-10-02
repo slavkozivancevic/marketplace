@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentProps } from "react";
 import { Link } from "@/i18n/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import {
@@ -58,6 +58,58 @@ interface HeaderAuthProps {
    */
   layout?: "row" | "panel";
 }
+
+/**
+ * The 32px circle that stands in for the avatar whenever the real one is not
+ * on screen yet. Two different gaps use it, back to back on a cold load:
+ *
+ *   1. before clerk-js has loaded at all (the `signedIn`-driven branch below),
+ *   2. while clerk-js is mounting its own `<UserButton>` - Clerk's `fallback`
+ *      prop, which it renders in place of the host element until the button
+ *      has painted.
+ *
+ * Gap 2 is the one that used to show nothing: `isLoaded` flips true the moment
+ * clerk-js is up, which drops gap 1's placeholder, but the button itself only
+ * paints a beat later. Measured on a cold storefront load, that left an empty
+ * hole in the rail for ~830ms (44ms on the dashboard, where less else is
+ * competing for the main thread) - two icons and a blank where the account
+ * avatar belongs. The slot keeps its size either way, so nothing shifted; it
+ * just looked like the avatar had failed to load.
+ */
+const avatarSkeleton = (
+  <div className="size-8 rounded-full bg-muted animate-pulse" aria-hidden />
+);
+
+/**
+ * Hoisted so Clerk sees the SAME object on every render. `<UserButton>` pushes
+ * its props through `updateProps` whenever they change, and a literal declared
+ * inside the component is a new object each time - every header re-render (the
+ * shells re-render on scroll) re-applied the whole appearance.
+ */
+const userButtonAppearance: ComponentProps<typeof UserButton>["appearance"] = {
+  elements: {
+    rootBox: "size-8",
+    userButtonBox: "size-8",
+    // CSS objects (not classes): Clerk's internal styles win over appended
+    // class names, which left the avatar at its 28px default (`sizes.$7`),
+    // LEFT-aligned inside the 32px trigger - so Clerk's own focus ring (a
+    // gray circle in light mode) sat visibly off-center from the avatar. The
+    // avatar now fills the trigger exactly, and the mouse-click ring is
+    // dropped entirely (opening the menu is feedback enough); keyboard focus
+    // gets the app's own ring tokens so it's visible on every theme.
+    userButtonTrigger: {
+      width: "2rem",
+      height: "2rem",
+      borderRadius: "9999px",
+      "&:focus": { boxShadow: "none" },
+      "&:focus-visible": {
+        boxShadow:
+          "0 0 0 3px color-mix(in oklab, var(--color-ring) 50%, transparent)",
+      },
+    },
+    avatarBox: { width: "2rem", height: "2rem" },
+  },
+};
 
 /**
  * Renders Clerk's auth UI in the header.
@@ -139,33 +191,11 @@ export function HeaderAuth({
       {/* Sign-out target is set globally on `<ClerkProvider>` (the
           per-component `afterSignOutUrl` was deprecated). */}
       <div className={cn(avatarSlot, "flex items-center justify-center")}>
-        <UserButton
-          appearance={{
-            elements: {
-              rootBox: "size-8",
-              userButtonBox: "size-8",
-              // CSS objects (not classes): Clerk's internal styles win over
-              // appended class names, which left the avatar at its 28px
-              // default, LEFT-aligned inside the 32px trigger - so Clerk's
-              // own focus ring (a gray circle in light mode) sat visibly
-              // off-center from the avatar. The avatar now fills the trigger
-              // exactly, and the mouse-click ring is dropped entirely
-              // (opening the menu is feedback enough); keyboard focus gets
-              // the app's own ring tokens so it's visible on every theme.
-              userButtonTrigger: {
-                width: "2rem",
-                height: "2rem",
-                borderRadius: "9999px",
-                "&:focus": { boxShadow: "none" },
-                "&:focus-visible": {
-                  boxShadow:
-                    "0 0 0 3px color-mix(in oklab, var(--color-ring) 50%, transparent)",
-                },
-              },
-              avatarBox: { width: "2rem", height: "2rem" },
-            },
-          }}
-        />
+        {/* `fallback` holds the slot while clerk-js mounts the button - see
+            `avatarSkeleton`. Clerk hides its own host element (display:none)
+            for exactly as long as the fallback shows, so the two never
+            overlap and the swap costs no layout. */}
+        <UserButton appearance={userButtonAppearance} fallback={avatarSkeleton} />
       </div>
     </>
   );
@@ -180,7 +210,7 @@ export function HeaderAuth({
     <>
       {dashboardLink}
       <div className={cn(avatarSlot, "flex items-center justify-center")}>
-        <div className="size-8 rounded-full bg-muted animate-pulse" aria-hidden />
+        {avatarSkeleton}
       </div>
     </>
   );

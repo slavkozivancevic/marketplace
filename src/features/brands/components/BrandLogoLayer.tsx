@@ -11,8 +11,9 @@ interface BrandLogoLayerProps {
   size: number;
   /** Tile surface class (e.g. `bg-logo-light`) shown behind the logo. */
   surface: string;
-  /** Inset (px) so transparent logos breathe; 0 for full-canvas logos. */
-  pad: number;
+  /** Inset so transparent logos breathe; 0 for full-canvas logos. A number is
+   *  px; a string is a CSS length, for a chip sized by CSS (see `BrandLogo`). */
+  pad: number | string;
   /** Theme-visibility class (`dark:hidden` / `hidden dark:block`) or undefined. */
   visibility?: string;
 }
