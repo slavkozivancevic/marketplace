@@ -16,6 +16,7 @@ import { User } from "lucide-react";
 import { HeaderDivider } from "./header-divider";
 import { cn } from "@/lib/utils";
 import { FallbackImg } from "@/components/FallbackImg";
+import { settleOnLoad } from "@/lib/imageSettle";
 
 /**
  * Auth controls for the 404 page. Mirrors HeaderAuth visually but never
@@ -94,6 +95,12 @@ function UserMenu() {
   const locale = useLocale();
   const { user } = useUser();
   const { signOut } = useClerk();
+  // The same `skeleton-shimmer` HeaderAuth's avatar waits behind, until the
+  // picture paints (or fails over to the icon). Keyed by src so a new picture
+  // shimmers again without an effect resetting anything.
+  const imageUrl = user?.imageUrl;
+  const [settledSrc, setSettledSrc] = useState<string | null>(null);
+  const loading = !!imageUrl && settledSrc !== imageUrl;
 
   function handleSignOut() {
     // Pass a callback to signOut: Clerk runs IT after clearing the session
@@ -114,15 +121,22 @@ function UserMenu() {
           aria-label="Account"
           className="group relative flex size-8 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {user?.imageUrl ? (
+          {imageUrl ? (
             <FallbackImg
-              src={user.imageUrl}
+              ref={(img) => settleOnLoad(img, () => setSettledSrc(imageUrl))}
+              src={imageUrl}
               alt=""
               className="size-full object-cover"
               fallback={<User className="size-4" />}
             />
           ) : (
             <User className="size-4" />
+          )}
+          {loading && (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-0 skeleton-shimmer"
+            />
           )}
           {/* Diagonal gloss sweep on hover - mimics Clerk's avatar shine.
               A thin 45deg highlight (oriented bottom-left -> top-right, i.e.

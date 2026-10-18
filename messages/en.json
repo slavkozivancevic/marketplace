@@ -27,6 +27,7 @@
     "admin": "Admin"
   },
   "breadcrumbs": {
+    "messages": "Messages",
     "home": "Home",
     "products": "Products",
     "brands": "Brands",
@@ -1516,6 +1517,17 @@
     "bulkCategoryLimitDesc": "This filter matches {count} products, but category/tag changes are limited to {limit} at a time. Add more conditions to narrow the selection, then preview again."
   },
   "chat": {
+    "messagePlaceholder": "Message...",
+    "attachFiles": "Attach files",
+    "send": "Send",
+    "pageTitle": "Messages",
+    "openFullPage": "Open all messages",
+    "openInbox": "Open conversations",
+    "close": "Close",
+    "backToInbox": "Back to conversations",
+    "selectConversation": "Select a conversation",
+    "selectConversationDesc": "Pick a conversation on the left to read it and reply.",
+    "deleteFailed": "The conversation could not be deleted. Please try again.",
     "noConversationsFound": "No conversations found",
     "noConversationsYet": "No conversations yet",
     "messages": "Messages",

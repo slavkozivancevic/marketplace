@@ -27,6 +27,8 @@ describe("isUnknownLocalePath", () => {
       "/es/marcas/una-marca",
       "/en/categories/some-category",
       "/sr/lista-zelja",
+      "/sr/poruke",
+      "/de/nachrichten",
       "/de/kasse/erfolgreich",
       "/es/pagar/cancelado",
       "/en/dashboard",

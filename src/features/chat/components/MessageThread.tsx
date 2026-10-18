@@ -95,6 +95,12 @@ interface Props {
    * never announce a stop against the one the user just moved to.
    */
   onTyping?: (conversationId: string, isTyping: boolean) => void;
+  /**
+   * Room at the bottom of the message list below `lg`, where the page's
+   * floating inbox button sits over it. Without it the newest message from
+   * the other side - drawn on the left, right under the button - is covered.
+   */
+  bottomInset?: boolean;
 }
 
 /** Silence after the last keystroke before we declare the burst over. */
@@ -871,6 +877,7 @@ export function MessageThread({
   onSend,
   onMarkRead,
   onTyping,
+  bottomInset = false,
 }: Props) {
   const t = useTranslations("chat");
 
@@ -1355,7 +1362,10 @@ export function MessageThread({
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="h-full overflow-y-auto overflow-x-hidden p-4 flex flex-col gap-2 chat-message-bg"
+          className={cn(
+            "h-full overflow-y-auto overflow-x-hidden p-4 flex flex-col gap-2 chat-message-bg",
+            bottomInset && "max-lg:pb-20",
+          )}
         >
           {/* Floating date badge */}
           <div className="sticky top-3 z-10 h-0 overflow-visible flex items-start justify-center pointer-events-none">
@@ -1703,6 +1713,7 @@ export function MessageThread({
           <input
             ref={fileInputRef}
             type="file"
+            name="attachments"
             multiple
             accept={ALLOWED_TYPES.join(",")}
             className="hidden"
@@ -1718,13 +1729,16 @@ export function MessageThread({
             disabled={pendingAttachments.length >= MAX_FILES}
           >
             <Paperclip className="size-4" />
+            <span className="sr-only">{t("attachFiles")}</span>
           </Button>
 
           <Textarea
             value={text}
             onChange={handleTextChange}
             onKeyDown={handleKeyDown}
-            placeholder="Message…"
+            name="message"
+            placeholder={t("messagePlaceholder")}
+            aria-label={t("messagePlaceholder")}
             className="min-h-9 max-h-32 resize-none text-sm"
             rows={1}
           />
@@ -1740,6 +1754,7 @@ export function MessageThread({
             ) : (
               <Send className="size-4" />
             )}
+            <span className="sr-only">{t("send")}</span>
           </Button>
         </div>
       </div>

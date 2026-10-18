@@ -75,9 +75,14 @@ interface HeaderAuthProps {
  * competing for the main thread) - two icons and a blank where the account
  * avatar belongs. The slot keeps its size either way, so nothing shifted; it
  * just looked like the avatar had failed to load.
+ *
+ * `skeleton-shimmer`, not `animate-pulse`: the avatar is an image, so it waits
+ * the way every other image in the app waits (`RetryImage`, the carousels,
+ * the chat attachments) - a pulsing grey circle next to sweeping image
+ * placeholders read as a different kind of loading.
  */
 const avatarSkeleton = (
-  <div className="size-8 rounded-full bg-muted animate-pulse" aria-hidden />
+  <div className="size-8 rounded-full skeleton-shimmer" aria-hidden />
 );
 
 /**

@@ -27,6 +27,7 @@
     "admin": "Admin"
   },
   "breadcrumbs": {
+    "messages": "Nachrichten",
     "home": "Start",
     "products": "Produkte",
     "brands": "Marken",
@@ -1516,6 +1517,17 @@
     "bulkCategoryLimitDesc": "Dieser Filter umfasst {count} Produkte, aber Kategorie-/Tag-Änderungen sind auf {limit} gleichzeitig begrenzt. Fügen Sie weitere Bedingungen hinzu, um die Auswahl einzugrenzen, und zeigen Sie die Vorschau erneut an."
   },
   "chat": {
+    "messagePlaceholder": "Nachricht...",
+    "attachFiles": "Dateien anhängen",
+    "send": "Senden",
+    "pageTitle": "Nachrichten",
+    "openFullPage": "Alle Nachrichten öffnen",
+    "openInbox": "Konversationen öffnen",
+    "close": "Schließen",
+    "backToInbox": "Zurück zu den Konversationen",
+    "selectConversation": "Wählen Sie eine Konversation",
+    "selectConversationDesc": "Wählen Sie links eine Konversation, um sie zu lesen und zu antworten.",
+    "deleteFailed": "Die Konversation konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
     "noConversationsFound": "Keine Konversationen gefunden",
     "noConversationsYet": "Noch keine Konversationen",
     "messages": "Nachrichten",

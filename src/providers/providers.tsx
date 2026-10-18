@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { QueryProvider } from "./QueryProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ChatDrawerRoot } from "@/features/chat/components/ChatDrawer";
+import { ChatRuntimeProvider } from "@/features/chat/components/ChatRuntime";
 import { ClerkGate } from "@/components/layout/app-loader";
 import { FlashHost } from "@/components/layout/flash-host";
 import { LocalePathsHost } from "@/i18n/LocalePathsContext";
@@ -88,18 +89,23 @@ export function InnerProviders({ children }: { children: React.ReactNode }) {
           the language switcher in the header can read it. Sits above
           both the header and the page so cross-tree state works. */}
       <LocalePathsHost>
-        <LocaleSync />
-        <NavigationGenerationTracker />
-        {/* Mobile/touch pull-to-refresh. Sits above the page so its indicator
-            floats over the sticky header, like the platform gesture does. */}
-        <PullToRefresh />
-        <ClerkGate>{children}</ClerkGate>
-        <Toaster />
-        {/* Raises the toast a create/edit queued before it navigated away -
-            the confirmation belongs to the list we land on, not to the form
-            that is unmounting. Must sit beside the Toaster, outside any page. */}
-        <FlashHost />
-        <ChatDrawerRoot />
+        {/* One chat connection for the whole app - the drawer and the
+            `/messages` page both talk through it. Wraps the page as well as
+            the drawer, so the page can reach the socket. */}
+        <ChatRuntimeProvider>
+          <LocaleSync />
+          <NavigationGenerationTracker />
+          {/* Mobile/touch pull-to-refresh. Sits above the page so its indicator
+              floats over the sticky header, like the platform gesture does. */}
+          <PullToRefresh />
+          <ClerkGate>{children}</ClerkGate>
+          <Toaster />
+          {/* Raises the toast a create/edit queued before it navigated away -
+              the confirmation belongs to the list we land on, not to the form
+              that is unmounting. Must sit beside the Toaster, outside any page. */}
+          <FlashHost />
+          <ChatDrawerRoot />
+        </ChatRuntimeProvider>
       </LocalePathsHost>
     </TooltipProvider>
   );

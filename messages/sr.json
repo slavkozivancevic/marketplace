@@ -27,6 +27,7 @@
     "admin": "Admin"
   },
   "breadcrumbs": {
+    "messages": "Poruke",
     "home": "Početna",
     "products": "Proizvodi",
     "brands": "Brendovi",
@@ -1516,6 +1517,17 @@
     "bulkCategoryLimitDesc": "Ovaj filter obuhvata {count} proizvoda, a izmena kategorija/tagova je ograničena na {limit} odjednom. Dodajte još uslova da suzite izbor, pa pokrenite pregled ponovo."
   },
   "chat": {
+    "messagePlaceholder": "Poruka...",
+    "attachFiles": "Priloži fajlove",
+    "send": "Pošalji",
+    "pageTitle": "Poruke",
+    "openFullPage": "Otvori sve poruke",
+    "openInbox": "Otvori razgovore",
+    "close": "Zatvori",
+    "backToInbox": "Nazad na razgovore",
+    "selectConversation": "Izaberite razgovor",
+    "selectConversationDesc": "Izaberite razgovor sa leve strane da biste ga pročitali i odgovorili.",
+    "deleteFailed": "Razgovor nije obrisan. Pokušajte ponovo.",
     "noConversationsFound": "Nema razgovora",
     "noConversationsYet": "Još nema razgovora",
     "messages": "Poruke",
