@@ -27,6 +27,7 @@
     "admin": "Administración"
   },
   "breadcrumbs": {
+    "messages": "Mensajes",
     "home": "Inicio",
     "products": "Productos",
     "brands": "Marcas",
@@ -1516,6 +1517,17 @@
     "bulkCategoryLimitDesc": "Este filtro coincide con {count} productos, pero los cambios de categoría/etiqueta están limitados a {limit} a la vez. Añade más condiciones para acotar la selección y vuelve a previsualizar."
   },
   "chat": {
+    "messagePlaceholder": "Mensaje...",
+    "attachFiles": "Adjuntar archivos",
+    "send": "Enviar",
+    "pageTitle": "Mensajes",
+    "openFullPage": "Abrir todos los mensajes",
+    "openInbox": "Abrir conversaciones",
+    "close": "Cerrar",
+    "backToInbox": "Volver a las conversaciones",
+    "selectConversation": "Selecciona una conversación",
+    "selectConversationDesc": "Elige una conversación a la izquierda para leerla y responder.",
+    "deleteFailed": "No se pudo eliminar la conversación. Inténtalo de nuevo.",
     "noConversationsFound": "No se encontraron conversaciones",
     "noConversationsYet": "Aún no hay conversaciones",
     "messages": "Mensajes",

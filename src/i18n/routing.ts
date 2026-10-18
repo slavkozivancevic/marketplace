@@ -81,6 +81,12 @@ export const routing = defineRouting({
       de: "/warenkorb",
       es: "/carrito",
     },
+    "/messages": {
+      en: "/messages",
+      sr: "/poruke",
+      de: "/nachrichten",
+      es: "/mensajes",
+    },
     "/checkout": {
       en: "/checkout",
       sr: "/placanje",

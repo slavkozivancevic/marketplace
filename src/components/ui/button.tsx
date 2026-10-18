@@ -26,7 +26,7 @@ const buttonVariants = cva(
         // ghost delete icon-button into a muted rectangle (and overrode its
         // text-destructive color) the whole time its confirm dialog was open.
         outline:
-          "border-border bg-background pointer-fine:hover:bg-muted pointer-fine:hover:text-foreground active:bg-muted/70 aria-expanded:aria-[haspopup=menu]:bg-muted aria-expanded:aria-[haspopup=menu]:text-foreground dark:border-input dark:bg-input/30 dark:pointer-fine:hover:bg-input/50 dark:active:bg-input/70",
+          "border-border bg-background pointer-fine:hover:bg-muted pointer-fine:hover:text-foreground active:bg-muted/70 aria-expanded:aria-[haspopup=menu]:bg-muted aria-expanded:aria-[haspopup=menu]:text-foreground dark:border-input dark:bg-input/30 dark:pointer-fine:hover:bg-input/50 dark:active:bg-input/70 aria-[current=page]:pointer-events-none aria-[current=page]:border-primary/40 aria-[current=page]:bg-primary/10 aria-[current=page]:text-primary dark:aria-[current=page]:border-primary/50 dark:aria-[current=page]:bg-primary/15",
         secondary:
           "bg-secondary text-secondary-foreground pointer-fine:hover:bg-secondary/80 active:bg-secondary/70 aria-expanded:aria-[haspopup=menu]:bg-secondary aria-expanded:aria-[haspopup=menu]:text-secondary-foreground",
         ghost:

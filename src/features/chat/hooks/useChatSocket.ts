@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { env } from "@/env/client";
 import { WsIncomingEvent, ChatMessage, ChatAttachment, Conversation, PresenceMap } from "../types";
-import { useChatStore, TYPING_HEARTBEAT_MS } from "../store/chatStore";
+import { isConversationOnScreen, useChatStore, TYPING_HEARTBEAT_MS } from "../store/chatStore";
 import { useOutboxStore } from "../store/outboxStore";
 import {
   backoffDelay,
@@ -480,8 +480,7 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
           // Increment unread badge and play sound if the message is from someone else
           if (msg.senderId !== currentUserId) {
             markOnline(msg.conversationId, msg.senderId);
-            const { isOpen, selectedConvId } = useChatStore.getState();
-            if (!(isOpen && selectedConvId === msg.conversationId)) {
+            if (!isConversationOnScreen(useChatStore.getState(), msg.conversationId)) {
               useChatStore.getState().incrementUnread(msg.conversationId);
             } else {
               // Conversation is open - the thread auto-marks this message read.
@@ -585,8 +584,7 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
           // send is made from an open thread, so the ordinary case keeps its
           // sound; what is dropped is a chime with nothing on screen to
           // explain it.
-          const { isOpen, selectedConvId } = useChatStore.getState();
-          const onScreen = isOpen && selectedConvId === msg.conversationId;
+          const onScreen = isConversationOnScreen(useChatStore.getState(), msg.conversationId);
           if (!isRepeat && onScreen) playSendSound();
           // This conversation's head is free - let the next one through.
           drain();

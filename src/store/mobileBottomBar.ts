@@ -3,9 +3,10 @@
 import { create } from "zustand";
 
 /**
- * Tracks whether an inline (non-sticky) `<FormSaveBar>` footer is mounted on
- * the current page. On mobile the admin/dashboard sidebar's nav trigger is a
- * `fixed bottom-4 left-4` button (see `sidebar-nav.tsx`); edit forms
+ * Tracks whether a full-width footer is mounted at the bottom of the mobile
+ * viewport - an inline (non-sticky) `<FormSaveBar>`, or the chat composer on
+ * the messages page. The floating side-panel button is a `fixed left-4`
+ * circle near the bottom (see `floating-sidebar-trigger.tsx`); edit forms
  * (ProductForm, BrandForm, ...) render their save bar as a full-width
  * `shrink-0` footer at the bottom of that same viewport, since the sidebar
  * itself is hidden on mobile - the two would otherwise sit on top of each

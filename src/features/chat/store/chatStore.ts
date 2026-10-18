@@ -47,10 +47,25 @@ interface ChatStore {
    * `typing` is: a connection that comes back from storage is a fiction.
    */
   connected: boolean;
+  /**
+   * Whether the full-page inbox (`/messages`) is mounted.
+   *
+   * The page and the drawer share `selectedConvId` - they are never on screen
+   * together, so one selection is enough and handing a conversation over from
+   * the drawer to the page costs nothing. While the page is mounted the drawer
+   * stays shut: the page is the inbox, and `openInbox` does nothing.
+   *
+   * Not persisted: it describes what is mounted right now.
+   */
+  pageMounted: boolean;
   setConnected: (connected: boolean) => void;
   openInbox: () => void;
   openConversation: (conversationId: string) => void;
   close: () => void;
+  /** Marks the page as mounted and shuts the drawer it replaces. */
+  enterPage: () => void;
+  /** Leaves the page; the next drawer open starts from the inbox. */
+  leavePage: () => void;
   setSelectedConvId: (id: string | null) => void;
   incrementUnread: (conversationId: string) => void;
   /**
@@ -102,6 +117,18 @@ function maxIso(a?: string, b?: string): string | undefined {
   return a >= b ? a : b;
 }
 
+/**
+ * Whether a conversation is on the user's screen right now - in the open
+ * drawer or on the page. The single answer to "does a new message here count
+ * as unread, and does it deserve a sound"; the socket asks nothing else.
+ */
+export function isConversationOnScreen(
+  s: Pick<ChatStore, "isOpen" | "pageMounted" | "selectedConvId">,
+  conversationId: string
+): boolean {
+  return s.selectedConvId === conversationId && (s.isOpen || s.pageMounted);
+}
+
 function clearConv(s: ChatStore, id: string): Partial<ChatStore> {
   const count = s.convUnread[id] ?? 0;
   return {
@@ -121,18 +148,38 @@ export const useChatStore = create<ChatStore>()(
       lastSeenAt: {},
       typing: {},
       connected: false,
+      pageMounted: false,
 
       setConnected: (connected) =>
         set((s) => (s.connected === connected ? s : { connected })),
 
       // Opening the inbox shows per-conv badges but doesn't clear them yet.
-      openInbox: () => set({ isOpen: true, selectedConvId: null }),
+      // On the page the drawer must not cover it, and the selection belongs
+      // to the page's URL. The header trigger is inert there, so this guards
+      // any other caller.
+      openInbox: () =>
+        set((s) => (s.pageMounted ? s : { isOpen: true, selectedConvId: null })),
 
       // Entering a conversation clears its badge and records the seen time.
       openConversation: (id) =>
-        set((s) => ({ isOpen: true, selectedConvId: id, ...clearConv(s, id) })),
+        set((s) => ({
+          isOpen: !s.pageMounted,
+          selectedConvId: id,
+          ...clearConv(s, id),
+        })),
 
-      close: () => set({ isOpen: false, selectedConvId: null }),
+      // The drawer's own close. On the page the selection is the page's, so
+      // a stray close (a sheet settling on mount) must not wipe it.
+      close: () =>
+        set((s) =>
+          s.pageMounted
+            ? { isOpen: false }
+            : { isOpen: false, selectedConvId: null }
+        ),
+
+      enterPage: () => set({ pageMounted: true, isOpen: false }),
+
+      leavePage: () => set({ pageMounted: false, selectedConvId: null }),
 
       // Clicking a row inside the inbox - same clearing behaviour.
       setSelectedConvId: (id) =>
@@ -233,7 +280,8 @@ export const useChatStore = create<ChatStore>()(
     {
       name: "chat-unread",
       // `typing` and `connected` are intentionally absent - both are live
-      // socket state, not something to rehydrate.
+      // socket state, not something to rehydrate. `pageMounted` describes what
+      // is mounted, which a reload resets.
       partialize: (s) => ({
         unreadCount: s.unreadCount,
         convUnread: s.convUnread,

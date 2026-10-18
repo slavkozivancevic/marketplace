@@ -4,14 +4,13 @@ import { useState } from "react";
 import { Link, usePathname } from "@/i18n/navigation";
 import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useMobileBottomBarStore } from "@/store/mobileBottomBar";
+import { FloatingSidebarTrigger } from "./floating-sidebar-trigger";
 import type { LucideIcon } from "lucide-react";
 
 export interface SidebarLink {
@@ -115,11 +114,6 @@ function NavLinks({
 export function SidebarNav(props: SidebarNavProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  // An edit form's inline save bar (ProductForm, BrandForm, ...) renders as a
-  // full-width footer at the bottom of this same mobile viewport - shift the
-  // trigger up to clear it instead of sitting on top of the Save/Discard
-  // buttons. See mobileBottomBar.ts.
-  const bottomBarPresent = useMobileBottomBarStore((s) => s.count > 0);
 
   return (
     <>
@@ -145,19 +139,12 @@ export function SidebarNav(props: SidebarNavProps) {
       <div className="lg:hidden">
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
-            <Button
-              variant="default"
-              size="icon"
-              className={cn(
-                "fixed left-4 z-40 h-12 w-12 rounded-full shadow-lg hover:brightness-110 transition-[bottom] duration-200",
-                bottomBarPresent
-                  ? "bottom-[calc(6rem+env(safe-area-inset-bottom))]"
-                  : "bottom-[calc(1rem+env(safe-area-inset-bottom))]",
-              )}
-            >
+            {/* Lifts over an edit form's inline save bar (ProductForm,
+                BrandForm, ...) - see FloatingSidebarTrigger. */}
+            <FloatingSidebarTrigger>
               <Menu className="h-4 w-4" />
               <span className="sr-only">Open navigation</span>
-            </Button>
+            </FloatingSidebarTrigger>
           </SheetTrigger>
           <SheetContent side="left" className="w-64 flex flex-col p-0" aria-describedby={undefined}>
             <SheetTitle className="shrink-0 text-xs font-semibold uppercase tracking-widest text-muted-foreground px-8 pt-6 pb-3">

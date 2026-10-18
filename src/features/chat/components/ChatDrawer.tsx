@@ -1,13 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { MessageCircle, ArrowLeft, Trash2, X } from "lucide-react";
-import { SearchInput } from "@/components/search/SearchInput";
+import { MessageCircle, Maximize2, X } from "lucide-react";
 import { SignedIn, useAuth } from "@clerk/nextjs";
-import { useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
-import { ActionButton } from "@/components/ActionButton";
+import { Link, usePathname } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -15,22 +12,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useChatStore } from "../store/chatStore";
-import { useDraftStore } from "../store/draftStore";
-import { useOutboxStore } from "../store/outboxStore";
-import { useChatToken } from "../hooks/useChatToken";
-import { useChatSocket } from "../hooks/useChatSocket";
-import { useTypingExpiry } from "../hooks/useTypingExpiry";
-import { unlockAudioContext } from "../utils/chatSounds";
-import { useConversations } from "../hooks/useConversations";
-import { usePresence } from "../hooks/usePresence";
-import { useMessages } from "../hooks/useMessages";
-import { useConversationSearch } from "../hooks/useConversationSearch";
-import { useUserProfiles } from "../hooks/useUserProfiles";
-import { ConversationList } from "./ConversationList";
+import { useChatThreadData } from "../hooks/useChatThreadData";
+import { useChatRuntime, type ChatRuntime } from "./ChatRuntime";
+import { InboxPanel } from "./InboxPanel";
 import { MessageThread } from "./MessageThread";
-import { PresenceLine } from "./PresenceLine";
+import { BackToInboxButton, ThreadHeader } from "./ThreadHeader";
 
 /**
  * Trigger button rendered in the header - visible only when signed in.
@@ -74,16 +62,52 @@ export function ChatDrawerTrigger({ signedIn = false }: { signedIn?: boolean }) 
 }
 
 /**
+ * On `/messages` the trigger is a marker of where the user is, not a control:
+ * the page already shows the inbox (and its own floating button opens it on a
+ * narrow screen), so a click would have nothing to do. It stays in its slot -
+ * hiding it would shift every icon beside it, and its badge still counts the
+ * other conversations - rendered as an inert `aria-current="page"` element,
+ * which the outline variant styles and strips of hover and press. A `<span>`
+ * rather than a disabled button: no greyed-out look, no tab stop, and nothing
+ * for a screen reader to call "dimmed".
+ *
+ * From the pathname rather than the store's `pageMounted`: the pathname is
+ * the same on the server and the first client render, so the shell under the
+ * boot loader is already highlighted and nothing flips once the page mounts.
+ */
+function useOnMessagesPage(): boolean {
+  return usePathname() === "/messages";
+}
+
+/**
  * Badge-less, store-free copy of the trigger button's markup. Used only during
  * the pre-clerk render window so the button occupies its slot under the boot
  * loader without risking a hydration mismatch on the persisted unread badge.
  */
 function ChatDrawerTriggerShell() {
   const openInbox = useChatStore((s) => s.openInbox);
-  return (
-    <Button variant="outline" size="icon" data-chat-trigger onClick={openInbox} className="relative">
+  const onPage = useOnMessagesPage();
+  const content = (
+    <>
       <MessageCircle className="size-4" />
       <span className="sr-only">Open messages</span>
+    </>
+  );
+  if (onPage) return <CurrentPageMarker>{content}</CurrentPageMarker>;
+  return (
+    <Button variant="outline" size="icon" data-chat-trigger onClick={openInbox} className="relative">
+      {content}
+    </Button>
+  );
+}
+
+/** The trigger's look, inert - see `useOnMessagesPage`. */
+function CurrentPageMarker({ children }: { children: React.ReactNode }) {
+  return (
+    <Button variant="outline" size="icon" asChild className="relative">
+      <span data-chat-trigger aria-current="page">
+        {children}
+      </span>
     </Button>
   );
 }
@@ -93,9 +117,10 @@ function ChatDrawerTriggerInner() {
   const openInbox = useChatStore((s) => s.openInbox);
   const closeInbox = useChatStore((s) => s.close);
   const unreadCount = useChatStore((s) => s.unreadCount);
+  const onPage = useOnMessagesPage();
 
-  return (
-    <Button variant="outline" size="icon" data-chat-trigger onClick={isOpen ? closeInbox : openInbox} className="relative">
+  const content = (
+    <>
       <MessageCircle className="size-4" />
       {unreadCount > 0 && (
         <span className="absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground pointer-events-none leading-none">
@@ -103,89 +128,29 @@ function ChatDrawerTriggerInner() {
         </span>
       )}
       <span className="sr-only">Open messages</span>
+    </>
+  );
+  if (onPage) return <CurrentPageMarker>{content}</CurrentPageMarker>;
+  return (
+    <Button variant="outline" size="icon" data-chat-trigger onClick={isOpen ? closeInbox : openInbox} className="relative">
+      {content}
     </Button>
   );
 }
 
 /**
  * Sheet panel - mount once in the layout so state persists across navigation.
- * The socket connection is established here (outside the Sheet) so messages
- * are received even when the drawer is closed.
- *
- * Same `mounted` + `<SignedIn>` reasoning as `<ChatDrawerTrigger>` - the
- * sheet sits in the body and shifts the layout if SSR/hydration disagree,
- * so we hold off rendering until both sides agree on the session state.
+ * The connection itself lives in `ChatRuntimeProvider`, so messages are
+ * received whether this sheet is open or not, and the `/messages` page talks
+ * through the same socket.
  */
 export function ChatDrawerRoot() {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-  }, []);
-  if (!mounted) return null;
-  return (
-    <SignedIn>
-      <ChatDrawerRootInner />
-    </SignedIn>
-  );
-}
-
-function ChatDrawerRootInner() {
-  const { data: tokenData } = useChatToken();
-  const currentUserId = tokenData?.userId ?? "";
-  // Socket lives here so it stays connected regardless of drawer open/close state
-  const { sendMessage, sendTyping, markRead } = useChatSocket(tokenData?.token, currentUserId);
-  const { isOpen, close, bootstrapUnread } = useChatStore();
-
-  // Lives here, not in the drawer body: the inbox row's "typing..." has to
-  // expire even while the drawer is closed.
-  useTypingExpiry();
-
-  // Fetch conversations here (always mounted) so we can bootstrap unread
-  // badges before the drawer is ever opened. React Query deduplicates this
-  // with the same call inside ChatDrawerInner.
-  const { data: convsData } = useConversations();
-  const bootstrapConvs = useMemo(
-    () => convsData?.conversations ?? [],
-    [convsData?.conversations]
-  );
-
-  // Bootstrap unread badges from the initial conversations load - surfaces
-  // messages that arrived while the user was offline. MUST run only once
-  // per signed-in user: otherwise every WebSocket-driven conversations
-  // cache update (e.g., a NEW_MESSAGE arriving) re-runs the loop and
-  // increments unread for conversations the user is actively viewing.
-  // Real-time unread is handled by the NEW_MESSAGE handler in useChatSocket.
-  const bootstrappedForUserRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!currentUserId || !bootstrapConvs.length) return;
-    if (bootstrappedForUserRef.current === currentUserId) return;
-    bootstrappedForUserRef.current = currentUserId;
-    for (const conv of bootstrapConvs) {
-      if (conv.lastMessageSenderId && conv.lastMessageSenderId !== currentUserId && conv.lastMessageAt) {
-        bootstrapUnread(conv.conversationId, conv.lastMessageAt, conv.lastReadAt);
-      }
-    }
-  }, [bootstrapConvs, currentUserId, bootstrapUnread]);
-
-  // Unlock AudioContext on first user interaction so WebSocket-triggered sounds
-  // can play even when the drawer is closed (no gesture at that moment).
-  useEffect(() => {
-    const unlock = () => {
-      unlockAudioContext();
-      document.removeEventListener("click", unlock);
-      document.removeEventListener("keydown", unlock);
-      document.removeEventListener("touchstart", unlock);
-    };
-    document.addEventListener("click", unlock);
-    document.addEventListener("keydown", unlock);
-    document.addEventListener("touchstart", unlock);
-    return () => {
-      document.removeEventListener("click", unlock);
-      document.removeEventListener("keydown", unlock);
-      document.removeEventListener("touchstart", unlock);
-    };
-  }, []);
+  const runtime = useChatRuntime();
+  const isOpen = useChatStore((s) => s.isOpen);
+  const close = useChatStore((s) => s.close);
+  // No runtime means signed out (or not mounted yet) - same gate the old
+  // `mounted` + `<SignedIn>` pair held, now owned by the provider.
+  if (!runtime) return null;
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => { if (!open) close(); }} modal={false}>
@@ -198,203 +163,100 @@ function ChatDrawerRootInner() {
           if ((e.target as HTMLElement).closest("[data-chat-trigger]")) e.preventDefault();
         }}
       >
-        <ChatDrawerInner
-          currentUserId={currentUserId}
-          sendMessage={sendMessage}
-          sendTyping={sendTyping}
-          markRead={markRead}
-        />
+        <ChatDrawerInner runtime={runtime} />
       </SheetContent>
     </Sheet>
   );
 }
 
-interface InnerProps {
-  currentUserId: string;
-  sendMessage: (conversationId: string, text: string, attachments?: { key: string; type: string; width?: number; height?: number; filename?: string; size?: number }[]) => void;
-  sendTyping: (conversationId: string, isTyping: boolean) => void;
-  markRead: (conversationId: string, messageIds: string[]) => void;
-}
-
-function ChatDrawerInner({ currentUserId, sendMessage, sendTyping, markRead }: InnerProps) {
+function ChatDrawerInner({ runtime }: { runtime: ChatRuntime }) {
   const t = useTranslations("chat");
-  const tCommon = useTranslations("common");
-  const { selectedConvId, close, setSelectedConvId, convUnread, typing, connected } = useChatStore();
-  const clearDraft = useDraftStore((s) => s.clearDraft);
-  const clearOutbox = useOutboxStore((s) => s.clearConversation);
-  const queryClient = useQueryClient();
+  const { currentUserId, sendMessage, sendTyping, markRead } = runtime;
+  const selectedConvId = useChatStore((s) => s.selectedConvId);
+  const close = useChatStore((s) => s.close);
+  const setSelectedConvId = useChatStore((s) => s.setSelectedConvId);
+  const data = useChatThreadData(selectedConvId, currentUserId);
 
-  const { data: convsData, isLoading: convsLoading } = useConversations();
-  const { data: msgsData, isLoading: msgsLoading } = useMessages(selectedConvId);
+  const headerClass = "shrink-0 border-b px-4 py-3 flex-row items-center gap-2";
 
-  const conversations = useMemo(() => convsData?.conversations ?? [], [convsData?.conversations]);
-  // Memoised like `conversations` above: a fresh `[]` on every render would
-  // retrigger the reconciliation below, and churn the thread's own memo.
-  const messages = useMemo(() => msgsData?.messages ?? [], [msgsData?.messages]);
-
-  // Collect every participant ID so we can resolve names
-  const allParticipantIds = [...new Set(conversations.flatMap((c) => c.participants))];
-  const { data: profiles = {}, isLoading: profilesLoading } = useUserProfiles(allParticipantIds);
-
-  const selectedConv = conversations.find((c) => c.conversationId === selectedConvId);
-  const otherParticipantId =
-    selectedConv?.participants.find((p) => p !== currentUserId) ?? "";
-  const otherParticipantName = profiles[otherParticipantId]?.name ?? "";
-
-  // When opened to a specific conversation, ensure inbox is fresh
-  useEffect(() => {
-    if (selectedConvId) {
-      void queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
-    }
-  }, [selectedConvId, queryClient]);
-
-  const inThread = !!selectedConvId;
-
-  const typingInSelected = useMemo(
-    () => Object.keys(typing[selectedConvId ?? ""] ?? {}),
-    [typing, selectedConvId]
+  // The way out to the full page. Carries the open conversation in the URL,
+  // which the page reads as its selection. Object `href`: the string form
+  // loses its query under the pathnames map.
+  const toPage = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button variant="ghost" size="icon-sm" asChild>
+          <Link
+            href={{
+              pathname: "/messages",
+              query: selectedConvId ? { c: selectedConvId } : undefined,
+            }}
+            onClick={close}
+          >
+            <Maximize2 className="size-4" />
+            <span className="sr-only">{t("openFullPage")}</span>
+          </Link>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{t("openFullPage")}</TooltipContent>
+    </Tooltip>
   );
-
-  // Only runs while a conversation is open - see usePresence.
-  const { data: presenceData, isLoading: presenceLoading } = usePresence(selectedConvId);
-
-  const [search, setSearch] = useState("");
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  const handleDeleteConversation = async () => {
-    if (!selectedConvId) return;
-    setDeleting(true);
-    try {
-      await axios.delete(`/api/chat/conversations/${selectedConvId}`);
-      queryClient.setQueryData<{ conversations: typeof conversations }>(
-        ["chat-conversations"],
-        (old) => old
-          ? { conversations: old.conversations.filter((c) => c.conversationId !== selectedConvId) }
-          : old
-      );
-      void queryClient.removeQueries({ queryKey: ["chat-messages", selectedConvId] });
-      void queryClient.removeQueries({ queryKey: ["conversation-search"] });
-      // The draft outlives the component, so it has to be dropped explicitly -
-      // otherwise a half-typed message comes back in a conversation the user
-      // deleted (and, with sessionStorage, survives a reload to do it).
-      clearDraft(selectedConvId);
-      // Same for anything still queued: the conversation it belonged to is
-      // gone, so a retry would keep knocking at a door that no longer exists.
-      clearOutbox(selectedConvId);
-      setDeleteDialogOpen(false);
-      setSelectedConvId(null);
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  useEffect(() => {
-    if (inThread) setSearch("");
-  }, [inThread]);
-
-  const { data: searchData } = useConversationSearch(search);
-
-  const filteredConversations = search.trim()
-    ? conversations.filter((conv) =>
-        (searchData?.results ?? []).some((r) => r.conversationId === conv.conversationId)
-      )
-    : conversations;
+  const closeButton = (
+    <Button variant="ghost" size="icon-sm" onClick={close}>
+      <X className="size-4" />
+      <span className="sr-only">{t("close")}</span>
+    </Button>
+  );
 
   return (
     <>
-      <SheetHeader className="shrink-0 border-b px-4 py-3 flex-row items-center gap-2">
-        {inThread && (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setSelectedConvId(null)}
-            className="-ml-1"
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
-        )}
-        {/* min-w-0 so the name can still truncate once it sits in a column */}
-        <div className="flex flex-col min-w-0">
-          <SheetTitle className="text-sm font-semibold truncate">
-            {inThread
-              ? profilesLoading
-                ? <Skeleton className="h-4 w-28" />
-                : otherParticipantName || t("conversation")
-              : t("messages")}
-          </SheetTitle>
-          {inThread && (
-            <PresenceLine
-              presence={presenceData?.presence[otherParticipantId]}
-              isLoading={profilesLoading || (presenceLoading && !presenceData)}
-              disconnected={!connected}
-            />
+      {selectedConvId ? (
+        <ThreadHeader
+          className={`flex ${headerClass}`}
+          conversationId={selectedConvId}
+          name={data.otherParticipantName}
+          presence={data.presence}
+          profilesLoading={data.profilesLoading}
+          presenceLoading={data.presenceLoading}
+          renderTitle={(content) => (
+            <SheetTitle className="text-sm font-semibold truncate">{content}</SheetTitle>
           )}
-        </div>
-        <div className="ml-auto flex items-center gap-0.5 shrink-0">
-          {inThread && (
-            <ActionButton
-              open={deleteDialogOpen}
-              onOpenChange={setDeleteDialogOpen}
-              title={t("deleteConversation")}
-              description={t("deleteConversationDesc")}
-              confirmText={t("delete")}
-              loadingText={t("deleting")}
-              cancelText={tCommon("cancel")}
-              isLoading={deleting}
-              onConfirm={() => void handleDeleteConversation()}
-            >
-              {/* Resting control - the dialog's confirm button carries the
-                  spinner. */}
-              <Button variant="ghost" size="icon-sm">
-                <Trash2 className="size-4 text-muted-foreground" />
-              </Button>
-            </ActionButton>
-          )}
-          <Button variant="ghost" size="icon-sm" onClick={close}>
-            <X className="size-4" />
-          </Button>
-        </div>
-      </SheetHeader>
+          leading={<BackToInboxButton onClick={() => setSelectedConvId(null)} />}
+          trailing={<>{toPage}{closeButton}</>}
+        />
+      ) : (
+        <SheetHeader className={headerClass}>
+          <SheetTitle className="text-sm font-semibold truncate">{t("messages")}</SheetTitle>
+          <div className="ml-auto flex items-center gap-0.5 shrink-0">
+            {toPage}
+            {closeButton}
+          </div>
+        </SheetHeader>
+      )}
 
       <div className="flex-1 min-h-0 overflow-hidden">
-        {inThread ? (
+        {selectedConvId ? (
           <MessageThread
             conversationId={selectedConvId}
-            messages={messages}
+            messages={data.messages}
             currentUserId={currentUserId}
-            isLoading={msgsLoading}
-            profiles={profiles}
-            typingUserIds={typingInSelected}
-            onSend={(text, attachments) => sendMessage(selectedConvId!, text, attachments)}
-            onMarkRead={(ids) => markRead(selectedConvId!, ids)}
+            isLoading={data.msgsLoading}
+            profiles={data.profiles}
+            typingUserIds={data.typingInSelected}
+            onSend={(text, attachments) => sendMessage(selectedConvId, text, attachments)}
+            onMarkRead={(ids) => markRead(selectedConvId, ids)}
             onTyping={sendTyping}
           />
         ) : (
-          <div className="flex flex-col h-full">
-            <div className="shrink-0 border-b px-3 py-2">
-              <SearchInput
-                value={search}
-                onChange={setSearch}
-                placeholder={t("searchPlaceholder")}
-                className="pt-0 max-w-none"
-              />
-            </div>
-            <div className="overflow-y-auto flex-1">
-              <ConversationList
-                conversations={filteredConversations}
-                selectedId={selectedConvId}
-                currentUserId={currentUserId}
-                profiles={profiles}
-                profilesLoading={profilesLoading}
-                convUnread={convUnread}
-                typing={typing}
-                onSelect={setSelectedConvId}
-                isLoading={convsLoading}
-                isSearching={!!search.trim()}
-              />
-            </div>
-          </div>
+          <InboxPanel
+            conversations={data.conversations}
+            selectedId={selectedConvId}
+            currentUserId={currentUserId}
+            profiles={data.profiles}
+            profilesLoading={data.profilesLoading}
+            isLoading={data.convsLoading}
+            onSelect={setSelectedConvId}
+          />
         )}
       </div>
     </>

@@ -12,6 +12,11 @@ interface SearchInputProps {
   debounceMs?: number;
   isPending?: boolean;
   className?: string;
+  /**
+   * Form field name. Defaults to `search` so every search box carries one -
+   * browsers flag a nameless field (it cannot be autofilled or restored).
+   */
+  name?: string;
 }
 
 export function SearchInput({
@@ -21,6 +26,7 @@ export function SearchInput({
   debounceMs = 300,
   isPending = false,
   className,
+  name = "search",
 }: SearchInputProps) {
   const [localValue, setLocalValue] = useState(value);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -74,6 +80,10 @@ export function SearchInput({
       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
       <Input
         ref={inputRef}
+        name={name}
+        // The placeholder is the only visible label a search box has, and a
+        // placeholder is not an accessible name.
+        aria-label={placeholder}
         value={localValue}
         onChange={handleChange}
         placeholder={placeholder}
