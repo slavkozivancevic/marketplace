@@ -31,6 +31,13 @@ type Seller = {
   /** This seller withdrew its items - they are never coming, so never returning. */
   cancelled: boolean;
   canReturn: boolean;
+  /** Whole days left in this seller's return window, rounded up. Null until the
+   *  part is delivered - before that the clock has not started. */
+  returnDaysLeft: number | null;
+  /** Delivered, not cancelled, but past the seller's window. Distinct from the
+   *  other "no button" reasons, and the only one the buyer can do nothing
+   *  about. */
+  windowExpired: boolean;
   items: ItemRow[];
 };
 
@@ -187,7 +194,19 @@ export function BuyerReturns({
                     ? t("sellerCancelledHint")
                     : !seller.delivered
                       ? t("returnAfterDelivery")
-                      : t("notEligibleHint")}
+                      : seller.windowExpired
+                        ? t("windowExpiredHint")
+                        : t("notEligibleHint")}
+                </p>
+              )}
+              {/* Still inside the window: say how long is left, so the deadline
+                  is something the buyer can act on rather than something they
+                  discover by being refused. Hidden on the last day's hour-level
+                  detail - `returnDaysLeft` rounds up, so this never reads "0
+                  days left" next to a working button. */}
+              {seller.canReturn && returnable.length > 0 && seller.returnDaysLeft != null && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t("daysLeftToReturn", { count: seller.returnDaysLeft })}
                 </p>
               )}
 

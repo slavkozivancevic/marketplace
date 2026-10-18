@@ -83,6 +83,28 @@ model Organization {
   shippingFreeThreshold      Int?
   shippingFreeThresholdMoney Json?
 
+  // Delivery estimate this seller is willing to stand behind, in WORKING days,
+  // rendered as a range ("delivery in 2-7 working days") on the product page and
+  // in the cart.
+  //
+  // Nullable on purpose, and the two are written together: null means this
+  // seller promises no lead time, and the UI then shows nothing at all. A
+  // default would be the platform inventing a promise on the seller's behalf,
+  // which is the thing that made us refuse to hard-code "2-7 days" in the first
+  // place. Validated 0..365 with min <= max in the Zod schema.
+  leadTimeMinDays Int?
+  leadTimeMaxDays Int?
+
+  // How long after DELIVERY this seller accepts returns, in calendar days.
+  //
+  // NOT NULL with a default because every seller has a return policy whether or
+  // not they have thought about it, and the buyer-facing "14 days to return"
+  // line must never read as a blank. 0 is a legitimate value: returns are not
+  // accepted. The deadline is measured from `OrderSellerPart.deliveredAt` and
+  // ENFORCED in createReturn - this column is the same number the buyer is
+  // shown, not a second one that can drift away from it.
+  returnWindowDays Int @default(14)
+
   members            Membership[]
   products           Product[]
   invites            Invite[]
@@ -285,6 +307,50 @@ model Tag {
 
   translations TagTranslation[]
   products     ProductTag[]
+}
+
+// One promise in the storefront's trust strip ("Secure payment", "Cash on
+// delivery"). Platform-wide and admin-owned, which is the whole constraint:
+// delivery cost and delivery time are the SELLER's promises and already live on
+// Organization, where each seller answers for their own. A strip entry saying
+// "free delivery" over a marketplace would be a claim no one had made.
+//
+// Shaped exactly like Tag: a bare row carrying ordering plus a translation per
+// locale. Deleting one is unguarded for the same reason tags are - a label
+// carries nothing with it.
+model TrustPoint {
+  id String @id @default(uuid())
+
+  // A key from TRUST_POINT_ICONS (src/features/trustPoints/icons.ts), resolved
+  // to a lucide component at render time. Deliberately a String and not an
+  // enum: the allowed set is a presentation detail, and adding an icon should
+  // be a code change, not a migration.
+  icon String
+
+  order    Int     @default(0)
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  translations TrustPointTranslation[]
+
+  @@index([isActive, order])
+}
+
+model TrustPointTranslation {
+  id           String  @id @default(uuid())
+  trustPointId String
+  locale       String
+  label        String
+  // Second line under the label ("over 15.000 RSD", "1-5 working days").
+  // Optional: most entries say everything in the label.
+  sublabel     String?
+
+  trustPoint TrustPoint @relation(fields: [trustPointId], references: [id], onDelete: Cascade)
+
+  @@unique([trustPointId, locale])
+  @@index([trustPointId])
 }
 
 model TagTranslation {

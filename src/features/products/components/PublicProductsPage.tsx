@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import axios from "axios";
@@ -35,11 +35,12 @@ import {
 } from "@/components/search/FilterSidebar";
 import { ActiveFilters } from "@/components/search/ActiveFilters";
 import { PublicProductsGrid } from "./PublicProductsGrid";
+import { rememberCatalogUrl } from "../utils/catalogReturn";
 import type { BrandOption } from "@/features/brands/components/BrandSelect";
 import { DepartmentSearchBar } from "@/features/categories/components/DepartmentSearchBar";
 import type { CategoryTreeItem } from "@/features/categories/db/categories";
 import { getCategorySlug } from "@/features/categories/utils/translations";
-import { useRouter } from "@/i18n/navigation";
+import { getPathname, useRouter } from "@/i18n/navigation";
 import { useCurrencyStore, getCurrentRate } from "@/store/currency";
 import { getCurrencyConfig } from "@/lib/currency";
 import { cn } from "@/lib/utils";
@@ -175,6 +176,25 @@ export function PublicProductsPage({
       attrs: urlSearchParams.get("attrs") ?? "",
     };
   }, [urlSearchParams]);
+
+  // Remember where the catalog is, so a product page's "Back to products"
+  // returns to this exact list - same search, same filters, same sort - rather
+  // than to a reset one that silently drops the buyer's work.
+  //
+  // Only the plain catalog is remembered. A brand storefront and a category
+  // page render this same component, but they are different URLs with their
+  // own meaning, and the product page's link is labelled for the catalog. The
+  // pathname is compared against the locale's own catalog path because during
+  // a transition this component can still be mounted while the committed
+  // pathname has already moved on to the product page.
+  const committedPathname = usePathname();
+  const isCatalog =
+    !lockedBrandId && !currentDept && committedPathname === getPathname({ href: "/products", locale });
+  useEffect(() => {
+    if (!isCatalog) return;
+    const qs = urlSearchParams.toString();
+    rememberCatalogUrl(qs ? `${committedPathname}?${qs}` : committedPathname, locale);
+  }, [isCatalog, committedPathname, urlSearchParams, locale]);
 
   const dept = currentDept ?? params.dept;
   const attrFilters = useMemo(() => parseAttrs(params.attrs), [params.attrs]);
@@ -747,7 +767,11 @@ export function PublicProductsPage({
             <PublicProductsGrid filters={filters} scrollContainerRef={outerScrollRef} />
           </div>
         </div>
-        <div className="mt-8 pb-6">{footer}</div>
+        {/* No bottom padding: the footer is a full-bleed band with its own
+            border and background, so page padding under it reads as a strip of
+            page showing through below the footer. The home page renders
+            <Footer /> flush the same way. */}
+        <div className="mt-8">{footer}</div>
       </div>
     </div>
   );

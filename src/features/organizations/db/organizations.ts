@@ -216,6 +216,33 @@ export async function updateOrganizationShipping(
   return updated;
 }
 
+/**
+ * Delivery estimate and return window.
+ *
+ * Plain integers, so unlike the shipping fee there is nothing to preserve or
+ * derive here. The lead-time pair is written together (both values or both
+ * null) because the schema only lets it through in that shape.
+ */
+export async function updateOrganizationPolicy(
+  id: string,
+  data: {
+    leadTimeMinDays: number | null;
+    leadTimeMaxDays: number | null;
+    returnWindowDays: number;
+  },
+) {
+  const updated = await prisma.organization.update({
+    where: { id },
+    data: {
+      leadTimeMinDays: data.leadTimeMinDays,
+      leadTimeMaxDays: data.leadTimeMaxDays,
+      returnWindowDays: data.returnWindowDays,
+    },
+  });
+  revalidateOrganizationCache(id);
+  return updated;
+}
+
 export async function updateOrganizationName(id: string, name: string) {
   const organization = await prisma.organization.findUnique({
     where: { id },

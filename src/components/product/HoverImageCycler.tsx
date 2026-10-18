@@ -7,6 +7,11 @@ import { cn } from "@/lib/utils";
 import { useTouchHover } from "@/hooks/useTouchHover";
 import { isTouchInput } from "@/lib/touchInput";
 import { ImageUnavailable } from "@/components/ImageUnavailable";
+import {
+  IMAGE_MAX_REVIVALS,
+  imageRetryDelay,
+  onImageRevival,
+} from "@/lib/imageRetry";
 
 interface HoverImageCyclerProps {
   images: string[];
@@ -23,9 +28,8 @@ interface HoverImageCyclerProps {
 // A freshly uploaded image is cold end-to-end (CDN miss + first optimizer
 // resize), so its very first fetch can fail; next/image never retries a
 // failed src, which would leave the frame broken until a full page reload.
-// Remounting the <Image> (key bump) forces a fresh attempt.
-const MAX_RETRIES = 2;
-const RETRY_DELAY_MS = 1500;
+// Remounting the <Image> (key bump) forces a fresh attempt. The budget and
+// the revival triggers are shared with `RetryImage` - see `@/lib/imageRetry`.
 
 // How long a single-image card stays lit after the finger lifts. A card with
 // several images ends itself instead, on the lap back to the first frame.
@@ -57,7 +61,13 @@ export function HoverImageCycler({
   const [failedUrls, setFailedUrls] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
+  // Per-URL retry budget spent this round, and a per-URL key generation that
+  // only grows - a revival resets the budget but must still remount.
   const [retryCounts, setRetryCounts] = useState<Record<string, number>>({});
+  const [generations, setGenerations] = useState<Record<string, number>>({});
+  const [revivals, setRevivals] = useState(0);
+  // Last generation whose failure was already counted, per URL.
+  const handledErrorsRef = useRef<Record<string, number>>({});
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const retryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   // Mirrors `index` for the interval callback, which needs the frame showing
@@ -104,6 +114,29 @@ export function HoverImageCycler({
     },
     [markLoaded],
   );
+
+  // Frames that gave up get one more full round once the connection is back
+  // or the tab is visible again, instead of staying dead until a reload.
+  useEffect(() => {
+    if (failedUrls.size === 0 || revivals >= IMAGE_MAX_REVIVALS) return;
+    return onImageRevival(() => {
+      setRevivals((r) => r + 1);
+      const revived = [...failedUrls];
+      setFailedUrls(new Set());
+      // The first frame drives the shimmer; bring it back while it refetches.
+      if (revived.includes(images[0])) setFirstSettled(false);
+      setRetryCounts((prev) => {
+        const next = { ...prev };
+        for (const url of revived) delete next[url];
+        return next;
+      });
+      setGenerations((prev) => {
+        const next = { ...prev };
+        for (const url of revived) next[url] = (next[url] ?? 0) + 1;
+        return next;
+      });
+    });
+  }, [failedUrls, images, revivals]);
 
   useEffect(() => {
     const retryTimers = retryTimersRef.current;
@@ -205,8 +238,15 @@ export function HoverImageCycler({
   };
 
   const handleError = (url: string, isFirst: boolean) => {
+    // One failure per attempt: next/image re-assigns `img.src = img.src`
+    // whenever its ref callback changes, which on a failed frame is a second
+    // `error` from the same node - see the note in `RetryImage`.
+    const generation = generations[url] ?? 0;
+    if (handledErrorsRef.current[url] === generation) return;
+    handledErrorsRef.current[url] = generation;
     const attempts = retryCounts[url] ?? 0;
-    if (attempts >= MAX_RETRIES) {
+    const delay = imageRetryDelay(attempts);
+    if (delay === null) {
       // Every retry exhausted - settle for real now (not mid-retry, so the
       // shimmer doesn't hand off to a frame that's still about to recover)
       // and mark the frame so its display slot swaps to the placeholder.
@@ -216,7 +256,8 @@ export function HoverImageCycler({
     }
     const t = setTimeout(() => {
       setRetryCounts((prev) => ({ ...prev, [url]: attempts + 1 }));
-    }, RETRY_DELAY_MS * (attempts + 1));
+      setGenerations((prev) => ({ ...prev, [url]: (prev[url] ?? 0) + 1 }));
+    }, delay);
     retryTimersRef.current.push(t);
   };
 
@@ -259,7 +300,7 @@ export function HoverImageCycler({
       )}
       {images.map((url, i) => (
         <Image
-          key={`${url}#${retryCounts[url] ?? 0}`}
+          key={`${url}#${generations[url] ?? 0}`}
           src={url}
           alt={alt}
           fill

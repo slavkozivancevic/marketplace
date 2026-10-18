@@ -11,6 +11,7 @@ export function Footer() {
   const footerLinks = {
     [t("platform")]: [
       { label: t("products"), href: "/products" },
+      { label: t("categories"), href: "/categories" },
       { label: t("brands"), href: "/brands" },
       { label: t("pricing"), href: "#" },
     ],

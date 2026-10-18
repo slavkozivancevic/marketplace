@@ -9,6 +9,7 @@ import { getPendingInvitesByOrg } from "@/features/organizations/db/invites";
 import { CacheTags } from "@/lib/cache/tags";
 import { OrganizationSettingsForm } from "@/features/organizations/components/OrganizationSettingsForm";
 import { OrgShippingForm } from "@/features/organizations/components/OrgShippingForm";
+import { OrgPolicyForm } from "@/features/organizations/components/OrgPolicyForm";
 import { RemountOnNavigation } from "@/components/forms/RemountOnNavigation";
 import { InviteForm } from "@/features/organizations/components/InviteForm";
 import { InviteList } from "@/features/organizations/components/InviteList";
@@ -100,6 +101,26 @@ export default async function OrganizationPage() {
                   "Organization.shippingFlatRateMoney",
                 )}
                 freeThreshold={parseMoney(organization.shippingFreeThresholdMoney)}
+                canEdit={canEdit}
+              />
+            </RemountOnNavigation>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("organization.policyTitle")}</CardTitle>
+            <p className="text-sm text-muted-foreground">{t("organization.policyDesc")}</p>
+          </CardHeader>
+          <CardContent>
+            {/* Same remount rule as the shipping card above: on navigation, not
+                on every render - a fresh key per render tears the form down
+                mid-save and kills the pending transition. */}
+            <RemountOnNavigation>
+              <OrgPolicyForm
+                leadTimeMinDays={organization.leadTimeMinDays}
+                leadTimeMaxDays={organization.leadTimeMaxDays}
+                returnWindowDays={organization.returnWindowDays}
                 canEdit={canEdit}
               />
             </RemountOnNavigation>

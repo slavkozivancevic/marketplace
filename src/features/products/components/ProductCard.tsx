@@ -5,7 +5,7 @@ import React, { useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@/i18n/navigation";
-import { ImageOff, ShoppingCart, ChevronDown, X, Video as VideoIcon, Award } from "lucide-react";
+import { Eye, ImageOff, ShoppingCart, ChevronDown, X, Video as VideoIcon, Award } from "lucide-react";
 
 import { HoverImageCycler } from "@/components/product/HoverImageCycler";
 import { BrandLogo } from "@/features/brands/components/BrandLogo";
@@ -33,6 +33,8 @@ import { getBrandName } from "@/features/brands/utils/translations";
 import { StarRating } from "@/features/reviews/components/StarRating";
 import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
 import { useMoney } from "@/lib/useMoney";
+import { cn } from "@/lib/utils";
+import { FreeShippingBadge } from "@/features/shipping/components/FreeShippingBadge";
 
 // ---------- Rating breakdown popover ----------
 
@@ -182,6 +184,13 @@ export function ProductCard({
   const localBrandName = product.brand ? getBrandName(product.brand, locale) : "";
   // Prefer shortDescription on the card; fall back to full description.
   const cardDescription = localShortDescription ?? localDescription;
+  // Resolved on the server from the product column AND its variants: a
+  // variant product keeps its stock on the variants and leaves the column
+  // null, so reading the column here called a sold-out product "untracked".
+  // "untracked" is a real answer - the seller never entered a number - and the
+  // card says nothing rather than guessing either way.
+  const soldOut = product.availability === "out_of_stock";
+  const showsAvailability = product.availability !== "untracked";
   const isOnSale =
     product.compareAtPrice != null && product.compareAtPrice > product.price;
   const productSlug =
@@ -318,10 +327,40 @@ export function ProductCard({
                   {format(product.priceMoney)}
                 </p>
               )}
+              {/* Delivery, under the price where the buyer is already looking.
+                  Only what holds without a caveat: free for everyone from this
+                  seller, and availability. A conditional "free over X" belongs
+                  on the product page, which has the room to say over what. */}
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <FreeShippingBadge
+                  freeAlways={product.sellerShipping.freeAlways}
+                  freeThresholdMoney={product.sellerShipping.freeThresholdMoney}
+                  variant="badge"
+                />
+                {/* `stock === null` is untracked, not sold out - it says
+                    nothing rather than guessing either way. */}
+                {showsAvailability && (
+                  <span
+                    className={cn(
+                      "text-[11px] font-medium",
+                      soldOut ? "text-destructive" : "text-muted-foreground",
+                    )}
+                  >
+                    {soldOut ? tProducts("outOfStockLabel") : tProducts("inStock")}
+                  </span>
+                )}
+              </div>
             </div>
             {onQuickView && (
+              /* The button opens the quick view either way - but for an item
+                 nobody can buy it stops SAYING "add to cart". The modal it
+                 opens has the same promise disabled, and a card that invites a
+                 purchase it cannot honour is the exact thing this whole strip
+                 of work is against. It also steps back to `outline`, so the
+                 loud call to action belongs to the cards that can serve it. */
               <Button
                 size="sm"
+                variant={soldOut ? "outline" : "default"}
                 className="w-full gap-1.5 mt-3"
                 onClick={(e) => {
                   e.preventDefault();
@@ -329,8 +368,12 @@ export function ProductCard({
                   onQuickView(product.id);
                 }}
               >
-                <ShoppingCart className="h-3.5 w-3.5" />
-                {tCart("addToCartShort")}
+                {soldOut ? (
+                  <Eye className="h-3.5 w-3.5" />
+                ) : (
+                  <ShoppingCart className="h-3.5 w-3.5" />
+                )}
+                {soldOut ? tProducts("quickView") : tCart("addToCartShort")}
               </Button>
             )}
           </CardContent>

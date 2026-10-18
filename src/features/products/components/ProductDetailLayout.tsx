@@ -10,6 +10,7 @@ import {
 } from "./ProductSpecifications";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SerializedPublicProduct } from "@/types/types";
+import type { SellerPolicy } from "@/features/organizations/components/SellerPromises";
 import {
   getProductTitle,
   getProductDescription,
@@ -18,9 +19,15 @@ import {
 interface ProductDetailLayoutProps {
   product: SerializedPublicProduct;
   isOwnProduct: boolean;
+  /** Delivery estimate and return window of the org selling this product. */
+  sellerPolicy: SellerPolicy;
 }
 
-export function ProductDetailLayout({ product, isOwnProduct }: ProductDetailLayoutProps) {
+export function ProductDetailLayout({
+  product,
+  isOwnProduct,
+  sellerPolicy,
+}: ProductDetailLayoutProps) {
   const locale = useLocale();
   const t = useTranslations("products");
   const localTitle = getProductTitle(product, locale);
@@ -74,6 +81,7 @@ export function ProductDetailLayout({ product, isOwnProduct }: ProductDetailLayo
           activeVariantId={activeVariantId}
           onActiveVariantChange={handleActiveVariantChange}
           isOwnProduct={isOwnProduct}
+          sellerPolicy={sellerPolicy}
         />
       </div>
 

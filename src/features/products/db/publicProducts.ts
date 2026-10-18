@@ -1,7 +1,10 @@
-import { serializeMoneyFields } from "@/lib/money";
+import { cacheTag } from "next/cache";
+import { parseMoney, serializeMoneyFields } from "@/lib/money";
+import { CacheTags } from "@/lib/cache/tags";
 import { prisma } from "@/core/db/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { SerializedProductListItem } from "@/types/types";
+import { cardAvailability } from "../utils/availability";
 import type { AttributeFilter } from "@/lib/query/attrs";
 import { DEFAULT_LOCALE } from "@/i18n/config";
 
@@ -32,15 +35,74 @@ export const listItemInclude = {
       translations: true,
     },
   },
+  // The selling org's delivery terms. Joined here rather than looked up per
+  // card, so the grid, the wishlist and every carousel can say "free delivery"
+  // without a second query - and all of them say it from the same row.
+  organization: {
+    select: {
+      shippingFlatRate: true,
+      shippingFreeThresholdMoney: true,
+      leadTimeMinDays: true,
+      leadTimeMaxDays: true,
+    },
+  },
+  // Availability, as two cheap probes rather than every variant row: whether
+  // the product has variants at all, and whether ANY of them still has stock.
+  // `Product.stock` is null for a variant product, so without these a card
+  // could not tell "nobody tracks this" from "every variant is sold out".
+  _count: { select: { variants: true } },
+  variants: { where: { stock: { gt: 0 } }, take: 1, select: { id: true } },
 } satisfies Prisma.ProductInclude;
 
 type ListItemRow = Prisma.ProductGetPayload<{ include: typeof listItemInclude }>;
 
-/** Projects a raw card row's money columns into the display set + USD mirror. */
+/**
+ * Tags a `"use cache"` reader with every seller whose cards it returns.
+ *
+ * A card built from `listItemInclude` carries its seller's delivery terms (the
+ * "free delivery" pill, the lead time), and those change when the SELLER saves
+ * new terms - an org write that touches no product tag. A cached reader tagged
+ * only with product tags therefore kept advertising free delivery for a seller
+ * who had started charging, until some unrelated product edit happened to drop
+ * it. Every cached reader of cards calls this, so an org write reaches them all.
+ * Call it only inside a `"use cache"` scope.
+ */
+export function tagSellerTerms(rows: readonly { organizationId: string }[]) {
+  for (const orgId of new Set(rows.map((r) => r.organizationId))) {
+    cacheTag(CacheTags.organizations.byId(orgId));
+  }
+}
+
+/**
+ * Projects a raw card row's money columns into the display set + USD mirror,
+ * and the seller's delivery terms into the compact shape a card renders from.
+ *
+ * `organization` is replaced rather than passed through: a card needs to know
+ * "is delivery free, and from what amount", not the seller's settings row. The
+ * threshold keeps its MoneySet because the card prints that amount, and money
+ * is never rendered by converting the USD mirror.
+ */
 export function serializeListItem(p: ListItemRow): SerializedProductListItem {
+  const { organization, _count, variants, ...rest } = p;
   return {
-    ...p,
+    ...rest,
     ...serializeMoneyFields(p),
+    // Resolved here, once, so every card surface (grid, wishlist, carousels)
+    // answers the same way - and so the probes above never leak into the
+    // payload as something a component might re-derive differently.
+    availability: cardAvailability({
+      stock: p.stock,
+      variantCount: _count.variants,
+      hasVariantInStock: variants.length > 0,
+    }),
+    sellerShipping: {
+      // Free for everyone, with no minimum to reach - the only claim a card can
+      // make without qualifying it.
+      freeAlways: organization.shippingFlatRate === 0,
+      freeThresholdMoney: parseMoney(organization.shippingFreeThresholdMoney),
+      leadTimeMinDays: organization.leadTimeMinDays,
+      leadTimeMaxDays: organization.leadTimeMaxDays,
+    },
   };
 }
 
@@ -187,7 +249,13 @@ export function buildPublicProductWhere(
     if (p.maxPrice != null) where.price.lte = p.maxPrice;
   }
 
-  if (p.onSale === true) where.compareAtPrice = { not: null };
+  // "On sale" has to mean what the card draws: a struck-through price and a
+  // percentage, which ProductCard renders only when `compareAtPrice > price`.
+  // Merely HAVING an old price is not a discount - an old price that is lower
+  // than today's is a price rise someone forgot to clear, and filtering on
+  // `not: null` put such a product in the sale listing with no discount on it.
+  // The field reference keeps the comparison in SQL.
+  if (p.onSale === true) where.compareAtPrice = { gt: prisma.product.fields.price };
   if (p.bestseller === true) where.isBestseller = true;
   if (p.isDigital != null) where.isDigital = p.isDigital;
   // "At least N months" - products with no warranty recorded are excluded

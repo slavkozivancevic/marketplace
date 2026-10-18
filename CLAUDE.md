@@ -108,9 +108,14 @@ compute cart value anywhere else. Never silently zero a stale line - it goes to
 `unavailable`.
 
 **Cache.** Reads use `use cache` + `cacheTag` (tags in `src/lib/cache/tags.ts`) +
-`cacheLife("max")`. Because `max` never expires on its own, every revalidation
-must call **both** `revalidateTag` and `updateTag`. Calling only `revalidateTag`
-serves stale data until a hard reload.
+`cacheLife("max")`. Because `max` never expires on its own,
+`revalidateTag(tag, "max")` is stale-while-revalidate: the next read still gets
+the old entry. So in a Server Action, every tag the actor reads back next (the
+entity they just saved) gets `updateTag`, which expires it immediately - see
+`revalidateProductCache`, `revalidateBrandCache`, `refreshOwnOrganization`.
+`revalidateTag(tag, "max")` is for broad derived tags where one stale read is
+acceptable (`products.publicAll` after a brand edit). Calling only
+`revalidateTag` on the actor's own entity serves stale data until a hard reload.
 
 That holds **in Server Actions only**. `updateTag` throws "can only be called
 from within a Server Action" anywhere else, so a Route Handler (webhook, cron,

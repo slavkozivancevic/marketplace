@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useChatStore } from "../store/chatStore";
+import { useDraftStore } from "../store/draftStore";
+import { useOutboxStore } from "../store/outboxStore";
 import { useChatToken } from "../hooks/useChatToken";
 import { useChatSocket } from "../hooks/useChatSocket";
 import { useTypingExpiry } from "../hooks/useTypingExpiry";
@@ -217,14 +219,18 @@ interface InnerProps {
 function ChatDrawerInner({ currentUserId, sendMessage, sendTyping, markRead }: InnerProps) {
   const t = useTranslations("chat");
   const tCommon = useTranslations("common");
-  const { selectedConvId, close, setSelectedConvId, convUnread, readStatus, typing } = useChatStore();
+  const { selectedConvId, close, setSelectedConvId, convUnread, typing, connected } = useChatStore();
+  const clearDraft = useDraftStore((s) => s.clearDraft);
+  const clearOutbox = useOutboxStore((s) => s.clearConversation);
   const queryClient = useQueryClient();
 
   const { data: convsData, isLoading: convsLoading } = useConversations();
   const { data: msgsData, isLoading: msgsLoading } = useMessages(selectedConvId);
 
   const conversations = useMemo(() => convsData?.conversations ?? [], [convsData?.conversations]);
-  const messages = msgsData?.messages ?? [];
+  // Memoised like `conversations` above: a fresh `[]` on every render would
+  // retrigger the reconciliation below, and churn the thread's own memo.
+  const messages = useMemo(() => msgsData?.messages ?? [], [msgsData?.messages]);
 
   // Collect every participant ID so we can resolve names
   const allParticipantIds = [...new Set(conversations.flatMap((c) => c.participants))];
@@ -269,6 +275,13 @@ function ChatDrawerInner({ currentUserId, sendMessage, sendTyping, markRead }: I
       );
       void queryClient.removeQueries({ queryKey: ["chat-messages", selectedConvId] });
       void queryClient.removeQueries({ queryKey: ["conversation-search"] });
+      // The draft outlives the component, so it has to be dropped explicitly -
+      // otherwise a half-typed message comes back in a conversation the user
+      // deleted (and, with sessionStorage, survives a reload to do it).
+      clearDraft(selectedConvId);
+      // Same for anything still queued: the conversation it belonged to is
+      // gone, so a retry would keep knocking at a door that no longer exists.
+      clearOutbox(selectedConvId);
       setDeleteDialogOpen(false);
       setSelectedConvId(null);
     } finally {
@@ -314,6 +327,7 @@ function ChatDrawerInner({ currentUserId, sendMessage, sendTyping, markRead }: I
             <PresenceLine
               presence={presenceData?.presence[otherParticipantId]}
               isLoading={profilesLoading || (presenceLoading && !presenceData)}
+              disconnected={!connected}
             />
           )}
         </div>
@@ -374,7 +388,6 @@ function ChatDrawerInner({ currentUserId, sendMessage, sendTyping, markRead }: I
                 profiles={profiles}
                 profilesLoading={profilesLoading}
                 convUnread={convUnread}
-                readStatus={readStatus}
                 typing={typing}
                 onSelect={setSelectedConvId}
                 isLoading={convsLoading}

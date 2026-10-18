@@ -36,10 +36,14 @@ beforeEach(async () => {
 });
 
 // A delivered, paid card order for one seller - the minimum a buyer needs to be
-// eligible to open a return.
-async function deliveredOrder(qty = 2) {
+// eligible to open a return. `deliveredDaysAgo` backdates the delivery so the
+// return-window tests can reach the far side of the deadline without waiting.
+async function deliveredOrder(
+  qty = 2,
+  options: { returnWindowDays?: number; deliveredDaysAgo?: number } = {},
+) {
   const user = await createUser();
-  const org = await createOrganization();
+  const org = await createOrganization({ returnWindowDays: options.returnWindowDays });
   const product = await createProduct({ organizationId: org.id, price: 1000, stock: 10 });
 
   const order = await fulfillOrder({
@@ -54,15 +58,97 @@ async function deliveredOrder(qty = 2) {
 
   // The order already has one seller part per seller, created with it. Returns
   // need this seller's part delivered, so walk it through shipped -> delivered.
+  const deliveredAt = new Date(
+    Date.now() - (options.deliveredDaysAgo ?? 0) * 24 * 60 * 60 * 1000,
+  );
   await prisma.orderSellerPart.update({
     where: { orderId_organizationId: { orderId: order.id, organizationId: org.id } },
-    data: { shippedAt: new Date(), deliveredAt: new Date(), status: "DELIVERED" },
+    data: { shippedAt: deliveredAt, deliveredAt, status: "DELIVERED" },
   });
 
   const orderItem = await prisma.orderItem.findFirstOrThrow({ where: { orderId: order.id } });
 
   return { user, org, order, orderItem };
 }
+
+describe("createReturn - the seller's return window", () => {
+  it("accepts a request inside the window", async () => {
+    const { user, org, order, orderItem } = await deliveredOrder(2, {
+      returnWindowDays: 14,
+      deliveredDaysAgo: 13,
+    });
+
+    const created = await createReturn({
+      orderId: order.id,
+      organizationId: org.id,
+      userId: user.id,
+      items: [{ orderItemId: orderItem.id, quantity: 1 }],
+    });
+
+    expect(created.id).toBeTruthy();
+  });
+
+  it("refuses a request the day after the window closed", async () => {
+    const { user, org, order, orderItem } = await deliveredOrder(2, {
+      returnWindowDays: 14,
+      deliveredDaysAgo: 15,
+    });
+
+    const attempt = createReturn({
+      orderId: order.id,
+      organizationId: org.id,
+      userId: user.id,
+      items: [{ orderItemId: orderItem.id, quantity: 1 }],
+    });
+
+    await expect(attempt).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(attempt).rejects.toMatchObject({
+      i18n: { key: "returnWindowExpired" },
+    });
+    // Nothing was written - the guard runs before the row is created.
+    expect(await prisma.return.count({ where: { orderId: order.id } })).toBe(0);
+  });
+
+  // The counter starts at delivery, not at the order date, so a seller who
+  // ships late cannot eat into the buyer's window.
+  it("measures the window from delivery, not from the order", async () => {
+    const { user, org, order, orderItem } = await deliveredOrder(2, {
+      returnWindowDays: 3,
+      deliveredDaysAgo: 1,
+    });
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000) },
+    });
+
+    const created = await createReturn({
+      orderId: order.id,
+      organizationId: org.id,
+      userId: user.id,
+      items: [{ orderItemId: orderItem.id, quantity: 1 }],
+    });
+
+    expect(created.id).toBeTruthy();
+  });
+
+  it("refuses every return for a seller who accepts none", async () => {
+    const { user, org, order, orderItem } = await deliveredOrder(2, {
+      returnWindowDays: 0,
+      deliveredDaysAgo: 1,
+    });
+
+    const attempt = createReturn({
+      orderId: order.id,
+      organizationId: org.id,
+      userId: user.id,
+      items: [{ orderItemId: orderItem.id, quantity: 1 }],
+    });
+
+    await expect(attempt).rejects.toMatchObject({
+      i18n: { key: "returnWindowExpired" },
+    });
+  });
+});
 
 describe("createReturn - external refund guard", () => {
   it("allows a return when nothing has been refunded externally", async () => {

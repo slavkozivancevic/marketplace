@@ -9,6 +9,9 @@
 export const SEO_MERCHANT_POLICY = {
   /** Applicable / shipping-destination country for structured data. */
   country: "US",
-  /** Return window advertised in `hasMerchantReturnPolicy`. */
-  returnDays: 30,
 } as const;
+
+/* The return window used to live here as a flat 30 days. It is now
+ * `Organization.returnWindowDays` - per seller, editable by them, and enforced
+ * by `createReturn` - so the product page reads it from the row rather than
+ * advertising a platform number no seller had agreed to. */

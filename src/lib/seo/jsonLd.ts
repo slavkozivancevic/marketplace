@@ -77,7 +77,7 @@ type ShippingPolicy = {
 type ReturnPolicy = {
   /** Applicable country (ISO 3166-1 alpha-2). */
   country: string;
-  /** Return window in days. */
+  /** Return window in days; 0 means returns are not accepted. */
   days: number;
   /** Who bears return shipping. Defaults to the customer (ReturnShippingFees). */
   free?: boolean;
@@ -113,6 +113,16 @@ function shippingDetailsLd(shipping: ShippingPolicy) {
 }
 
 function returnPolicyLd(rp: ReturnPolicy) {
+  // A seller may set a 0-day window: returns not accepted. Describing that as
+  // a finite window of zero days contradicts schema.org and gets flagged in
+  // Search Console, while the page itself says "returns not accepted".
+  if (rp.days <= 0) {
+    return {
+      "@type": "MerchantReturnPolicy",
+      applicableCountry: rp.country,
+      returnPolicyCategory: "https://schema.org/MerchantReturnNotPermitted",
+    };
+  }
   return {
     "@type": "MerchantReturnPolicy",
     applicableCountry: rp.country,

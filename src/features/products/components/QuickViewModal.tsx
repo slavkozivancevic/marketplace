@@ -47,9 +47,16 @@ import { useMoney } from "@/lib/useMoney";
 import { formatPrice } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import { settleOnLoad } from "@/lib/imageSettle";
+import {
+  SellerPromises,
+  type SellerPolicy,
+} from "@/features/organizations/components/SellerPromises";
 
 type QuickViewProduct = SerializedPublicProduct & {
   ratingBreakdown: Record<number, number>;
+  /** Delivery estimate and return window of the org selling this, from the
+   *  same route that serves the product. */
+  sellerPolicy: SellerPolicy;
 };
 
 // How many specification rows the popup shows before deferring to the product
@@ -235,6 +242,9 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
         // amount for display. See the same note in AddToCart.
         price: source.price,
         priceMoney: source.priceMoney,
+        // Same rule as AddToCart: carried only while it is a real saving, which
+        // is exactly when this modal draws the sale badge.
+        compareAtPriceMoney: isOnSale ? compareAtSource!.compareAtPriceMoney : null,
         maxStock,
         requiresShipping: product.requiresShipping,
       },
@@ -601,6 +611,14 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                       in the same order, with a link out for the rest. A modal
                       opened to add something to the cart should not hide
                       content behind its own tabs. */}
+                  {/* The seller's delivery estimate and return window, the same
+                      two the product page shows. A buyer deciding inside the
+                      modal is making the same decision, so they get the same
+                      facts rather than having to open the full page for them. */}
+                  <SellerPromises
+                    policy={product.sellerPolicy}
+                    className="mt-3 border-t border-border/50 pt-2 [&_p]:text-xs"
+                  />
                   {specRows.length > 0 && (
                     <div className="mt-3 border-t border-border/50 pt-2">
                       {/* No "view all details" link here: the modal already

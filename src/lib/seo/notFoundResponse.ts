@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { DEFAULT_LOCALE, isLocale } from "@/i18n/config";
 import { localizedSegment } from "@/lib/seo/storefrontPaths";
 import { HERO_IMAGE_URL } from "@/components/layout/hero-image";
+import { APP_VERSION } from "@/lib/version";
 
 /**
  * A real HTTP 404 served from the proxy (middleware) for entity-detail URLs
@@ -32,6 +33,7 @@ type Copy = {
   home: string; // notFound.backToHome
   tagline: string; // short header eyebrow under the brand name
   products: string;
+  categories: string;
   brands: string;
   footer: {
     tagline: string; // longer marketing line in the footer brand column
@@ -58,6 +60,7 @@ const COPY: Record<string, Copy> = {
     home: "Back to Home",
     tagline: "Enterprise Platform",
     products: "Products",
+    categories: "Categories",
     brands: "Brands",
     footer: {
       tagline: "The enterprise-grade commerce platform built for modern sellers and buyers.",
@@ -82,6 +85,7 @@ const COPY: Record<string, Copy> = {
     home: "Nazad na početnu",
     tagline: "Enterprise platforma",
     products: "Proizvodi",
+    categories: "Kategorije",
     brands: "Brendovi",
     footer: {
       tagline: "Enterprise platforma za modernu trgovinu, za prodavce i kupce.",
@@ -106,6 +110,7 @@ const COPY: Record<string, Copy> = {
     home: "Zurück zur Startseite",
     tagline: "Enterprise-Plattform",
     products: "Produkte",
+    categories: "Kategorien",
     brands: "Marken",
     footer: {
       tagline: "Die Enterprise-Commerce-Plattform für moderne Verkäufer und Käufer.",
@@ -130,6 +135,7 @@ const COPY: Record<string, Copy> = {
     home: "Volver al inicio",
     tagline: "Plataforma empresarial",
     products: "Productos",
+    categories: "Categorías",
     brands: "Marcas",
     footer: {
       tagline: "La plataforma de comercio empresarial creada para vendedores y compradores modernos.",
@@ -303,6 +309,7 @@ export function notFoundResponse(locale: string, theme?: string): NextResponse {
   // at a dead link after any segment rename.
   const seg = {
     products: localizedSegment("product", lang),
+    categories: localizedSegment("category", lang),
     brands: localizedSegment("brand", lang),
   };
   const home = `/${lang}`;
@@ -431,6 +438,11 @@ export function notFoundResponse(locale: string, theme?: string): NextResponse {
     align-items: center; justify-content: space-between;
   }
   .ftr-bottom p { margin: 0; font-size: 0.75rem; line-height: 1rem; color: var(--muted-fg); }
+  /* Copyright separator + version, mirroring the React footer's
+     mx-1.5 opacity-50 dot and tabular-nums version. (No backticks in here -
+     this whole stylesheet lives inside a template literal.) */
+  .ftr-dot { margin: 0 0.375rem; opacity: 0.5; }
+  .ftr-ver { font-variant-numeric: tabular-nums; }
   /* Fixed hero backdrop, mirroring HeroBackground's grayscale/low-opacity
      image (the animated particle canvas needs JS, so it's intentionally
      omitted on this static page). */
@@ -522,6 +534,7 @@ export function notFoundResponse(locale: string, theme?: string): NextResponse {
           <h3>${escapeHtml(t.footer.platform)}</h3>
           <ul>
             <li><a href="/${lang}/${seg.products}">${escapeHtml(t.products)}</a></li>
+            <li><a href="/${lang}/${seg.categories}">${escapeHtml(t.categories)}</a></li>
             <li><a href="/${lang}/${seg.brands}">${escapeHtml(t.brands)}</a></li>
             <li><a href="${home}">${escapeHtml(t.footer.pricing)}</a></li>
           </ul>
@@ -544,7 +557,7 @@ export function notFoundResponse(locale: string, theme?: string): NextResponse {
         </div>
       </div>
       <div class="ftr-bottom">
-        <p>${escapeHtml(copyright)}</p>
+        <p>${escapeHtml(copyright)}<span class="ftr-dot" aria-hidden="true">&middot;</span><span class="ftr-ver">v${escapeHtml(APP_VERSION)}</span></p>
         <p>${escapeHtml(t.footer.crafted)}</p>
       </div>
     </div>

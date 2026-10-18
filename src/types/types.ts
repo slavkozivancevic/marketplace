@@ -1,4 +1,5 @@
 import type { MoneySet } from "@/lib/money";
+import type { CardAvailability } from "@/features/products/utils/availability";
 import { MembershipRole, Prisma, ReviewStatus, UserRole } from "@/generated/prisma/client";
 import type { Locale } from "@/i18n/config";
 
@@ -225,10 +226,17 @@ export type ProductWithRelations = Prisma.ProductGetPayload<{
   };
 }>;
 
+// Kept in sync BY HAND with `listItemInclude` in
+// features/products/db/publicProducts.ts - this is a literal, not a derivation
+// of it, so a relation added there has to be added here too.
 export type ProductListItem = Prisma.ProductGetPayload<{
   include: {
     translations: true;
     media: true;
+    // Availability probes - kept in step with `listItemInclude` in
+    // features/products/db/publicProducts.ts, which this type mirrors by hand.
+    _count: { select: { variants: true } };
+    variants: { select: { id: true } };
     brand: {
       select: {
         id: true;
@@ -237,6 +245,14 @@ export type ProductListItem = Prisma.ProductGetPayload<{
         logoBackdrop: true;
         logoBackdropDark: true;
         translations: true;
+      };
+    };
+    organization: {
+      select: {
+        shippingFlatRate: true;
+        shippingFreeThresholdMoney: true;
+        leadTimeMinDays: true;
+        leadTimeMaxDays: true;
       };
     };
   };
@@ -309,7 +325,33 @@ export type SerializedProductWithRelations = WithMoney<
   variants: WithMoney<ProductWithRelations["variants"][number]>[];
 };
 
-export type SerializedProductListItem = WithMoney<ProductListItem>;
+/**
+ * What a storefront card knows about the selling org's delivery terms.
+ *
+ * Projected by `serializeListItem` from the joined organization row, not the
+ * row itself: a card needs the answer ("free", "free over X", "2-7 days"), not
+ * the seller's settings. The threshold stays a MoneySet because the card prints
+ * that amount, and a printed amount never comes from converting the USD mirror.
+ */
+export type CardSellerShipping = {
+  /** Free with no minimum - the only delivery claim a card can make flatly. */
+  freeAlways: boolean;
+  /** Minimum for free delivery with this seller; null = never free. */
+  freeThresholdMoney: MoneySet | null;
+  /** Working days, both set or both null (null = no published estimate). */
+  leadTimeMinDays: number | null;
+  leadTimeMaxDays: number | null;
+};
+
+export type SerializedProductListItem = Omit<
+  WithMoney<ProductListItem>,
+  "organization" | "_count" | "variants"
+> & {
+  sellerShipping: CardSellerShipping;
+  /** Resolved from the product column AND its variants - see
+   *  `features/products/utils/availability.ts`. */
+  availability: CardAvailability;
+};
 
 export type SerializedAdminProductListItem = WithMoney<AdminProductListItem>;
 

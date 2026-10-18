@@ -21,9 +21,13 @@ describe("isUnservableStorefrontPath", () => {
     }
   });
 
-  it("rejects a bare categories path, which has no listing page", () => {
+  // Categories gained a listing page (the directory at `/categories`), and the
+  // check is derived from `routing.pathnames` rather than hand-maintained, so
+  // registering that key is what opened the bare path up. Before it existed the
+  // same four URLs were a genuine miss, and this test asserted exactly that.
+  it("serves a bare categories path now that the directory exists", () => {
     for (const path of ["/en/categories", "/sr/kategorije", "/de/kategorien", "/es/categorias"]) {
-      expect(isUnservableStorefrontPath(path), path).toBe(true);
+      expect(isUnservableStorefrontPath(path), path).toBe(false);
     }
   });
 

@@ -63,11 +63,23 @@ export const routing = defineRouting({
       de: "/marken/[slug]",
       es: "/marcas/[slug]",
     },
+    "/categories": {
+      en: "/categories",
+      sr: "/kategorije",
+      de: "/kategorien",
+      es: "/categorias",
+    },
     "/categories/[slug]": {
       en: "/categories/[slug]",
       sr: "/kategorije/[slug]",
       de: "/kategorien/[slug]",
       es: "/categorias/[slug]",
+    },
+    "/cart": {
+      en: "/cart",
+      sr: "/korpa",
+      de: "/warenkorb",
+      es: "/carrito",
     },
     "/checkout": {
       en: "/checkout",
@@ -130,6 +142,9 @@ export const routing = defineRouting({
     "/admin/tags": "/admin/tags",
     "/admin/tags/new": "/admin/tags/new",
     "/admin/tags/[id]/edit": "/admin/tags/[id]/edit",
+    "/admin/trust-points": "/admin/trust-points",
+    "/admin/trust-points/new": "/admin/trust-points/new",
+    "/admin/trust-points/[id]/edit": "/admin/trust-points/[id]/edit",
     "/admin/organizations": "/admin/organizations",
     "/admin/users": "/admin/users",
     "/admin/audit": "/admin/audit",

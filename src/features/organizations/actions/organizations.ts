@@ -2,7 +2,8 @@
 import { logger } from "@/lib/logger";
 
 import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { CacheTags } from "@/lib/cache/tags";
 import {
   handleActionError,
   ForbiddenError,
@@ -14,6 +15,7 @@ import {
   setOrganizationVerified,
   updateOrganizationName,
   updateOrganizationShipping,
+  updateOrganizationPolicy,
   removeMember,
   updateMemberRole,
   getOrganizationById,
@@ -26,6 +28,8 @@ import {
   UpdateOrganizationNameInput,
   updateOrganizationShippingSchema,
   UpdateOrganizationShippingInput,
+  updateOrganizationPolicySchema,
+  UpdateOrganizationPolicyInput,
   updateMemberRoleSchema,
 } from "../schema/organizations";
 import { MembershipRole } from "@/generated/prisma/client";
@@ -71,6 +75,21 @@ export async function setOrganizationVerifiedAction(
   }
 }
 
+/**
+ * Read-your-own-writes for an org the caller just changed.
+ *
+ * `revalidateOrganizationCache` (inside every org db write) can only use
+ * `revalidateTag`, because the same helper is reached from the Clerk webhook -
+ * a Route Handler, where `updateTag` throws. "max" is stale-while-revalidate,
+ * so the member who just saved would see the old name, fee or promise once
+ * more on the next read. These are Server Actions, so the `updateTag` half is
+ * legal here and belongs at these call sites only. Only the policy action had
+ * it at first; the name and shipping actions served one stale read each.
+ */
+function refreshOwnOrganization(organizationId: string) {
+  updateTag(CacheTags.organizations.byId(organizationId));
+}
+
 export async function updateOrganizationNameAction(
   input: UpdateOrganizationNameInput,
 ): Promise<void | ActionErrorResult> {
@@ -87,10 +106,11 @@ export async function updateOrganizationNameAction(
     const ctx = await resolveRequestContext();
 
     if (ctx.membershipRole !== "OWNER" && ctx.membershipRole !== "ADMIN") {
-      throw new ForbiddenError({ key: "onlyOwnersAndAdminsChangeRoles" });
+      throw new ForbiddenError({ key: "onlyOwnersAndAdminsChangeSettings" });
     }
 
     await updateOrganizationName(ctx.organizationId, parsed.data.name);
+    refreshOwnOrganization(ctx.organizationId);
 
     revalidatePath("/[locale]/dashboard/organization", "page");
     revalidatePath("/[locale]/admin/organizations", "page");
@@ -112,7 +132,7 @@ export async function updateOrganizationShippingAction(
 
     const ctx = await resolveRequestContext();
     if (ctx.membershipRole !== "OWNER" && ctx.membershipRole !== "ADMIN") {
-      throw new ForbiddenError({ key: "onlyOwnersAndAdminsChangeRoles" });
+      throw new ForbiddenError({ key: "onlyOwnersAndAdminsChangeSettings" });
     }
 
     // Rates are read here, never taken from the request: a stale or tampered
@@ -140,8 +160,53 @@ export async function updateOrganizationShippingAction(
       shippingFreeThreshold: freeThreshold != null ? moneyUsdCents(freeThreshold) : null,
       shippingFreeThresholdMoney: freeThreshold,
     });
+    refreshOwnOrganization(ctx.organizationId);
 
     revalidatePath("/[locale]/dashboard/organization", "page");
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+/**
+ * Delivery estimate and return window.
+ *
+ * The return window is not decoration: `createReturn` measures the deadline
+ * from the same column, so saving here changes what the server will accept, not
+ * only what the product page says.
+ */
+export async function updateOrganizationPolicyAction(
+  input: UpdateOrganizationPolicyInput,
+): Promise<void | ActionErrorResult> {
+  try {
+    const parsed = updateOrganizationPolicySchema.safeParse(input, {
+      error: await getServerZodErrorMap(),
+    });
+    if (!parsed.success) {
+      return { error: true, message: parsed.error.issues.map((i) => i.message).join(", ") };
+    }
+
+    const ctx = await resolveRequestContext();
+    if (ctx.membershipRole !== "OWNER" && ctx.membershipRole !== "ADMIN") {
+      throw new ForbiddenError({ key: "onlyOwnersAndAdminsChangeSettings" });
+    }
+
+    await updateOrganizationPolicy(ctx.organizationId, parsed.data);
+    await recordAudit({
+      action: "organization.policy_changed",
+      entityType: "Organization",
+      entityId: ctx.organizationId,
+      diff: {
+        leadTimeMinDays: parsed.data.leadTimeMinDays,
+        leadTimeMaxDays: parsed.data.leadTimeMaxDays,
+        returnWindowDays: parsed.data.returnWindowDays,
+      },
+    });
+
+    refreshOwnOrganization(ctx.organizationId);
+
+    revalidatePath("/[locale]/dashboard/organization", "page");
+    revalidatePath("/[locale]/products/[slug]", "page");
   } catch (error) {
     return handleActionError(error);
   }

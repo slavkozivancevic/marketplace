@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { ArrowRight } from "lucide-react";
 import { useTouchHover, touchActiveAttr } from "@/hooks/useTouchHover";
 import { BrandLogo } from "./BrandLogo";
 import { getBrandName, getBrandSlug } from "../utils/translations";
@@ -191,9 +192,15 @@ function BrandSlot({
 export function BrandStrip({
   brands,
   label,
+  allBrandsLabel,
 }: {
   brands: BrandListItem[];
   label: string;
+  /** Text for the link out to the full brand directory. The strip shows a
+   *  rotating subset of a capped pool, so without a way through to the rest it
+   *  is a dead end: a visitor who saw a logo a moment ago may not find it
+   *  again. Omitted, the link is simply not rendered. */
+  allBrandsLabel?: string;
 }) {
   // How many slots are ON SCREEN right now. CSS decides that (see the comment
   // at the top of this file), so this reads the answer back out of the DOM
@@ -343,6 +350,21 @@ export function BrandStrip({
               })}
             </ul>
           </div>
+
+          {/* A third rail rather than something tucked beside the label: the
+              label's width is what the row's container queries budget around,
+              so growing it would cost logos. Here the link takes its own fixed
+              slice on `lg` and up, and simply stacks under the row when the
+              band goes vertical. */}
+          {allBrandsLabel && (
+            <Link
+              href="/brands"
+              className="group/all shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {allBrandsLabel}
+              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover/all:translate-x-0.5" />
+            </Link>
+          )}
         </div>
       </div>
     </section>

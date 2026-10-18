@@ -296,6 +296,11 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
         // drawer shows the same number the product page did.
         price: priceSource.price,
         priceMoney: priceSource.priceMoney,
+        // Only when the "was" price is actually ABOVE the price being paid -
+        // the same condition that draws the badge above. A compareAtPrice that
+        // has fallen to or below the current price is a leftover, and striking
+        // it through in the cart would advertise a discount of zero or less.
+        compareAtPriceMoney: isOnSale ? compareAtSource.compareAtPriceMoney : null,
         maxStock,
         requiresShipping: product.requiresShipping,
       },

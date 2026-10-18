@@ -8,6 +8,7 @@ import { MapPin, Truck, CreditCard, RotateCcw, FileText } from "lucide-react";
 import { prisma } from "@/core/db/prisma";
 import { getOrderById, getExternalRefundedTotal } from "@/features/orders/db/orders";
 import { getReturnedQuantities, getOrderReturns } from "@/features/returns/db/returns";
+import { isWithinReturnWindow, returnDaysLeft } from "@/features/returns/returnWindow";
 import { BuyerReturns } from "@/features/returns/components/BuyerReturns";
 import { getOrderSellerParts } from "@/features/shipments/db/shipments";
 import { deriveOrderStatus } from "@/features/orders/status";
@@ -96,6 +97,7 @@ export default async function OrderDetailPage({
           variantLabel,
           organizationId: it.product.organizationId,
           orgName: it.product.organization.name,
+          returnWindowDays: it.product.organization.returnWindowDays,
         },
       ] as const;
     }),
@@ -107,7 +109,7 @@ export default async function OrderDetailPage({
   // never goods from a seller that withdrew (nothing was ever delivered).
   const returnSellerMap = new Map<
     string,
-    { organizationId: string; name: string; shipped: boolean; delivered: boolean; cancelled: boolean; canReturn: boolean; items: { orderItemId: string; title: string; variantLabel: string | null; returnable: number }[] }
+    { organizationId: string; name: string; shipped: boolean; delivered: boolean; cancelled: boolean; canReturn: boolean; returnDaysLeft: number | null; windowExpired: boolean; items: { orderItemId: string; title: string; variantLabel: string | null; returnable: number }[] }
   >();
   for (const it of order.items) {
     const info = itemInfo.get(it.id)!;
@@ -116,13 +118,25 @@ export default async function OrderDetailPage({
       const part = partByOrg.get(info.organizationId);
       const delivered = part?.deliveredAt != null;
       const cancelled = part?.cancelledAt != null;
+      // The seller's window, measured from delivery, with `returnWindow.ts`
+      // doing the arithmetic for both this button and the server guard. Only
+      // meaningful once delivered - before that there is no clock to read, and
+      // the delivered check already explains why the button is absent.
+      const withinWindow =
+        part?.deliveredAt != null &&
+        isWithinReturnWindow(part.deliveredAt, info.returnWindowDays);
       group = {
         organizationId: info.organizationId,
         name: info.orgName,
         shipped: part?.shippedAt != null,
         delivered,
         cancelled,
-        canReturn: returnEligible && delivered && !cancelled,
+        canReturn: returnEligible && delivered && !cancelled && withinWindow,
+        returnDaysLeft:
+          part?.deliveredAt != null
+            ? returnDaysLeft(part.deliveredAt, info.returnWindowDays)
+            : null,
+        windowExpired: delivered && !cancelled && !withinWindow,
         items: [],
       };
       returnSellerMap.set(info.organizationId, group);

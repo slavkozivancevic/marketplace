@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Link, getPathname } from "@/i18n/navigation";
 import {
+  BadgeCheck,
   Package,
   Tag,
   Tags,
@@ -77,6 +78,14 @@ export default async function AdminPage() {
       title: t("admin.tags"),
       description: t("admin.tagsDesc"),
       icon: Tags,
+    },
+    {
+      href: "/admin/trust-points",
+      title: t("admin.trustPoints"),
+      // Same sentence the list page's header uses - one description, so the
+      // card and the page it opens cannot drift apart.
+      description: t("admin.trustPointsManage"),
+      icon: BadgeCheck,
     },
     {
       href: "/admin/organizations",

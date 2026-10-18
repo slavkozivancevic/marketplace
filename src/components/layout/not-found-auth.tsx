@@ -15,6 +15,7 @@ import {
 import { User } from "lucide-react";
 import { HeaderDivider } from "./header-divider";
 import { cn } from "@/lib/utils";
+import { FallbackImg } from "@/components/FallbackImg";
 
 /**
  * Auth controls for the 404 page. Mirrors HeaderAuth visually but never
@@ -114,11 +115,11 @@ function UserMenu() {
           className="group relative flex size-8 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {user?.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <FallbackImg
               src={user.imageUrl}
               alt=""
               className="size-full object-cover"
+              fallback={<User className="size-4" />}
             />
           ) : (
             <User className="size-4" />

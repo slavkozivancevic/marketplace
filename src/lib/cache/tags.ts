@@ -40,6 +40,10 @@ export const CacheTags = {
     all: () => "global:tags" as const,
     byId: (id: string) => `id:tags:${id}` as const,
   },
+  trustPoints: {
+    all: () => "global:trust-points" as const,
+    byId: (id: string) => `id:trust-points:${id}` as const,
+  },
   attributes: {
     all: () => "global:attributes" as const,
     byId: (id: string) => `id:attributes:${id}` as const,

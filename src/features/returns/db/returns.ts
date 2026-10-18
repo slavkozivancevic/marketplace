@@ -9,6 +9,7 @@ import {
   PaymentTransactionStatus,
 } from "@/generated/prisma/client";
 import { NotFoundError, ForbiddenError } from "@/features/common/errors/domainErrors";
+import { isWithinReturnWindow } from "../returnWindow";
 import { MOCK_CONNECT } from "@/features/payments/mock";
 import { sellerNetAmount, sellerNetSlice } from "@/features/payments/config";
 import { couponSliceAt, codCommissionBack } from "@/features/orders/db/sellerParts";
@@ -213,6 +214,20 @@ export async function createReturn({
   });
   if (!part?.deliveredAt || part.cancelledAt) {
     throw new ForbiddenError({ key: "returnNotShipped" });
+  }
+
+  // ...and only inside the window this seller publishes. The buyer's return
+  // button is disabled past the deadline, but that is a convenience: the
+  // deadline is only real if it is checked here, where the row gets written.
+  // Both sides compute it with `returnDeadline`, from the same column, so the
+  // date the product page promised is the date the server honours.
+  const seller = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { returnWindowDays: true },
+  });
+  if (!seller) throw new NotFoundError(`Organization ${organizationId} not found`);
+  if (!isWithinReturnWindow(part.deliveredAt, seller.returnWindowDays)) {
+    throw new ForbiddenError({ key: "returnWindowExpired" });
   }
 
   // The seller's order items (id -> ordered quantity) - bounds the selection.

@@ -41,6 +41,12 @@ export type OrgShippingLine = {
   shippingUsd: number;
   /** The charged fee as an exact per-currency set; null when nothing is due. */
   shippingMoney: MoneySet | null;
+  /** This seller's delivery estimate in working days, both set or both null.
+   *  Carried on the shipping line because the cart already asks this module
+   *  "what does each seller charge to deliver" - "and how long do they take" is
+   *  the same question, and answering it here saves the cart a second query. */
+  leadTimeMinDays: number | null;
+  leadTimeMaxDays: number | null;
 };
 
 /**
@@ -95,6 +101,8 @@ export async function shippingLinesForResolved(
       shippingFlatRateMoney: true,
       shippingFreeThreshold: true,
       shippingFreeThresholdMoney: true,
+      leadTimeMinDays: true,
+      leadTimeMaxDays: true,
     },
   });
 
@@ -131,6 +139,8 @@ export async function shippingLinesForResolved(
       freeThresholdUsd: org.shippingFreeThreshold,
       shippingUsd: free ? 0 : org.shippingFlatRate,
       shippingMoney: charged ? null : flatRateMoney,
+      leadTimeMinDays: org.leadTimeMinDays,
+      leadTimeMaxDays: org.leadTimeMaxDays,
     };
   });
 }

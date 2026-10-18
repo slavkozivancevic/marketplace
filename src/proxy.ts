@@ -13,6 +13,7 @@ import {
   ENTITY_SEGMENTS,
   type EntityDetail,
   isUnservableStorefrontPath,
+  localizedTemplates,
   parseEntityDetail,
 } from "@/lib/seo/storefrontPaths";
 import { isUnknownLocalePath } from "@/lib/seo/appRoutes";
@@ -102,6 +103,13 @@ async function entityExists(entity: EntityDetail): Promise<boolean> {
 // a locale cannot leave half the auth rules behind.
 const LOCALES_GROUP = `(${SUPPORTED_LOCALES.join("|")})`;
 
+/** First URL segment of the cart in every locale (`cart`, `korpa`, ...),
+ *  derived from `routing.pathnames` rather than typed out - a renamed segment
+ *  there must not be able to leave this list stale. */
+const CART_SEGMENTS = localizedTemplates("/cart").map(
+  (template) => template.split("/").filter(Boolean)[0] ?? "",
+);
+
 /**
  * Routes that don't require authentication. Matched against the URL the
  * browser sent (before next-intl rewrites localized segments back to the
@@ -126,6 +134,12 @@ const publicRoutes = createRouteMatcher([
   "/api(.*)",
   // Storefront (products / brands / categories) across every localized alias.
   ...Object.keys(ENTITY_SEGMENTS).map((segment) => `/${LOCALES_GROUP}/${segment}(.*)`),
+  // The cart, across its own localized aliases. Not an entity route, so
+  // `ENTITY_SEGMENTS` does not cover it, and without this a signed-out visitor
+  // clicking "View cart" is sent to sign-in - a cart lives in their browser and
+  // has never needed an account. Checkout deliberately stays private: that is
+  // where an order gets an owner.
+  ...CART_SEGMENTS.map((segment) => `/${LOCALES_GROUP}/${segment}(.*)`),
   // Crawler-facing static routes that Next serves directly (no locale,
   // no auth). Keeping them out of `auth.protect()` so search engines can
   // fetch them anonymously.

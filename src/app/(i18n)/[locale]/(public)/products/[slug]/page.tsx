@@ -6,7 +6,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { safeAuth } from "@/lib/auth/safeAuth";
 
 import { prisma } from "@/core/db/prisma";
-import { Link, getPathname } from "@/i18n/navigation";
+import { getPathname } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import { CacheTags } from "@/lib/cache/tags";
 import { SerializedPublicProduct } from "@/types/types";
@@ -16,9 +16,13 @@ import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { JsonLdScript } from "@/components/seo/JsonLdScript";
 import { absoluteUrl, productJsonLd } from "@/lib/seo/jsonLd";
 import { SEO_MERCHANT_POLICY } from "@/lib/seo/config";
+import { DEFAULT_RETURN_WINDOW_DAYS } from "@/features/returns/returnWindow";
+import type { SellerPolicy } from "@/features/organizations/components/SellerPromises";
+import { parseMoney } from "@/lib/money";
 import { PublishLocalePaths, type LocalePaths } from "@/i18n/LocalePathsContext";
 import type { Locale } from "@/i18n/config";
 import { ProductDetailLayout } from "@/features/products/components/ProductDetailLayout";
+import { BackToCatalogLink } from "@/features/products/components/BackToCatalogLink";
 import {
   publicProductInclude,
   serializePublicProduct,
@@ -35,6 +39,7 @@ import { RelatedProductsCarousel } from "@/features/products/components/RelatedP
 import {
   listItemInclude,
   serializeListItem,
+  tagSellerTerms,
 } from "@/features/products/db/publicProducts";
 import type { SerializedProductListItem } from "@/types/types";
 import { getFrequentlyBoughtTogether } from "@/features/interactions/db/interactions";
@@ -201,11 +206,11 @@ export default async function PublicProductPage({
     );
   }
 
-  const [relatedProducts, frequentlyBoughtTogether, sellerShipping, isOwnProduct] =
+  const [relatedProducts, frequentlyBoughtTogether, sellerPolicy, isOwnProduct] =
     await Promise.all([
       fetchRelatedProducts(product.id),
       getFrequentlyBoughtTogether(product.id),
-      fetchSellerShipping(product.id),
+      fetchSellerPolicy(product.id),
       isOrgMember(product.organizationId),
     ]);
 
@@ -270,15 +275,18 @@ export default async function PublicProductPage({
         : null,
     // Merchant listing fields (clears Search Console's shipping/returns
     // recommendations). Shipping rate is this seller's flat rate in USD base
-    // cents (0 = free); return window is the platform default.
+    // cents (0 = free), and the return window is this seller's own column - the
+    // same number the page shows the buyer and `createReturn` enforces. It used
+    // to be a flat platform constant, which advertised 30 days to Google for a
+    // seller who would refuse a return on day 15.
     shipping: {
-      rate: sellerShipping.shippingFlatRate,
+      rate: sellerPolicy.shippingFlatRate,
       currency: "USD",
       country: SEO_MERCHANT_POLICY.country,
     },
     returnPolicy: {
       country: SEO_MERCHANT_POLICY.country,
-      days: SEO_MERCHANT_POLICY.returnDays,
+      days: sellerPolicy.returnWindowDays,
     },
   });
 
@@ -298,13 +306,19 @@ export default async function PublicProductPage({
         <Breadcrumbs items={breadcrumbItems} />
         <PageHeader title={localTitle} description={localShortDescription ?? undefined}>
           <Button asChild variant="outline">
-            <Link href="/products">{t("backToProducts")}</Link>
+            {/* Returns to the catalog the buyer came from, filters and all -
+                see `catalogReturn`. Falls back to the plain catalog. */}
+            <BackToCatalogLink>{t("backToProducts")}</BackToCatalogLink>
           </Button>
         </PageHeader>
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
         <div className="flex-1 px-6 pb-6">
-          <ProductDetailLayout product={product} isOwnProduct={isOwnProduct} />
+          <ProductDetailLayout
+            product={product}
+            isOwnProduct={isOwnProduct}
+            sellerPolicy={sellerPolicy}
+          />
 
           <div className="mt-12">
             <ProductReviewsSection
@@ -392,21 +406,50 @@ async function fetchPublicProductBySlug(
 }
 
 /**
- * The selling org's shipping rule for this product, for the merchant-listing
- * JSON-LD. Cached alongside the product; defaults to free (0) when the org or
- * rule is missing so the structured data is always well-formed.
+ * What the selling org promises a buyer: the shipping rule (merchant-listing
+ * JSON-LD), the delivery estimate and the return window (both shown on the
+ * page, and the return window is the one `createReturn` enforces).
+ *
+ * Tagged with the ORGANIZATION as well as the product. Without that second tag
+ * a seller could change their return window and every product page would keep
+ * quoting the old one until the product itself was next edited - the page is
+ * cached forever (`cacheLife("max")`) and nothing about the product changed.
+ *
+ * Defaults keep the structured data well-formed if the org row has gone
+ * missing: free shipping, and the column default for the window.
  */
-async function fetchSellerShipping(
-  productId: string,
-): Promise<{ shippingFlatRate: number }> {
+async function fetchSellerPolicy(productId: string): Promise<
+  SellerPolicy & { shippingFlatRate: number }
+> {
   "use cache";
   cacheTag(CacheTags.products.publicById(productId));
 
   const row = await prisma.product.findUnique({
     where: { id: productId },
-    select: { organization: { select: { shippingFlatRate: true } } },
+    select: {
+      organizationId: true,
+      organization: {
+        select: {
+          shippingFlatRate: true,
+          shippingFreeThresholdMoney: true,
+          returnWindowDays: true,
+          leadTimeMinDays: true,
+          leadTimeMaxDays: true,
+        },
+      },
+    },
   });
-  return { shippingFlatRate: row?.organization?.shippingFlatRate ?? 0 };
+  if (row) cacheTag(CacheTags.organizations.byId(row.organizationId));
+  const org = row?.organization;
+
+  return {
+    shippingFlatRate: org?.shippingFlatRate ?? 0,
+    freeShippingAlways: (org?.shippingFlatRate ?? 0) === 0,
+    freeShippingThresholdMoney: parseMoney(org?.shippingFreeThresholdMoney),
+    returnWindowDays: org?.returnWindowDays ?? DEFAULT_RETURN_WINDOW_DAYS,
+    leadTimeMinDays: org?.leadTimeMinDays ?? null,
+    leadTimeMaxDays: org?.leadTimeMaxDays ?? null,
+  };
 }
 
 /**
@@ -469,6 +512,7 @@ async function fetchRelatedProducts(
     take: 12,
     include: { ...listItemInclude, media: { orderBy: { order: "asc" }, take: 1 } },
   });
+  tagSellerTerms(products);
 
   return products.map(serializeListItem);
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { AlignLeft, ChevronDown, Search, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -81,24 +81,63 @@ export function DepartmentSearchBar({
 
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Local input state - debounced before propagating up
+  // Local input state - debounced before propagating up, so a keystroke paints
+  // immediately and only the settled value ever reaches the URL.
   const [localSearch, setLocalSearch] = useState(search);
   const debounced = useDebounce(localSearch, 300);
 
-  // Propagate debounced value to parent
+  // The value this input and the URL last agreed on. It is what tells an EDIT
+  // apart from a MOUNT, and without it a mount can write the URL.
+  //
+  // During a client-side transition React renders the incoming page while the
+  // search params still hold the OUTGOING URL's values, and the state that
+  // render initialises is what gets committed. So arriving at the catalog from
+  // a product page could mount this bar already holding the previous visit's
+  // query. The old effect compared the debounced value against the committed
+  // `search`, found them different, and pushed that dead query back into the
+  // fresh page's URL: the catalog painted unfiltered, flashed the old filtered
+  // result as the grid refetched, then undid itself a debounce later. Seeding
+  // the ref from the same first render makes that mount a no-op.
+  const settled = useRef(search);
+
+  // "Someone typed in THIS instance since the last sync." `settled` alone is
+  // not enough, because React keeps the outgoing page's subtree alive through a
+  // route change WITHOUT running its effects, and flushes them all at once if
+  // that subtree is ever shown again. A catalog left with "1000" in the box
+  // therefore came back to life on the next visit and propagated that dead
+  // query into a URL the buyer had just opened clean. A resurrected instance
+  // has no edit to its name, so the flag keeps it quiet.
+  const edited = useRef(false);
+
+  // Propagate real edits upward - never the value we were born with, and never
+  // one left over from a page the buyer has already walked away from.
   useEffect(() => {
-    if (debounced !== search) onSearchChange(debounced);
+    if (!edited.current) return;
+    if (debounced === settled.current) return;
+    edited.current = false;
+    settled.current = debounced;
+    onSearchChange(debounced);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debounced]);
 
-  // If the parent clears search externally (e.g. dept change), sync local
+  // The URL is the source of truth, so adopt every change that comes from
+  // outside this input: a cleared chip, a department change, browser back or
+  // forward, or the commit that lands at the end of a navigation. Skipping the
+  // echo of our own write is what keeps this from clobbering text that is
+  // still being typed.
   useEffect(() => {
-    if (search === "" && localSearch !== "") setLocalSearch("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (search === settled.current) return;
+    // The URL wins over a half-typed local edit - it is the state the rest of
+    // the page (grid, facets, chips) is already rendering.
+    edited.current = false;
+    settled.current = search;
+    setLocalSearch(search);
   }, [search]);
 
   function clearSearch() {
     setLocalSearch("");
+    edited.current = false;
+    settled.current = "";
     onSearchChange("");
   }
 
@@ -148,7 +187,10 @@ export function DepartmentSearchBar({
             <input
               type="text"
               value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
+              onChange={(e) => {
+                edited.current = true;
+                setLocalSearch(e.target.value);
+              }}
               placeholder={
                 deptName
                   ? `${tSearch("searchIn")} ${deptName}...`

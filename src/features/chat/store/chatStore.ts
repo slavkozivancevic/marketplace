@@ -21,12 +21,6 @@ interface ChatStore {
   /** Per-conversation unread counts - drives the inbox row badges. */
   convUnread: Record<string, number>;
   /**
-   * Per-conversation read status for the last message.
-   * Maps conversationId → readBy[] (user IDs who have read the last message).
-   * Maintained by WS events - never overwritten by React Query refetches.
-   */
-  readStatus: Record<string, string[]>;
-  /**
    * Maps conversationId → ISO timestamp of when the user last opened it.
    * Used to detect messages that arrived while the user was offline:
    * if lastMessageAt > lastSeenAt[id], there is an unread message.
@@ -40,6 +34,20 @@ interface ChatStore {
    * reload is a ghost - the peer stopped long ago and no stop event is coming.
    */
   typing: Record<string, Record<string, number>>;
+  /**
+   * Whether the chat socket is open right now.
+   *
+   * The honest answer to "can this message go out", and the only one worth
+   * showing a user: it is what the outbox actually waits on. `navigator.onLine`
+   * cannot stand in for it - on Windows it reports true whenever any adapter is
+   * up, virtual ones included, so a machine with no usable network at all still
+   * calls itself online.
+   *
+   * Live socket state, so it is absent from `partialize` for the same reason
+   * `typing` is: a connection that comes back from storage is a fiction.
+   */
+  connected: boolean;
+  setConnected: (connected: boolean) => void;
   openInbox: () => void;
   openConversation: (conversationId: string) => void;
   close: () => void;
@@ -63,7 +71,6 @@ interface ChatStore {
    * on the next sign-in. Never moves lastSeenAt backwards.
    */
   recordSeen: (conversationId: string, at: string) => void;
-  setReadStatus: (conversationId: string, readBy: string[]) => void;
   /** Records or clears a peer's typing signal for one conversation. */
   setTyping: (conversationId: string, userId: string, isTyping: boolean) => void;
   /** Drops every entry whose TTL has passed. Driven by `useTypingExpiry`. */
@@ -111,9 +118,12 @@ export const useChatStore = create<ChatStore>()(
       selectedConvId: null,
       unreadCount: 0,
       convUnread: {},
-      readStatus: {},
       lastSeenAt: {},
       typing: {},
+      connected: false,
+
+      setConnected: (connected) =>
+        set((s) => (s.connected === connected ? s : { connected })),
 
       // Opening the inbox shows per-conv badges but doesn't clear them yet.
       openInbox: () => set({ isOpen: true, selectedConvId: null }),
@@ -145,8 +155,11 @@ export const useChatStore = create<ChatStore>()(
           // Already has a live unread count from this session - don't double-count.
           if (s.convUnread[conversationId]) return s;
           // The effective "seen" marker is the later of:
-          //  - lastReadAt: server-side read receipt, survives storage wipes
-          //    (e.g. incognito window closed) - the authoritative source.
+          //  - lastReadAt: the server's marker for how far this user has read,
+          //    which survives storage wipes (e.g. an incognito window closed)
+          //    and is the authoritative source. It holds a message timestamp,
+          //    not a receipt time, so comparing it with lastMessageAt below is
+          //    a like-for-like comparison.
           //  - lastSeenAt: locally persisted time we last opened the conv.
           // Folding the server marker into lastSeenAt keeps future comparisons
           // and clearConv math consistent.
@@ -171,11 +184,6 @@ export const useChatStore = create<ChatStore>()(
           if (cur && cur >= at) return s;
           return { lastSeenAt: { ...s.lastSeenAt, [conversationId]: at } };
         }),
-
-      setReadStatus: (conversationId, readBy) =>
-        set((s) => ({
-          readStatus: { ...s.readStatus, [conversationId]: readBy },
-        })),
 
       setTyping: (conversationId, userId, isTyping) =>
         set((s) => {
@@ -224,12 +232,11 @@ export const useChatStore = create<ChatStore>()(
     }),
     {
       name: "chat-unread",
-      // `typing` is intentionally absent - it is live socket state, not
-      // something to rehydrate.
+      // `typing` and `connected` are intentionally absent - both are live
+      // socket state, not something to rehydrate.
       partialize: (s) => ({
         unreadCount: s.unreadCount,
         convUnread: s.convUnread,
-        readStatus: s.readStatus,
         lastSeenAt: s.lastSeenAt,
       }),
     }

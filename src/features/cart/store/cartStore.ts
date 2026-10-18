@@ -28,6 +28,10 @@ export interface CartItem {
   // saved before money sets existed gets one rebuilt from its mirror by the v4
   // persist migration, so no render path has to convert `price` any more.
   priceMoney: MoneySet;
+  // The struck-through "was" price, or null when the line is not on sale. Like
+  // `priceMoney` it is a snapshot that the server refreshes on every cart read,
+  // so a sale that has since ended stops being advertised in the cart.
+  compareAtPriceMoney: MoneySet | null;
   quantity: number;
   maxStock: number | null; // null = unlimited
   requiresShipping: boolean;
@@ -67,6 +71,14 @@ function sameMoneySnapshot(a: MoneySet, b: MoneySet): boolean {
   if (a === b) return true;
   if (a.primary !== b.primary) return false;
   return VALID_CURRENCIES.every((c) => a.amounts[c] === b.amounts[c]);
+}
+
+/** Same comparison for the optional "was" price, where null (no sale) is a
+ *  value in its own right - a sale ending and a sale starting both have to
+ *  count as a change, or the cart keeps showing the stale one. */
+function sameCompareAt(a: MoneySet | null, b: MoneySet | null): boolean {
+  if (a === null || b === null) return a === b;
+  return sameMoneySnapshot(a, b);
 }
 
 export const useCartStore = create<CartStore>()(
@@ -143,11 +155,20 @@ export const useCartStore = create<CartStore>()(
           const items = state.items.map((i) => {
             const p = prices.find((x) => isSameItem(i, x.productId, x.variantId));
             if (!p) return i;
-            if (p.unitPriceUsd === i.price && sameMoneySnapshot(p.unitMoney, i.priceMoney)) {
+            if (
+              p.unitPriceUsd === i.price &&
+              sameMoneySnapshot(p.unitMoney, i.priceMoney) &&
+              sameCompareAt(p.unitCompareAtMoney, i.compareAtPriceMoney)
+            ) {
               return i;
             }
             changed = true;
-            return { ...i, price: p.unitPriceUsd, priceMoney: p.unitMoney };
+            return {
+              ...i,
+              price: p.unitPriceUsd,
+              priceMoney: p.unitMoney,
+              compareAtPriceMoney: p.unitCompareAtMoney,
+            };
           });
           // Same objects when nothing moved: a new array would rewrite
           // localStorage and re-render every cart consumer for no reason.
@@ -159,7 +180,7 @@ export const useCartStore = create<CartStore>()(
     }),
     {
       name: "cart-storage",
-      version: 4,
+      version: 5,
       partialize: (state) => ({ items: state.items }),
       // Older carts predate the localized snapshots (`variantOptions` in v1,
       // `productTitleI18n` in v2) and the per-currency price set (v3, made
@@ -182,6 +203,15 @@ export const useCartStore = create<CartStore>()(
           state.items = state.items.map((i) => ({
             ...i,
             priceMoney: i.priceMoney ?? authorMoney(i.price, "usd", { usd: 1 }),
+          }));
+        }
+        // v5 added the "was" price. Null, not a guess: an older cart has no
+        // record of whether its lines were on sale, and the first server refresh
+        // (which every cart surface runs on open) fills in the truth.
+        if (version < 5 && state?.items) {
+          state.items = state.items.map((i) => ({
+            ...i,
+            compareAtPriceMoney: i.compareAtPriceMoney ?? null,
           }));
         }
         return state as { items: CartItem[] };
