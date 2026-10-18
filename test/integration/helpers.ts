@@ -47,12 +47,18 @@ export function createUser(overrides: { email?: string; clerkUserId?: string } =
   });
 }
 
-export function createOrganization(overrides: { name?: string; verified?: boolean } = {}) {
+export function createOrganization(
+  overrides: { name?: string; verified?: boolean; returnWindowDays?: number } = {},
+) {
   return prisma.organization.create({
     data: {
       name: overrides.name ?? `Org ${randomUUID().slice(0, 8)}`,
       verified: overrides.verified ?? true,
       shippingFlatRateMoney: moneyCol(zeroMoney()).json,
+      // Left to the column default (14) unless a test is about the window.
+      ...(overrides.returnWindowDays !== undefined && {
+        returnWindowDays: overrides.returnWindowDays,
+      }),
     },
   });
 }

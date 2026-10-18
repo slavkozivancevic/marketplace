@@ -14,13 +14,20 @@ import { SerializedPublicProduct } from "@/types/types";
 import { useMoney } from "@/lib/useMoney";
 import { formatPrice } from "@/lib/currency";
 import { getBrandName } from "@/features/brands/utils/translations";
+import { getProductTitle } from "@/features/products/utils/translations";
+import { ShareButton } from "./ShareButton";
 import { getTagName } from "@/features/tags/utils/translations";
+import {
+  SellerPromises,
+  type SellerPolicy,
+} from "@/features/organizations/components/SellerPromises";
 
 interface ProductPurchaseSectionProps {
   product: SerializedPublicProduct;
   activeVariantId: string | null;
   onActiveVariantChange: (variantId: string | null) => void;
   isOwnProduct: boolean;
+  sellerPolicy: SellerPolicy;
 }
 
 function discountPct(price: number, compareAtPrice: number): number {
@@ -32,6 +39,7 @@ export function ProductPurchaseSection({
   activeVariantId,
   onActiveVariantChange,
   isOwnProduct,
+  sellerPolicy,
 }: ProductPurchaseSectionProps) {
   const t = useTranslations("products");
   const locale = useLocale();
@@ -43,6 +51,9 @@ export function ProductPurchaseSection({
     : null;
 
   const localBrandName = product.brand ? getBrandName(product.brand, locale) : "";
+  // The share sheet's own title - the product's name in the reader's language,
+  // not the page's <title>.
+  const localTitle = getProductTitle(product, locale);
 
   const priceSource = activeVariant ?? product;
   const displayPrice = moneyAmount(priceSource.priceMoney);
@@ -73,7 +84,10 @@ export function ProductPurchaseSection({
           <span className="text-3xl font-bold">{formatPrice(displayPrice, currency, locale)}</span>
         )}
       </div>
-      <WishlistButton productId={product.id} size={20} className="shrink-0" />
+      <div className="flex items-center gap-1 shrink-0">
+        <ShareButton title={localTitle} />
+        <WishlistButton productId={product.id} size={20} />
+      </div>
     </div>
   );
 
@@ -132,18 +146,24 @@ export function ProductPurchaseSection({
               ))}
             </div>
           )}
-          {/* One trust line, not a spec strip: warranty next to the buy button
-              is a conversion signal, everything else lives in the
-              specifications tab below. Skipped when warranty is 0 - "no
-              warranty" is a fact for the table, not a selling point here. */}
-          {product.warrantyMonths != null && product.warrantyMonths > 0 && (
-            <p className="flex items-center gap-1.5 text-sm">
-              <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">
-                {t("warrantyValue", { count: product.warrantyMonths })}
-              </span>
-            </p>
-          )}
+          {/* Trust lines, not a spec strip: what the buyer wants to know before
+              clicking buy - warranty, how long delivery takes, how long they
+              can change their mind. Everything else lives in the specifications
+              tab below. Warranty is skipped when 0 - "no warranty" is a fact
+              for the table, not a selling point here - while the return window
+              shows even at 0, because "no returns" is something a buyer must
+              read BEFORE paying, not discover afterwards. */}
+          <div className="space-y-1.5">
+            {product.warrantyMonths != null && product.warrantyMonths > 0 && (
+              <p className="flex items-center gap-1.5 text-sm">
+                <ShieldCheck className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="font-medium">
+                  {t("warrantyValue", { count: product.warrantyMonths })}
+                </span>
+              </p>
+            )}
+            <SellerPromises policy={sellerPolicy} />
+          </div>
           <AddToCart
             product={product}
             onActiveVariantChange={onActiveVariantChange}

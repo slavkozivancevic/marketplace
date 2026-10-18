@@ -4,7 +4,11 @@ import { cacheTag } from "next/cache";
 import { CacheTags } from "@/lib/cache/tags";
 import { Prisma, InteractionType } from "@/generated/prisma/client";
 import type { SerializedProductListItem } from "@/types/types";
-import { listItemInclude, serializeListItem } from "@/features/products/db/publicProducts";
+import {
+  listItemInclude,
+  serializeListItem,
+  tagSellerTerms,
+} from "@/features/products/db/publicProducts";
 
 // Card projection for the related / recently-viewed / frequently-bought strips.
 // Uses the shared storefront card shape so these tiles render the exact same
@@ -197,6 +201,7 @@ export async function getFrequentlyBoughtTogether(
     where: { id: { in: ids }, status: "PUBLISHED", deletedAt: null },
     include: CARD_INCLUDE,
   });
+  tagSellerTerms(rows);
 
   return orderByIds(rows, ids).slice(0, limit);
 }

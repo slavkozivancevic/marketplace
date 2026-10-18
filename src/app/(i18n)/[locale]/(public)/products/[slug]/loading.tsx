@@ -27,9 +27,16 @@ export default function ProductDetailLoading() {
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6 pt-2 sticky-header-bg">
         <SkeletonBreadcrumbs segments={3} />
+        {/* No description bar. The header's description is the product's SHORT
+            description, which is optional - and `<PageHeader>` renders nothing
+            at all when it is missing, not an empty line. Surveyed across the
+            catalogue, 1 product in 9 has one: the real header is 84px for the
+            other eight and the skeleton was 106px, so the busiest page in the
+            shop dropped 22px the moment it loaded. Reinstate it (and re-measure)
+            if short descriptions become the norm. */}
         <SkeletonPageHeader
           titleWidth="w-64"
-          descriptionWidth="w-80"
+          withDescription={false}
           actions={<SkeletonButton className="w-36" />}
         />
       </div>

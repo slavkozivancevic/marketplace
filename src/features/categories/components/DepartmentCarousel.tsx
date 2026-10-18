@@ -238,8 +238,12 @@ export function DepartmentCarousel({
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">{subtitleLabel}</p>
           </div>
+          {/* The DIRECTORY, not the product list. This section is about
+              departments, so "see all" has to mean "all departments" - it
+              pointed at /products only because the directory did not exist
+              yet. */}
           <Link
-            href="/products"
+            href="/categories"
             className="hidden sm:flex items-center gap-1 text-sm text-primary hover:underline shrink-0"
           >
             {browseAllLabel}
@@ -283,7 +287,7 @@ export function DepartmentCarousel({
         {/* Mobile browse all */}
         <div className="mt-5 text-center sm:hidden">
           <Link
-            href="/products"
+            href="/categories"
             className="text-sm text-primary hover:underline inline-flex items-center gap-1"
           >
             {browseAllLabel}

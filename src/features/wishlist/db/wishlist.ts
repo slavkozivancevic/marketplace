@@ -1,7 +1,11 @@
-import { serializeMoneyFields } from "@/lib/money";
 import { cacheTag } from "next/cache";
 import { prisma } from "@/core/db/prisma";
 import { CacheTags } from "@/lib/cache/tags";
+import {
+  listItemInclude,
+  serializeListItem,
+  tagSellerTerms,
+} from "@/features/products/db/publicProducts";
 import { SerializedProductListItem } from "@/types/types";
 
 export async function getUserWishlistProductIds(userId: string): Promise<string[]> {
@@ -46,20 +50,26 @@ export async function getWishlistProducts(
     where: { userId },
     orderBy: { createdAt: "desc" },
     include: {
+      // The shared card include, not a hand-rolled copy of it: this list used
+      // to spell out its own relations, which is how it would have been the one
+      // surface whose cards knew nothing about delivery.
       product: {
         include: {
-          translations: true,
-          media: { orderBy: { order: "asc" }, take: 5 },
-          brand: { select: { id: true, logoUrl: true, logoUrlDark: true, logoBackdrop: true, logoBackdropDark: true, translations: true } },
+          ...listItemInclude,
+          media: { orderBy: [{ order: "asc" }, { id: "asc" }], take: 5 },
         },
       },
     },
   });
 
-  return items
-    .filter((i) => i.product.status === "PUBLISHED" && !i.product.deletedAt)
-    .map((i) => ({
-      ...i.product,
-      ...serializeMoneyFields(i.product),
-    }));
+  const visible = items.filter(
+    (i) => i.product.status === "PUBLISHED" && !i.product.deletedAt,
+  );
+
+  // The cards carry each seller's delivery terms, so a seller changing theirs
+  // has to drop this list too - the wishlist tag alone only covers the user
+  // adding or removing an item, and `cacheLife("max")` never expires on its own.
+  tagSellerTerms(visible.map((i) => i.product));
+
+  return visible.map((i) => serializeListItem(i.product));
 }

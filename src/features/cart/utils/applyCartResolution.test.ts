@@ -19,6 +19,7 @@ function line(productId: string, price = 1000): CartItem {
     variantLabel: null,
     price,
     priceMoney: usd(price),
+    compareAtPriceMoney: null,
     quantity: 1,
     maxStock: null,
     requiresShipping: true,
@@ -31,11 +32,16 @@ const ref = (productId: string): CartItemRef => ({
   quantity: 1,
 });
 
-const priceOf = (productId: string, unitPriceUsd: number): CartLinePrice => ({
+const priceOf = (
+  productId: string,
+  unitPriceUsd: number,
+  unitCompareAtMoney: CartLinePrice["unitCompareAtMoney"] = null,
+): CartLinePrice => ({
   productId,
   variantId: null,
   unitPriceUsd,
   unitMoney: usd(unitPriceUsd),
+  unitCompareAtMoney,
 });
 
 describe("applyCartResolution", () => {
@@ -89,6 +95,32 @@ describe("applyCartResolution", () => {
       vi.fn(),
     );
     expect(useCartStore.getState().items.find((i) => i.productId === "b")?.price).toBe(2500);
+  });
+
+  /**
+   * A sale that has ended must stop being advertised. The "was" price is a
+   * snapshot like the price itself, so a cart left to its own devices would
+   * keep striking through a discount the seller has already withdrawn.
+   */
+  it("clears the struck-through price once the sale is over", () => {
+    useCartStore.setState({
+      items: [{ ...line("a"), compareAtPriceMoney: usd(2000) }],
+    });
+
+    applyCartResolution({ prices: [priceOf("a", 1000)], unavailable: [] }, vi.fn());
+
+    expect(useCartStore.getState().items[0].compareAtPriceMoney).toBeNull();
+  });
+
+  it("picks up a sale that started after the item was added", () => {
+    applyCartResolution(
+      { prices: [priceOf("a", 800, usd(1000))], unavailable: [] },
+      vi.fn(),
+    );
+
+    const a = useCartStore.getState().items.find((i) => i.productId === "a");
+    expect(a?.price).toBe(800);
+    expect(a?.compareAtPriceMoney).toEqual(usd(1000));
   });
 
   it("leaves a cart with nothing unavailable completely alone", () => {

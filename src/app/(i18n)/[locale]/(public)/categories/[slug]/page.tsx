@@ -23,8 +23,8 @@ import { getQueryClient } from "@/lib/query/getQueryClient";
 import { getAllBrands } from "@/features/brands/db/brands";
 import { getAllTags } from "@/features/tags/db/tags";
 import {
-  getCategoryTree,
   getDescendantIds,
+  getStorefrontCategoryTree,
 } from "@/features/categories/db/categories";
 import { getPublicProductsPage } from "@/features/products/db/publicProducts";
 import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
@@ -108,10 +108,21 @@ async function fetchBrands() {
   return getAllBrands();
 }
 
-async function fetchCategoryTree() {
+/**
+ * The browsable tree, with THIS category kept in it even if it is empty.
+ *
+ * Two things depend on that. The department selector would otherwise claim the
+ * visitor is browsing everything while the URL says otherwise, and
+ * `getDescendantIds` below resolves this page's product filter out of the same
+ * tree - a pruned node would widen an empty category into the whole catalogue.
+ */
+async function fetchCategoryTree(keepSlug: string) {
   "use cache";
   cacheTag(CacheTags.categories.all());
-  return getCategoryTree();
+  // The tree now hides categories with nothing to buy in them, so a catalogue
+  // change can add or remove an entry - see getStorefrontCategoryTree.
+  cacheTag(CacheTags.products.publicAll());
+  return getStorefrontCategoryTree({ keepSlug });
 }
 
 async function fetchTags() {
@@ -274,7 +285,7 @@ export default async function CategoryDetailPage({ params }: CategoryPageProps) 
   const [queryClient, brands, categoryTree, tags] = await Promise.all([
     Promise.resolve(getQueryClient()),
     fetchBrands(),
-    fetchCategoryTree(),
+    fetchCategoryTree(localT?.slug ?? slug),
     fetchTags(),
   ]);
 

@@ -90,6 +90,7 @@ const SLOTS = [
 ];
 
 type Tile = { url: string; name: string; slug: string };
+type Layer = "base" | "incoming";
 
 /**
  * One cell. Holds two stacked image layers and cross-fades between them: the
@@ -102,6 +103,7 @@ function CollageTile({
   incoming,
   incomingReady,
   onIncomingLoad,
+  onFailed,
   onEngagedChange,
   className,
 }: {
@@ -110,6 +112,8 @@ function CollageTile({
   incoming: Tile | null;
   incomingReady: boolean;
   onIncomingLoad: () => void;
+  /** A layer gave up on its photograph after every retry. */
+  onFailed: (slot: number, layer: Layer, url: string) => void;
   /** Tells the collage which tile is under a cursor or a finger right now. */
   onEngagedChange: (slot: number, engaged: boolean) => void;
   className?: string;
@@ -134,7 +138,7 @@ function CollageTile({
     error. The two layers are fixed positions in the stack; what changes is the
     `src` inside them.
   */
-  const img = (layer: string, t: Tile, on: boolean, onLoad?: () => void) => (
+  const img = (layer: Layer, t: Tile, on: boolean, onLoad?: () => void) => (
     <RetryImage
       key={layer}
       src={t.url}
@@ -142,6 +146,9 @@ function CollageTile({
       fill
       sizes="(max-width: 640px) 50vw, (max-width: 1024px) 45vw, 340px"
       onLoad={onLoad}
+      onError={(_, willRetry) => {
+        if (!willRetry) onFailed(slot, layer, t.url);
+      }}
       /* A plain opacity cross-fade read as a flat dissolve; pairing it with a
          small scale gives the swap a direction - the new photograph settles in
          from slightly larger while the old one recedes - so it looks composed
@@ -156,6 +163,10 @@ function CollageTile({
       // The outgoing layer keeps its own placeholder off, otherwise the
       // shimmer flashes underneath mid-dissolve.
       showShimmer={!incoming}
+      // The incoming layer is invisible until it loads, so its "unavailable"
+      // placeholder must never cover the photograph still showing beneath it.
+      // A failed incoming is simply abandoned (see `handleFailed`).
+      showFallback={layer === "base"}
     />
   );
 
@@ -315,6 +326,59 @@ export function DepartmentMosaic({
     shownRef.current = shown;
   }, [shown]);
 
+  /*
+    Photographs that gave up after every retry. On a cold start the image
+    optimizer fetches two dozen remote originals at once and one of them can
+    time out three times in a row - the URL itself is fine, as a reload
+    proves. Before this, that one failure had two lasting effects: a failed
+    BASE layer left the tile on the "unavailable" placeholder for good, and a
+    failed INCOMING layer covered a perfectly good photograph with its
+    placeholder while never reporting `onLoad`, so `pending` stayed set and
+    the whole rotation froze behind it.
+  */
+  const failedUrlsRef = useRef<Set<string>>(new Set());
+
+  // The dissolve in flight, for `isCandidate`: a broken tile must not be
+  // patched with the photograph that is already on its way into a tile.
+  const pendingRef = useRef(pending);
+  useEffect(() => {
+    pendingRef.current = pending;
+  }, [pending]);
+
+  /** A pool entry that is not on screen, not arriving, and not known to fail. */
+  const isCandidate = useCallback(
+    (index: number) =>
+      !shownRef.current.includes(index) &&
+      pendingRef.current?.index !== index &&
+      !failedUrlsRef.current.has(pool[index]?.url ?? ""),
+    [pool],
+  );
+
+  const handleFailed = useCallback(
+    (slot: number, layer: Layer, url: string) => {
+      failedUrlsRef.current.add(url);
+      if (layer === "incoming") {
+        // Abandon the dissolve; the photograph underneath never moved, and the
+        // next tick picks something else.
+        setPending(null);
+        setReady(false);
+        return;
+      }
+      // The tile itself is broken: put a working photograph in it straight
+      // away rather than waiting for the rotation to come round to it. With
+      // nothing left to swap in, the placeholder stays - an honest frame
+      // beats a hole in the collage.
+      const replacement = pool.findIndex((_, i) => isCandidate(i));
+      if (replacement === -1) return;
+      setShown((prev) => {
+        const next = [...prev];
+        next[slot] = replacement;
+        return next;
+      });
+    },
+    [pool, isCandidate],
+  );
+
   useEffect(() => {
     // Nothing to rotate between, and nothing to rotate for someone who asked
     // the system to stop animating things.
@@ -342,21 +406,23 @@ export function DepartmentMosaic({
         if (slot === engagedSlotRef.current) return null;
         let index = cursor.current.pool % pool.length;
         // Skip anything already on screen: dissolving a tile into a photograph
-        // that is sitting two cells away reads as a glitch, not a change.
+        // that is sitting two cells away reads as a glitch, not a change. Skip
+        // a photograph that already failed to load, too.
         for (
           let guard = 0;
-          guard < pool.length && shownRef.current.includes(index);
+          guard < pool.length && !isCandidate(index);
           guard++
         ) {
           index = (index + 1) % pool.length;
         }
+        if (!isCandidate(index)) return null;
         cursor.current = { slot: slot + 1, pool: index + 1 };
         return { slot, index };
       });
     }, SWAP_MS);
 
     return () => clearInterval(id);
-  }, [pool.length]);
+  }, [pool.length, isCandidate]);
 
   // Commit the dissolve once the incoming layer has faded fully up.
   useEffect(() => {
@@ -420,6 +486,7 @@ export function DepartmentMosaic({
             incoming={incoming ?? null}
             incomingReady={Boolean(incoming) && ready}
             onIncomingLoad={() => setReady(true)}
+            onFailed={handleFailed}
             onEngagedChange={handleEngagedChange}
             className={cn(slot.small, slot.wide)}
           />

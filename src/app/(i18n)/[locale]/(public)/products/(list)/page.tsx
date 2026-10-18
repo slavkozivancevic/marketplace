@@ -19,9 +19,10 @@ import { CacheTags } from "@/lib/cache/tags";
 import { getAllBrands } from "@/features/brands/db/brands";
 import { getAllTags } from "@/features/tags/db/tags";
 import {
-  getCategoryTree,
+  getStorefrontCategoryInputs,
   getDescendantIds,
 } from "@/features/categories/db/categories";
+import { pruneEmptyCategories } from "@/features/categories/utils/pruneEmpty";
 import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
 import { getPathname } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
@@ -107,12 +108,22 @@ export default async function ProductsRoute({
     { name: tCrumbs("products"), href: getPathname({ href: "/products", locale }) },
   ];
 
-  const [queryClient, brands, categoryTree, tags] = await Promise.all([
+  const [queryClient, brands, categoryInputs, tags] = await Promise.all([
     Promise.resolve(getQueryClient()),
     fetchBrands(),
-    fetchCategoryTree(),
+    fetchCategoryInputs(),
     fetchTags(),
   ]);
+  // Pruned here, per request, rather than inside the cache - see
+  // fetchCategoryInputs. Keeps whichever department the URL asks for: `?dept=`
+  // is resolved to its descendant ids out of this tree, so a department pruned
+  // for being empty would silently widen the listing back to the whole
+  // catalogue instead of showing that department's (empty) shelf.
+  const categoryTree = pruneEmptyCategories(
+    categoryInputs.tree,
+    new Set(categoryInputs.stockedCategoryIds),
+    params.dept,
+  );
 
   // Resolve dept slug → descendant IDs for the SSR prefetch
   const deptCategoryIds = params.dept
@@ -205,10 +216,21 @@ async function fetchBrands() {
   return getAllBrands();
 }
 
-async function fetchCategoryTree() {
+/**
+ * The storefront tree's inputs, unpruned and keyed on nothing.
+ *
+ * Not `getStorefrontCategoryTree({ keepSlug: dept })`: `dept` is the raw query
+ * string, so caching on it gave every distinct `?dept=` value - typos,
+ * crawlers, a script counting upwards - its own permanent entry and its own
+ * tree query plus groupBy. One entry here; the pruning is per request.
+ */
+async function fetchCategoryInputs() {
   "use cache";
   cacheTag(CacheTags.categories.all());
-  return getCategoryTree();
+  // The tree hides categories with nothing to buy in them, so a catalogue
+  // change can add or remove an entry - see getStorefrontCategoryTree.
+  cacheTag(CacheTags.products.publicAll());
+  return getStorefrontCategoryInputs();
 }
 
 async function fetchTags() {

@@ -49,6 +49,18 @@ describe("productJsonLd", () => {
     expect(offer.hasMerchantReturnPolicy.merchantReturnDays).toBe(30);
   });
 
+  it("declares returns not permitted for a 0-day window", () => {
+    const schema = productJsonLd({
+      ...baseInput,
+      returnPolicy: { country: "RS", days: 0 },
+    });
+    const offer = schema.offers as unknown as Record<string, Record<string, unknown>>;
+    expect(offer.hasMerchantReturnPolicy.returnPolicyCategory).toBe(
+      "https://schema.org/MerchantReturnNotPermitted",
+    );
+    expect(offer.hasMerchantReturnPolicy.merchantReturnDays).toBeUndefined();
+  });
+
   it("omits merchant fields when not provided", () => {
     const schema = productJsonLd(baseInput);
     const offer = schema.offers as unknown as Record<string, unknown>;

@@ -40,7 +40,7 @@ const KNOWN_ACTIONS = new Set([
   "return.requested", "return.approved", "return.rejected", "return.shipped", "return.refunded",
   "user.role_changed", "member.role_changed", "member.removed",
   "member.invite_accepted", "member.invite_declined", "member.invite_revoked",
-  "organization.verified_changed",
+  "organization.verified_changed", "organization.policy_changed",
   "product.created", "product.updated", "product.deleted", "product.duplicated",
   "product.published", "product.unpublished", "product.archived", "product.unarchived",
   "product.rolled_back", "product.bulk_status", "product.bulk_deleted", "product.bulk_created",
@@ -55,6 +55,8 @@ const KNOWN_ACTIONS = new Set([
   "organization.member_removed", "organization.owner_promoted", "organization.catalog_deactivated",
   "organization.org_deleted",
   "tag.created", "tag.updated", "tag.deleted", "tag.duplicated",
+  "trust_point.created", "trust_point.updated", "trust_point.deleted",
+  "trust_point.duplicated",
 ]);
 
 type Labels = {
@@ -178,6 +180,7 @@ export function AuditLogView({
     Coupon: t("entities.coupon"),
     Review: t("entities.review"),
     Tag: t("entities.tag"),
+    TrustPoint: t("entities.trustPoint"),
   };
   const fieldLabels: Record<string, string> = {
     count: t("fields.count"),
@@ -190,6 +193,9 @@ export function AuditLogView({
     role: t("fields.role"),
     member: t("fields.member"),
     verified: t("fields.verified"),
+    leadTimeMinDays: t("fields.leadTimeMinDays"),
+    leadTimeMaxDays: t("fields.leadTimeMaxDays"),
+    returnWindowDays: t("fields.returnWindowDays"),
     version: t("fields.version"),
     carrier: t("fields.carrier"),
     tracking: t("fields.tracking"),

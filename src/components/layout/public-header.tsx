@@ -13,11 +13,20 @@ import { ChatDrawerTrigger } from "@/features/chat/components/ChatDrawer";
 import { Menu, X } from "lucide-react";
 import { useDismissable } from "@/hooks/useDismissable";
 import { BrandHomeLink } from "./brand-home-link";
+import { CategoriesMegaMenu } from "@/features/categories/components/CategoriesMegaMenu";
+import type { CategoryTreeItem } from "@/features/categories/db/categories";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface PublicHeaderProps {
   showAdminLink?: boolean;
+  /** Full category tree, read (and cached) once in the layout so opening the
+   *  menu costs no request. Empty on a shop with no categories yet, and the
+   *  menu then renders nothing. */
+  categoryTree?: CategoryTreeItem[];
+  /** Category id -> a product photo, for categories with no picture of their
+   *  own. Read beside the tree in the layout, under the same cache entry. */
+  categoryImages?: Record<string, string>;
   /**
    * Server-resolved auth state (from `auth()` in the layout). Used as the
    * authoritative value for auth-gated links until clerk-js finishes its
@@ -35,6 +44,8 @@ interface NavLink {
 
 export function PublicHeader({
   showAdminLink = false,
+  categoryTree = [],
+  categoryImages = {},
   signedIn = false,
 }: PublicHeaderProps) {
   const t = useTranslations();
@@ -116,7 +127,19 @@ export function PublicHeader({
             </div>
 
             {/* Desktop Nav */}
-            <nav className="hidden lg:flex items-center gap-1 shrink-0">
+            <nav className="hidden xl:flex items-center gap-1 shrink-0">
+              <CategoriesMegaMenu tree={categoryTree} images={categoryImages} />
+              {/* Deals is the on-sale facet the products list already has, not
+                  a route of its own - one place decides what "on sale" means.
+                  The query goes through the href object because next-intl drops
+                  a query string appended to a localized pathname. */}
+              <Link
+                href={{ pathname: "/products", query: { onSale: "true" } }}
+                className="relative px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground group"
+              >
+                {t("nav.deals")}
+                <span className="absolute inset-x-4 -bottom-px h-px bg-primary scale-x-0 transition-transform duration-300 group-hover:scale-x-100" />
+              </Link>
               {navLinks.map((link) => {
                 const linkEl = (
                   <Link
@@ -134,18 +157,24 @@ export function PublicHeader({
               })}
             </nav>
 
-            {/* Right side actions - mirrors the left flex-1 rail from lg up (to
-                keep the desktop nav visually centered); below lg the desktop
+            {/* Right side actions - mirrors the left flex-1 rail from xl up (to
+                keep the desktop nav visually centered); below xl the desktop
                 nav is hidden so this rail only needs its own content width,
                 letting the logo/tagline rail claim the rest instead of being
                 capped at a forced 50/50 split. */}
-            <div className="flex flex-none lg:flex-1 items-center justify-end gap-1 sm:gap-2">
-              {/* Below lg these move into the mobile menu instead, so the
-                  header rail stays short enough to never crowd the logo. Nav
-                  links + icons + auth all fit comfortably from lg (1024px) up;
-                  showing them any earlier squeezed the wordmark down to an
-                  ellipsis in the 768-950px range. */}
-              <div className="hidden lg:flex items-center gap-1 sm:gap-2">
+            <div className="flex flex-none xl:flex-1 items-center justify-end gap-1 sm:gap-2">
+              {/* Below xl these move into the panel menu instead, so the
+                  header rail stays short enough to never crowd the logo.
+                  THE BREAKPOINT IS lg + 1 STEP ON PURPOSE. It was `lg` while
+                  the nav held four links; adding Categories and Deals pushed
+                  the row past 1024px, and since the nav is `shrink-0` it was
+                  the LOGO that gave way - the wordmark rendered as
+                  "MarketV...". Measured at 1280 with every link showing
+                  (admin + dashboard, the widest case): logo ~210 + nav ~587 +
+                  this rail ~215 + rail gaps = ~1044 against 1216 usable, so it
+                  fits with room. Any new nav link has to be re-measured
+                  against that budget, not just appended. */}
+              <div className="hidden xl:flex items-center gap-1 sm:gap-2">
                 <PreferencesPopover />
                 <ChatDrawerTrigger signedIn={signedIn} />
                 {/* Always visible - count is 0 (query disabled) when signed out,
@@ -160,7 +189,7 @@ export function PublicHeader({
                   what groups the pair. The bug being fixed was the ratio the
                   wrong way round: the two buttons sat further from each other
                   (gap-4) than from the cart icon (12px). */}
-              <div className="hidden lg:flex items-center ml-1">
+              <div className="hidden xl:flex items-center ml-1">
                 <HeaderAuth mode="modal" showDashboardLink={false} signedIn={signedIn} />
               </div>
               {/* Mobile menu button */}
@@ -168,7 +197,7 @@ export function PublicHeader({
                 ref={triggerRef}
                 variant="outline"
                 size="icon"
-                className="lg:hidden"
+                className="xl:hidden"
                 aria-expanded={mobileOpen}
                 onClick={() => setMobileOpen(!mobileOpen)}
               >
@@ -178,11 +207,11 @@ export function PublicHeader({
                   <Menu className="h-4 w-4" />
                 )}
               </Button>
-              {/* Avatar-only below lg, always the rightmost element, so it's
+              {/* Avatar-only below xl, always the rightmost element, so it's
                   obvious at a glance who's signed in even on the narrowest
-                  widths; the full controls take over at lg - never both at
+                  widths; the full controls take over at xl - never both at
                   once. */}
-              <div className="lg:hidden">
+              <div className="xl:hidden">
                 <HeaderAuth mode="modal" avatarOnly signedIn={signedIn} />
               </div>
             </div>
@@ -195,7 +224,7 @@ export function PublicHeader({
         <div
           ref={panelRef}
           className={cn(
-            "lg:hidden grid transition-[grid-template-rows] duration-300 ease-in-out border-t border-border/50",
+            "xl:hidden grid transition-[grid-template-rows] duration-300 ease-in-out border-t border-border/50",
             mobileOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr] border-t-0"
           )}
         >
@@ -206,6 +235,23 @@ export function PublicHeader({
                 <ChatDrawerTrigger signedIn={signedIn} />
                 <WishlistHeaderButton />
               </div>
+              {/* No mega menu on a phone - the panel needs a second column it
+                  does not have. The directory page is the same content laid
+                  out for a narrow screen, so the menu becomes a plain link. */}
+              <Link
+                href="/categories"
+                className="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                onClick={() => setMobileOpen(false)}
+              >
+                {t("nav.categories")}
+              </Link>
+              <Link
+                href={{ pathname: "/products", query: { onSale: "true" } }}
+                className="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                onClick={() => setMobileOpen(false)}
+              >
+                {t("nav.deals")}
+              </Link>
               {navLinks.map((link) => {
                 const linkEl = (
                   <Link
@@ -227,7 +273,7 @@ export function PublicHeader({
               {/* ...which means that for a signed-in visitor this slot renders
                   an empty div. `has-[>div:empty]` collapses the padding with
                   it, so the panel doesn't end in a dead strip of whitespace. */}
-              <div className="pt-3 px-3 lg:hidden has-[>div:empty]:hidden">
+              <div className="pt-3 px-3 xl:hidden has-[>div:empty]:hidden">
                 <HeaderAuth
                   mode="modal"
                   showDashboardLink={false}

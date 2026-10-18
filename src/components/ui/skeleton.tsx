@@ -146,10 +146,19 @@ export function SkeletonBreadcrumbs({
 export function SkeletonPageHeader({
   titleWidth = "w-56",
   descriptionWidth = "w-80",
+  withDescription = true,
   actions,
 }: {
   titleWidth?: string;
   descriptionWidth?: string;
+  /**
+   * `<PageHeader>`'s description is optional and renders NOTHING when absent -
+   * it is not an empty line, it is no line. A skeleton that always draws one is
+   * 22px too tall (a 20px line box plus the `space-y-0.5` above it) for a page
+   * whose record has no description, and the whole page lifts when it loads.
+   * Pass `false` where the real page usually has none.
+   */
+  withDescription?: boolean;
   actions?: ReactNode;
 }) {
   return (
@@ -159,9 +168,11 @@ export function SkeletonPageHeader({
           <div className="flex h-7 items-center sm:h-8">
             <Skeleton className={cn("h-5 sm:h-6", titleWidth)} />
           </div>
-          <div className="flex h-5 items-center">
-            <Skeleton className={cn("h-3.5", descriptionWidth)} />
-          </div>
+          {withDescription && (
+            <div className="flex h-5 items-center">
+              <Skeleton className={cn("h-3.5", descriptionWidth)} />
+            </div>
+          )}
         </div>
         {actions && (
           <div className="flex flex-wrap items-center justify-end gap-2 md:shrink-0">{actions}</div>

@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
+import { FallbackImg } from "@/components/FallbackImg";
 import type { UserProfile } from "../hooks/useUserProfiles";
 
 /**
@@ -60,6 +61,11 @@ interface BubbleProps {
 export function TypingBubble({ userId, profile }: BubbleProps) {
   const t = useTranslations("chat");
   const name = profile?.name ?? "";
+  const initialsBadge = (
+    <div className="size-7 rounded-full bg-muted flex items-center justify-center shrink-0 text-[10px] font-semibold uppercase text-muted-foreground mb-0.5">
+      {initials(name, userId)}
+    </div>
+  );
 
   return (
     <div
@@ -68,16 +74,14 @@ export function TypingBubble({ userId, profile }: BubbleProps) {
       aria-atomic="true"
     >
       {profile?.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <FallbackImg
           src={profile.imageUrl}
           alt=""
           className="size-7 rounded-full shrink-0 object-cover mb-0.5"
+          fallback={initialsBadge}
         />
       ) : (
-        <div className="size-7 rounded-full bg-muted flex items-center justify-center shrink-0 text-[10px] font-semibold uppercase text-muted-foreground mb-0.5">
-          {initials(name, userId)}
-        </div>
+        initialsBadge
       )}
 
       <div className="px-3.5 py-3 rounded-2xl rounded-bl-sm bg-muted text-muted-foreground">

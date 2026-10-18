@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import {
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   useCallback,
@@ -27,16 +28,39 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { cn } from "@/lib/utils";
-import { settleOnLoad } from "@/lib/imageSettle";
-import { playSendSound } from "../utils/chatSounds";
 import { useReactions } from "../hooks/useReactions";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FallbackImg } from "@/components/FallbackImg";
+import { RetryImage } from "@/components/RetryImage";
 import { ChatMessage } from "../types";
 import { UserProfile } from "../hooks/useUserProfiles";
 import { TypingBubble } from "./TypingIndicator";
 import { classifyDay, formatChatDate, formatChatTime } from "../utils/dateLabels";
+import { countNewBelow } from "../utils/newBelow";
+import { useDraftStore, type DraftAttachment } from "../store/draftStore";
+import { useOutboxStore } from "../store/outboxStore";
+import type { OutboxFailure, OutboxStatus } from "../utils/outbox";
+
+/**
+ * A message in the thread, whether or not the server has confirmed it.
+ *
+ * `delivery` is absent for everything that has been persisted. When it is set,
+ * the row is a queued message that has not been acknowledged yet, and
+ * `messageId` carries the outbox's `clientMsgId` instead of a server id.
+ */
+type ThreadItem = ChatMessage & {
+  delivery?: OutboxStatus;
+  failedReason?: OutboxFailure;
+};
+
+/** Why a message gave up, in words the reader can act on. */
+const FAILURE_KEY: Record<OutboxFailure, string> = {
+  rejected: "sendFailedRejected",
+  expired: "sendFailedExpired",
+  retries: "sendFailedRetries",
+};
 
 type Attachment = {
   key: string;
@@ -47,16 +71,11 @@ type Attachment = {
   size?: number;
 };
 
-type PendingAttachment = {
-  id: string;
-  file: File;
-  key?: string;
-  width?: number;
-  height?: number;
-  progress: number;
-  status: "uploading" | "done" | "error";
-  abort?: AbortController;
-};
+/**
+ * Stable empty array for the attachment selector. A fresh `[]` per call would
+ * never be `Object.is`-equal to the last one, which is a re-render loop.
+ */
+const NO_ATTACHMENTS: DraftAttachment[] = [];
 
 const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "😡"];
 
@@ -168,6 +187,15 @@ function getInitials(
       .toUpperCase();
   }
   return fallback.slice(0, 2).toUpperCase();
+}
+
+/** The sender badge shown when there is no picture, or it failed to load. */
+function SenderInitials({ initials }: { initials: string }) {
+  return (
+    <div className="size-7 rounded-full bg-muted flex items-center justify-center shrink-0 text-[10px] font-semibold uppercase text-muted-foreground mb-0.5">
+      {initials}
+    </div>
+  );
 }
 
 // ── Attachment display ────────────────────────────────────────────────────────
@@ -572,10 +600,6 @@ function InlineAttachmentDisplay({ attachment }: { attachment: Attachment }) {
     isError,
   } = useAttachmentReadUrl(attachment.key);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  // Shimmer must cover BOTH phases: presigned-URL fetch AND the image bytes
-  // download. Keying it off `url` alone dropped it the moment the URL arrived,
-  // leaving a blank muted box while the image itself still loaded.
-  const [imgLoaded, setImgLoaded] = useState(false);
   const isImage = attachment.type.startsWith("image/");
 
   if (isImage) {
@@ -612,21 +636,27 @@ function InlineAttachmentDisplay({ attachment }: { attachment: Attachment }) {
             style={{ width: w, height: h }}
             className="relative rounded-lg overflow-hidden bg-muted"
           >
-            {url && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+            {/*
+              The shimmer covers BOTH phases: the presigned-URL fetch here, and
+              the image bytes inside `RetryImage`, which draws its own until
+              the photo lands. A plain <img> used to settle on error too, so a
+              transient failure ended in the browser's broken-image icon and
+              "attachment" alt text; `RetryImage` retries with the shared
+              policy and ends on the muted placeholder instead.
+              `unoptimized`: a presigned URL changes every hour and is already
+              sized for this bubble, so the optimizer would only add a cache
+              miss.
+            */}
+            {url ? (
+              <RetryImage
                 src={url}
                 alt="attachment"
-                className="w-full h-full object-cover hover:opacity-90 transition-opacity"
-                // Settles the shimmer however the image finishes - a
-                // `complete` check alone misses the one that lands between
-                // mount and React attaching `onLoad`. See settleOnLoad.
-                ref={(img) => settleOnLoad(img, () => setImgLoaded(true))}
-                onLoad={() => setImgLoaded(true)}
-                onError={() => setImgLoaded(true)}
+                fill
+                unoptimized
+                sizes={`${w}px`}
+                className="object-cover hover:opacity-90 transition-opacity"
               />
-            )}
-            {!imgLoaded && (
+            ) : (
               <div className="absolute inset-0 z-10 skeleton-shimmer" />
             )}
           </div>
@@ -843,7 +873,52 @@ export function MessageThread({
   onTyping,
 }: Props) {
   const t = useTranslations("chat");
-  const [text, setText] = useState("");
+
+  // The composer only ever renders inside a conversation - the prop is nullable
+  // because the thread shares its signature with the "nothing selected" state.
+  const draftKey = conversationId ?? "";
+  const text = useDraftStore((s) => s.text[draftKey] ?? "");
+  const pendingAttachments = useDraftStore(
+    (s) => s.attachments[draftKey] ?? NO_ATTACHMENTS,
+  );
+  const setDraftText = useDraftStore((s) => s.setText);
+  const setDraftAttachments = useDraftStore((s) => s.setAttachments);
+  const clearDraft = useDraftStore((s) => s.clearDraft);
+
+  const outboxEntries = useOutboxStore((s) => s.entries);
+  const retrySend = useOutboxStore((s) => s.retry);
+  const discardSend = useOutboxStore((s) => s.remove);
+
+  /**
+   * The persisted thread with anything still queued appended to its live end.
+   *
+   * Queued messages are by definition newer than everything on the server, and
+   * `messages` arrives newest-first, so they go at the front - reversed, since
+   * the queue itself is oldest-first.
+   */
+  const items = useMemo<ThreadItem[]>(() => {
+    const persistedIds = new Set(messages.map((m) => m.messageId));
+    const pending: ThreadItem[] = outboxEntries
+      .filter((e) => e.conversationId === draftKey)
+      // Once the persisted copy is on screen, the queued one steps aside. This
+      // is the handover: the entry is only swept a moment later, and until then
+      // whichever of the two is present carries the bubble, so there is never a
+      // frame with both or with neither.
+      .filter((e) => !(e.deliveredAs && persistedIds.has(e.deliveredAs)))
+      .map((e) => ({
+        messageId: e.clientMsgId,
+        conversationId: e.conversationId,
+        senderId: currentUserId,
+        text: e.text,
+        attachments: e.attachments,
+        readBy: [currentUserId],
+        createdAt: e.createdAt,
+        delivery: e.status,
+        failedReason: e.failedReason,
+      }));
+    if (pending.length === 0) return messages;
+    return [...pending.reverse(), ...messages];
+  }, [outboxEntries, draftKey, currentUserId, messages]);
 
   /**
    * The date divider, translated. Lives in the component because the wording
@@ -859,18 +934,16 @@ export function MessageThread({
     },
     [t],
   );
-  const [pendingAttachments, setPendingAttachments] = useState<
-    PendingAttachment[]
-  >([]);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  // Scoped to the conversation it happened in, so "Unsupported file type" does
+  // not follow you into the next one.
+  const [uploadError, setUploadError] = useState<{
+    convId: string;
+    message: string;
+  } | null>(null);
+  const uploadErrorHere =
+    uploadError?.convId === draftKey ? uploadError.message : null;
 
-  // Keep a ref in sync so handleFileChange can read the current length
-  // without recreating itself on every state change.
-  const pendingRef = useRef<PendingAttachment[]>([]);
-  useEffect(() => {
-    pendingRef.current = pendingAttachments;
-  }, [pendingAttachments]);
-  // Same ref-mirror trick for onTyping: the cleanup below must not re-run just
+  // Ref-mirror trick for onTyping: the cleanup below must not re-run just
   // because the parent handed us a fresh closure.
   const onTypingRef = useRef(onTyping);
   useEffect(() => {
@@ -886,6 +959,22 @@ export function MessageThread({
   const [floatingDate, setFloatingDate] = useState<string | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  // The conversation the scroll bookkeeping below currently describes. The
+  // thread is not remounted on a switch, so "did the conversation change" has
+  // to be asked explicitly rather than left to mount.
+  const convRef = useRef<string | null>(conversationId);
+  /**
+   * Where the live end was when the reader scrolled away from it, or null while
+   * they are still down there.
+   *
+   * It carries its own conversation id so a stale marker invalidates itself on
+   * a switch - that is what keeps every write to it inside an event handler,
+   * with no reset effect to go wrong.
+   */
+  const [detached, setDetached] = useState<{
+    convId: string;
+    at: string;
+  } | null>(null);
   const [pickerOpenFor, setPickerOpenFor] = useState<string | null>(null);
   const { reactions, toggle: toggleReaction } = useReactions(conversationId);
 
@@ -914,17 +1003,37 @@ export function MessageThread({
     container.scrollTop = max;
   }, []);
 
-  // Whenever new messages arrive: pin to bottom and jump.
+  // New messages move the view ONLY when the reader is already at the live end.
+  // Scrolled up into history, they must not move it a single pixel: the browser
+  // leaves `scrollTop` alone when content grows below the viewport, and the
+  // newest message is the last DOM child, so doing nothing is doing the right
+  // thing. What is waiting below is announced by the badge instead.
   //
   // useLayoutEffect, not useEffect: the jump has to land in the same frame the
   // new row is committed. As a passive effect it ran after paint, so there was
   // one frame showing the grown content at the old scroll position - a visible
   // twitch on every message, and one that would not have matched how the
   // typing row below moves.
+  //
+  // Depends on `messages`, not `messages.length`: the length does not change
+  // when a refetch swaps an unconfirmed message for the persisted one, but the
+  // height of the content can.
   useLayoutEffect(() => {
-    pinnedToBottom.current = true;
-    jumpToBottom();
-  }, [messages.length, jumpToBottom]);
+    if (convRef.current !== conversationId) {
+      convRef.current = conversationId;
+      // A conversation you have just opened starts at its live end.
+      pinnedToBottom.current = true;
+      // And re-pinning means nothing is waiting below, by definition. Without
+      // this, leaving a conversation you had scrolled up in and coming back to
+      // it would land you at the bottom with a badge still counting against
+      // the marker you left behind.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- the switch is the event; there is nowhere else to observe it
+      setDetached(null);
+    }
+    if (pinnedToBottom.current) jumpToBottom();
+    // `items`, not `messages`: a message you have just queued grows the thread
+    // exactly like one that arrived, and should scroll into view the same way.
+  }, [items, conversationId, jumpToBottom]);
 
   // When reactions change (badge appears/disappears), maintain scroll position if pinned.
   useLayoutEffect(() => {
@@ -961,10 +1070,23 @@ export function MessageThread({
     const container = scrollRef.current;
     if (!container) return;
 
+    const wasPinned = pinnedToBottom.current;
     const distanceFromBottom =
       container.scrollHeight - container.scrollTop - container.clientHeight;
     pinnedToBottom.current = distanceFromBottom < 50;
     setShowScrollBtn(distanceFromBottom > 60);
+
+    if (pinnedToBottom.current) {
+      // Back at the live end: caught up, by definition.
+      setDetached(null);
+    } else if (wasPinned && conversationId) {
+      // Only on the way out. Re-marking on every further scroll would reset the
+      // count each time the reader moved, which is the opposite of the point.
+      setDetached({
+        convId: conversationId,
+        at: messages[0]?.createdAt ?? "",
+      });
+    }
 
     // The floating date tells you WHERE IN HISTORY you are - and pinned to the
     // bottom you are not in history, you are at the live end, where the date
@@ -997,27 +1119,34 @@ export function MessageThread({
       e.target.value = "";
       setUploadError(null);
 
+      const fail = (message: string) =>
+        setUploadError({ convId: draftKey, message });
+
       if (selected.some((f) => !ALLOWED_TYPES.includes(f.type))) {
-        setUploadError("Unsupported file type.");
+        fail("Unsupported file type.");
         return;
       }
       if (selected.some((f) => f.size > MAX_SIZE)) {
-        setUploadError("Each file must be under 20 MB.");
+        fail("Each file must be under 20 MB.");
         return;
       }
-      if (pendingRef.current.length + selected.length > MAX_FILES) {
-        setUploadError(`Max ${MAX_FILES} files per message.`);
+      const staged = useDraftStore.getState().attachments[draftKey] ?? [];
+      if (staged.length + selected.length > MAX_FILES) {
+        fail(`Max ${MAX_FILES} files per message.`);
         return;
       }
 
-      const newItems: PendingAttachment[] = selected.map((file) => ({
+      const newItems: DraftAttachment[] = selected.map((file) => ({
         id: crypto.randomUUID(),
         file,
         progress: 5,
         status: "uploading",
         abort: new AbortController(),
       }));
-      setPendingAttachments((prev) => [...prev, ...newItems]);
+      // Every write below targets `draftKey` as captured here, so an upload that
+      // finishes after the user has moved on still lands on the draft it
+      // belongs to rather than on whatever is open by then.
+      setDraftAttachments(draftKey, (prev) => [...prev, ...newItems]);
 
       // Fire off each upload independently - they share no order requirement
       // and S3 handles parallel PUTs fine. Per-item state updates keep
@@ -1025,12 +1154,12 @@ export function MessageThread({
       newItems.forEach((item) => {
         const signal = item.abort!.signal;
         void uploadOne(item.file, signal, (percent) => {
-          setPendingAttachments((prev) =>
+          setDraftAttachments(draftKey, (prev) =>
             prev.map((a) => (a.id === item.id ? { ...a, progress: percent } : a)),
           );
         })
           .then(({ key, dims }) => {
-            setPendingAttachments((prev) =>
+            setDraftAttachments(draftKey, (prev) =>
               prev.map((a) =>
                 a.id === item.id
                   ? { ...a, key, ...dims, progress: 100, status: "done" }
@@ -1042,7 +1171,7 @@ export function MessageThread({
             // Cancellation is a normal flow (user removed before completion).
             if (signal.aborted || err?.name === "CanceledError") return;
             logger.error("[chat upload]", err);
-            setPendingAttachments((prev) =>
+            setDraftAttachments(draftKey, (prev) =>
               prev.map((a) =>
                 a.id === item.id ? { ...a, status: "error" } : a,
               ),
@@ -1050,20 +1179,23 @@ export function MessageThread({
           });
       });
     },
-    [],
+    [draftKey, setDraftAttachments],
   );
 
-  const removeFile = useCallback((id: string) => {
-    setPendingAttachments((prev) => {
-      const item = prev.find((a) => a.id === id);
-      if (item?.status === "uploading") item.abort?.abort();
-      // For already-uploaded items we rely on the bucket lifecycle rule to
-      // sweep the orphan after 24h - explicit S3 delete would need an extra
-      // server endpoint and a round-trip per removal.
-      return prev.filter((a) => a.id !== id);
-    });
-    setUploadError(null);
-  }, []);
+  const removeFile = useCallback(
+    (id: string) => {
+      setDraftAttachments(draftKey, (prev) => {
+        const item = prev.find((a) => a.id === id);
+        if (item?.status === "uploading") item.abort?.abort();
+        // For already-uploaded items we rely on the bucket lifecycle rule to
+        // sweep the orphan after 24h - explicit S3 delete would need an extra
+        // server endpoint and a round-trip per removal.
+        return prev.filter((a) => a.id !== id);
+      });
+      setUploadError(null);
+    },
+    [draftKey, setDraftAttachments],
+  );
 
   /**
    * Ends the burst for `convId` - takes it explicitly so the unmount cleanup
@@ -1120,15 +1252,34 @@ export function MessageThread({
       width: a.width,
       height: a.height,
     }));
+    // Your own message always returns you to the live end - the composer is
+    // there, and a message you just wrote landing off-screen reads as a failure
+    // to send. Set before `onSend` so the layout effect it triggers sees it.
+    //
+    // Deliberately NOT inferred from "the newest message is mine": that is also
+    // true when the peer reads it, and a read receipt must not yank the view.
+    pinnedToBottom.current = true;
+    setDetached(null);
+
     onSend(trimmed, attachments);
-    playSendSound();
+    // The send sound used to play here, on the click. It now follows the
+    // server's acknowledgement (see useChatSocket), because here it was capable
+    // of announcing a delivery that never happened.
+    //
     // The message itself tells the peer we stopped, so this only tears down
     // our local timer - the socket hook swallows the redundant stop frame.
     stopTyping(conversationId);
-    setText("");
-    setPendingAttachments([]);
+    clearDraft(draftKey);
     setUploadError(null);
-  }, [text, pendingAttachments, onSend, conversationId, stopTyping]);
+  }, [
+    text,
+    pendingAttachments,
+    onSend,
+    conversationId,
+    stopTyping,
+    clearDraft,
+    draftKey,
+  ]);
 
   const handleTextChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -1146,15 +1297,15 @@ export function MessageThread({
         const emoji = EMOJI_SHORTCUTS[word];
         const prefix = before.slice(0, sep + 1);
         const replaced = prefix + emoji + newText.slice(pos);
-        setText(replaced);
+        setDraftText(draftKey, replaced);
         const newPos = prefix.length + emoji.length;
         const el = e.target;
         requestAnimationFrame(() => el.setSelectionRange(newPos, newPos));
         return;
       }
-      setText(newText);
+      setDraftText(draftKey, newText);
     },
-    [conversationId, startTyping, stopTyping],
+    [conversationId, startTyping, stopTyping, setDraftText, draftKey],
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -1168,6 +1319,16 @@ export function MessageThread({
   const hasDone = pendingAttachments.some((a) => a.status === "done");
   const canSend =
     !hasUploading && (text.trim().length > 0 || hasDone);
+
+  // Derived in render from a marker that only event handlers write, so there is
+  // no second copy of this number to keep in sync.
+  const newBelowCount =
+    detached?.convId === conversationId
+      ? countNewBelow(messages, detached.at, currentUserId)
+      : 0;
+  // The pin threshold (50px) is tighter than the button's (60px), which leaves
+  // a band where a count would sit on a button that cannot be clicked.
+  const showJumpButton = showScrollBtn || newBelowCount > 0;
 
   if (isLoading) {
     return (
@@ -1208,7 +1369,7 @@ export function MessageThread({
             </span>
           </div>
 
-          {messages.length === 0 && (
+          {items.length === 0 && (
             // flex-1, not h-full: it has to share the column with the typing
             // row when the other side is composing the very first message,
             // rather than force the container into an overflow.
@@ -1217,7 +1378,7 @@ export function MessageThread({
             </div>
           )}
 
-          {[...messages].reverse().map((msg, index, arr) => {
+          {[...items].reverse().map((msg, index, arr) => {
             const isMine = msg.senderId === currentUserId;
             const readBy = msg.readBy ?? [];
             const senderProfile = profiles[msg.senderId];
@@ -1234,7 +1395,11 @@ export function MessageThread({
 
             const msgReactions = reactions[msg.messageId] ?? {};
             const hasAnyReaction = Object.keys(msgReactions).length > 0;
-            const isTemp = msg.messageId.startsWith("temp-");
+            // Unconfirmed: it carries an outbox id, not a server one, so there
+            // is nothing for a reaction to attach to yet.
+            const delivery = msg.delivery;
+            const isPending = delivery !== undefined;
+            const hasFailed = delivery === "failed";
 
             return (
               <div
@@ -1259,16 +1424,14 @@ export function MessageThread({
                   {!isMine && (
                     <>
                       {senderProfile?.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
+                        <FallbackImg
                           src={senderProfile.imageUrl}
                           alt={senderProfile.name ?? ""}
                           className="size-7 rounded-full shrink-0 object-cover mb-0.5"
+                          fallback={<SenderInitials initials={senderInitials} />}
                         />
                       ) : (
-                        <div className="size-7 rounded-full bg-muted flex items-center justify-center shrink-0 text-[10px] font-semibold uppercase text-muted-foreground mb-0.5">
-                          {senderInitials}
-                        </div>
+                        <SenderInitials initials={senderInitials} />
                       )}
                     </>
                   )}
@@ -1289,10 +1452,15 @@ export function MessageThread({
                         ) : (
                           <div
                             className={cn(
-                              "px-3 py-2 rounded-2xl text-sm leading-snug wrap-break-word",
+                              "px-3 py-2 rounded-2xl text-sm leading-snug wrap-break-word transition-opacity",
                               isMine
                                 ? "bg-primary text-primary-foreground rounded-br-sm"
                                 : "bg-muted text-foreground rounded-bl-sm",
+                              // Still in hand: dimmed, so it reads as on its way
+                              // rather than done, without changing size and
+                              // shifting everything below it when it settles.
+                              isPending && !hasFailed && "opacity-60",
+                              hasFailed && "ring-1 ring-destructive",
                             )}
                           >
                             {msg.text && <p>{msg.text}</p>}
@@ -1311,7 +1479,7 @@ export function MessageThread({
                                 <button
                                   key={emoji}
                                   type="button"
-                                  onClick={() => !isTemp && toggleReaction(msg.messageId, emoji, msg.text ?? "", currentUserId)}
+                                  onClick={() => !isPending && toggleReaction(msg.messageId, emoji, msg.text ?? "", currentUserId)}
                                   className={cn(
                                     "flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border transition-colors cursor-pointer",
                                     iReacted
@@ -1329,7 +1497,7 @@ export function MessageThread({
                       </div>
 
                       {/* Reaction trigger button - visible on hover */}
-                      {!isTemp && (
+                      {!isPending && (
                         <div className="relative mb-0.5" data-reaction-picker>
                           <button
                             type="button"
@@ -1405,19 +1573,51 @@ export function MessageThread({
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] text-muted-foreground">
-                        {formatChatTime(new Date(msg.createdAt))}
-                      </span>
-                      {isMine &&
-                        (isTemp ? (
-                          <Clock className="size-3 text-muted-foreground" />
-                        ) : readBy.some((id) => id !== currentUserId) ? (
-                          <CheckCheck className="size-3 text-sky-500" />
-                        ) : (
-                          <Check className="size-3 text-muted-foreground" />
-                        ))}
-                    </div>
+                    {hasFailed ? (
+                      // The only place in the thread with buttons. Retrying is
+                      // automatic everywhere else; by the time this shows, the
+                      // automatic path has already given up, so the choice is
+                      // genuinely the user's.
+                      <div className="flex items-center gap-2 text-[10px]">
+                        <span className="text-destructive">
+                          {t(FAILURE_KEY[msg.failedReason ?? "retries"])}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => retrySend(msg.messageId)}
+                          className="font-medium text-destructive underline underline-offset-2 cursor-pointer hover:no-underline"
+                        >
+                          {t("resend")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => discardSend(msg.messageId)}
+                          className="text-muted-foreground underline underline-offset-2 cursor-pointer hover:no-underline"
+                        >
+                          {t("discard")}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        {/* Always the time, never the connection. This slot
+                            belongs to the message, and swapping it for a status
+                            made it change kind under the reader's eyes - and
+                            would have repeated the same sentence once per
+                            queued message. The clock beside it already says
+                            this one is unconfirmed; the header says why. */}
+                        <span className="text-[10px] text-muted-foreground">
+                          {formatChatTime(new Date(msg.createdAt))}
+                        </span>
+                        {isMine &&
+                          (isPending ? (
+                            <Clock className="size-3 text-muted-foreground" />
+                          ) : readBy.some((id) => id !== currentUserId) ? (
+                            <CheckCheck className="size-3 text-sky-500" />
+                          ) : (
+                            <Check className="size-3 text-muted-foreground" />
+                          ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1437,21 +1637,39 @@ export function MessageThread({
           <div ref={bottomRef} />
         </div>
 
-        {/* Scroll-to-bottom button */}
+        {/* Scroll-to-bottom button, doubling as the "waiting below" badge.
+            Deliberately the same circle-plus-corner-badge shape as the unread
+            badge on the header trigger, rather than a second visual language
+            for the same idea. */}
         <button
           type="button"
           onClick={() => {
+            pinnedToBottom.current = true;
             jumpToBottom();
+            setDetached(null);
             setShowScrollBtn(false);
           }}
           className={cn(
             "absolute bottom-4 right-4 z-10 size-8 rounded-full bg-background border shadow-md flex items-center justify-center hover:bg-muted cursor-pointer transition-all duration-200",
-            showScrollBtn
+            newBelowCount > 0 && "border-primary",
+            showJumpButton
               ? "opacity-100 translate-y-0"
               : "opacity-0 translate-y-2 pointer-events-none",
           )}
         >
-          <ChevronDown className="size-4" />
+          <ChevronDown
+            className={cn("size-4", newBelowCount > 0 && "text-primary")}
+          />
+          {newBelowCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground pointer-events-none leading-none">
+              {newBelowCount > 9 ? "9+" : newBelowCount}
+            </span>
+          )}
+          <span className="sr-only">
+            {newBelowCount > 0
+              ? t("newMessagesBelow", { count: newBelowCount })
+              : t("jumpToLatest")}
+          </span>
         </button>
       </div>
 
@@ -1477,8 +1695,8 @@ export function MessageThread({
           ))}
         </div>
 
-        {uploadError && (
-          <p className="px-3 pt-2 text-xs text-destructive">{uploadError}</p>
+        {uploadErrorHere && (
+          <p className="px-3 pt-2 text-xs text-destructive">{uploadErrorHere}</p>
         )}
 
         <div className="p-3 flex items-end gap-2">

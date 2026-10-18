@@ -21,6 +21,7 @@ import {
 } from "@/features/categories/utils/mosaic";
 import { getAllBrands } from "@/features/brands/db/brands";
 import { BrandStrip } from "@/features/brands/components/BrandStrip";
+import { TrustStrip } from "@/features/trustPoints/components/TrustStrip";
 import { JsonLdScript } from "@/components/seo/JsonLdScript";
 import {
   absoluteUrl,
@@ -364,9 +365,19 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* What the PLATFORM guarantees, directly under the hero. Delivery cost
+          and delivery time are deliberately absent: those belong to each
+          seller and are stated on their products, where they are true. Renders
+          nothing until an admin adds a point. */}
+      <TrustStrip className="mx-auto w-full max-w-7xl px-6 pb-10" />
+
       {/* Real brands from the catalogue, directly under the hero - the first
           concrete thing after the claim. */}
-      <BrandStrip brands={stripBrands} label={t("home.brandsLabel")} />
+      <BrandStrip
+        brands={stripBrands}
+        label={t("home.brandsLabel")}
+        allBrandsLabel={t("home.allBrands")}
+      />
 
       {/* Department Cards Section */}
       <DepartmentCards departments={featuredDepartments} />

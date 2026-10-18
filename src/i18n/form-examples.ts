@@ -62,6 +62,26 @@ export const TAG_EXAMPLES: {
   slug: { en: "staff-pick", sr: "izbor-tima", de: "redaktionstipp", es: "seleccion-del-equipo" },
 };
 
+export const TRUST_POINT_EXAMPLES: {
+  /** Example promise label per section locale (the strip's first line). */
+  label: LocaleExamples;
+  /** Example second line, which qualifies the promise above it. */
+  sublabel: LocaleExamples;
+} = {
+  label: {
+    en: "Secure payment",
+    sr: "Sigurno plaćanje",
+    de: "Sicher bezahlen",
+    es: "Pago seguro",
+  },
+  sublabel: {
+    en: "Card or cash on delivery",
+    sr: "Kartica ili pouzećem",
+    de: "Karte oder Nachnahme",
+    es: "Tarjeta o contra reembolso",
+  },
+};
+
 export const ATTRIBUTE_EXAMPLES: {
   /** Example attribute label per section locale (e.g. the "Color" attribute). */
   label: LocaleExamples;

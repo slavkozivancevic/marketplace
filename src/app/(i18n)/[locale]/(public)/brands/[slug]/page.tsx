@@ -22,7 +22,7 @@ import type { Locale } from "@/i18n/config";
 import { getQueryClient } from "@/lib/query/getQueryClient";
 import { getAllBrands } from "@/features/brands/db/brands";
 import { getAllTags } from "@/features/tags/db/tags";
-import { getCategoryTree } from "@/features/categories/db/categories";
+import { getStorefrontCategoryTree } from "@/features/categories/db/categories";
 import { getPublicProductsPage } from "@/features/products/db/publicProducts";
 import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
 
@@ -74,7 +74,10 @@ async function fetchBrands() {
 async function fetchCategoryTree() {
   "use cache";
   cacheTag(CacheTags.categories.all());
-  return getCategoryTree();
+  // The tree now hides categories with nothing to buy in them, so a catalogue
+  // change can add or remove an entry - see getStorefrontCategoryTree.
+  cacheTag(CacheTags.products.publicAll());
+  return getStorefrontCategoryTree();
 }
 
 async function fetchTags() {

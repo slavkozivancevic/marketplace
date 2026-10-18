@@ -278,7 +278,14 @@ export async function getCategoryFacets(params: {
       _count: { _all: true },
     }),
     prisma.product.count({
-      where: { AND: [whereWithout({ onSale: true }), { compareAtPrice: { not: null } }] },
+      // Same predicate as the listing's `onSale` filter (publicProducts.ts):
+      // a count that disagrees with the list it counts is worse than no count.
+      where: {
+        AND: [
+          whereWithout({ onSale: true }),
+          { compareAtPrice: { gt: prisma.product.fields.price } },
+        ],
+      },
     }),
     prisma.product.count({
       where: { AND: [whereWithout({ bestseller: true }), { isBestseller: true }] },

@@ -317,7 +317,10 @@ export async function getOrderById(id: string, userId: string) {
             select: {
               id: true,
               organizationId: true,
-              organization: { select: { name: true } },
+              // `returnWindowDays` rides along so the order page can tell the
+              // buyer how long they have left - computed from the same column
+              // `createReturn` enforces, so the button and the server agree.
+              organization: { select: { name: true, returnWindowDays: true } },
               translations: { select: { locale: true, title: true } },
               media: {
                 orderBy: { order: "asc" },

@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { MessageCircle, ImageIcon, FileText, Video, Paperclip, Clock, Check, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FallbackImg } from "@/components/FallbackImg";
 import { Conversation } from "../types";
 import { UserProfile } from "../hooks/useUserProfiles";
 import { TypingPreview } from "./TypingIndicator";
@@ -16,7 +17,6 @@ interface Props {
   profiles: Record<string, UserProfile>;
   profilesLoading: boolean;
   convUnread: Record<string, number>;
-  readStatus: Record<string, string[]>;
   /** conversationId → userId → expiry. Only presence matters here. */
   typing: Record<string, Record<string, number>>;
   onSelect: (id: string) => void;
@@ -36,6 +36,15 @@ function getInitials(name: string | null | undefined, fallback: string): string 
   return fallback.slice(0, 2).toUpperCase();
 }
 
+/** The badge shown when there is no picture, or the picture failed to load. */
+function InitialsAvatar({ initials }: { initials: string }) {
+  return (
+    <div className="size-9 rounded-full bg-muted flex items-center justify-center shrink-0 text-xs font-semibold uppercase text-muted-foreground">
+      {initials}
+    </div>
+  );
+}
+
 export function ConversationList({
   conversations,
   selectedId,
@@ -43,7 +52,6 @@ export function ConversationList({
   profiles,
   profilesLoading,
   convUnread,
-  readStatus,
   typing,
   onSelect,
   isLoading,
@@ -107,8 +115,10 @@ export function ConversationList({
         const unread = convUnread[conv.conversationId] ?? 0;
         const attachType = conv.lastAttachmentType;
         const isLastMsgPending = conv.lastMessagePending === true;
-        // Read status lives in the Zustand store so it survives React Query refetches
-        const lastMsgReadBy = readStatus[conv.conversationId] ?? conv.lastMessageReadBy ?? [];
+        // One source: the conversation itself. The server fills this on every
+        // fetch and live receipts update it in place, so there is nothing left
+        // to disagree with it.
+        const lastMsgReadBy = conv.lastMessageReadBy ?? [];
         const isLastMsgRead = lastMsgReadBy.some((id) => id !== currentUserId);
         const AttachIcon =
           attachType === "image" ? ImageIcon :
@@ -138,16 +148,14 @@ export function ConversationList({
             {profileLoading ? (
               <Skeleton className="size-9 rounded-full shrink-0" />
             ) : profile?.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <FallbackImg
                 src={profile.imageUrl}
                 alt={displayName}
                 className="size-9 rounded-full shrink-0 object-cover bg-muted"
+                fallback={<InitialsAvatar initials={initials} />}
               />
             ) : (
-              <div className="size-9 rounded-full bg-muted flex items-center justify-center shrink-0 text-xs font-semibold uppercase text-muted-foreground">
-                {initials}
-              </div>
+              <InitialsAvatar initials={initials} />
             )}
 
             <div className="flex-1 min-w-0">

@@ -10,6 +10,7 @@ import { refreshProductSearchText } from "@/features/products/db/products";
 import { recordSlugChanges } from "@/lib/seo/slugHistory";
 import { createWithUniqueSlugRetry } from "@/lib/db/uniqueSlugRetry";
 import { DEFAULT_LOCALE, NON_DEFAULT_LOCALES } from "@/i18n/config";
+import { pruneEmptyCategories } from "../utils/pruneEmpty";
 
 // ---------- Translation types & helpers ----------
 
@@ -158,15 +159,81 @@ export async function getCategoryTree(): Promise<CategoryTreeItem[]> {
   return buildTree(rows);
 }
 
+/**
+ * The category tree as a BUYER may browse it: every category that has nothing
+ * to buy in it, or under it, is left out.
+ *
+ * A storefront menu is a promise that there is something at the other end of
+ * the link. `getCategoryTree()` above makes no such promise - it is the
+ * complete tree, and it stays that way for the admin and seller forms, where
+ * an empty category must remain pickable or it could never receive its first
+ * product.
+ *
+ * `keepSlug` keeps the category currently being viewed, even if it is empty:
+ * a buyer can arrive at one from a bookmark or a search result, and the
+ * department selector on that page has to agree with the URL.
+ *
+ * CALLERS MUST TAG `CacheTags.products.publicAll()` alongside the category tag
+ * when they cache this. What comes back now depends on the catalogue, so
+ * publishing the first product in a category is what puts that category back in
+ * the menu - and under `cacheLife("max")` nothing else will ever notice.
+ */
+export async function getStorefrontCategoryTree(
+  { keepSlug }: { keepSlug?: string } = {},
+): Promise<CategoryTreeItem[]> {
+  const { tree, stockedCategoryIds } = await getStorefrontCategoryInputs();
+  return pruneEmptyCategories(tree, new Set(stockedCategoryIds), keepSlug);
+}
+
+/**
+ * The two inputs of the storefront tree, before any pruning: the complete tree
+ * and the ids of the categories that have a published product.
+ *
+ * For a caller whose `keepSlug` comes from the query string. Caching
+ * `getStorefrontCategoryTree({ keepSlug })` there keys the cache on whatever a
+ * visitor (or a crawler) types into `?dept=` - one permanent entry, and one
+ * tree query plus a groupBy, per distinct value. Cache THIS instead, which has
+ * no argument, and prune per request with `pruneEmptyCategories`: it is pure
+ * and cheap. Same tagging rule as `getStorefrontCategoryTree`.
+ *
+ * The ids are an array, not a Set, so the result survives `"use cache"`
+ * serialization.
+ */
+export async function getStorefrontCategoryInputs(): Promise<{
+  tree: CategoryTreeItem[];
+  stockedCategoryIds: string[];
+}> {
+  const [tree, withProducts] = await Promise.all([
+    getCategoryTree(),
+    // Grouped rather than counted per category: one pass over the join table,
+    // and the result is read as membership, not as a number (see pruneEmpty).
+    prisma.productCategory.groupBy({
+      by: ["categoryId"],
+      where: { product: { status: "PUBLISHED", deletedAt: null } },
+    }),
+  ]);
+  return { tree, stockedCategoryIds: withProducts.map((row) => row.categoryId) };
+}
+
 // ---------- Homepage ----------
 
 export type DepartmentWithImages = Omit<CategoryTreeItem, "children"> & {
   productImages: string[];
 };
 
-export async function getFeaturedDepartmentsWithImages(): Promise<DepartmentWithImages[]> {
+/**
+ * Top-level departments with a few product thumbnails each.
+ *
+ * `featuredOnly` is what separates the two callers: the home page shows the
+ * curated handful an admin flagged, the category directory shows every
+ * department there is - a directory that silently omitted the unflagged ones
+ * would be a worse index than the menu beside it.
+ */
+export async function getDepartmentsWithImages(
+  { featuredOnly }: { featuredOnly: boolean } = { featuredOnly: true },
+): Promise<DepartmentWithImages[]> {
   const depts = await prisma.category.findMany({
-    where: { isActive: true, isFeatured: true, parentId: null },
+    where: { isActive: true, parentId: null, ...(featuredOnly && { isFeatured: true }) },
     orderBy: [{ order: "asc" }],
     select: {
       id: true,
@@ -185,7 +252,7 @@ export async function getFeaturedDepartmentsWithImages(): Promise<DepartmentWith
     },
   });
 
-  return Promise.all(
+  const built = await Promise.all(
     depts.map(async (dept) => {
       const allCategoryIds = [
         dept.id,
@@ -228,6 +295,14 @@ export async function getFeaturedDepartmentsWithImages(): Promise<DepartmentWith
             ? [dept.imageUrl]
             : [];
 
+      // A tile with nothing behind it is the same dead end in the directory
+      // as an empty entry is in the menu, so the department is dropped. The
+      // query above already answers this - nothing extra is asked of the
+      // database. This applies to the FEATURED departments too: flagging a
+      // department does not conjure stock into it, and the home page must not
+      // lead anywhere emptier than the menu does.
+      if (products.length === 0) return null;
+
       return {
         id: dept.id,
         imageUrl: dept.imageUrl,
@@ -239,6 +314,56 @@ export async function getFeaturedDepartmentsWithImages(): Promise<DepartmentWith
       };
     }),
   );
+
+  return built.filter((dept) => dept !== null);
+}
+
+/** The curated departments the home page leads with. */
+export function getFeaturedDepartmentsWithImages(): Promise<DepartmentWithImages[]> {
+  return getDepartmentsWithImages({ featuredOnly: true });
+}
+
+/**
+ * One product photo per category, for categories that have no `imageUrl` of
+ * their own.
+ *
+ * WHY RAW SQL. This is "the first image of any published product in each
+ * category" - a top-1-per-group, which Prisma cannot express. The alternative
+ * is a query per category (the N+1 the department fetcher above already pays
+ * for a handful of rows), and the menu needs it for EVERY category in the tree.
+ * `DISTINCT ON` answers it in one indexed pass.
+ *
+ * Ordering is fully deterministic (`order`, then media id, then product id), so
+ * the same category keeps the same thumbnail between requests rather than
+ * flickering between two equally-ranked photos. No JS value is bound into the
+ * statement - nothing here is a date, which is the one thing that would make a
+ * raw query a timezone problem (see the note in CLAUDE.md).
+ */
+export async function getCategoryImageFallbacks(): Promise<Record<string, string>> {
+  const rows = await prisma.$queryRaw<
+    { categoryId: string; url: string; thumbUrl: string | null }[]
+  >`
+    SELECT DISTINCT ON (pc."categoryId")
+           pc."categoryId" AS "categoryId",
+           m."url"         AS "url",
+           m."thumbUrl"    AS "thumbUrl"
+    FROM "ProductCategory" pc
+    JOIN "Product" p
+      ON p.id = pc."productId"
+     AND p.status = 'PUBLISHED'
+     AND p."deletedAt" IS NULL
+    JOIN "ProductMedia" m
+      ON m."productId" = p.id
+     AND m."mediaType" = 'IMAGE'
+    ORDER BY pc."categoryId", m."order" ASC, m.id ASC, p.id ASC
+  `;
+
+  const out: Record<string, string> = {};
+  // The thumbnail where one exists - these render at ~140px, so shipping the
+  // full-size original would be the page's heaviest download for its smallest
+  // picture.
+  for (const row of rows) out[row.categoryId] = row.thumbUrl ?? row.url;
+  return out;
 }
 
 // ---------- Admin CRUD ----------

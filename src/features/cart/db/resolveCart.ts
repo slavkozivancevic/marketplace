@@ -1,5 +1,5 @@
 import { prisma } from "@/core/db/prisma";
-import { moneyIn, requireMoney, type CurrencyRates, type MoneySet } from "@/lib/money";
+import { moneyIn, parseMoney, requireMoney, type CurrencyRates, type MoneySet } from "@/lib/money";
 import type { Currency } from "@/lib/currency-config";
 
 /** A cart line as the client knows it. Prices are intentionally absent - they
@@ -22,6 +22,11 @@ export type ResolvedCartLine = {
    *  `ProductVariant.priceMoney` are NOT NULL, so a resolved line always has
    *  one - an unpriceable row cannot become a line, it becomes `unavailable`. */
   unitMoney: MoneySet;
+  /** The struck-through "was" price, when this line is on sale; null otherwise.
+   *  Authoritative like `unitMoney` and carried for the same reason: the cart
+   *  shows the saving, and a saving computed from a client snapshot can outlive
+   *  the sale that produced it. Null is a real answer - not on sale. */
+  unitCompareAtMoney: MoneySet | null;
   organizationId: string;
 };
 
@@ -63,7 +68,16 @@ export async function resolveCart(items: CartItemRef[]): Promise<CartResolution>
             id: true,
             price: true,
             priceMoney: true,
-            product: { select: { id: true, organizationId: true, status: true, deletedAt: true } },
+            compareAtPriceMoney: true,
+            product: {
+              select: {
+                id: true,
+                organizationId: true,
+                status: true,
+                deletedAt: true,
+                compareAtPriceMoney: true,
+              },
+            },
           },
         })
       : [],
@@ -74,6 +88,7 @@ export async function resolveCart(items: CartItemRef[]): Promise<CartResolution>
             id: true,
             price: true,
             priceMoney: true,
+            compareAtPriceMoney: true,
             organizationId: true,
             status: true,
             deletedAt: true,
@@ -105,6 +120,11 @@ export async function resolveCart(items: CartItemRef[]): Promise<CartResolution>
         quantity: it.quantity,
         unitPriceUsd: unit,
         unitMoney: requireMoney(v.priceMoney, `ProductVariant.priceMoney on ${v.id}`),
+        // A variant with no "was" price of its own inherits the product's, the
+        // same rule the product page and quick view apply - otherwise picking a
+        // variant would silently drop the sale badge the buyer clicked on.
+        unitCompareAtMoney:
+          parseMoney(v.compareAtPriceMoney) ?? parseMoney(v.product.compareAtPriceMoney),
         organizationId: v.product.organizationId,
       });
       subtotalUsd += unit * it.quantity;
@@ -121,6 +141,7 @@ export async function resolveCart(items: CartItemRef[]): Promise<CartResolution>
         quantity: it.quantity,
         unitPriceUsd: unit,
         unitMoney: requireMoney(p.priceMoney, `Product.priceMoney on ${p.id}`),
+        unitCompareAtMoney: parseMoney(p.compareAtPriceMoney),
         organizationId: p.organizationId,
       });
       subtotalUsd += unit * it.quantity;
@@ -163,14 +184,21 @@ export type CartLinePrice = {
   variantId: string | null;
   unitPriceUsd: number;
   unitMoney: MoneySet;
+  /** Null means "no longer on sale", and the client must apply that too - a
+   *  snapshot kept from add-to-cart time would keep striking through a price
+   *  the seller has since withdrawn. */
+  unitCompareAtMoney: MoneySet | null;
 };
 
 /** The resolved lines reduced to what the client needs to re-snapshot. */
 export function cartLinePrices(lines: ResolvedCartLine[]): CartLinePrice[] {
-  return lines.map(({ productId, variantId, unitPriceUsd, unitMoney }) => ({
-    productId,
-    variantId,
-    unitPriceUsd,
-    unitMoney,
-  }));
+  return lines.map(
+    ({ productId, variantId, unitPriceUsd, unitMoney, unitCompareAtMoney }) => ({
+      productId,
+      variantId,
+      unitPriceUsd,
+      unitMoney,
+      unitCompareAtMoney,
+    }),
+  );
 }
