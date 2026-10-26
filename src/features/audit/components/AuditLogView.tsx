@@ -28,6 +28,7 @@ import type { AuditLogItem } from "../db/queries";
 // Grid template + row placeholder are owned by the skeleton module so the real
 // table and its loading state can never describe different columns.
 import { AUDIT_COLS as GRID, AuditSkeletonRow as SkeletonRow } from "./AuditTableSkeleton";
+import { TableScroll } from "@/components/ui/table-scroll";
 
 // Radix Select can't use an empty-string item value, so "all" is the sentinel.
 const ALL = "__all__";
@@ -57,6 +58,9 @@ const KNOWN_ACTIONS = new Set([
   "tag.created", "tag.updated", "tag.deleted", "tag.duplicated",
   "trust_point.created", "trust_point.updated", "trust_point.deleted",
   "trust_point.duplicated",
+  "priceRule.created", "priceRule.updated", "priceRule.deleted", "priceRule.duplicated",
+  "price_market.created", "price_market.updated", "price_market.deleted",
+  "price_market.duplicated",
 ]);
 
 type Labels = {
@@ -181,6 +185,8 @@ export function AuditLogView({
     Review: t("entities.review"),
     Tag: t("entities.tag"),
     TrustPoint: t("entities.trustPoint"),
+    PriceRule: t("entities.priceRule"),
+    PriceMarket: t("entities.priceMarket"),
   };
   const fieldLabels: Record<string, string> = {
     count: t("fields.count"),
@@ -396,10 +402,10 @@ export function AuditLogView({
     );
   } else if (query.status === "pending") {
     body = (
-      <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
+      <TableScroll>
         {Header}
         {Array.from({ length: 10 }).map((_, i) => <SkeletonRow key={i} />)}
-      </div>
+      </TableScroll>
     );
   } else if (items.length === 0) {
     const hasFilters = !!f.search || !!f.action || !!f.entityType || !!f.dateFrom || !!f.dateTo;
@@ -410,14 +416,14 @@ export function AuditLogView({
     );
   } else if (!query.hasNextPage) {
     body = (
-      <div role="table" ref={parentRef} className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}>
+      <TableScroll ref={parentRef} locked={isPlaceholderData}>
         {Header}
         {items.map((row) => <Row key={row.id} row={row} dl={dl} labels={labels} />)}
-      </div>
+      </TableScroll>
     );
   } else {
     body = (
-      <div role="table" ref={parentRef} className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}>
+      <TableScroll ref={parentRef} locked={isPlaceholderData}>
         {Header}
         <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
           {virtualizer.getVirtualItems().map((vRow) => {
@@ -435,7 +441,7 @@ export function AuditLogView({
             );
           })}
         </div>
-      </div>
+      </TableScroll>
     );
   }
 

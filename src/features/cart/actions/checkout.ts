@@ -12,13 +12,15 @@ import { ActionErrorResult } from "@/types/types";
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import { enforceRateLimit, getClientIp } from "@/lib/rateLimit/guard";
 import { getCurrencyRate } from "@/features/currency/db/currencyRates";
-import { moneyIn, requireMoney, type MoneySet } from "@/lib/money";
+import { moneyIn } from "@/lib/money";
+import { resolveCart } from "@/features/cart/db/resolveCart";
+import { getViewerMarket } from "@/features/priceMarkets/db/viewer";
 import { VALID_CURRENCIES, type Currency } from "@/lib/currency-config";
 import { asLocale, type Locale } from "@/i18n/config";
 import { getProductTitle } from "@/features/products/utils/translations";
 import { getPathname } from "@/i18n/navigation";
 import { validateCoupon } from "@/features/coupons/db/coupons";
-import { cartShippingLines } from "@/features/shipping/db/shipping";
+import { shippingLinesForResolved } from "@/features/shipping/db/shipping";
 import { CouponType } from "@/generated/prisma/client";
 import type Stripe from "stripe";
 
@@ -103,11 +105,27 @@ async function runCheckoutSession(
     const lineItems: {
       price_data: {
         currency: string;
-        product_data: { name: string; images?: string[] };
+        product_data: {
+          name: string;
+          images?: string[];
+          // Read back by the webhook from the session's line items, so the
+          // order records the price Stripe CHARGED and the rule behind it -
+          // not whatever the catalogue says by the time the webhook runs.
+          metadata: Record<string, string>;
+        };
         unit_amount: number;
       };
       quantity: number;
     }[] = [];
+
+    // Prices come from `resolveCart`, the one place a cart line is priced: the
+    // effective price (a promo that just started or ended is rolled in first),
+    // then the buyer's market on top - the same numbers the cart showed.
+    const viewer = await getViewerMarket();
+    const resolved = await resolveCart(items, viewer);
+    if (resolved.unavailable.length > 0) {
+      return { error: true, message: t("productNotAvailable") };
+    }
 
     let needsShipping = false;
     let subtotalUsd = 0;
@@ -116,7 +134,9 @@ async function runCheckoutSession(
     // are judged against this, not against a conversion of `subtotalUsd`.
     let subtotalInCurrency = 0;
 
-    for (const item of items) {
+    for (const [index, item] of items.entries()) {
+      // Nothing is unavailable (checked above), so line i is item i.
+      const line = resolved.lines[index];
       const product = await prisma.product.findFirst({
         where: { id: item.productId, status: "PUBLISHED", deletedAt: null },
         include: {
@@ -165,10 +185,11 @@ async function runCheckoutSession(
         localeTitle(user.locale) ||
         getProductTitle(product, locale);
 
-      let unitPriceUsdCents: number;
-      // The USD mirror above drives the coupon subtotal; this is what Stripe
+      // The resolved price: what the product page and cart show this buyer.
+      // The USD mirror drives the coupon subtotal; the set is what Stripe
       // actually charges.
-      let unitMoney: MoneySet;
+      const unitPriceUsdCents = line.unitPriceUsd;
+      const unitMoney = line.unitMoney;
       let itemName = productTitle;
 
       if (item.variantId) {
@@ -182,12 +203,7 @@ async function runCheckoutSession(
             message: t("notEnoughStockFor", { title: productTitle }),
           };
         }
-        unitPriceUsdCents = Number(variant.price);
-        unitMoney = requireMoney(variant.priceMoney, `ProductVariant.priceMoney on ${variant.id}`);
         itemName = `${productTitle} (${variant.sku})`;
-      } else {
-        unitPriceUsdCents = Number(product.price);
-        unitMoney = requireMoney(product.priceMoney, `Product.priceMoney on ${product.id}`);
       }
 
       if (!product.isDigital && product.requiresShipping) {
@@ -217,6 +233,12 @@ async function runCheckoutSession(
           product_data: {
             name: itemName,
             ...(imageUrl ? { images: [imageUrl] } : {}),
+            metadata: {
+              productId: item.productId,
+              variantId: item.variantId ?? "",
+              priceRuleId: line.priceRuleId ?? "",
+              marketRuleId: line.marketRuleId ?? "",
+            },
           },
           unit_amount: unitAmountInCurrency,
         },
@@ -260,7 +282,8 @@ async function runCheckoutSession(
     // added on top of the line items - Stripe coupons only discount line items,
     // so shipping is never reduced. Snapshot the per-org split for payouts via
     // metadata; the webhook stores it on the order.
-    const shipLines = await cartShippingLines(items, {
+    // From the lines resolved above, not a second resolution.
+    const shipLines = await shippingLinesForResolved(resolved.lines, {
       currency,
       rates: { [currency]: exchangeRate },
     });
@@ -282,6 +305,12 @@ async function runCheckoutSession(
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      // The buyer already chose their currency on the site (NEXT_CURRENCY) and
+      // every amount here is in it. Stripe's Adaptive Pricing would convert it
+      // a second time into the card's local currency, with its own conversion
+      // fee on top - charging more than the cart showed, in a currency the
+      // buyer never picked.
+      adaptive_pricing: { enabled: false },
       line_items: lineItems,
       customer_email: user.email,
       ...(discounts && { discounts }),
@@ -313,6 +342,8 @@ async function runCheckoutSession(
         locale,
         currency,
         exchangeRate: String(exchangeRate),
+        // Which country the lines were priced for - recorded on the order.
+        pricingCountry: viewer.country ?? "",
         ...couponMeta,
         ...shippingMeta,
         items: JSON.stringify(

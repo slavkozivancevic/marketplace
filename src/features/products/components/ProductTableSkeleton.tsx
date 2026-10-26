@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TableScroll } from "@/components/ui/table-scroll";
 
 /**
  * Product table layout + its loading state, deliberately co-located.
@@ -140,10 +141,7 @@ export function ProductTableSkeleton({
   showCreatedBy = false,
 }: ProductTableSkeletonProps & { rows?: number }) {
   return (
-    <div
-      role="table"
-      className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]"
-    >
+    <TableScroll>
       <ProductTableSkeletonHeader showActions={showActions} showCreatedBy={showCreatedBy} />
       {/* Rows are emitted as direct children (not via <SkeletonArray>, which
           adds a wrapper div) so the DOM matches the real list exactly. */}
@@ -154,6 +152,6 @@ export function ProductTableSkeleton({
           showCreatedBy={showCreatedBy}
         />
       ))}
-    </div>
+    </TableScroll>
   );
 }

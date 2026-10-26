@@ -24,6 +24,7 @@ import {
   startConnectOnboarding,
   type ConnectStatus,
 } from "@/features/payments/actions/connect";
+import { IconButton } from "@/components/IconButton";
 
 export function ConnectPayouts({ status }: { status: ConnectStatus }) {
   const t = useTranslations("payouts");
@@ -83,12 +84,11 @@ export function ConnectPayouts({ status }: { status: ConnectStatus }) {
               </Badge>
             )}
             <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 -mr-1.5">
+              <IconButton label={t("toggleDetails")} variant="ghost" size="icon" className="h-7 w-7 -mr-1.5">
                 <ChevronDown
                   className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
                 />
-                <span className="sr-only">{t("toggleDetails")}</span>
-              </Button>
+              </IconButton>
             </CollapsibleTrigger>
           </div>
         </CardHeader>

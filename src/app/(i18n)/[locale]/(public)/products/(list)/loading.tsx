@@ -1,3 +1,4 @@
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/PageHeader";
 import {
@@ -19,14 +20,14 @@ export default async function ProductsLoading() {
         <div className="shrink-0 px-6">
           <SkeletonSearchToolbar />
         </div>
-        <div className="flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable] flex flex-col">
+        <ScrollArea layout="column" className="flex-1 min-h-0">
           <div className="flex gap-6 flex-1 px-6">
             <SkeletonFilterSidebar groups={["range", "rating", 2, 2, 8]} />
             <div className="flex-1 min-w-0">
               <SkeletonProductGrid />
             </div>
           </div>
-        </div>
+        </ScrollArea>
       </div>
     </div>
   );

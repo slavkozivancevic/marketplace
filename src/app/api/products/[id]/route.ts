@@ -7,6 +7,7 @@ import {
 } from "@/features/products/db/variantCompat";
 import { DEFAULT_RETURN_WINDOW_DAYS } from "@/features/returns/returnWindow";
 import { parseMoney } from "@/lib/money";
+import { ensurePricesCurrent } from "@/features/pricing/db/roll";
 
 export async function GET(
   _req: NextRequest,
@@ -15,6 +16,7 @@ export async function GET(
   await connection();
   const { id } = await params;
 
+  await ensurePricesCurrent();
   const product = await prisma.product.findFirst({
     where: { id, status: "PUBLISHED", deletedAt: null },
     include: publicProductInclude,

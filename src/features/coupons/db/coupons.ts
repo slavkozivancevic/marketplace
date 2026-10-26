@@ -4,6 +4,7 @@ import { Prisma, CouponType } from "@/generated/prisma/client";
 import { resolveCart, type CartItemRef } from "@/features/cart/db/resolveCart";
 import { moneyIn, requireMoney, serializeMoney, type CurrencyRates, type MoneySet } from "@/lib/money";
 import type { Currency } from "@/lib/currency-config";
+import type { MarketViewer } from "@/features/pricing/engine/market";
 import { copyIdentifier } from "@/lib/copyIdentifier";
 import { NotFoundError } from "@/features/common/errors/domainErrors";
 import { COUPON_CODE_MAX_LENGTH } from "../schema/coupons";
@@ -64,8 +65,8 @@ export type CouponValidation =
  *  exact same purchasable subtotal as shipping, the order summary and checkout.
  *  Stale lines are excluded (and surfaced to the client by the resolver) rather
  *  than silently counted as zero. */
-export async function cartSubtotalUsd(items: CartItemRef[]): Promise<number> {
-  const { subtotalUsd } = await resolveCart(items);
+export async function cartSubtotalUsd(items: CartItemRef[], viewer: MarketViewer): Promise<number> {
+  const { subtotalUsd } = await resolveCart(items, viewer);
   return subtotalUsd;
 }
 

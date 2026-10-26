@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/header";
 import { DashboardSidebar } from "@/components/layout/dashboard-sidebar";
 import { UnsavedChangesGuard } from "@/components/forms/UnsavedChangesGuard";
 import { ActiveOrgProvider } from "@/features/organizations/components/ActiveOrgContext";
+import { DashboardViewerProvider } from "@/features/users/components/DashboardViewerContext";
 import { canManageOrgPayouts } from "@/lib/auth/permissions";
 import { pickActiveMembership } from "@/features/organizations/db/activeOrg";
 import { CacheTags } from "@/lib/cache/tags";
@@ -46,28 +47,40 @@ export default async function DashboardLayout({
 
   return (
     <ActiveOrgProvider orgId={currentOrgId}>
-      {/* `overflow-clip`, not `overflow-hidden` - see admin/layout.tsx: the
-          shell must never be a scroll container, or a sideways overflow can
-          park the whole page in a blank void beside the content. */}
-      <div className="flex h-dvh flex-col overflow-clip">
-        <Header />
-        <div className="flex flex-1 min-h-0">
-          <DashboardSidebar
-            userRole={userRole}
-            organizations={organizations}
-            currentOrgId={currentOrgId}
-            canManagePayouts={canManagePayouts}
-          />
-          {/* `min-w-0` is required next to `overflow-clip` - see
-              admin/layout.tsx: clip is not a scroll container, so without it
-              main takes the min-content width of the widest table inside and
-              pushes the whole row past the viewport. */}
-          <main className="flex-1 min-w-0 flex flex-col min-h-0 overflow-clip">
-            {children}
-          </main>
+      {/* What a route skeleton needs to draw the page this viewer will get -
+          the dashboard home's cards and greeting. Already loaded for the
+          sidebar, so it costs nothing. */}
+      <DashboardViewerProvider
+        viewer={{
+          role: userRole,
+          name: user?.name ?? null,
+          hasActiveOrg: Boolean(currentOrgId),
+          canManagePayouts: canManagePayouts,
+        }}
+      >
+        {/* `overflow-clip`, not `overflow-hidden` - see admin/layout.tsx: the
+            shell must never be a scroll container, or a sideways overflow can
+            park the whole page in a blank void beside the content. */}
+        <div className="flex h-dvh flex-col overflow-clip">
+          <Header />
+          <div className="flex flex-1 min-h-0">
+            <DashboardSidebar
+              userRole={userRole}
+              organizations={organizations}
+              currentOrgId={currentOrgId}
+              canManagePayouts={canManagePayouts}
+            />
+            {/* `min-w-0` is required next to `overflow-clip` - see
+                admin/layout.tsx: clip is not a scroll container, so without it
+                main takes the min-content width of the widest table inside and
+                pushes the whole row past the viewport. */}
+            <main className="flex-1 min-w-0 flex flex-col min-h-0 overflow-clip">
+              {children}
+            </main>
+          </div>
+          <UnsavedChangesGuard />
         </div>
-        <UnsavedChangesGuard />
-      </div>
+      </DashboardViewerProvider>
     </ActiveOrgProvider>
   );
 }
@@ -84,6 +97,7 @@ async function fetchLayoutUser(clerkUserId: string) {
     where: { clerkUserId },
     select: {
       role: true,
+      name: true,
       activeOrgId: true,
       memberships: {
         select: {

@@ -43,6 +43,8 @@ import { QuantityStepper } from "@/features/cart/components/QuantityStepper";
 import { buildCartVariantOptions, buildLocalizedText } from "@/features/cart/utils/variantOptions";
 import { useCartStore } from "@/features/cart/store/cartStore";
 import { SerializedPublicProduct } from "@/types/types";
+import { useMarketProduct } from "@/providers/MarketProvider";
+import { MarketPriceNote } from "@/features/priceMarkets/components/MarketPriceNote";
 import { useMoney } from "@/lib/useMoney";
 import { formatPrice } from "@/lib/currency";
 import { cn } from "@/lib/utils";
@@ -104,7 +106,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
     setLoadedThumbs((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
   }, []);
 
-  const { data: product, isLoading, error, refetch } = useQuery({
+  const { data: neutralProduct, isLoading, error, refetch } = useQuery({
     queryKey: ["product", "quick-view", productId],
     queryFn: () => fetchProduct(productId!),
     enabled: productId != null,
@@ -115,6 +117,10 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
     retry: (failureCount, err) =>
       axios.isAxiosError(err) && err.response?.status === 404 ? false : failureCount < 3,
   });
+
+  // The fetched payload is viewer-neutral (and so is its query key); the
+  // viewer's market is applied here, the same way the product page does it.
+  const product = useMarketProduct(neutralProduct);
 
   const isGone =
     axios.isAxiosError(error) && error.response?.status === 404;
@@ -574,6 +580,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                       </span>
                     )}
                   </div>
+                  <MarketPriceNote rule={priceSource?.marketRule} />
                   {showPriceRange && (
                     <p className="text-[11px] text-muted-foreground">
                       {t("variantPriceRange", {

@@ -4,6 +4,8 @@ import { decimalToCents } from "@/lib/currency";
 import { NextResponse, type NextRequest } from "next/server";
 import { connection } from "next/server";
 import { getPublicProductsPage } from "@/features/products/db/publicProducts";
+import { marketSaleExclusions } from "@/features/priceMarkets/db/saleExclusions";
+import { getViewerMarket } from "@/features/priceMarkets/db/viewer";
 import { getCategoryTree, getDescendantIds } from "@/features/categories/db/categories";
 import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
 import { parseAttrs } from "@/lib/query/attrs";
@@ -73,6 +75,8 @@ export const GET = observedRoute("GET /api/products", async (req: NextRequest) =
   }
 
   try {
+    // "On sale" is per viewer - see marketSaleExclusions.
+    const saleExcludedIds = onSale === true ? await marketSaleExclusions(await getViewerMarket()) : undefined;
     const result = await getPublicProductsPage({
       take,
       cursor,
@@ -92,6 +96,7 @@ export const GET = observedRoute("GET /api/products", async (req: NextRequest) =
       minRating,
       categoryId,
       attributeFilters,
+      saleExcludedIds,
     });
     return NextResponse.json(result);
   } catch (error) {

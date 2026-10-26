@@ -17,7 +17,6 @@ import { toast } from "@/components/ui/sonner";
 import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
 import { SearchInput } from "@/components/search/SearchInput";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ActionButton } from "@/components/ActionButton";
 import { deleteCategoryAction, duplicateCategoryAction } from "../actions/categories";
@@ -26,6 +25,13 @@ import { getCategoryName } from "../utils/translations";
 import { cn } from "@/lib/utils";
 import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 import { CATEGORY_COLS } from "./CategoryTableSkeleton";
+import { TableScroll } from "@/components/ui/table-scroll";
+import { IconButton } from "@/components/IconButton";
+import { setRouteShape } from "@/lib/navigation/routeShape";
+import { getAttributeLabel } from "@/features/attributes/utils/translations";
+import type { AttributeLibraryItem } from "@/features/attributes/db/attributes";
+import { inheritedAttributes } from "../utils/inheritedAttributes";
+import { categoryShapeKey, type CategoryFormShape } from "./CategoryFormSkeleton";
 
 // Column layout (name | slug | products | status | actions) is owned by the
 // skeleton module so the two can never drift. Name carries a depth indent plus
@@ -68,8 +74,13 @@ function toTreeOrder(categories: CategoryListItem[]): Array<CategoryListItem & {
 
 export function AdminCategoriesPage({
   categories,
+  attributeLibrary,
+  categoryAttributeMap,
 }: {
   categories: CategoryListItem[];
+  /** The edit form's attribute data - here only to size the edit page's skeleton. */
+  attributeLibrary: AttributeLibraryItem[];
+  categoryAttributeMap: Record<string, string[]>;
 }) {
   const t = useTranslations("adminCategories");
   const locale = useLocale();
@@ -87,6 +98,32 @@ export function AdminCategoriesPage({
   const announceDuplicated = useAnnounceWhenSettled(isDuplicating);
 
   const treeRows = useMemo(() => toTreeOrder(categories), [categories]);
+
+  // Hands the category's form shape to the edit page's skeleton - its texts,
+  // whether it gets the featured card, and its attribute filters, derived the
+  // way <CategoryAttributesField> derives them - so nothing moves when the
+  // form lands. A copy keeps its source's parent, texts and assignments.
+  const handOverShape = (targetId: string, sourceId: string) => {
+    const category = categories.find((c) => c.id === sourceId);
+    if (!category) return;
+    const byId = new Map(categories.map((c) => [c.id, c]));
+    const library = new Map(attributeLibrary.map((a) => [a.id, a]));
+    const inherited = inheritedAttributes(category.parentId, byId, categoryAttributeMap, library);
+    const ownIds = categoryAttributeMap[category.id] ?? [];
+    const own = ownIds.flatMap((attrId) => {
+      const attribute = library.get(attrId);
+      return attribute ? [{ label: getAttributeLabel(attribute, locale), type: attribute.type }] : [];
+    });
+    const taken = new Set([...inherited.map((i) => i.attribute.id), ...ownIds]);
+    const shape: CategoryFormShape = {
+      descriptions: Object.fromEntries(category.translations.map((tr) => [tr.locale, tr.description])),
+      isRoot: !category.parentId,
+      inherited: inherited.map((i) => getAttributeLabel(i.attribute, locale)),
+      own,
+      picker: attributeLibrary.some((a) => !taken.has(a.id)),
+    };
+    setRouteShape(categoryShapeKey(targetId), shape);
+  };
 
   const filtered = useMemo(() => {
     if (!search) return treeRows;
@@ -137,7 +174,10 @@ export function AdminCategoriesPage({
         message: t("duplicated"),
         action: {
           label: t("editCopy"),
-          onClick: () => router.push(`/${locale}/admin/categories/${copyId}/edit`),
+          onClick: () => {
+            handOverShape(copyId, id);
+            router.push(`/${locale}/admin/categories/${copyId}/edit`);
+          },
         },
       });
       router.refresh();
@@ -167,14 +207,10 @@ export function AdminCategoriesPage({
           </AlertDescription>
         </Alert>
       ) : (
-        <div
-          className={cn(
-            "rounded-lg border flex-1 min-h-0 overflow-auto",
-            // Lock the whole table while any row's action is in flight, so
-            // the user can't start a second action on a different row.
-            (isPending || isNavigating || isDuplicating) &&
-              "opacity-60 pointer-events-none transition-opacity duration-150",
-          )}
+        <TableScroll
+          // Lock the whole table while any row's action is in flight, so
+          // the user can't start a second action on a different row.
+          locked={isPending || isNavigating || isDuplicating}
         >
           {/* Header */}
           <div className="grid items-center gap-3 border-b p-3 text-xs font-medium text-muted-foreground bg-background sticky top-0 z-10 min-w-fit"
@@ -257,32 +293,32 @@ export function AdminCategoriesPage({
 
                 {/* Actions */}
                 <div className="flex items-center justify-end gap-1">
-                  <Button
+                  <IconButton
+                    label={t("edit")}
                     variant="ghost"
                     size="icon"
                     disabled={isNavigating && editingId === row.id}
                     onClick={() => {
                       setEditingId(row.id);
+                      handOverShape(row.id, row.id);
                       startNavigate(() => router.push(`/${locale}/admin/categories/${row.id}/edit`));
                     }}
                   >
                     {isNavigating && editingId === row.id
                       ? <Loader2 className="h-4 w-4 animate-spin" />
                       : <Pencil className="h-4 w-4" />}
-                    <span className="sr-only">{t("edit")}</span>
-                  </Button>
-                  <Button
+                  </IconButton>
+                  <IconButton
+                    label={t("duplicate")}
                     variant="ghost"
                     size="icon"
                     disabled={isDuplicating && duplicatingId === row.id}
                     onClick={() => handleDuplicate(row.id)}
-                    title={t("duplicate")}
                   >
                     {isDuplicating && duplicatingId === row.id
                       ? <Loader2 className="h-4 w-4 animate-spin" />
                       : <Copy className="h-4 w-4" />}
-                    <span className="sr-only">{t("duplicate")}</span>
-                  </Button>
+                  </IconButton>
                   <ActionButton
                     open={deleteOpenId === row.id}
                     onOpenChange={(next) => setDeleteOpenId(next ? row.id : null)}
@@ -305,16 +341,15 @@ export function AdminCategoriesPage({
                   >
                     {/* Resting control - the dialog's confirm button carries
                         the spinner. */}
-                    <Button variant="ghost" size="icon">
+                    <IconButton label={t("delete")} variant="ghost" size="icon">
                       <Trash2 className="h-4 w-4 text-destructive" />
-                      <span className="sr-only">{t("delete")}</span>
-                    </Button>
+                    </IconButton>
                   </ActionButton>
                 </div>
               </div>
             );
           })}
-        </div>
+        </TableScroll>
       )}
     </div>
   );

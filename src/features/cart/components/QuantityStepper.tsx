@@ -40,6 +40,8 @@ export function QuantityStepper({
       role="group"
       aria-label={t("quantity")}
     >
+      {/* Agreed IconButton exception (quantity +/-): the symbol is the label. */}
+      {/* eslint-disable-next-line no-restricted-syntax */}
       <Button
         type="button"
         variant="outline"
@@ -60,6 +62,8 @@ export function QuantityStepper({
       >
         {value}
       </span>
+      {/* Agreed IconButton exception (quantity +/-): the symbol is the label. */}
+      {/* eslint-disable-next-line no-restricted-syntax */}
       <Button
         type="button"
         variant="outline"

@@ -9,6 +9,8 @@ import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { createSearchParamsCache } from "nuqs/server";
 import { getQueryClient } from "@/lib/query/getQueryClient";
 import { getPublicProductsPage } from "@/features/products/db/publicProducts";
+import { marketSaleExclusions } from "@/features/priceMarkets/db/saleExclusions";
+import { getViewerMarket } from "@/features/priceMarkets/db/viewer";
 import { productSearchParams } from "@/lib/query/searchParams";
 import { parseAttrs } from "@/lib/query/attrs";
 import { PageHeader } from "@/components/PageHeader";
@@ -162,8 +164,13 @@ export default async function ProductsRoute({
     attrs: params.attrs,
   };
 
+  // "On sale" is per viewer (see marketSaleExclusions), so the key carries
+  // the viewer's country - the same cookie the client grid reads it from.
+  const viewerMarket = await getViewerMarket();
+  const saleExcludedIds = filters.onSale === true ? await marketSaleExclusions(viewerMarket) : undefined;
+
   await queryClient.prefetchInfiniteQuery({
-    queryKey: ["products", "public", filters, currency, locale],
+    queryKey: ["products", "public", filters, currency, locale, viewerMarket.country],
     queryFn: () =>
       getPublicProductsPage({
         take: GRID_PAGE_SIZE,
@@ -183,6 +190,7 @@ export default async function ProductsRoute({
         minRating: filters.minRating ?? undefined,
         categoryId: deptCategoryIds?.length ? deptCategoryIds : undefined,
         attributeFilters: parseAttrs(filters.attrs),
+        saleExcludedIds,
       }),
     initialPageParam: undefined as string | undefined,
   });

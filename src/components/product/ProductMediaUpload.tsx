@@ -26,7 +26,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useSupportsHover } from "@/hooks/useSupportsHover";
 
 import { toast } from "@/components/ui/sonner";
-import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/IconButton";
 import { Input } from "@/components/ui/input";
 import {
   Card,
@@ -106,6 +106,7 @@ function SortableItem({ item, onClick, onRemove }: SortableItemProps) {
   // it would otherwise be permanently invisible (and untappable) there. Keep
   // it always-on for touch, hover-revealed for mouse/trackpad as before.
   const supportsHover = useSupportsHover();
+  const t = useTranslations("mediaUpload");
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -170,7 +171,8 @@ function SortableItem({ item, onClick, onRemove }: SortableItemProps) {
       <CardAction
         className={`absolute top-1 right-1 transition ${supportsHover ? "opacity-0 group-hover:opacity-100" : "opacity-100"}`}
       >
-        <Button
+        <IconButton
+          label={t("remove")}
           type="button"
           size="icon-sm"
           variant="destructive"
@@ -183,7 +185,7 @@ function SortableItem({ item, onClick, onRemove }: SortableItemProps) {
           }}
         >
           &times;
-        </Button>
+        </IconButton>
       </CardAction>
     </Card>
   );

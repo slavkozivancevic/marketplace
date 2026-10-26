@@ -271,6 +271,21 @@ interface ProductFormProps {
   categoryAttributeMap?: Record<string, string[]>;
   onSuccess?: () => void;
   redirectTo?: string;
+  /** Price rules per saved variant id, so the form can warn before a save that
+   *  would delete them (removing a variant, or changing a manual SKU). */
+  priceRuleCountByVariant?: Record<string, number>;
+}
+
+/** Same identity the server's variant sync uses: the option combination, or
+ *  the SKU for a manual variant with no options. */
+function variantIdentity(
+  options: { attributeId: string; optionId: string }[] | undefined,
+  sku: string,
+): string {
+  if (options && options.length > 0) {
+    return `o:${options.map((o) => `${o.attributeId}:${o.optionId}`).sort().join("|")}`;
+  }
+  return `s:${sku}`;
 }
 
 /** Collapses persisted attribute value rows into the form's grouped shape. */
@@ -709,6 +724,7 @@ export function ProductForm({
   categoryAttributeMap = {},
   onSuccess,
   redirectTo,
+  priceRuleCountByVariant,
 }: ProductFormProps) {
   const t = useTranslations("productForm");
   const boolFmt = useBoolFormat();
@@ -910,6 +926,24 @@ export function ProductForm({
   });
 
   const watchedVariants = useWatch({ control: form.control, name: "variants" });
+
+  // Price rules this save would delete: saved variants that carry rules and no
+  // longer match any variant in the form. Nothing is ever removed unannounced.
+  const priceRulesAtRisk = (() => {
+    if (!product || !priceRuleCountByVariant) return 0;
+    const kept = new Set((watchedVariants ?? []).map((v) => variantIdentity(v.options, v.sku)));
+    let count = 0;
+    for (const v of product.variants) {
+      const rules = priceRuleCountByVariant[v.id] ?? 0;
+      if (rules === 0) continue;
+      const identity = variantIdentity(
+        v.attributeValues.map((av) => ({ attributeId: av.attributeId, optionId: av.optionId })),
+        v.sku,
+      );
+      if (!kept.has(identity)) count += rules;
+    }
+    return count;
+  })();
   const watchedTitle = useWatch({ control: form.control, name: "title" });
   const watchedSlug = useWatch({ control: form.control, name: "slug" });
   const watchedOptionSelection = useWatch({ control: form.control, name: "options" });
@@ -2306,6 +2340,11 @@ export function ProductForm({
         </Tabs>
 
         <div className="shrink-0 pt-4 pb-6 border-t">
+          {priceRulesAtRisk > 0 && (
+            <p role="alert" className="mb-3 text-sm text-destructive">
+              {t("variantRulesWillBeDeleted", { count: priceRulesAtRisk })}
+            </p>
+          )}
           {mode === "update" ? (
             <FormSaveBar
               isDirty={isDirty}

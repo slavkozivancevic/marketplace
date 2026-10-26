@@ -6,6 +6,7 @@ import { Plus, Trash2, Search, AlertCircle, CheckCircle2, Loader2, ChevronDown, 
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/IconButton";
 import { SaveBlockedNotice } from "@/components/forms/SaveBlockedNotice";
 import { Input } from "@/components/ui/input";
 import { NumberStepper } from "@/components/ui/number-stepper";
@@ -27,6 +28,7 @@ import {
 import { ActionButton } from "@/components/ActionButton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { TableScroll } from "@/components/ui/table-scroll";
 import { toast } from "@/components/ui/sonner";
 import { useCurrencyStore } from "@/store/currency";
 import { MoneyField } from "@/components/forms/MoneyField";
@@ -430,14 +432,13 @@ function ConditionRow({
         <span className="text-sm font-medium sm:w-44 sm:shrink-0 sm:pt-0.5">
           {CONDITION_LABELS[condition.type]}
         </span>
-        <Button
-          variant="ghost"
-          size="icon"
+        <IconButton
+          label={t("removeCondition")}
           className="h-7 w-7 shrink-0 sm:order-last"
           onClick={onRemove}
         >
           <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-        </Button>
+        </IconButton>
       </div>
 
       {/* Value editor */}
@@ -964,7 +965,7 @@ function PreviewCard({ preview }: { preview: PreviewResult }) {
           : t("willAffect", { count: preview.count })}
       </p>
       {preview.samples.length > 0 && (
-        <div className="rounded border overflow-x-auto">
+        <TableScroll height="auto" nativeTable className="rounded">
           <table className="w-full min-w-125 text-xs">
             <thead>
               <tr className="border-b bg-background">
@@ -996,7 +997,7 @@ function PreviewCard({ preview }: { preview: PreviewResult }) {
               {t("andMore", { count: preview.count - preview.samples.length })}
             </p>
           )}
-        </div>
+        </TableScroll>
       )}
     </div>
   );

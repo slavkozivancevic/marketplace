@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TableScroll } from "@/components/ui/table-scroll";
 
 /**
  * Review moderation table layout + loading state. `ReviewsView.tsx` imports the
@@ -35,10 +36,7 @@ export function ReviewSkeletonRow() {
 /** Full reviews table placeholder, header included. */
 export function ReviewTableSkeleton({ rows = 10 }: { rows?: number }) {
   return (
-    <div
-      role="table"
-      className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]"
-    >
+    <TableScroll>
       {/* Header is `p-3` (rows are `px-3 py-2.5`) - they really do differ. */}
       <div
         role="row"
@@ -58,7 +56,7 @@ export function ReviewTableSkeleton({ rows = 10 }: { rows?: number }) {
       {Array.from({ length: rows }, (_, i) => (
         <ReviewSkeletonRow key={i} />
       ))}
-    </div>
+    </TableScroll>
   );
 }
 

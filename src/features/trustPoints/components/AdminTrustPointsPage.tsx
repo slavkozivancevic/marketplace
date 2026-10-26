@@ -6,18 +6,18 @@ import { useRouter } from "next/navigation";
 import { Copy, Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
-import { cn } from "@/lib/utils";
 import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 import { SearchInput } from "@/components/search/SearchInput";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ActionButton";
 import { deleteTrustPointAction, duplicateTrustPointAction } from "../actions/trustPoints";
 import type { TrustPointListItem } from "../db/trustPoints";
 import { getTrustPointLabel } from "../utils/translations";
 import { TRUST_POINT_FALLBACK_ICON, TRUST_POINT_ICONS } from "../icons";
 import { TRUST_POINT_COLS } from "./TrustPointTableSkeleton";
+import { TableScroll } from "@/components/ui/table-scroll";
+import { IconButton } from "@/components/IconButton";
 
 // Column layout (label | icon | order | status | actions) is owned by the
 // skeleton module so the two can never drift.
@@ -95,7 +95,8 @@ function TrustPointTableRow({
       </div>
       <div role="cell" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-end gap-1">
-          <Button
+          <IconButton
+            label={tCommon("edit")}
             variant="ghost"
             size="icon"
             disabled={isEditing}
@@ -104,20 +105,18 @@ function TrustPointTableRow({
             {isEditing
               ? <Loader2 className="h-4 w-4 animate-spin" />
               : <Pencil className="h-4 w-4" />}
-            <span className="sr-only">{tCommon("edit")}</span>
-          </Button>
-          <Button
+          </IconButton>
+          <IconButton
+            label={t("duplicate")}
             variant="ghost"
             size="icon"
             disabled={isDuplicating}
             onClick={() => onDuplicate(point.id)}
-            title={t("duplicate")}
           >
             {isDuplicating
               ? <Loader2 className="h-4 w-4 animate-spin" />
               : <Copy className="h-4 w-4" />}
-            <span className="sr-only">{t("duplicate")}</span>
-          </Button>
+          </IconButton>
           <ActionButton
             open={deleteOpen}
             onOpenChange={onDeleteOpenChange}
@@ -130,10 +129,9 @@ function TrustPointTableRow({
           >
             {/* Resting control - the dialog's confirm button carries the
                 spinner. */}
-            <Button variant="ghost" size="icon">
+            <IconButton label={tCommon("delete")} variant="ghost" size="icon">
               <Trash2 className="h-4 w-4 text-destructive" />
-              <span className="sr-only">{tCommon("delete")}</span>
-            </Button>
+            </IconButton>
           </ActionButton>
         </div>
       </div>
@@ -249,14 +247,7 @@ export function AdminTrustPointsPage({ points }: { points: TrustPointListItem[] 
           </AlertDescription>
         </Alert>
       ) : (
-        <div
-          role="table"
-          className={cn(
-            "rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]",
-            (isPending || isNavigating || isDuplicating) &&
-              "opacity-60 pointer-events-none transition-opacity duration-150",
-          )}
-        >
+        <TableScroll locked={isPending || isNavigating || isDuplicating}>
           <TrustPointTableHeader />
           {filtered.map(({ point, displayLabel }) => (
             <TrustPointTableRow
@@ -273,7 +264,7 @@ export function AdminTrustPointsPage({ points }: { points: TrustPointListItem[] 
               onDeleteOpenChange={(open) => setDeleteOpenId(open ? point.id : null)}
             />
           ))}
-        </div>
+        </TableScroll>
       )}
     </div>
   );

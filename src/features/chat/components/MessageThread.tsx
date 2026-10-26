@@ -29,9 +29,7 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { cn } from "@/lib/utils";
 import { useReactions } from "../hooks/useReactions";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Skeleton } from "@/components/ui/skeleton";
 import { FallbackImg } from "@/components/FallbackImg";
 import { RetryImage } from "@/components/RetryImage";
 import { ChatMessage } from "../types";
@@ -42,6 +40,8 @@ import { countNewBelow } from "../utils/newBelow";
 import { useDraftStore, type DraftAttachment } from "../store/draftStore";
 import { useOutboxStore } from "../store/outboxStore";
 import type { OutboxFailure, OutboxStatus } from "../utils/outbox";
+import { IconButton } from "@/components/IconButton";
+import { MessageThreadSkeleton } from "./MessagesPageSkeleton";
 
 /**
  * A message in the thread, whether or not the server has confirmed it.
@@ -1337,23 +1337,7 @@ export function MessageThread({
   // a band where a count would sit on a button that cannot be clicked.
   const showJumpButton = showScrollBtn || newBelowCount > 0;
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col gap-3 p-4">
-        {[...Array(5)].map((_, i) => (
-          <div
-            key={i}
-            className={cn("flex gap-2", i % 2 === 0 ? "" : "flex-row-reverse")}
-          >
-            <Skeleton className="size-7 rounded-full shrink-0" />
-            <Skeleton
-              className={cn("h-10 rounded-2xl", i % 2 === 0 ? "w-48" : "w-36")}
-            />
-          </div>
-        ))}
-      </div>
-    );
-  }
+  if (isLoading) return <MessageThreadSkeleton />;
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -1720,7 +1704,8 @@ export function MessageThread({
             onChange={handleFileChange}
           />
 
-          <Button
+          <IconButton
+            label={t("attachFiles")}
             type="button"
             variant="ghost"
             size="icon"
@@ -1729,8 +1714,7 @@ export function MessageThread({
             disabled={pendingAttachments.length >= MAX_FILES}
           >
             <Paperclip className="size-4" />
-            <span className="sr-only">{t("attachFiles")}</span>
-          </Button>
+          </IconButton>
 
           <Textarea
             value={text}
@@ -1743,7 +1727,8 @@ export function MessageThread({
             rows={1}
           />
 
-          <Button
+          <IconButton
+            label={t("send")}
             size="icon"
             onClick={() => handleSend()}
             disabled={!canSend}
@@ -1754,8 +1739,7 @@ export function MessageThread({
             ) : (
               <Send className="size-4" />
             )}
-            <span className="sr-only">{t("send")}</span>
-          </Button>
+          </IconButton>
         </div>
       </div>
     </div>

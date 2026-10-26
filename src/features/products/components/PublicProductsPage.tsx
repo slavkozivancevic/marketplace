@@ -35,6 +35,7 @@ import {
 } from "@/components/search/FilterSidebar";
 import { ActiveFilters } from "@/components/search/ActiveFilters";
 import { PublicProductsGrid } from "./PublicProductsGrid";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { rememberCatalogUrl } from "../utils/catalogReturn";
 import type { BrandOption } from "@/features/brands/components/BrandSelect";
 import { DepartmentSearchBar } from "@/features/categories/components/DepartmentSearchBar";
@@ -42,6 +43,7 @@ import type { CategoryTreeItem } from "@/features/categories/db/categories";
 import { getCategorySlug } from "@/features/categories/utils/translations";
 import { getPathname, useRouter } from "@/i18n/navigation";
 import { useCurrencyStore, getCurrentRate } from "@/store/currency";
+import { useViewerMarket } from "@/providers/MarketProvider";
 import { getCurrencyConfig } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 
@@ -125,6 +127,7 @@ export function PublicProductsPage({
     setTimeout(navigate, SHEET_CLOSE_MS);
   };
   const { currency } = useCurrencyStore();
+  const { country: viewerCountry } = useViewerMarket();
   const currencySymbol = getCurrencyConfig(currency).symbol;
 
   // "title" sort dropped when title moved to ProductTranslation.
@@ -221,6 +224,8 @@ export function PublicProductsPage({
       search,
       params.attrs,
       locale,
+      // The on-sale count is per viewer's market - see marketSaleExclusions.
+      viewerCountry,
     ],
     queryFn: async () => {
       const rate = getCurrentRate();
@@ -284,6 +289,10 @@ export function PublicProductsPage({
         type: "range",
         key: "price",
         label: t("products.price"),
+        // Filtering and sorting run in SQL on one price per product, the one
+        // before any market adjustment (dynamic-pricing spec, Constraint 6).
+        // Said here rather than hidden.
+        hint: t("priceMarkets.filterNote"),
         prefix: currencySymbol,
         min: 0,
         step: 1,
@@ -752,8 +761,9 @@ export function PublicProductsPage({
         </div>
       </div>
 
-      {/* Outer scroll container: sidebar + grid + footer */}
-      <div ref={outerScrollRef} className="flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable] flex flex-col">
+      {/* Outer scroll container: sidebar + grid + footer. Overlay scrollbar,
+          so the grid keeps its full width whether or not the page scrolls. */}
+      <ScrollArea ref={outerScrollRef} layout="column" className="flex-1 min-h-0">
         <div className="flex gap-6 flex-1 px-6">
           <FilterSidebar
             groups={filterGroups}
@@ -772,7 +782,7 @@ export function PublicProductsPage({
             page showing through below the footer. The home page renders
             <Footer /> flush the same way. */}
         <div className="mt-8">{footer}</div>
-      </div>
+      </ScrollArea>
     </div>
   );
 }

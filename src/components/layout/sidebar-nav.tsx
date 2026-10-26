@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -113,6 +114,7 @@ function NavLinks({
 
 export function SidebarNav(props: SidebarNavProps) {
   const pathname = usePathname();
+  const t = useTranslations("sidebar");
   const [open, setOpen] = useState(false);
 
   return (
@@ -141,9 +143,8 @@ export function SidebarNav(props: SidebarNavProps) {
           <SheetTrigger asChild>
             {/* Lifts over an edit form's inline save bar (ProductForm,
                 BrandForm, ...) - see FloatingSidebarTrigger. */}
-            <FloatingSidebarTrigger>
+            <FloatingSidebarTrigger label={t("openNavigation")}>
               <Menu className="h-4 w-4" />
-              <span className="sr-only">Open navigation</span>
             </FloatingSidebarTrigger>
           </SheetTrigger>
           <SheetContent side="left" className="w-64 flex flex-col p-0" aria-describedby={undefined}>

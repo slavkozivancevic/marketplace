@@ -10,6 +10,7 @@ import { getVariantLabel } from "@/features/attributes/utils/translations";
 import { getProductTitle } from "@/features/products/utils/translations";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { NotFoundError } from "@/features/common/errors/domainErrors";
+import { shippingCountryLabel } from "@/lib/i18n/countries";
 import { InvoiceDocument, type InvoiceData, type InvoiceLine } from "./InvoiceDocument";
 
 const INVOICE_PREFIX = "invoices";
@@ -140,7 +141,7 @@ async function buildInvoiceData(order: OrderWithInvoice, number: number): Promis
           city: order.shippingCity,
           state: order.shippingState,
           postalCode: order.shippingPostalCode,
-          country: order.shippingCountry,
+          country: order.shippingCountry && shippingCountryLabel(order.shippingCountry, locale),
         }
       : null,
     lines,

@@ -21,7 +21,7 @@ export default async function MyProductEditLoadingPage() {
           title={t("myProducts.edit")}
           description={t("myProducts.editDesc")}
         >
-          <SkeletonButton className="w-32" />
+          <SkeletonButton label={t("myProducts.backToProduct")} />
         </PageHeader>
       </div>
       <div className="flex-1 flex flex-col min-h-0 px-6">

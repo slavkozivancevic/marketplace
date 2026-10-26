@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TableScroll } from "@/components/ui/table-scroll";
 
 /**
  * Brand table layout + loading state. `AdminBrandsPage.tsx` imports the
@@ -54,10 +55,7 @@ export function BrandTableSkeleton({ rows = 8 }: { rows?: number }) {
         </div>
       </div>
 
-      <div
-        role="table"
-        className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]"
-      >
+      <TableScroll>
         {/* Header: `text-sm` cells -> 44px tall (12 + 20 + 12). Note it has no
             `shrink-0` in the real table. */}
         <div
@@ -75,7 +73,7 @@ export function BrandTableSkeleton({ rows = 8 }: { rows?: number }) {
         {Array.from({ length: rows }, (_, i) => (
           <BrandSkeletonRow key={i} />
         ))}
-      </div>
+      </TableScroll>
     </div>
   );
 }

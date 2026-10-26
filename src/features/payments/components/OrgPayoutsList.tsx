@@ -12,6 +12,7 @@ import type { OrgPayoutFilters } from "@/lib/query/searchParams";
 import { OrgPayoutTableRow } from "./OrgPayoutTableRow";
 import { OrgPayoutSkeletonRow, PAYOUT_COL } from "./OrgPayoutTableSkeleton";
 import { useActiveOrgId } from "@/features/organizations/components/ActiveOrgContext";
+import { TableScroll } from "@/components/ui/table-scroll";
 
 function buildFetcher(filters: OrgPayoutFilters) {
   return async ({
@@ -70,12 +71,12 @@ export function OrgPayoutsList({
 
   if (query.status === "pending") {
     return (
-      <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
+      <TableScroll>
         <PayoutTableHeader t={t} />
         {Array.from({ length: 8 }).map((_, i) => (
           <OrgPayoutSkeletonRow key={i} />
         ))}
-      </div>
+      </TableScroll>
     );
   }
 
@@ -102,32 +103,18 @@ export function OrgPayoutsList({
   // Small dataset - no virtualization needed.
   if (!query.hasNextPage) {
     return (
-      <div
-        role="table"
-        className={cn(
-          "rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]",
-          isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150",
-        )}
-        ref={parentRef}
-      >
+      <TableScroll ref={parentRef} locked={isPlaceholderData}>
         <PayoutTableHeader t={t} />
         {items.map((payout) => (
           <OrgPayoutTableRow key={payout.id} payout={payout} />
         ))}
-      </div>
+      </TableScroll>
     );
   }
 
   // Large dataset - virtualized, auto-fetches the next page near the tail.
   return (
-    <div
-      role="table"
-      className={cn(
-        "rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]",
-        isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150",
-      )}
-      ref={parentRef}
-    >
+    <TableScroll ref={parentRef} locked={isPlaceholderData}>
       <PayoutTableHeader t={t} />
       <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
         {virtualizer.getVirtualItems().map((vRow) => {
@@ -153,6 +140,6 @@ export function OrgPayoutsList({
           );
         })}
       </div>
-    </div>
+    </TableScroll>
   );
 }

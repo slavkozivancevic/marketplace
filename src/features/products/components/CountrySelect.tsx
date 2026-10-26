@@ -33,8 +33,17 @@ export function CountrySelect({
   value,
   onChange,
   disabled,
+  labels,
+  hint,
+  clearable = true,
   "aria-invalid": ariaInvalid,
 }: {
+  /** False where "no country" is not an answer, e.g. the buyer's pricing country. */
+  clearable?: boolean;
+  /** Overrides the product-form wording, for a picker that is not "country of origin". */
+  labels?: { none: string; clear: string; search: string; empty: string };
+  /** A short note shown beside a country's name in the list, e.g. its market. */
+  hint?: (code: CountryCode) => string | undefined;
   // Accepts any stored string - the column is wider than the picker's list -
   // but only ever emits a code the list knows.
   value: string | null | undefined;
@@ -65,6 +74,12 @@ export function CountrySelect({
   }, [countries, query]);
 
   const selectedName = value ? countryName(value, locale) : null;
+  const text = labels ?? {
+    none: t("countryOfOriginNone"),
+    clear: t("countryOfOriginClear"),
+    search: t("countryOfOriginSearch"),
+    empty: t("countryOfOriginEmpty"),
+  };
 
   const commit = (code: CountryCode | null) => {
     onChange(code);
@@ -105,17 +120,17 @@ export function CountrySelect({
           className="w-full justify-between font-normal cursor-pointer"
         >
           <span className={cn(!selectedName && "text-muted-foreground")}>
-            {selectedName ?? t("countryOfOriginNone")}
+            {selectedName ?? text.none}
           </span>
           <span className="flex items-center gap-1">
-            {value && (
+            {value && clearable && (
               // Clearing is a plain span, not a nested <button>: a button
               // inside the trigger button is invalid HTML and would swallow
               // the trigger's own keyboard handling.
               <span
                 role="button"
                 tabIndex={-1}
-                aria-label={t("countryOfOriginClear")}
+                aria-label={text.clear}
                 className="rounded-sm p-0.5 text-muted-foreground hover:text-foreground cursor-pointer"
                 onClick={(e) => {
                   e.preventDefault();
@@ -138,8 +153,8 @@ export function CountrySelect({
           <Input
             autoFocus
             value={query}
-            placeholder={t("countryOfOriginSearch")}
-            aria-label={t("countryOfOriginSearch")}
+            placeholder={text.search}
+            aria-label={text.search}
             onChange={(e) => {
               setQuery(e.target.value);
               setHighlight(0);
@@ -170,7 +185,7 @@ export function CountrySelect({
         <div ref={listRef} className="max-h-64 overflow-y-auto pb-1">
           {matches.length === 0 && (
             <p className="px-3 py-6 text-center text-sm text-muted-foreground">
-              {t("countryOfOriginEmpty")}
+              {text.empty}
             </p>
           )}
           {matches.map((country, i) => (
@@ -191,8 +206,8 @@ export function CountrySelect({
                 )}
               />
               <span className="flex-1 min-w-0 truncate">{country.name}</span>
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {country.code}
+              <span className="max-w-[45%] truncate text-xs text-muted-foreground tabular-nums">
+                {hint?.(country.code) ?? country.code}
               </span>
             </button>
           ))}

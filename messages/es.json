@@ -3,7 +3,8 @@
     "brand": "MarketVerse",
     "tagline": "Plataforma empresarial",
     "dashboardTagline": "Panel",
-    "adminTagline": "Panel de administración"
+    "adminTagline": "Panel de administración",
+    "preferences": "Preferencias"
   },
   "pagination": {
     "ariaLabel": "Paginación",
@@ -72,7 +73,13 @@
     "editCoupon": "Editar cupón",
     "bulkOperations": "Operaciones masivas",
     "history": "Historial",
-    "codBalances": "Saldos COD"
+    "codBalances": "Saldos COD",
+    "priceRules": "Reglas de precio",
+    "newPriceRule": "Nueva regla",
+    "editPriceRule": "Editar regla",
+    "adminPriceMarkets": "Mercados de precios",
+    "newPriceMarket": "Nuevo mercado",
+    "editPriceMarket": "Editar mercado"
   },
   "auth": {
     "signIn": "Iniciar sesión",
@@ -105,7 +112,9 @@
     "audit": "Registro de auditoría",
     "dashboard": "Panel",
     "quickLinks": "Enlaces rápidos",
-    "codBalances": "Saldos COD"
+    "codBalances": "Saldos COD",
+    "priceMarkets": "Mercados de precios",
+    "openNavigation": "Abrir navegación"
   },
   "footer": {
     "tagline": "La plataforma de comercio empresarial creada para vendedores y compradores modernos.",
@@ -257,8 +266,6 @@
     "productDeleted": "Producto eliminado",
     "editCopy": "Editar copia",
     "edit": "Editar",
-    "view": "Ver",
-    "duplicating": "Duplicando...",
     "deleting": "Eliminando...",
     "duplicate": "Duplicar",
     "deleteProduct": "Eliminar producto",
@@ -443,7 +450,8 @@
     "empty": "Tu lista de deseos está vacía",
     "emptyDesc": "Navega por los productos y haz clic en el ícono del corazón para guardar los artículos que te gusten.",
     "continueShopping": "Continuar comprando",
-    "browseProducts": "Explorar productos"
+    "browseProducts": "Explorar productos",
+    "label": "Lista de deseos"
   },
   "checkout": {
     "success": "Pago exitoso",
@@ -539,7 +547,9 @@
         "coupon": "Cupón",
         "review": "Reseña",
         "tag": "Etiqueta",
-        "trustPoint": "Garantía"
+        "trustPoint": "Garantía",
+        "priceRule": "Regla de precio",
+        "priceMarket": "Mercado de precios"
       },
       "fields": {
         "count": "Cantidad",
@@ -688,6 +698,18 @@
           "updated": "Garantía modificada",
           "deleted": "Garantía eliminada",
           "duplicated": "Garantía duplicada"
+        },
+        "priceRule": {
+          "created": "Regla de precio creada",
+          "updated": "Regla de precio actualizada",
+          "deleted": "Regla de precio eliminada",
+          "duplicated": "Regla de precio duplicada"
+        },
+        "price_market": {
+          "created": "Mercado de precios creado",
+          "updated": "Mercado de precios actualizado",
+          "deleted": "Mercado de precios eliminado",
+          "duplicated": "Mercado de precios duplicado"
         }
       },
       "columns": {
@@ -817,7 +839,16 @@
     "loadingHistory": "Cargando historial del producto...",
     "historyTitle": "Historial del producto",
     "editBrandLoading": "Editar marca",
-    "editTagLoading": "Editar etiqueta"
+    "editTagLoading": "Editar etiqueta",
+    "priceMarkets": "Mercados de precios",
+    "priceMarketsManage": "Agrupa los países que comparten precios. Así los vendedores pueden fijar en cada producto un precio por mercado o por país.",
+    "addPriceMarket": "Añadir mercado",
+    "createPriceMarket": "Nuevo mercado",
+    "createPriceMarketDesc": "Pon nombre a un grupo de países que comparten precios.",
+    "backToPriceMarkets": "Volver a los mercados",
+    "editPriceMarket": "Editar: {name}",
+    "editPriceMarketDesc": "Actualiza el nombre y los países del mercado.",
+    "editPriceMarketLoading": "Editar mercado"
   },
   "adminCategories": {
     "actions": "Acciones",
@@ -973,6 +1004,7 @@
     "increaseQty": "Aumentar cantidad",
     "removeItem": "Eliminar artículo",
     "itemRemoved": "{item} se eliminó de tu carrito porque ya no está disponible.",
+    "itemRepriced": "El precio de {item} ha cambiado a {price}.",
     "subtotal": "Subtotal",
     "shipping": "Entrega",
     "discount": "Descuento",
@@ -984,7 +1016,8 @@
     "leadTimeExact": "{count, plural, one {La entrega suele tardar # día hábil.} other {La entrega suele tardar # días hábiles.}}",
     "pageTitle": "Carrito",
     "emptyHint": "Explora la tienda y añade algo que te guste.",
-    "continueShopping": "Seguir comprando"
+    "continueShopping": "Seguir comprando",
+    "label": "Carrito"
   },
   "reviews": {
     "write": "Escribir una reseña",
@@ -1370,7 +1403,8 @@
     "yes": "Sí",
     "no": "No",
     "validationFailed": "Por favor, corrige los errores del formulario antes de enviar.",
-    "validationFailedOnTabs": "Corrige errores en: {tabs}. {message}"
+    "validationFailedOnTabs": "Corrige errores en: {tabs}. {message}",
+    "variantRulesWillBeDeleted": "Al guardar se {count, plural, one {eliminará # regla de precio} other {eliminarán # reglas de precio}} de una variante que quitaste o cuyo SKU cambiaste."
   },
   "bulkProducts": {
     "filterExecute": "Filtrar y ejecutar",
@@ -1514,7 +1548,8 @@
     "noMatches": "Sin coincidencias",
     "noMatchesDesc": "Ningún producto coincide con las condiciones actuales. Ajusta los filtros y vuelve a previsualizar.",
     "bulkCategoryLimitTitle": "Demasiados productos para este cambio",
-    "bulkCategoryLimitDesc": "Este filtro coincide con {count} productos, pero los cambios de categoría/etiqueta están limitados a {limit} a la vez. Añade más condiciones para acotar la selección y vuelve a previsualizar."
+    "bulkCategoryLimitDesc": "Este filtro coincide con {count} productos, pero los cambios de categoría/etiqueta están limitados a {limit} a la vez. Añade más condiciones para acotar la selección y vuelve a previsualizar.",
+    "removeCondition": "Quitar condición"
   },
   "chat": {
     "messagePlaceholder": "Mensaje...",
@@ -1556,7 +1591,8 @@
     "sendFailedRejected": "El servidor rechazó este mensaje",
     "sendFailedExpired": "Los archivos adjuntos han caducado",
     "jumpToLatest": "Ir a lo más reciente",
-    "newMessagesBelow": "{count, plural, one {# mensaje nuevo} other {# mensajes nuevos}}"
+    "newMessagesBelow": "{count, plural, one {# mensaje nuevo} other {# mensajes nuevos}}",
+    "openMessages": "Mensajes"
   },
   "mediaUpload": {
     "title": "Subir multimedia del producto",
@@ -1569,7 +1605,8 @@
     "typeNotAllowed": "Tipo de archivo no permitido: {name}",
     "tooLarge": "Archivo demasiado grande: {name}",
     "uploaded": "Subido: {name}",
-    "uploadFailed": "Error al subir: {name}"
+    "uploadFailed": "Error al subir: {name}",
+    "remove": "Quitar"
   },
   "csvImport": {
     "step1Title": "1. Descargar plantilla",
@@ -1698,7 +1735,9 @@
     "loadingDetails": "Cargando detalles del producto...",
     "stuckMessage": "Esto está tardando más de lo habitual.",
     "reloadPage": "Recargar página",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "openMenu": "Abrir menú",
+    "closeMenu": "Cerrar menú"
   },
   "orgOrders": {
     "readOnly": "Acceso de solo lectura",
@@ -1810,7 +1849,8 @@
     "viewAll": "Ver todos →"
   },
   "theme": {
-    "appearance": "Apariencia"
+    "appearance": "Apariencia",
+    "toggle": "Cambiar tema"
   },
   "currency": {
     "label": "Divisa",
@@ -1841,9 +1881,20 @@
     "duplicateVariantCombo": "Misma combinación de opciones que la variante n.º {other}",
     "duplicateSku": "SKU duplicado \"{sku}\" (también variante n.º {other})",
     "couponPercentRange": "El porcentaje debe estar entre 1 y 100",
+    "priceRulePercentRange": "Introduce un cambio entre -99,99 % y +100 %, distinto de 0",
+    "priceRuleAmountPositive": "El importe debe ser mayor que 0",
+    "priceRuleTimezoneInvalid": "Elige una zona horaria válida",
+    "priceRuleEndRequired": "Indica cuándo termina el precio",
+    "priceRuleEndBeforeStart": "El final debe ser posterior al inicio",
+    "priceRuleWindowTooShort": "Un precio debe durar al menos {minutes} minutos",
+    "priceRuleDurationRange": "La duración debe estar entre {min} y {max} minutos",
+    "priceRuleWeekdaysRequired": "Selecciona al menos un día de la semana",
+    "priceRuleMonthDayRange": "Introduce un día del mes entre 1 y 31",
     "leadTimeNeedsBoth": "Introduce el plazo de entrega mínimo y el máximo",
     "leadTimeMaxBeforeMin": "El plazo de entrega máximo no puede ser menor que el mínimo",
-    "couponAmountPositive": "Introduce un importe de descuento mayor que cero"
+    "couponAmountPositive": "Introduce un importe de descuento mayor que cero",
+    "priceRuleMarketRequired": "Elige un mercado",
+    "priceRuleCountryRequired": "Elige un país"
   },
   "coupons": {
     "title": "Cupones",
@@ -2058,6 +2109,8 @@
     "bulkCategoryLimit": "El filtro seleccionado coincide con {count} productos, pero los cambios masivos de categorías están limitados a {limit} a la vez. Acota el filtro e inténtalo de nuevo.",
     "internalError": "Algo salió mal. Inténtalo de nuevo.",
     "inUse": "Este registro todavía está en uso y no se puede eliminar.",
+    "limitReached": "Se ha alcanzado este límite.",
+    "priceRuleLimitReached": "Un producto puede tener como máximo {max} reglas de precio.",
     "categoryHasChildren": "Este departamento todavía tiene {count} subcategorías. Muévelas o elimínalas primero.",
     "categoryHasProducts": "Esta categoría todavía contiene {count} productos. Muévelos a otra categoría primero.",
     "attributeInUse": "Este atributo todavía tiene {count} valores en productos. Quítalo de esos productos primero.",
@@ -2124,12 +2177,16 @@
     "checkoutSessionFailed": "No se pudo crear la sesión de pago",
     "itemNoLongerAvailable": "Artículo ya no disponible",
     "insufficientStock": "Stock insuficiente",
+    "shippingCountryInvalid": "Elige el país de envío.",
     "productTitleRequiredBeforePublish": "El título del producto es obligatorio antes de publicar",
     "productDescriptionRequiredBeforePublish": "La descripción del producto es obligatoria antes de publicar",
     "productPriceRequiredBeforePublish": "El precio del producto debe ser mayor que 0 antes de publicar",
     "productMediaRequiredBeforePublish": "Se requiere al menos una imagen o video del producto antes de publicar",
     "invalidStatusTransition": "Transición de estado no válida de {from} a {to}",
-    "exchangeRateUnavailable": "El tipo de cambio de {currency} no está disponible en este momento, por lo que no se pudo guardar el precio. Inténtalo de nuevo en un momento."
+    "exchangeRateUnavailable": "El tipo de cambio de {currency} no está disponible en este momento, por lo que no se pudo guardar el precio. Inténtalo de nuevo en un momento.",
+    "priceMarketDefault": "El mercado predeterminado no se puede eliminar.",
+    "priceMarketInUse": "{count, plural, one {# regla de precio todavía apunta} other {# reglas de precio todavía apuntan}} a este mercado. Elimínalas primero.",
+    "priceMarketCountryTaken": "Ya está en otro mercado: {countries}."
   },
   "adminCodBalances": {
     "title": "Saldos COD",
@@ -2167,5 +2224,174 @@
     "enterManually": "Introducir manualmente",
     "enterManuallyTooltip": "Introduce un importe exacto para esta moneda. Se mantiene así y no cambia con el tipo de cambio.",
     "useConvertedTooltip": "Volver a convertir esta moneda a partir del precio de arriba."
+  },
+  "priceRules": {
+    "title": "Reglas de precio",
+    "loading": "Cargando reglas de precio...",
+    "description": "Cambios de precio programados y por mercado para {title}.",
+    "backToProduct": "Volver al producto",
+    "backToRules": "Volver a las reglas de precio",
+    "addRule": "Añadir regla",
+    "newTitle": "Añadir regla de precio",
+    "editTitle": "Editar regla de precio",
+    "limitReached": "Este producto tiene {max} reglas de precio, el máximo. Elimina una para añadir otra.",
+    "readOnly": "Puedes ver las reglas de precio de este producto, pero solo un propietario o administrador puede cambiarlas.",
+    "verifyTitle": "Verificación necesaria",
+    "verifyDesc": "Tu organización debe estar verificada antes de poder cambiar precios.",
+    "sortNote": "La ordenación y los filtros de precio de la tienda usan el precio vigente en este momento, antes de cualquier regla de mercado.",
+    "empty": "Aún no hay reglas de precio. Añade una para programar una promoción o un cambio de precio.",
+    "wholeProduct": "Producto completo",
+    "variant": "Variante {sku}",
+    "durationHM": "{hours} h {minutes} min",
+    "created": "Regla de precio añadida",
+    "updated": "Regla de precio guardada",
+    "deleted": "Regla de precio eliminada",
+    "deleteConfirm": "¿Eliminar «{name}»?",
+    "deleteDesc": "Donde esta regla fijaba el precio, vuelve a aplicarse el precio normal.",
+    "deleting": "Eliminando...",
+    "table": {
+      "name": "Nombre",
+      "appliesTo": "Se aplica a",
+      "change": "Cambio",
+      "schedule": "Programación",
+      "priority": "Prioridad",
+      "status": "Estado",
+      "actions": "Acciones",
+      "edit": "Editar",
+      "duplicate": "Duplicar"
+    },
+    "status": {
+      "paused": "En pausa",
+      "upcoming": "Próxima",
+      "live": "Activa",
+      "ended": "Finalizada"
+    },
+    "change": {
+      "percentOff": "{value} % de descuento",
+      "percentUp": "+{value} %",
+      "fixedPrice": "Precio {amount}",
+      "amountOff": "{amount} de descuento"
+    },
+    "schedule": {
+      "once": "Del {from} al {to}",
+      "daily": "Todos los días a las {time} durante {duration}",
+      "weekly": "Cada {days} a las {time} durante {duration}",
+      "monthly": "Cada mes el día {day} a las {time} durante {duration}",
+      "until": "hasta el {date}",
+      "market": "Siempre, para compradores de: {target}"
+    },
+    "calendar": {
+      "title": "Próximos {days} días",
+      "base": "Precio normal",
+      "overlap": "«{hidden}» se solapa con «{winner}» y no se aplica mientras ambas coincidan."
+    },
+    "form": {
+      "name": "Nombre",
+      "nameHint": "Lo ves tú y aparece en las líneas de pedido, no lo ven los compradores.",
+      "appliesTo": "Se aplica a",
+      "changeType": "Tipo de cambio",
+      "adjustment": {
+        "PERCENT": "Porcentaje",
+        "FIXED_PRICE": "Precio fijo",
+        "AMOUNT_OFF": "Importe de descuento"
+      },
+      "percent": "Cambio en %",
+      "percentHint": "Negativo para un descuento (-20), positivo para un recargo (10).",
+      "fixedPrice": "Precio",
+      "amountOff": "Importe de descuento",
+      "repeat": "Repetición",
+      "recurrence": {
+        "NONE": "Una vez",
+        "DAILY": "Cada día",
+        "WEEKLY": "Cada semana",
+        "MONTHLY": "Cada mes"
+      },
+      "recurringStrikeNote": "Según la normativa de la UE, el precio anterior solo se muestra tachado si el nuevo es inferior al precio más bajo de los últimos 30 días, así que una promoción que se repite en menos de 30 días muestra el precio más bajo sin tachado.",
+      "timezone": "Zona horaria",
+      "startDate": "Fecha de inicio",
+      "seriesStart": "Primer día",
+      "startTime": "Hora de inicio",
+      "dailyStartTime": "Empieza a las",
+      "endDate": "Fecha de fin",
+      "endTime": "Hora de fin",
+      "duration": "Duración (minutos)",
+      "seriesEnd": "Último día",
+      "noEnd": "Sin fin",
+      "weekdays": "Días",
+      "monthDay": "Día del mes",
+      "monthDayHint": "Los meses sin ese día se omiten.",
+      "priority": "Prioridad",
+      "priorityHint": "Si dos reglas se solapan, gana la de mayor prioridad. Una regla de variante siempre gana a una del producto completo, y una de país a una de mercado.",
+      "active": "Activa",
+      "activeDesc": "Una regla en pausa conserva su configuración pero no cambia ningún precio.",
+      "save": "Guardar regla",
+      "create": "Añadir regla",
+      "creating": "Añadiendo...",
+      "kind": "Tipo de regla",
+      "kinds": {
+        "SCHEDULE": "Programada",
+        "REGION": "Mercado"
+      },
+      "kindHint": {
+        "SCHEDULE": "Cambia el precio para todos los compradores en las fechas y horas que indiques.",
+        "REGION": "Cambia el precio para los compradores de un mercado o país mientras la regla esté activa. Se aplica sobre cualquier precio programado."
+      },
+      "regionScope": "Se aplica a compradores de",
+      "regionScopes": {
+        "MARKET": "Un mercado",
+        "COUNTRY": "Un país"
+      },
+      "market": "Mercado",
+      "marketPlaceholder": "Elige un mercado",
+      "defaultMarket": "{name} (todos los demás países)",
+      "country": "País",
+      "countryPlaceholder": "Elige un país",
+      "countryClear": "Quitar país",
+      "countrySearch": "Buscar países...",
+      "countryEmpty": "Ningún país coincide.",
+      "kindLocked": "El tipo de una regla no se puede cambiar después de crearla."
+    },
+    "marketNote": "Las reglas de mercado no aparecen en el calendario: se aplican a los compradores de su mercado mientras estén activas, sobre el precio que muestra el calendario.",
+    "duplicated": "Regla duplicada en pausa: actívala cuando esté lista",
+    "editCopy": "Editar copia"
+  },
+  "priceMarkets": {
+    "name": "Nombre",
+    "countries": "Países",
+    "countriesDesc": "Los compradores de estos países ven los precios de este mercado. Un país pertenece a un solo mercado.",
+    "countriesNone": "Ningún país seleccionado",
+    "countriesSelected": "{count, plural, one {# país seleccionado} other {# países seleccionados}}",
+    "countriesSearch": "Buscar países...",
+    "countriesEmpty": "Ningún país coincide.",
+    "countryRemove": "Quitar {country}",
+    "defaultCountriesNote": "Todo país que no esté en otro mercado pertenece a este, así que no tiene lista de países propia.",
+    "defaultCountries": "Todos los demás países",
+    "noCountries": "Todavía sin países",
+    "rules": "Reglas",
+    "actions": "Acciones",
+    "default": "Predeterminado",
+    "deleteConfirm": "¿Eliminar \"{name}\"?",
+    "deleteDesc": "Sus países pasan al mercado predeterminado y sus compradores ven los precios de ese mercado.",
+    "deleteBlockedDefault": "El mercado predeterminado no se puede eliminar: le pertenece todo país fuera de los demás mercados.",
+    "deleteBlockedInUse": "{count, plural, one {# regla de precio todavía apunta} other {# reglas de precio todavía apuntan}} a este mercado. Elimínalas primero.",
+    "deleted": "Mercado eliminado",
+    "created": "Mercado creado",
+    "updated": "Mercado guardado",
+    "saveChanges": "Guardar cambios",
+    "create": "Crear",
+    "creating": "Creando...",
+    "searchPlaceholder": "Buscar mercados o países...",
+    "count": "{count, plural, one {# mercado} other {# mercados}}",
+    "noneFound": "No se encontraron mercados",
+    "adjustSearch": "Prueba otra búsqueda.",
+    "priceFor": "Precio para: {country}",
+    "priceForRegion": "Precio regional",
+    "countryLabel": "País para los precios",
+    "countryNone": "Elige un país",
+    "countryHint": "Algunos vendedores tienen precios distintos según el país.",
+    "filterNote": "El filtro y la ordenación por precio usan el precio estándar, antes de los precios por país.",
+    "duplicate": "Duplicar",
+    "duplicated": "Mercado duplicado, sin países: añádele los suyos",
+    "editCopy": "Editar copia"
   }
 }

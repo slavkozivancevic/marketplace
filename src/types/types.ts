@@ -1,5 +1,6 @@
 import type { MoneySet } from "@/lib/money";
 import type { CardAvailability } from "@/features/products/utils/availability";
+import type { MarketRules, SchedulePricing } from "@/features/pricing/engine/market";
 import { MembershipRole, Prisma, ReviewStatus, UserRole } from "@/generated/prisma/client";
 import type { Locale } from "@/i18n/config";
 
@@ -301,6 +302,11 @@ export type MemberOption = { id: string; name: string | null; email: string };
  * `MoneySet` (what to display, per currency) plus the USD-cent mirror (what
  * sorting, price filters and thresholds compare). The raw `Json` columns never
  * escape the db layer.
+ *
+ * The dynamic-pricing read model (`effective*`) is dropped as well: a public
+ * serializer folds it INTO `price` / `priceMoney` / `compareAt*` (see
+ * features/pricing/db/projection.ts), and an admin one shows the base price, so
+ * no payload carries both.
  */
 export type WithMoney<T> = Omit<
   T,
@@ -310,6 +316,7 @@ export type WithMoney<T> = Omit<
   | "priceMoney"
   | "compareAtPriceMoney"
   | "costPriceMoney"
+  | EffectivePriceKey
 > & {
   price: number;
   compareAtPrice: number | null;
@@ -318,6 +325,17 @@ export type WithMoney<T> = Omit<
   compareAtPriceMoney: MoneySet | null;
   costPriceMoney: MoneySet | null;
 };
+
+/** The read-model columns Product and ProductVariant carry for dynamic pricing. */
+export type EffectivePriceKey =
+  | "effectivePrice"
+  | "effectivePriceMoney"
+  | "effectiveCompareAtPrice"
+  | "effectiveCompareAtPriceMoney"
+  | "effectiveRuleId"
+  | "effectiveRuleLabel"
+  | "effectiveUntil"
+  | "effectiveSince";
 
 export type SerializedProductWithRelations = WithMoney<
   Omit<ProductWithRelations, "variants">
@@ -345,12 +363,16 @@ export type CardSellerShipping = {
 
 export type SerializedProductListItem = Omit<
   WithMoney<ProductListItem>,
-  "organization" | "_count" | "variants"
+  "organization" | "_count" | "variants" | "marketRuleClocks"
 > & {
   sellerShipping: CardSellerShipping;
   /** Resolved from the product column AND its variants - see
    *  `features/products/utils/availability.ts`. */
   availability: CardAvailability;
+  /** Viewer-neutral market rules; the card applies the viewer's market. */
+  marketRules: MarketRules;
+  /** The schedule rule behind `priceMoney`, for the market layer's Omnibus check. */
+  schedule: SchedulePricing;
 };
 
 export type SerializedAdminProductListItem = WithMoney<AdminProductListItem>;
@@ -407,6 +429,21 @@ export type PublicProductRaw = Prisma.ProductGetPayload<{
     };
     brand: { select: { id: true; logoUrl: true; logoUrlDark: true; logoBackdrop: true; logoBackdropDark: true; translations: true } };
     tags: { include: { tag: { select: { id: true; translations: true } } } };
+    // `marketRulesInclude` in features/pricing/db/projection.ts.
+    priceRules: {
+      select: {
+        id: true;
+        name: true;
+        variantId: true;
+        marketId: true;
+        countryCode: true;
+        adjustment: true;
+        percentBps: true;
+        amountMoney: true;
+        priority: true;
+        createdAt: true;
+      };
+    };
   };
 }>;
 
@@ -437,11 +474,15 @@ type PublicVariantBase = Omit<
 >;
 
 export type SerializedPublicProduct = WithMoney<
-  Omit<PublicProductRaw, "variants">
+  Omit<PublicProductRaw, "variants" | "priceRules" | "marketRuleClocks">
 > & {
   options: CompatProductOption[];
+  /** Viewer-neutral market rules of the product and every variant. */
+  marketRules: MarketRules;
+  schedule: SchedulePricing;
   variants: (PublicVariantBase & {
     optionValues: CompatVariantOptionValue[];
+    schedule: SchedulePricing;
   })[];
 };
 

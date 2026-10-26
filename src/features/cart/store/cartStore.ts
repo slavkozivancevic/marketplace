@@ -37,6 +37,10 @@ export interface CartItem {
   requiresShipping: boolean;
 }
 
+/** A cart line whose price changed on a sync: the line as it now is, and the
+ *  price it had before. */
+export type RepricedLine = { item: CartItem; before: MoneySet };
+
 interface CartStore {
   items: CartItem[];
   isOpen: boolean;
@@ -50,8 +54,10 @@ interface CartStore {
     quantity: number,
   ) => void;
   clearCart: () => void;
-  /** Replaces the persisted price snapshots with the server-resolved ones. */
-  syncPrices: (prices: CartLinePrice[]) => void;
+  /** Replaces the persisted price snapshots with the server-resolved ones, and
+   *  returns the lines whose PRICE moved (a compare-at change alone is not a
+   *  re-price) so the caller can tell the buyer. */
+  syncPrices: (prices: CartLinePrice[]) => RepricedLine[];
   totalItems: () => number;
   // Deliberately no `totalPrice`: summing the USD mirrors and converting the
   // result once rounds differently from the per-line amounts shown next to it,
@@ -149,31 +155,40 @@ export const useCartStore = create<CartStore>()(
       // Lines the server did not resolve are left untouched - they are the
       // `unavailable` ones, and dropping them is the caller's job (with a
       // message), never a silent side effect of a price refresh.
+      //
+      // A price that moved is RETURNED, never silently swapped: with scheduled
+      // pricing a buyer can add an item at 17:59 and reach checkout at 18:01,
+      // and they must see the new price before paying it. Returning it from the
+      // one place the snapshot actually changes is also what makes the notice
+      // fire exactly once - when the drawer and the page sync the same cart in
+      // parallel, the second sync finds nothing left to change.
       syncPrices: (prices) => {
+        const repriced: RepricedLine[] = [];
         set((state) => {
           let changed = false;
           const items = state.items.map((i) => {
             const p = prices.find((x) => isSameItem(i, x.productId, x.variantId));
             if (!p) return i;
-            if (
-              p.unitPriceUsd === i.price &&
-              sameMoneySnapshot(p.unitMoney, i.priceMoney) &&
-              sameCompareAt(p.unitCompareAtMoney, i.compareAtPriceMoney)
-            ) {
+            const samePrice =
+              p.unitPriceUsd === i.price && sameMoneySnapshot(p.unitMoney, i.priceMoney);
+            if (samePrice && sameCompareAt(p.unitCompareAtMoney, i.compareAtPriceMoney)) {
               return i;
             }
             changed = true;
-            return {
+            const next = {
               ...i,
               price: p.unitPriceUsd,
               priceMoney: p.unitMoney,
               compareAtPriceMoney: p.unitCompareAtMoney,
             };
+            if (!samePrice) repriced.push({ item: next, before: i.priceMoney });
+            return next;
           });
           // Same objects when nothing moved: a new array would rewrite
           // localStorage and re-render every cart consumer for no reason.
           return changed ? { items } : state;
         });
+        return repriced;
       },
 
       totalItems: () => get().items.reduce((sum, i) => sum + i.quantity, 0),

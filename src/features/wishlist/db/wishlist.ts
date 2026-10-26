@@ -7,6 +7,8 @@ import {
   tagSellerTerms,
 } from "@/features/products/db/publicProducts";
 import { SerializedProductListItem } from "@/types/types";
+import { ensurePricesCurrent } from "@/features/pricing/db/roll";
+import { expireAtNextPriceChange } from "@/features/pricing/db/projection";
 
 export async function getUserWishlistProductIds(userId: string): Promise<string[]> {
   "use cache";
@@ -46,6 +48,7 @@ export async function getWishlistProducts(
   "use cache";
   cacheTag(CacheTags.wishlist.byUser(userId));
 
+  await ensurePricesCurrent();
   const items = await prisma.wishlist.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
@@ -70,6 +73,8 @@ export async function getWishlistProducts(
   // has to drop this list too - the wishlist tag alone only covers the user
   // adding or removing an item, and `cacheLife("max")` never expires on its own.
   tagSellerTerms(visible.map((i) => i.product));
+  // A wished-for item going on (or off) promo must show without a new visit.
+  expireAtNextPriceChange(visible.map((i) => i.product));
 
   return visible.map((i) => serializeListItem(i.product));
 }

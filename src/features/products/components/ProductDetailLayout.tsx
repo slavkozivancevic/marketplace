@@ -10,6 +10,7 @@ import {
 } from "./ProductSpecifications";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SerializedPublicProduct } from "@/types/types";
+import { useMarketProduct } from "@/providers/MarketProvider";
 import type { SellerPolicy } from "@/features/organizations/components/SellerPromises";
 import {
   getProductTitle,
@@ -24,10 +25,13 @@ interface ProductDetailLayoutProps {
 }
 
 export function ProductDetailLayout({
-  product,
+  product: neutralProduct,
   isOwnProduct,
   sellerPolicy,
 }: ProductDetailLayoutProps) {
+  // Priced for the viewer's market once, here, so the buy box, the variant
+  // picker and add-to-cart below all read the same numbers.
+  const product = useMarketProduct(neutralProduct);
   const locale = useLocale();
   const t = useTranslations("products");
   const localTitle = getProductTitle(product, locale);

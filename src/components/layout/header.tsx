@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { HydrationMark } from "@/lib/navigation/hydrationGate";
 import { useTranslations } from "next-intl";
 import { HeaderAuth } from "./header-auth";
 import { PreferencesPopover } from "./preferences-popover";
@@ -8,7 +9,7 @@ import { ChatDrawerTrigger } from "@/features/chat/components/ChatDrawer";
 import { Menu, X } from "lucide-react";
 import { useDismissable } from "@/hooks/useDismissable";
 import { BrandHomeLink } from "./brand-home-link";
-import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/IconButton";
 import { cn } from "@/lib/utils";
 
 export function Header() {
@@ -40,6 +41,8 @@ export function Header() {
           : "border-border/50"
       )}
     >
+      {/* Layout chrome hydrated - see HistoryHydrationGate. */}
+      <HydrationMark />
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-4">
           {/* Logo. The comet runs on hover, and on the touch gesture that
@@ -73,10 +76,10 @@ export function Header() {
               <HeaderAuth mode="redirect" showDashboardLink={false} signedIn />
             </div>
             {/* Mobile menu button */}
-            <Button
+            <IconButton
+              label={t(mobileOpen ? "common.closeMenu" : "common.openMenu")}
               ref={triggerRef}
               variant="outline"
-              size="icon"
               className="sm:hidden"
               aria-expanded={mobileOpen}
               onClick={() => setMobileOpen(!mobileOpen)}
@@ -86,7 +89,7 @@ export function Header() {
               ) : (
                 <Menu className="h-4 w-4" />
               )}
-            </Button>
+            </IconButton>
             {/* Avatar-only below sm, always the rightmost element, so it's
                 obvious at a glance who's signed in even on the narrowest
                 widths; the full controls take over at sm - never both at

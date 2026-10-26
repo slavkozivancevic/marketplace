@@ -23,6 +23,7 @@ import { useMoney } from "@/lib/useMoney";
 
 export function CartDrawer() {
   const t = useTranslations("cart");
+  const tCommon = useTranslations("common");
   const { items, isOpen, closeCart, removeItem, updateQuantity } = useCartStore();
   // Each line's own snapshotted per-currency amount. The cart total is the sum
   // of those, not a conversion of the USD total - converting once at the end
@@ -90,8 +91,12 @@ export function CartDrawer() {
             {t("title", { count: totalItems })}
           </SheetTitle>
           <SheetClose asChild className="ml-auto">
+            {/* Close X of a drawer header: an agreed exception to IconButton
+                (CLAUDE.md, "Icon-only buttons"). It had no name at all. */}
+            {/* eslint-disable-next-line no-restricted-syntax */}
             <Button variant="ghost" size="icon-sm">
               <X className="size-4" />
+              <span className="sr-only">{tCommon("close")}</span>
             </Button>
           </SheetClose>
         </SheetHeader>

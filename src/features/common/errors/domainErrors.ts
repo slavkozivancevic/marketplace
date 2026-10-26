@@ -131,6 +131,20 @@ export class InUseError extends Error {
   }
 }
 
+/**
+ * A write would exceed a fixed per-entity limit (e.g. price rules per product).
+ * Thrown by the db layer so a write that skips the form still cannot pass it.
+ */
+export class LimitReachedError extends Error {
+  readonly i18n: ErrorI18n;
+  constructor(arg: string | ErrorI18n = "Limit reached") {
+    const { i18n, message } = normalizeI18n(arg, "limitReached", "Limit reached");
+    super(message);
+    this.i18n = i18n;
+    this.name = "LimitReachedError";
+  }
+}
+
 export class NotFoundError extends Error {
   readonly i18n: ErrorI18n;
   constructor(arg: string | ErrorI18n = "Not found") {

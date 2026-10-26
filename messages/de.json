@@ -3,7 +3,8 @@
     "brand": "MarketVerse",
     "tagline": "Enterprise-Plattform",
     "dashboardTagline": "Dashboard",
-    "adminTagline": "Admin-Bereich"
+    "adminTagline": "Admin-Bereich",
+    "preferences": "Einstellungen"
   },
   "pagination": {
     "ariaLabel": "Seitennummerierung",
@@ -72,7 +73,13 @@
     "editCoupon": "Gutschein bearbeiten",
     "bulkOperations": "Massenoperationen",
     "history": "Verlauf",
-    "codBalances": "Nachnahme-Salden"
+    "codBalances": "Nachnahme-Salden",
+    "priceRules": "Preisregeln",
+    "newPriceRule": "Neue Regel",
+    "editPriceRule": "Regel bearbeiten",
+    "adminPriceMarkets": "Preismärkte",
+    "newPriceMarket": "Neuer Markt",
+    "editPriceMarket": "Markt bearbeiten"
   },
   "auth": {
     "signIn": "Anmelden",
@@ -105,7 +112,9 @@
     "audit": "Audit-Protokoll",
     "dashboard": "Dashboard",
     "quickLinks": "Schnellzugriff",
-    "codBalances": "Nachnahme-Salden"
+    "codBalances": "Nachnahme-Salden",
+    "priceMarkets": "Preismärkte",
+    "openNavigation": "Navigation öffnen"
   },
   "footer": {
     "tagline": "Die Enterprise-Commerce-Plattform für moderne Verkäufer und Käufer.",
@@ -257,8 +266,6 @@
     "productDeleted": "Produkt gelöscht",
     "editCopy": "Kopie bearbeiten",
     "edit": "Bearbeiten",
-    "view": "Ansehen",
-    "duplicating": "Dupliziere...",
     "deleting": "Lösche...",
     "duplicate": "Duplizieren",
     "deleteProduct": "Produkt löschen",
@@ -443,7 +450,8 @@
     "empty": "Ihre Wunschliste ist leer",
     "emptyDesc": "Durchsuchen Sie Produkte und klicken Sie auf das Herzsymbol, um Artikel zu speichern, die Ihnen gefallen.",
     "continueShopping": "Weiter einkaufen",
-    "browseProducts": "Produkte durchsuchen"
+    "browseProducts": "Produkte durchsuchen",
+    "label": "Wunschliste"
   },
   "checkout": {
     "success": "Zahlung erfolgreich",
@@ -539,7 +547,9 @@
         "coupon": "Gutschein",
         "review": "Bewertung",
         "tag": "Tag",
-        "trustPoint": "Garantie"
+        "trustPoint": "Garantie",
+        "priceRule": "Preisregel",
+        "priceMarket": "Preismarkt"
       },
       "fields": {
         "count": "Anzahl",
@@ -688,6 +698,18 @@
           "updated": "Garantie geändert",
           "deleted": "Garantie gelöscht",
           "duplicated": "Garantie dupliziert"
+        },
+        "priceRule": {
+          "created": "Preisregel angelegt",
+          "updated": "Preisregel aktualisiert",
+          "deleted": "Preisregel gelöscht",
+          "duplicated": "Preisregel dupliziert"
+        },
+        "price_market": {
+          "created": "Preismarkt angelegt",
+          "updated": "Preismarkt aktualisiert",
+          "deleted": "Preismarkt gelöscht",
+          "duplicated": "Preismarkt dupliziert"
         }
       },
       "columns": {
@@ -817,7 +839,16 @@
     "loadingHistory": "Produktverlauf wird geladen...",
     "historyTitle": "Produktverlauf",
     "editBrandLoading": "Marke bearbeiten",
-    "editTagLoading": "Tag bearbeiten"
+    "editTagLoading": "Tag bearbeiten",
+    "priceMarkets": "Preismärkte",
+    "priceMarketsManage": "Fassen Sie Länder mit gemeinsamen Preisen zusammen. Verkäufer können dann für jedes Produkt einen Preis pro Markt oder pro Land festlegen.",
+    "addPriceMarket": "Markt hinzufügen",
+    "createPriceMarket": "Neuer Markt",
+    "createPriceMarketDesc": "Benennen Sie eine Gruppe von Ländern mit gemeinsamen Preisen.",
+    "backToPriceMarkets": "Zurück zu den Märkten",
+    "editPriceMarket": "Bearbeiten: {name}",
+    "editPriceMarketDesc": "Name und Länder des Markts aktualisieren.",
+    "editPriceMarketLoading": "Markt bearbeiten"
   },
   "adminCategories": {
     "actions": "Aktionen",
@@ -973,6 +1004,7 @@
     "increaseQty": "Menge erhöhen",
     "removeItem": "Artikel entfernen",
     "itemRemoved": "{item} wurde aus deinem Warenkorb entfernt, da es nicht mehr verfügbar ist.",
+    "itemRepriced": "Der Preis für {item} hat sich auf {price} geändert.",
     "subtotal": "Zwischensumme",
     "shipping": "Lieferung",
     "discount": "Rabatt",
@@ -984,7 +1016,8 @@
     "leadTimeExact": "{count, plural, one {Die Lieferung dauert in der Regel # Werktag.} other {Die Lieferung dauert in der Regel # Werktage.}}",
     "pageTitle": "Warenkorb",
     "emptyHint": "Sehen Sie sich den Shop an und legen Sie etwas hinein.",
-    "continueShopping": "Weiter einkaufen"
+    "continueShopping": "Weiter einkaufen",
+    "label": "Warenkorb"
   },
   "reviews": {
     "write": "Bewertung schreiben",
@@ -1370,7 +1403,8 @@
     "yes": "Ja",
     "no": "Nein",
     "validationFailed": "Bitte beheben Sie die Formularfehler vor dem Absenden.",
-    "validationFailedOnTabs": "Fehler beheben auf: {tabs}. {message}"
+    "validationFailedOnTabs": "Fehler beheben auf: {tabs}. {message}",
+    "variantRulesWillBeDeleted": "Beim Speichern {count, plural, one {wird # Preisregel} other {werden # Preisregeln}} gelöscht, die zu einer entfernten Variante oder einer Variante mit geänderter SKU gehören."
   },
   "bulkProducts": {
     "filterExecute": "Filtern & Ausführen",
@@ -1514,7 +1548,8 @@
     "noMatches": "Keine Übereinstimmungen",
     "noMatchesDesc": "Keine Produkte entsprechen den aktuellen Bedingungen. Filter anpassen und erneut Vorschau anzeigen.",
     "bulkCategoryLimitTitle": "Zu viele Produkte für diese Änderung",
-    "bulkCategoryLimitDesc": "Dieser Filter umfasst {count} Produkte, aber Kategorie-/Tag-Änderungen sind auf {limit} gleichzeitig begrenzt. Fügen Sie weitere Bedingungen hinzu, um die Auswahl einzugrenzen, und zeigen Sie die Vorschau erneut an."
+    "bulkCategoryLimitDesc": "Dieser Filter umfasst {count} Produkte, aber Kategorie-/Tag-Änderungen sind auf {limit} gleichzeitig begrenzt. Fügen Sie weitere Bedingungen hinzu, um die Auswahl einzugrenzen, und zeigen Sie die Vorschau erneut an.",
+    "removeCondition": "Bedingung entfernen"
   },
   "chat": {
     "messagePlaceholder": "Nachricht...",
@@ -1556,7 +1591,8 @@
     "sendFailedRejected": "Der Server hat diese Nachricht abgelehnt",
     "sendFailedExpired": "Die Anhänge sind abgelaufen",
     "jumpToLatest": "Zu den neuesten springen",
-    "newMessagesBelow": "{count, plural, one {# neue Nachricht} other {# neue Nachrichten}}"
+    "newMessagesBelow": "{count, plural, one {# neue Nachricht} other {# neue Nachrichten}}",
+    "openMessages": "Nachrichten"
   },
   "mediaUpload": {
     "title": "Produktmedien hochladen",
@@ -1569,7 +1605,8 @@
     "typeNotAllowed": "Dateityp nicht erlaubt: {name}",
     "tooLarge": "Datei zu groß: {name}",
     "uploaded": "Hochgeladen: {name}",
-    "uploadFailed": "Upload fehlgeschlagen: {name}"
+    "uploadFailed": "Upload fehlgeschlagen: {name}",
+    "remove": "Entfernen"
   },
   "csvImport": {
     "step1Title": "1. Vorlage herunterladen",
@@ -1698,7 +1735,9 @@
     "loadingDetails": "Produktdetails werden geladen...",
     "stuckMessage": "Das dauert länger als gewöhnlich.",
     "reloadPage": "Seite neu laden",
-    "close": "Schließen"
+    "close": "Schließen",
+    "openMenu": "Menü öffnen",
+    "closeMenu": "Menü schließen"
   },
   "orgOrders": {
     "readOnly": "Schreibgeschützter Zugriff",
@@ -1810,7 +1849,8 @@
     "viewAll": "Alle anzeigen →"
   },
   "theme": {
-    "appearance": "Erscheinungsbild"
+    "appearance": "Erscheinungsbild",
+    "toggle": "Design ändern"
   },
   "currency": {
     "label": "Währung",
@@ -1841,9 +1881,20 @@
     "duplicateVariantCombo": "Gleiche Optionskombination wie Variante #{other}",
     "duplicateSku": "Doppelte SKU \"{sku}\" (auch Variante #{other})",
     "couponPercentRange": "Der Prozentsatz muss zwischen 1 und 100 liegen",
+    "priceRulePercentRange": "Geben Sie eine Änderung zwischen -99,99 % und +100 % ein, außer 0",
+    "priceRuleAmountPositive": "Der Betrag muss größer als 0 sein",
+    "priceRuleTimezoneInvalid": "Wählen Sie eine gültige Zeitzone",
+    "priceRuleEndRequired": "Geben Sie an, wann der Preis endet",
+    "priceRuleEndBeforeStart": "Das Ende muss nach dem Beginn liegen",
+    "priceRuleWindowTooShort": "Ein Preis muss mindestens {minutes} Minuten gelten",
+    "priceRuleDurationRange": "Die Dauer muss zwischen {min} und {max} Minuten liegen",
+    "priceRuleWeekdaysRequired": "Wählen Sie mindestens einen Wochentag",
+    "priceRuleMonthDayRange": "Geben Sie einen Tag des Monats zwischen 1 und 31 ein",
     "leadTimeNeedsBoth": "Geben Sie die kürzeste und die längste Lieferzeit an",
     "leadTimeMaxBeforeMin": "Die längste Lieferzeit darf nicht kürzer als die kürzeste sein",
-    "couponAmountPositive": "Geben Sie einen Rabattbetrag größer als null ein"
+    "couponAmountPositive": "Geben Sie einen Rabattbetrag größer als null ein",
+    "priceRuleMarketRequired": "Wählen Sie einen Markt",
+    "priceRuleCountryRequired": "Wählen Sie ein Land"
   },
   "coupons": {
     "title": "Gutscheine",
@@ -2058,6 +2109,8 @@
     "bulkCategoryLimit": "Der gewählte Filter umfasst {count} Produkte, aber Massenänderungen von Kategorien sind auf {limit} gleichzeitig begrenzt. Grenzen Sie den Filter ein und versuchen Sie es erneut.",
     "internalError": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
     "inUse": "Dieser Datensatz wird noch verwendet und kann nicht gelöscht werden.",
+    "limitReached": "Dieses Limit ist erreicht.",
+    "priceRuleLimitReached": "Ein Produkt kann höchstens {max} Preisregeln haben.",
     "categoryHasChildren": "Diese Abteilung hat noch {count} Unterkategorien. Verschieben oder löschen Sie diese zuerst.",
     "categoryHasProducts": "Diese Kategorie enthält noch {count} Produkte. Verschieben Sie sie zuerst in eine andere Kategorie.",
     "attributeInUse": "Dieses Attribut hat noch {count} Werte an Produkten. Entfernen Sie es zuerst von diesen Produkten.",
@@ -2124,12 +2177,16 @@
     "checkoutSessionFailed": "Kassenvorgang konnte nicht gestartet werden",
     "itemNoLongerAvailable": "Artikel nicht mehr verfügbar",
     "insufficientStock": "Unzureichender Bestand",
+    "shippingCountryInvalid": "Wählen Sie das Lieferland.",
     "productTitleRequiredBeforePublish": "Produkttitel ist vor der Veröffentlichung erforderlich",
     "productDescriptionRequiredBeforePublish": "Produktbeschreibung ist vor der Veröffentlichung erforderlich",
     "productPriceRequiredBeforePublish": "Produktpreis muss vor der Veröffentlichung größer als 0 sein",
     "productMediaRequiredBeforePublish": "Vor der Veröffentlichung ist mindestens ein Produktbild oder -video erforderlich",
     "invalidStatusTransition": "Ungültiger Statusübergang von {from} zu {to}",
-    "exchangeRateUnavailable": "Der Wechselkurs für {currency} ist derzeit nicht verfügbar, daher konnte der Preis nicht gespeichert werden. Bitte versuchen Sie es gleich erneut."
+    "exchangeRateUnavailable": "Der Wechselkurs für {currency} ist derzeit nicht verfügbar, daher konnte der Preis nicht gespeichert werden. Bitte versuchen Sie es gleich erneut.",
+    "priceMarketDefault": "Der Standardmarkt kann nicht gelöscht werden.",
+    "priceMarketInUse": "{count, plural, one {# Preisregel zielt} other {# Preisregeln zielen}} noch auf diesen Markt. Löschen Sie sie zuerst.",
+    "priceMarketCountryTaken": "Bereits in einem anderen Markt: {countries}."
   },
   "adminCodBalances": {
     "title": "Nachnahme-Salden",
@@ -2167,5 +2224,174 @@
     "enterManually": "Manuell erfassen",
     "enterManuallyTooltip": "Einen exakten Betrag für diese Währung erfassen. Er bleibt genau so und ändert sich bei späteren Kursänderungen nicht.",
     "useConvertedTooltip": "Diese Währung wieder aus dem Preis oben umrechnen."
+  },
+  "priceRules": {
+    "title": "Preisregeln",
+    "loading": "Preisregeln werden geladen...",
+    "description": "Geplante und marktbezogene Preisänderungen für {title}.",
+    "backToProduct": "Zurück zum Produkt",
+    "backToRules": "Zurück zu den Preisregeln",
+    "addRule": "Regel hinzufügen",
+    "newTitle": "Preisregel hinzufügen",
+    "editTitle": "Preisregel bearbeiten",
+    "limitReached": "Dieses Produkt hat {max} Preisregeln, das Maximum. Löschen Sie eine, um eine neue hinzuzufügen.",
+    "readOnly": "Sie können die Preisregeln dieses Produkts ansehen, aber nur Inhaber oder Administratoren können sie ändern.",
+    "verifyTitle": "Verifizierung erforderlich",
+    "verifyDesc": "Ihre Organisation muss verifiziert sein, bevor sie Preise ändern kann.",
+    "sortNote": "Sortierung und Preisfilter im Shop verwenden den aktuell gültigen Preis, vor jeder Marktregel.",
+    "empty": "Noch keine Preisregeln. Fügen Sie eine hinzu, um eine Aktion oder Preisänderung zu planen.",
+    "wholeProduct": "Ganzes Produkt",
+    "variant": "Variante {sku}",
+    "durationHM": "{hours} Std. {minutes} Min.",
+    "created": "Preisregel hinzugefügt",
+    "updated": "Preisregel gespeichert",
+    "deleted": "Preisregel gelöscht",
+    "deleteConfirm": "„{name}“ löschen?",
+    "deleteDesc": "Wo diese Regel den Preis bestimmt hat, gilt wieder der normale Preis.",
+    "deleting": "Wird gelöscht...",
+    "table": {
+      "name": "Name",
+      "appliesTo": "Gilt für",
+      "change": "Änderung",
+      "schedule": "Zeitplan",
+      "priority": "Priorität",
+      "status": "Status",
+      "actions": "Aktionen",
+      "edit": "Bearbeiten",
+      "duplicate": "Duplizieren"
+    },
+    "status": {
+      "paused": "Pausiert",
+      "upcoming": "Geplant",
+      "live": "Aktiv",
+      "ended": "Beendet"
+    },
+    "change": {
+      "percentOff": "{value} % Rabatt",
+      "percentUp": "+{value} %",
+      "fixedPrice": "Preis {amount}",
+      "amountOff": "{amount} Rabatt"
+    },
+    "schedule": {
+      "once": "{from} bis {to}",
+      "daily": "Täglich um {time} für {duration}",
+      "weekly": "Jeden {days} um {time} für {duration}",
+      "monthly": "Monatlich am {day}. um {time} für {duration}",
+      "until": "bis {date}",
+      "market": "Immer, für Käufer aus: {target}"
+    },
+    "calendar": {
+      "title": "Nächste {days} Tage",
+      "base": "Normaler Preis",
+      "overlap": "„{hidden}“ überschneidet sich mit „{winner}“ und gilt nicht, solange beide gleichzeitig laufen."
+    },
+    "form": {
+      "name": "Name",
+      "nameHint": "Sichtbar für Sie und auf Bestellpositionen, nicht für Käufer.",
+      "appliesTo": "Gilt für",
+      "changeType": "Art der Änderung",
+      "adjustment": {
+        "PERCENT": "Prozentsatz",
+        "FIXED_PRICE": "Festpreis",
+        "AMOUNT_OFF": "Rabattbetrag"
+      },
+      "percent": "Änderung in %",
+      "percentHint": "Negativ für einen Rabatt (-20), positiv für einen Aufschlag (10).",
+      "fixedPrice": "Preis",
+      "amountOff": "Rabattbetrag",
+      "repeat": "Wiederholung",
+      "recurrence": {
+        "NONE": "Einmalig",
+        "DAILY": "Täglich",
+        "WEEKLY": "Wöchentlich",
+        "MONTHLY": "Monatlich"
+      },
+      "recurringStrikeNote": "Nach EU-Recht wird der alte Preis nur durchgestrichen, wenn der neue Preis unter dem niedrigsten Preis der letzten 30 Tage liegt. Eine Aktion, die sich innerhalb von 30 Tagen wiederholt, zeigt daher den niedrigeren Preis ohne Durchstreichung.",
+      "timezone": "Zeitzone",
+      "startDate": "Startdatum",
+      "seriesStart": "Erster Tag",
+      "startTime": "Startzeit",
+      "dailyStartTime": "Beginnt um",
+      "endDate": "Enddatum",
+      "endTime": "Endzeit",
+      "duration": "Dauer (Minuten)",
+      "seriesEnd": "Letzter Tag",
+      "noEnd": "Kein Ende",
+      "weekdays": "Tage",
+      "monthDay": "Tag des Monats",
+      "monthDayHint": "Monate ohne diesen Tag werden übersprungen.",
+      "priority": "Priorität",
+      "priorityHint": "Überschneiden sich zwei Regeln, gewinnt die höhere Priorität. Eine Variantenregel gewinnt immer gegen eine Regel für das ganze Produkt, eine Länderregel gegen eine Marktregel.",
+      "active": "Aktiv",
+      "activeDesc": "Eine pausierte Regel behält ihre Einstellungen, ändert aber keinen Preis.",
+      "save": "Regel speichern",
+      "create": "Regel hinzufügen",
+      "creating": "Wird hinzugefügt...",
+      "kind": "Regeltyp",
+      "kinds": {
+        "SCHEDULE": "Zeitplan",
+        "REGION": "Markt"
+      },
+      "kindHint": {
+        "SCHEDULE": "Ändert den Preis für alle Käufer zu den Daten und Uhrzeiten, die Sie festlegen.",
+        "REGION": "Ändert den Preis für Käufer in einem Markt oder Land, solange die Regel aktiv ist. Sie gilt zusätzlich zu einem geplanten Preis."
+      },
+      "regionScope": "Gilt für Käufer aus",
+      "regionScopes": {
+        "MARKET": "Einem Markt",
+        "COUNTRY": "Einem Land"
+      },
+      "market": "Markt",
+      "marketPlaceholder": "Markt wählen",
+      "defaultMarket": "{name} (alle übrigen Länder)",
+      "country": "Land",
+      "countryPlaceholder": "Land wählen",
+      "countryClear": "Land entfernen",
+      "countrySearch": "Länder suchen...",
+      "countryEmpty": "Kein Land gefunden.",
+      "kindLocked": "Der Regeltyp kann nach dem Anlegen nicht mehr geändert werden."
+    },
+    "marketNote": "Marktregeln stehen nicht im Kalender: Sie gelten für Käufer in ihrem Markt, solange sie aktiv sind, zusätzlich zu dem Preis, den der Kalender zeigt.",
+    "duplicated": "Regel als pausiert dupliziert - aktivieren Sie sie, wenn sie fertig ist",
+    "editCopy": "Kopie bearbeiten"
+  },
+  "priceMarkets": {
+    "name": "Name",
+    "countries": "Länder",
+    "countriesDesc": "Käufer aus diesen Ländern sehen die Preise dieses Markts. Ein Land gehört nur zu einem Markt.",
+    "countriesNone": "Keine Länder ausgewählt",
+    "countriesSelected": "{count, plural, one {# Land ausgewählt} other {# Länder ausgewählt}}",
+    "countriesSearch": "Länder suchen...",
+    "countriesEmpty": "Kein Land gefunden.",
+    "countryRemove": "{country} entfernen",
+    "defaultCountriesNote": "Jedes Land, das in keinem anderen Markt ist, gehört zu diesem, daher hat er keine eigene Länderliste.",
+    "defaultCountries": "Alle übrigen Länder",
+    "noCountries": "Noch keine Länder",
+    "rules": "Regeln",
+    "actions": "Aktionen",
+    "default": "Standard",
+    "deleteConfirm": "\"{name}\" löschen?",
+    "deleteDesc": "Seine Länder wechseln in den Standardmarkt, und Käufer dort sehen die Preise des Standardmarkts.",
+    "deleteBlockedDefault": "Der Standardmarkt kann nicht gelöscht werden: Ihm gehört jedes Land außerhalb der anderen Märkte.",
+    "deleteBlockedInUse": "{count, plural, one {# Preisregel zielt} other {# Preisregeln zielen}} noch auf diesen Markt. Löschen Sie sie zuerst.",
+    "deleted": "Markt gelöscht",
+    "created": "Markt angelegt",
+    "updated": "Markt gespeichert",
+    "saveChanges": "Änderungen speichern",
+    "create": "Anlegen",
+    "creating": "Wird angelegt...",
+    "searchPlaceholder": "Märkte oder Länder suchen...",
+    "count": "{count, plural, one {# Markt} other {# Märkte}}",
+    "noneFound": "Keine Märkte gefunden",
+    "adjustSearch": "Versuchen Sie eine andere Suche.",
+    "priceFor": "Preis für: {country}",
+    "priceForRegion": "Regionaler Preis",
+    "countryLabel": "Land für Preise",
+    "countryNone": "Land wählen",
+    "countryHint": "Manche Verkäufer haben je nach Land andere Preise.",
+    "filterNote": "Preisfilter und Sortierung nutzen den Standardpreis, vor länderspezifischen Preisen.",
+    "duplicate": "Duplizieren",
+    "duplicated": "Markt dupliziert, ohne Länder - fügen Sie eigene hinzu",
+    "editCopy": "Kopie bearbeiten"
   }
 }

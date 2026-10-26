@@ -33,6 +33,8 @@ import { getBrandName } from "@/features/brands/utils/translations";
 import { StarRating } from "@/features/reviews/components/StarRating";
 import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
 import { useMoney } from "@/lib/useMoney";
+import { useMarketListItem } from "@/providers/MarketProvider";
+import { MarketPriceNote } from "@/features/priceMarkets/components/MarketPriceNote";
 import { cn } from "@/lib/utils";
 import { FreeShippingBadge } from "@/features/shipping/components/FreeShippingBadge";
 
@@ -167,12 +169,14 @@ function RatingBreakdownPopover({
  *   strips are click-through only).
  */
 export function ProductCard({
-  product,
+  product: neutralProduct,
   onQuickView,
 }: {
   product: SerializedProductListItem;
   onQuickView?: (id: string) => void;
 }) {
+  // The payload is viewer-neutral; this is the price for the viewer's market.
+  const product = useMarketListItem(neutralProduct);
   // Stored per-currency amounts. No rate on the display path.
   const { format, amount: moneyAmount } = useMoney();
   const locale = useLocale();
@@ -327,6 +331,7 @@ export function ProductCard({
                   {format(product.priceMoney)}
                 </p>
               )}
+              <MarketPriceNote rule={product.marketRule} className="mt-0.5" />
               {/* Delivery, under the price where the buyer is already looking.
                   Only what holds without a caveat: free for everyone from this
                   seller, and availability. A conditional "free over X" belongs

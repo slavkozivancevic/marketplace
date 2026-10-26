@@ -24,7 +24,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 // Grid template + row placeholder are owned by the skeleton module so the real
 // table and its loading state can never describe different columns.
@@ -38,6 +37,8 @@ import type { ReviewStatus } from "@/generated/prisma/client";
 import type { AdminReviewItem } from "../db/adminQueries";
 import { StarRating } from "./StarRating";
 import { moderateReviewAction } from "../actions/reviews";
+import { TableScroll } from "@/components/ui/table-scroll";
+import { IconButton } from "@/components/IconButton";
 
 const ALL = "__all__";
 
@@ -95,17 +96,16 @@ function RowActions({
   return (
     <div className="flex items-center justify-end gap-1">
       {review.status !== "APPROVED" ? (
-        <Button
+        <IconButton
+          label={t("approve")}
           size="icon"
           variant="ghost"
           className="h-8 w-8 text-emerald-600 pointer-fine:hover:text-emerald-600"
           disabled={busy}
-          title={t("approve")}
           onClick={() => onApprove(review.id)}
         >
           {isApproving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-          <span className="sr-only">{t("approve")}</span>
-        </Button>
+        </IconButton>
       ) : (
         <span className="h-8 w-8" aria-hidden />
       )}
@@ -139,16 +139,15 @@ function RowActions({
         >
           {/* Resting control - the dialog's confirm button carries the spinner.
               `busy` is this row's other action (approve), not this one. */}
-          <Button
+          <IconButton
+            label={t("reject")}
             size="icon"
             variant="ghostDestructive"
             className="h-8 w-8"
             disabled={busy}
-            title={t("reject")}
           >
             <X className="h-4 w-4" />
-            <span className="sr-only">{t("reject")}</span>
-          </Button>
+          </IconButton>
         </ActionButton>
       ) : (
         <span className="h-8 w-8" aria-hidden />
@@ -325,7 +324,6 @@ export function ReviewsView({ counts }: { counts: Record<ReviewStatus, number> }
   );
 
   const blocked = busy || isPlaceholderData;
-  const blockClass = blocked && "opacity-50 pointer-events-none transition-opacity duration-150";
 
   let body: React.ReactNode;
   if (query.status === "error") {
@@ -337,10 +335,10 @@ export function ReviewsView({ counts }: { counts: Record<ReviewStatus, number> }
     );
   } else if (query.status === "pending") {
     body = (
-      <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
+      <TableScroll>
         {Header}
         {Array.from({ length: 10 }).map((_, i) => <SkeletonRow key={i} />)}
-      </div>
+      </TableScroll>
     );
   } else if (items.length === 0) {
     const hasFilters = !!f.search || !!f.status;
@@ -351,16 +349,16 @@ export function ReviewsView({ counts }: { counts: Record<ReviewStatus, number> }
     );
   } else if (!query.hasNextPage) {
     body = (
-      <div role="table" className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", blockClass)}>
+      <TableScroll locked={blocked}>
         {Header}
         {items.map((r) => (
           <Row key={r.id} r={r} locale={locale} dl={dl} approvingId={approvingId} rejectingId={rejectingId} onApprove={handleApprove} onReject={handleReject} />
         ))}
-      </div>
+      </TableScroll>
     );
   } else {
     body = (
-      <div role="table" ref={parentRef} className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", blockClass)}>
+      <TableScroll ref={parentRef} locked={blocked}>
         {Header}
         <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
           {virtualizer.getVirtualItems().map((vRow) => {
@@ -382,7 +380,7 @@ export function ReviewsView({ counts }: { counts: Record<ReviewStatus, number> }
             );
           })}
         </div>
-      </div>
+      </TableScroll>
     );
   }
 

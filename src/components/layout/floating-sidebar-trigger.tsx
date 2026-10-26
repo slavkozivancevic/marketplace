@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { IconButton, type IconButtonProps } from "@/components/IconButton";
 import { cn } from "@/lib/utils";
 import { useMobileBottomBarStore } from "@/store/mobileBottomBar";
 
@@ -19,12 +19,12 @@ export function FloatingSidebarTrigger({
   className,
   children,
   ...props
-}: React.ComponentProps<typeof Button>) {
+}: IconButtonProps) {
   const bottomBarPresent = useMobileBottomBarStore((s) => s.count > 0);
   return (
-    <Button
+    <IconButton
       variant="default"
-      size="icon"
+      tooltipSide="right"
       className={cn(
         "fixed left-4 z-40 h-12 w-12 rounded-full shadow-lg hover:brightness-110 transition-[bottom] duration-200",
         bottomBarPresent
@@ -35,6 +35,6 @@ export function FloatingSidebarTrigger({
       {...props}
     >
       {children}
-    </Button>
+    </IconButton>
   );
 }

@@ -21,6 +21,7 @@ import { StarRating } from "./StarRating";
 import { deleteReview, updateReview } from "../actions/reviews";
 import { SerializedProductReview } from "@/types/types";
 import { isActionErrorResult } from "@/features/common/errors/actionErrorResult";
+import { IconButton } from "@/components/IconButton";
 
 function formatRelativeTime(date: Date): string {
   const now = Date.now();
@@ -293,16 +294,16 @@ function ReviewItem({
             // Pulled into the card's own padding so two icon buttons do not eat
             // ~70px of a narrow card's text width.
             <div className="-mr-2 -mt-1 flex shrink-0 gap-0.5">
-              <Button
+              <IconButton
+                label={tCommon("edit")}
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
                 onClick={handleEdit}
                 disabled={isDeleting}
-                aria-label={tCommon("edit")}
               >
                 <Pencil className="h-4 w-4" />
-              </Button>
+              </IconButton>
               <ActionButton
                 open={deleteOpen}
                 onOpenChange={onDeleteOpenChange}
@@ -315,10 +316,9 @@ function ReviewItem({
               >
                 {/* Resting control - the dialog's confirm button carries the
                     spinner. */}
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <IconButton label={tCommon("delete")} variant="ghost" size="icon" className="h-8 w-8">
                   <Trash2 className="h-4 w-4" />
-                  <span className="sr-only">{tCommon("delete")}</span>
-                </Button>
+                </IconButton>
               </ActionButton>
             </div>
           )}

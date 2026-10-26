@@ -4,6 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { RetryImage } from "@/components/RetryImage";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/IconButton";
 import { cn } from "@/lib/utils";
 import { useMoney } from "@/lib/useMoney";
 import { formatPrice } from "@/lib/currency";
@@ -94,6 +95,8 @@ export function CartLineRow({
             </div>
 
             <div className="flex items-center gap-2 mt-1 select-none">
+              {/* Agreed IconButton exception (quantity +/-): the symbol is the label. */}
+              {/* eslint-disable-next-line no-restricted-syntax */}
               <Button
                 variant="outline"
                 size="icon"
@@ -108,6 +111,8 @@ export function CartLineRow({
                 <Minus className="h-3 w-3" />
               </Button>
               <span className="text-sm w-4 text-center">{item.quantity}</span>
+              {/* Agreed IconButton exception (quantity +/-): the symbol is the label. */}
+              {/* eslint-disable-next-line no-restricted-syntax */}
               <Button
                 variant="outline"
                 size="icon"
@@ -118,15 +123,14 @@ export function CartLineRow({
               >
                 <Plus className="h-3 w-3" />
               </Button>
-              <Button
+              <IconButton
+                label={t("removeItem")}
                 variant="ghostDestructive"
-                size="icon"
                 className="h-6 w-6 ml-auto"
-                aria-label={t("removeItem")}
                 onClick={() => onRemove?.()}
               >
                 <Trash2 className="h-3 w-3" />
-              </Button>
+              </IconButton>
             </div>
           </>
         ) : (

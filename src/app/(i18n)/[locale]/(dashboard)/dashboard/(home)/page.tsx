@@ -8,21 +8,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Link, getPathname } from "@/i18n/navigation";
-import {
-  ShoppingBag,
-  ClipboardList,
-  Building2,
-  Package,
-  PackageCheck,
-  Shield,
-  ArrowRight,
-  Tag,
-  Wallet,
-} from "lucide-react";
+import { ArrowRight, Shield } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { canManageOrgPayouts } from "@/lib/auth/permissions";
 import { pickActiveMembership } from "@/features/organizations/db/activeOrg";
+import { dashboardHomeCards } from "./cards";
 
 export default async function DashboardPage() {
   await connection();
@@ -67,62 +58,11 @@ export default async function DashboardPage() {
     ? canManageOrgPayouts(activeMembership.role)
     : false;
 
-  const cards = [
-    {
-      href: "/products",
-      title: t("dashboard.browse"),
-      description: t("dashboard.browseDesc"),
-      icon: ShoppingBag,
-    },
-    {
-      href: "/brands",
-      title: t("dashboard.browseBrands"),
-      description: t("dashboard.browseBrandsDesc"),
-      icon: Tag,
-    },
-    ...(userRole === "SELLER"
-      ? [
-          {
-            href: "/dashboard/my-products",
-            title: t("dashboard.myProducts"),
-            description: t("dashboard.myProductsDesc"),
-            icon: Package,
-          },
-        ]
-      : []),
-    {
-      href: "/dashboard/orders",
-      title: t("dashboard.orders"),
-      description: t("dashboard.ordersDesc"),
-      icon: ClipboardList,
-    },
-    ...(showReceivedOrders
-      ? [
-          {
-            href: "/dashboard/organization/orders",
-            title: t("dashboard.receivedOrders"),
-            description: t("dashboard.receivedOrdersDesc"),
-            icon: PackageCheck,
-          },
-        ]
-      : []),
-    ...(showPayouts
-      ? [
-          {
-            href: "/dashboard/organization/payouts",
-            title: t("dashboard.payouts"),
-            description: t("dashboard.payoutsDesc"),
-            icon: Wallet,
-          },
-        ]
-      : []),
-    {
-      href: "/dashboard/organization",
-      title: t("dashboard.org"),
-      description: t("dashboard.orgDesc"),
-      icon: Building2,
-    },
-  ];
+  const cards = dashboardHomeCards(t, {
+    role: userRole,
+    hasActiveOrg: showReceivedOrders,
+    canManagePayouts: showPayouts,
+  });
 
   return (
     <div className="flex-1 flex flex-col min-h-0">

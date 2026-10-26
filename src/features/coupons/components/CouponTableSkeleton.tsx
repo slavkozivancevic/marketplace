@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TableScroll } from "@/components/ui/table-scroll";
 
 /**
  * Coupon table layout + loading state. `CouponsView.tsx` imports the template
@@ -38,10 +39,7 @@ export function CouponSkeletonRow() {
 /** Full coupons table placeholder, header included. */
 export function CouponTableSkeleton({ rows = 10 }: { rows?: number }) {
   return (
-    <div
-      role="table"
-      className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]"
-    >
+    <TableScroll>
       <div
         role="row"
         // NOTE: the header is `p-3` while the rows are `px-3 py-2.5` - the two
@@ -63,7 +61,7 @@ export function CouponTableSkeleton({ rows = 10 }: { rows?: number }) {
       {Array.from({ length: rows }, (_, i) => (
         <CouponSkeletonRow key={i} />
       ))}
-    </div>
+    </TableScroll>
   );
 }
 

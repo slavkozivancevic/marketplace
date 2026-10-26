@@ -63,6 +63,7 @@ import {
   type Locale,
 } from "@/i18n/config";
 import { ATTRIBUTE_EXAMPLES, withEgPrefix } from "@/i18n/form-examples";
+import { IconButton } from "@/components/IconButton";
 
 type CreateMode = { mode: "create" };
 type EditMode = { mode: "edit"; attributeId: string };
@@ -194,7 +195,8 @@ function OptionRow({
             </FormItem>
           )}
         />
-        <Button
+        <IconButton
+          label={t("removeOption")}
           type="button"
           variant="ghost"
           size="icon"
@@ -202,8 +204,7 @@ function OptionRow({
           className="shrink-0"
         >
           <Trash2 className="h-4 w-4 text-destructive" />
-          <span className="sr-only">{t("removeOption")}</span>
-        </Button>
+        </IconButton>
       </div>
       <div className="pl-6">
         <LocaleLabelInputs

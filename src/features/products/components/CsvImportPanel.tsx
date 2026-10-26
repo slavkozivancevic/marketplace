@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { TableScroll } from "@/components/ui/table-scroll";
 import { cn } from "@/lib/utils";
 import { bulkCreateProducts, type BulkCreateRow, type BulkCreateResult } from "@/features/products/actions/products";
 import { detectDelimiter, parseCsv, csvEscape } from "@/features/products/utils/csv";
@@ -484,7 +485,7 @@ export function CsvImportPanel() {
           )}
 
           {/* Preview table */}
-          <div className="rounded-lg border overflow-auto max-h-96">
+          <TableScroll height="capped" nativeTable>
             <table className="w-full text-xs">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b">
@@ -545,7 +546,7 @@ export function CsvImportPanel() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableScroll>
 
           <Button
             onClick={handleImport}

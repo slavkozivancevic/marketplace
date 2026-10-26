@@ -15,6 +15,7 @@ import { SerializedProductHistory } from "@/types/types";
 import { useMoney } from "@/lib/useMoney";
 // Grid template is owned by the skeleton module so the two can never drift.
 import { HISTORY_COLS as GRID_COLS } from "./ProductHistoryTableSkeleton";
+import { TableScroll } from "@/components/ui/table-scroll";
 
 interface ProductHistoryTableProps {
   history: SerializedProductHistory[];
@@ -169,7 +170,7 @@ export function ProductHistoryTable({
   const latestVersion = history[0]?.version;
 
   return (
-    <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
+    <TableScroll>
       <HistoryTableHeader />
       {history.map((entry) => (
         <HistoryRow
@@ -179,6 +180,6 @@ export function ProductHistoryTable({
           isLatest={entry.version === latestVersion}
         />
       ))}
-    </div>
+    </TableScroll>
   );
 }

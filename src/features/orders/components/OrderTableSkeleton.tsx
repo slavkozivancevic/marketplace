@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TableScroll } from "@/components/ui/table-scroll";
 
 /**
  * Order table layouts + loading states for BOTH order lists, kept in one place
@@ -96,29 +97,23 @@ function OrderSkeletonHeader({
 /** Full buyer-orders table placeholder. */
 export function OrderTableSkeleton({ rows = 8 }: { rows?: number }) {
   return (
-    <div
-      role="table"
-      className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]"
-    >
+    <TableScroll>
       <OrderSkeletonHeader cols={ORDER_COLS} withBuyer={false} />
       {Array.from({ length: rows }, (_, i) => (
         <OrderSkeletonRow key={i} />
       ))}
-    </div>
+    </TableScroll>
   );
 }
 
 /** Full seller-org-orders table placeholder. */
 export function OrgOrderTableSkeleton({ rows = 8 }: { rows?: number }) {
   return (
-    <div
-      role="table"
-      className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]"
-    >
+    <TableScroll>
       <OrderSkeletonHeader cols={ORG_ORDER_COLS} withBuyer />
       {Array.from({ length: rows }, (_, i) => (
         <OrderSkeletonRow key={i} cols={ORG_ORDER_COLS} withBuyer />
       ))}
-    </div>
+    </TableScroll>
   );
 }

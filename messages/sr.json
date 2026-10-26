@@ -3,7 +3,8 @@
     "brand": "MarketVerse",
     "tagline": "Enterprise platforma",
     "dashboardTagline": "Kontrolna tabla",
-    "adminTagline": "Admin panel"
+    "adminTagline": "Admin panel",
+    "preferences": "Podešavanja"
   },
   "pagination": {
     "ariaLabel": "Paginacija",
@@ -14,7 +15,7 @@
   "slugAvailability": {
     "checking": "Proveravanje…",
     "available": "Dostupno",
-    "taken": "Već se koristi - izaberi drugi",
+    "taken": "Već se koristi - izaberite drugi",
     "takenAutoSuffix": "Već se koristi - dodaćemo jedinstven nastavak",
     "checkFailed": "Provera nije uspela - server će proveriti pri snimanju"
   },
@@ -72,7 +73,13 @@
     "editCoupon": "Izmena kupona",
     "bulkOperations": "Masovne operacije",
     "history": "Istorija",
-    "codBalances": "COD dugovi"
+    "codBalances": "COD dugovi",
+    "priceRules": "Pravila cena",
+    "newPriceRule": "Novo pravilo",
+    "editPriceRule": "Izmena pravila",
+    "adminPriceMarkets": "Tržišta cena",
+    "newPriceMarket": "Novo tržište",
+    "editPriceMarket": "Izmena tržišta"
   },
   "auth": {
     "signIn": "Prijavi se",
@@ -105,7 +112,9 @@
     "dashboard": "Kontrolna tabla",
     "quickLinks": "Brzi linkovi",
     "receivedOrders": "Primljene narudžbine",
-    "codBalances": "COD dugovi"
+    "codBalances": "COD dugovi",
+    "priceMarkets": "Tržišta cena",
+    "openNavigation": "Otvori navigaciju"
   },
   "footer": {
     "tagline": "Enterprise platforma za modernu trgovinu, za prodavce i kupce.",
@@ -133,10 +142,10 @@
   "home": {
     "headline": "MarketVerse",
     "headlineLine2": "Jedna korpa, mnogo prodavaca.",
-    "subheadline": "Plati u svojoj valuti i prati svaku narudžbinu do svojih vrata.",
+    "subheadline": "Platite u svojoj valuti i pratite svaku narudžbinu do svojih vrata.",
     "exploreProducts": "Istraži proizvode",
-    "startSelling": "Počni da prodaješ",
-    "brandsLabel": "Brendovi koje ovde nalaziš",
+    "startSelling": "Počni prodaju",
+    "brandsLabel": "Brendovi koje ovde nalazite",
     "allBrands": "Svi brendovi",
     "factLocales": "Četiri jezika",
     "factCurrencies": "Tri valute",
@@ -144,24 +153,24 @@
     "factCod": "Plaćanje pouzećem",
     "pillarsTitle": "Kako MarketVerse radi",
     "pillarsDesc": "Tri stvari koje platforma preuzima na sebe, da bi prodavnica mogla da se bavi prodajom.",
-    "pillarPricesTitle": "Cene u tvojoj valuti",
+    "pillarPricesTitle": "Cene u vašoj valuti",
     "pillarPricesDesc": "Svaka cena se čuva posebno po valuti i prikazuje tačno onako kako je uneta, u dolarima, evrima ili dinarima. Ništa se ne preračunava usput, pa je broj na polici isti broj na kasi.",
     "pillarPayoutsTitle": "Isplata po prodavcu",
     "pillarPayoutsDesc": "Narudžbina sa tri prodavnice postaje tri dela. Svaki prodavac šalje svoj deo, postavlja svoja pravila dostave i za njega dobija isplatu preko Stripe-a.",
     "pillarLocalesTitle": "Četiri jezika, jedan katalog",
-    "pillarLocalesDesc": "Proizvodi, kategorije i brendovi imaju svoj prevod i svoju veb adresu na engleskom, srpskom, nemačkom i španskom. Promena jezika te ostavlja na stranici koju si čitao.",
-    "readyToStart": "Spreman si za početak?",
-    "joinThousands": "Otvori prodavnicu, postavi prvi proizvod i počni da primaš narudžbine.",
+    "pillarLocalesDesc": "Proizvodi, kategorije i brendovi imaju svoj prevod i svoju veb adresu na engleskom, srpskom, nemačkom i španskom. Promena jezika vas ostavlja na stranici koju ste čitali.",
+    "readyToStart": "Spremni za početak?",
+    "joinThousands": "Otvorite prodavnicu, postavite prvi proizvod i počnite da primate narudžbine.",
     "createAccount": "Napravi besplatan nalog",
     "browseProducts": "Pregledaj proizvode",
     "siteName": "MarketVerse",
     "metaTitle": "MarketVerse - jedna korpa, mnogo prodavaca",
-    "metaDescription": "Kupuj kod nezavisnih prodavaca iz jedne korpe. Cene u dolarima, evrima ili dinarima, četiri jezika, Stripe plaćanje i pouzeće."
+    "metaDescription": "Kupujte kod nezavisnih prodavaca iz jedne korpe. Cene u dolarima, evrima ili dinarima, četiri jezika, Stripe plaćanje i pouzeće."
   },
   "products": {
     "title": "Proizvodi",
     "browse": "Pregledajte naše dostupne proizvode.",
-    "metaDescription": "Pretraži naš kompletan katalog proizvoda prodavaca iz celog sveta. Cene u više valuta, brza isporuka i pažljivo biran asortiman kroz svako odeljenje.",
+    "metaDescription": "Pretražite naš kompletan katalog proizvoda prodavaca iz celog sveta. Cene u više valuta, brza isporuka i pažljivo biran asortiman kroz svako odeljenje.",
     "notFound": "Proizvod nije pronađen",
     "backTo": "Nazad na proizvode",
     "backToProducts": "Nazad na proizvode",
@@ -257,8 +266,6 @@
     "productDeleted": "Proizvod obrisan",
     "editCopy": "Izmeni kopiju",
     "edit": "Izmeni",
-    "view": "Prikaži",
-    "duplicating": "Dupliranje...",
     "deleting": "Brisanje...",
     "duplicate": "Dupliraj",
     "deleteProduct": "Obriši proizvod",
@@ -289,7 +296,7 @@
   },
   "dashboard": {
     "title": "Kontrolna tabla",
-    "welcome": "Dobrodošao, {name}!",
+    "welcome": "Dobro došli, {name}!",
     "overview": "Evo pregleda vaše aktivnosti na tržištu.",
     "quickLinks": "Brzi linkovi",
     "browse": "Pregledaj proizvode",
@@ -443,7 +450,8 @@
     "empty": "Vaša lista želja je prazna",
     "emptyDesc": "Pregledajte proizvode i kliknite na ikonu srca da sačuvate željene artikle.",
     "continueShopping": "Nastavi kupovinu",
-    "browseProducts": "Pregledaj proizvode"
+    "browseProducts": "Pregledaj proizvode",
+    "label": "Lista želja"
   },
   "checkout": {
     "success": "Plaćanje uspešno",
@@ -497,7 +505,7 @@
     "continueShoppingPending": "Učitavam...",
     "total": "Ukupno",
     "shipping": "Dostava",
-    "freeShippingNudge": "Dodaj još {amount} kod {seller} za besplatnu dostavu",
+    "freeShippingNudge": "Dodajte još {amount} kod {seller} za besplatnu dostavu",
     "freeShipping": "Besplatno"
   },
   "admin": {
@@ -539,7 +547,9 @@
         "coupon": "Kupon",
         "review": "Recenzija",
         "tag": "Tag",
-        "trustPoint": "Garancija"
+        "trustPoint": "Garancija",
+        "priceRule": "Pravilo cene",
+        "priceMarket": "Tržište cena"
       },
       "fields": {
         "count": "Broj",
@@ -688,6 +698,18 @@
           "updated": "Garancija izmenjena",
           "deleted": "Garancija obrisana",
           "duplicated": "Garancija duplirana"
+        },
+        "priceRule": {
+          "created": "Pravilo cene je napravljeno",
+          "updated": "Pravilo cene je izmenjeno",
+          "deleted": "Pravilo cene je obrisano",
+          "duplicated": "Pravilo cene je duplirano"
+        },
+        "price_market": {
+          "created": "Tržište cena je napravljeno",
+          "updated": "Tržište cena je izmenjeno",
+          "deleted": "Tržište cena je obrisano",
+          "duplicated": "Tržište cena je duplirano"
         }
       },
       "columns": {
@@ -737,7 +759,7 @@
       "empty": "Još nema recenzija."
     },
     "title": "Admin panel",
-    "welcome": "Dobrodošao nazad, {name}. Upravljaj tržištem odavde.",
+    "welcome": "Dobro došli nazad, {name}. Upravljajte tržištem odavde.",
     "management": "Upravljanje",
     "quickLinks": "Brzi linkovi",
     "overview": "Pregled",
@@ -817,7 +839,16 @@
     "loadingHistory": "Učitavanje istorije proizvoda...",
     "historyTitle": "Istorija proizvoda",
     "editBrandLoading": "Izmeni brend",
-    "editTagLoading": "Izmeni tag"
+    "editTagLoading": "Izmeni tag",
+    "priceMarkets": "Tržišta cena",
+    "priceMarketsManage": "Grupišite zemlje koje dele cene. Prodavci zatim na svakom proizvodu mogu da postave cenu po tržištu ili po zemlji.",
+    "addPriceMarket": "Dodaj tržište",
+    "createPriceMarket": "Novo tržište",
+    "createPriceMarketDesc": "Imenujte grupu zemalja koje dele cene.",
+    "backToPriceMarkets": "Nazad na tržišta",
+    "editPriceMarket": "Izmena: {name}",
+    "editPriceMarketDesc": "Ažurirajte naziv i zemlje tržišta.",
+    "editPriceMarketLoading": "Izmena tržišta"
   },
   "adminCategories": {
     "actions": "Akcije",
@@ -973,6 +1004,7 @@
     "increaseQty": "Povećaj količinu",
     "removeItem": "Ukloni proizvod",
     "itemRemoved": "{item} je uklonjen iz korpe jer više nije dostupan.",
+    "itemRepriced": "Cena za {item} je promenjena na {price}.",
     "subtotal": "Međuzbir",
     "shipping": "Dostava",
     "discount": "Popust",
@@ -984,7 +1016,8 @@
     "leadTimeExact": "{count, plural, one {Isporuka obično traje # radni dan.} few {Isporuka obično traje # radna dana.} other {Isporuka obično traje # radnih dana.}}",
     "pageTitle": "Korpa",
     "emptyHint": "Pogledajte ponudu i dodajte nešto što vam se dopada.",
-    "continueShopping": "Nastavite kupovinu"
+    "continueShopping": "Nastavite kupovinu",
+    "label": "Korpa"
   },
   "reviews": {
     "write": "Napišite recenziju",
@@ -1268,7 +1301,7 @@
     "brand": "Brend",
     "images": "Slike",
     "media": "Mediji",
-    "pricingCurrencyNote": "Unesi cenu u valuti u kojoj stvarno prodaješ. Tačno taj iznos plaćaju kupci u toj valuti i ne menja se kad se kurs promeni. Ostale valute se preračunavaju iz nje.",
+    "pricingCurrencyNote": "Unesite cenu u valuti u kojoj stvarno prodajete. Tačno taj iznos plaćaju kupci u toj valuti i ne menja se kad se kurs promeni. Ostale valute se preračunavaju iz nje.",
     "attributesTitle": "Atributi",
     "attributesDesc": "Popunite atribute za izabrane kategorije. Oni pokreću filtere u prodavnici.",
     "attributeSelectPlaceholder": "Izaberi...",
@@ -1290,7 +1323,7 @@
     "barcodePlaceholder": "npr. 978-3-16-148410-0",
     "tax": "Porez",
     "chargeTaxes": "Naplaćuj poreze",
-    "chargeTaxesDesc": "Omogući primenu poreza pri plaćanju.",
+    "chargeTaxesDesc": "Primenjuje porez pri plaćanju.",
     "taxCode": "Poreski kod",
     "taxCodePlaceholder": "npr. P0000000",
     "taxCodeDesc": "Kod poreske kategorije za vašeg poreskog provajdera.",
@@ -1298,7 +1331,7 @@
     "digitalDesc": "Nije potrebna fizička dostava (npr. softver, e-knjige).",
     "warrantyMonths": "Garancija",
     "specificationsSection": "Specifikacija",
-    "warrantyMonthsDesc": "Broj meseci garancije proizvođača. Ostavi prazno ako nije određeno; unesi 0 za bez garancije.",
+    "warrantyMonthsDesc": "Broj meseci garancije proizvođača. Ostavite prazno ako nije određeno; unesite 0 ako nema garancije.",
     "warrantyMonthsPlaceholder": "npr. 24",
     "warrantyMonthsValue": "{count, plural, one {# mesec} few {# meseca} other {# meseci}}",
     "noWarranty": "Bez garancije",
@@ -1370,7 +1403,8 @@
     "yes": "Da",
     "no": "Ne",
     "validationFailed": "Ispravite greške u formi pre slanja.",
-    "validationFailedOnTabs": "Ispravite greške na: {tabs}. {message}"
+    "validationFailedOnTabs": "Ispravite greške na: {tabs}. {message}",
+    "variantRulesWillBeDeleted": "Čuvanjem će biti {count, plural, one {obrisano # pravilo cena} few {obrisana # pravila cena} other {obrisano # pravila cena}} koja pripadaju varijanti koju ste uklonili ili joj promenili SKU."
   },
   "bulkProducts": {
     "filterExecute": "Filtriraj i izvrši",
@@ -1429,14 +1463,14 @@
     "actClearCountryOfOrigin": "Obriši zemlju porekla",
     "newWarrantyMonths": "Nova garancija (meseci)",
     "newWarrantyPlaceholder": "npr. 24",
-    "addConditionFirst": "Dodaj bar jedan uslov",
-    "fixActionValue": "Ispravi vrednost iznad",
+    "addConditionFirst": "Dodajte bar jedan uslov",
+    "fixActionValue": "Ispravite vrednost iznad",
     "warrantyOutOfRange": "Ceo broj između 0 i {max}",
     "pricePositive": "Cena mora biti veća od 0",
     "priceNonNegative": "Ne može biti negativno",
     "stockNonNegative": "Ceo broj, 0 ili više",
     "newCountryOfOrigin": "Nova zemlja porekla",
-    "warrantyZeroHint": "0 znači izričito \"bez garancije\". Za brisanje vrednosti koristi Obriši garanciju.",
+    "warrantyZeroHint": "0 znači izričito \"bez garancije\". Za brisanje vrednosti koristite \"Obriši garanciju\".",
     "condTitleContains": "Naziv sadrži",
     "actDelete": "Obriši sve odgovarajuće proizvode",
     "actSetStatus": "Promeni status na…",
@@ -1492,7 +1526,7 @@
     "noConditions": "Nema dodatih uslova. Dodajte bar jedan pre pokretanja pregleda.",
     "addCondition": "Dodaj uslov",
     "added": "dodato",
-    "chooseAction": "2. Izaberi akciju",
+    "chooseAction": "2. Izaberite akciju",
     "previewExecute": "3. Pregled i izvršavanje",
     "previewing": "Pregledanje…",
     "previewBtn": "Pregled odgovarajućih proizvoda",
@@ -1514,7 +1548,8 @@
     "noMatches": "Nema podudaranja",
     "noMatchesDesc": "Nijedan proizvod ne odgovara trenutnim uslovima. Prilagodite filtere i pokrenite pregled ponovo.",
     "bulkCategoryLimitTitle": "Previše proizvoda za ovu izmenu",
-    "bulkCategoryLimitDesc": "Ovaj filter obuhvata {count} proizvoda, a izmena kategorija/tagova je ograničena na {limit} odjednom. Dodajte još uslova da suzite izbor, pa pokrenite pregled ponovo."
+    "bulkCategoryLimitDesc": "Ovaj filter obuhvata {count} proizvoda, a izmena kategorija/tagova je ograničena na {limit} odjednom. Dodajte još uslova da suzite izbor, pa pokrenite pregled ponovo.",
+    "removeCondition": "Ukloni uslov"
   },
   "chat": {
     "messagePlaceholder": "Poruka...",
@@ -1556,7 +1591,8 @@
     "sendFailedRejected": "Server je odbio ovu poruku",
     "sendFailedExpired": "Prilozi su istekli",
     "jumpToLatest": "Skoči na najnovije",
-    "newMessagesBelow": "{count, plural, one {# nova poruka} few {# nove poruke} other {# novih poruka}}"
+    "newMessagesBelow": "{count, plural, one {# nova poruka} few {# nove poruke} other {# novih poruka}}",
+    "openMessages": "Poruke"
   },
   "mediaUpload": {
     "title": "Otpremanje slika i videa proizvoda",
@@ -1569,7 +1605,8 @@
     "typeNotAllowed": "Tip fajla nije dozvoljen: {name}",
     "tooLarge": "Fajl je prevelik: {name}",
     "uploaded": "Otpremljeno: {name}",
-    "uploadFailed": "Greška pri otpremanju: {name}"
+    "uploadFailed": "Greška pri otpremanju: {name}",
+    "remove": "Ukloni"
   },
   "csvImport": {
     "step1Title": "1. Preuzmite predložak",
@@ -1628,14 +1665,14 @@
   },
   "csvTranslations": {
     "step1Title": "1. Izvezi postojeće prevode",
-    "step1Desc": "Preuzmi svaki proizvod kao jedan red po jeziku, popunjen postojećim tekstom. Prevedi prazna polja i ponovo uvezi. Varijante i slike nisu deo ovog fajla.",
+    "step1Desc": "Preuzmite svaki proizvod kao jedan red po jeziku, popunjen postojećim tekstom. Prevedite prazna polja i ponovo uvezite. Varijante i slike nisu deo ovog fajla.",
     "exportBtn": "Izvezi prevode (CSV)",
     "fieldRefTitle": "Objašnjenje polja",
-    "hintRef": "Slug proizvoda na podrazumevanom jeziku (ili UUID). Zadrži izvezenu vrednost.",
-    "hintSlug": "URL slug po jeziku. Ostavi prazno za automatsko generisanje iz naziva.",
-    "hintRequired": "Obavezno za svaki red koji želiš da uvezeš.",
-    "step2Title": "2. Otpremi ili nalepi CSV",
-    "dropHint": "Prevuci .csv fajl ovde, ili klikni da izabereš",
+    "hintRef": "Slug proizvoda na podrazumevanom jeziku (ili UUID). Zadržite izvezenu vrednost.",
+    "hintSlug": "URL slug po jeziku. Ostavite prazno za automatsko generisanje iz naziva.",
+    "hintRequired": "Obavezno za svaki red koji želite da uvezete.",
+    "step2Title": "2. Otpremite ili nalepite CSV",
+    "dropHint": "Prevucite .csv fajl ovde ili kliknite da ga izaberete",
     "pasteDirect": "ili nalepi CSV direktno",
     "textareaPlaceholder": "productRef,locale,title,description\nmoj-proizvod,de,Mein Produkt,Vollständige Beschreibung",
     "step3Title": "3. Pregled i uvoz",
@@ -1657,7 +1694,7 @@
       "localeRequired": "locale je obavezan",
       "invalidLocale": "nepodržan kod jezika",
       "titleRequired": "naziv je obavezan",
-      "productNotFound": "nema odgovarajućeg proizvoda u tvom katalogu",
+      "productNotFound": "nema odgovarajućeg proizvoda u vašem katalogu",
       "unknown": "nije sačuvano"
     }
   },
@@ -1698,11 +1735,13 @@
     "loadingDetails": "Učitavanje detalja proizvoda...",
     "stuckMessage": "Ovo traje duže nego obično.",
     "reloadPage": "Osveži stranicu",
-    "close": "Zatvori"
+    "close": "Zatvori",
+    "openMenu": "Otvori meni",
+    "closeMenu": "Zatvori meni"
   },
   "orgOrders": {
     "readOnly": "Pristup samo za čitanje",
-    "viewOnly": "Možeš da vidiš ovu porudžbinu, ali samo vlasnici i administratori mogu da je obrađuju.",
+    "viewOnly": "Možete da vidite ovu porudžbinu, ali samo vlasnici i administratori mogu da je obrađuju.",
     "paymentHistory": "Istorija plaćanja",
     "txType": {
       "charge": "Naplata",
@@ -1801,7 +1840,7 @@
   "interactions": {
     "frequentlyBoughtTogetherEyebrow": "Kupljeno zajedno",
     "frequentlyBoughtTogether": "Često kupljeno zajedno",
-    "recentlyViewedEyebrow": "Nastavi gde si stao",
+    "recentlyViewedEyebrow": "Nastavite gde ste stali",
     "recentlyViewed": "Nedavno gledano"
   },
   "relatedProducts": {
@@ -1810,7 +1849,8 @@
     "viewAll": "Prikaži sve →"
   },
   "theme": {
-    "appearance": "Izgled"
+    "appearance": "Izgled",
+    "toggle": "Promeni temu"
   },
   "currency": {
     "label": "Valuta",
@@ -1841,19 +1881,30 @@
     "duplicateVariantCombo": "Ista kombinacija opcija kao varijanta #{other}",
     "duplicateSku": "Duplikat SKU \"{sku}\" (takođe varijanta #{other})",
     "couponPercentRange": "Procenat mora biti između 1 i 100",
+    "priceRulePercentRange": "Unesite promenu između -99,99% i +100%, različitu od 0",
+    "priceRuleAmountPositive": "Iznos mora biti veći od 0",
+    "priceRuleTimezoneInvalid": "Izaberite ispravnu vremensku zonu",
+    "priceRuleEndRequired": "Unesite kada cena prestaje da važi",
+    "priceRuleEndBeforeStart": "Kraj mora biti posle početka",
+    "priceRuleWindowTooShort": "Cena mora da traje najmanje {minutes} minuta",
+    "priceRuleDurationRange": "Trajanje mora biti između {min} i {max} minuta",
+    "priceRuleWeekdaysRequired": "Izaberite bar jedan dan u nedelji",
+    "priceRuleMonthDayRange": "Unesite dan u mesecu između 1 i 31",
     "leadTimeNeedsBoth": "Unesite i najkraći i najduži rok isporuke",
     "leadTimeMaxBeforeMin": "Najduži rok isporuke ne može biti kraći od najkraćeg",
-    "couponAmountPositive": "Unesite iznos popusta veći od nule"
+    "couponAmountPositive": "Unesite iznos popusta veći od nule",
+    "priceRuleMarketRequired": "Izaberite tržište",
+    "priceRuleCountryRequired": "Izaberite zemlju"
   },
   "coupons": {
     "title": "Kuponi",
-    "description": "Kreiraj i upravljaj kodovima za popust.",
+    "description": "Kreirajte kodove za popust i upravljajte njima.",
     "addCoupon": "Dodaj kupon",
     "newCoupon": "Novi kupon",
     "editCoupon": "Izmena kupona",
     "editCouponTitle": "Izmeni: {code}",
     "back": "Nazad na kupone",
-    "formDescription": "Podesi popust, ograničenja i važenje.",
+    "formDescription": "Podesite popust, ograničenja i važenje.",
     "empty": "Još nema kupona.",
     "noResults": "Nema kupona koji odgovaraju filterima.",
     "deleteConfirm": "Obrisati kupon {code}?",
@@ -1954,7 +2005,7 @@
     "markingDelivered": "Označavanje...",
     "markedDelivered": "Označeno kao isporučeno",
     "trackingUpdated": "Praćenje ažurirano",
-    "description": "Dodaj kurira i broj za praćenje, pa označi svoje artikle kao poslate da obavestiš kupca.",
+    "description": "Dodajte kurira i broj za praćenje, pa označite svoje artikle kao poslate da biste obavestili kupca.",
     "carrierPlaceholder": "npr. DHL",
     "trackingPlaceholder": "Broj za praćenje",
     "cancel": "Otkaži"
@@ -1994,7 +2045,7 @@
     "markRefunded": "Označi vraćeno",
     "refunding": "Refundacija u toku...",
     "refundDone": "Refundacija izvršena",
-    "returnAfterDelivery": "Povraćaj možeš zatražiti nakon što proizvod bude isporučen.",
+    "returnAfterDelivery": "Povraćaj možete zatražiti nakon što proizvod bude isporučen.",
     "windowExpiredHint": "Rok za povraćaj kod ovog prodavca je istekao.",
     "daysLeftToReturn": "{count, plural, one {Još # dan za zahtev za povraćaj} few {Još # dana za zahtev za povraćaj} other {Još # dana za zahtev za povraćaj}}",
     "sellerCancelledHint": "Ovaj prodavac je povukao svoje artikle iz narudžbine, pa nema šta da se vrati."
@@ -2058,6 +2109,8 @@
     "bulkCategoryLimit": "Izabrani filter obuhvata {count} proizvoda, a masovna izmena kategorija je ograničena na {limit} odjednom. Suzite filter i pokušajte ponovo.",
     "internalError": "Nešto je pošlo po zlu. Pokušajte ponovo.",
     "inUse": "Ovaj zapis je još u upotrebi i ne može se obrisati.",
+    "limitReached": "Dostignuto je ograničenje.",
+    "priceRuleLimitReached": "Proizvod može imati najviše {max} pravila cena.",
     "categoryHasChildren": "Ovo odeljenje još ima {count} potkategorija. Prvo ih premestite ili obrišite.",
     "categoryHasProducts": "Ova kategorija još sadrži {count} proizvoda. Prvo ih premestite u drugu kategoriju.",
     "attributeInUse": "Ovaj atribut još ima {count} vrednosti na proizvodima. Prvo ga uklonite sa tih proizvoda.",
@@ -2112,8 +2165,8 @@
     "csvInvalidWeightUnit": "neispravna jedinica težine \"{unit}\"",
     "csvInvalidDimensionUnit": "neispravna jedinica dimenzija \"{unit}\"",
     "csvInvalidStatus": "neispravan status \"{status}\"",
-    "csvInvalidCountryOfOrigin": "neispravna zemlja porekla \"{code}\" - koristi ISO 3166-1 alpha-2 kod",
-    "csvInvalidWarrantyMonths": "neispravna garancija \"{value}\" - koristi ceo broj između 0 i {max}",
+    "csvInvalidCountryOfOrigin": "neispravna zemlja porekla \"{code}\" - koristite ISO 3166-1 alpha-2 kod",
+    "csvInvalidWarrantyMonths": "neispravna garancija \"{value}\" - koristite ceo broj između 0 i {max}",
     "csvUnknownError": "Nepoznata greška",
     "mustBeSignedIn": "Morate biti prijavljeni da biste završili kupovinu",
     "userNotFound": "Korisnik nije pronađen",
@@ -2124,12 +2177,16 @@
     "checkoutSessionFailed": "Nije moguće započeti kupovinu",
     "itemNoLongerAvailable": "Stavka više nije dostupna",
     "insufficientStock": "Nedovoljno na zalihama",
+    "shippingCountryInvalid": "Izaberite državu za dostavu.",
     "productTitleRequiredBeforePublish": "Naslov proizvoda je obavezan pre objavljivanja",
     "productDescriptionRequiredBeforePublish": "Opis proizvoda je obavezan pre objavljivanja",
     "productPriceRequiredBeforePublish": "Cena proizvoda mora biti veća od 0 pre objavljivanja",
     "productMediaRequiredBeforePublish": "Pre objavljivanja je potrebna bar jedna slika ili video proizvoda",
     "invalidStatusTransition": "Neispravna promena statusa iz {from} u {to}",
-    "exchangeRateUnavailable": "Kurs za {currency} trenutno nije dostupan, pa cena nije sačuvana. Pokušajte ponovo za koji trenutak."
+    "exchangeRateUnavailable": "Kurs za {currency} trenutno nije dostupan, pa cena nije sačuvana. Pokušajte ponovo za koji trenutak.",
+    "priceMarketDefault": "Podrazumevano tržište ne može da se obriše.",
+    "priceMarketInUse": "{count, plural, one {# pravilo cene još cilja} few {# pravila cena još ciljaju} other {# pravila cena još cilja}} ovo tržište. Prvo ih obrišite.",
+    "priceMarketCountryTaken": "Već u drugom tržištu: {countries}."
   },
   "adminCodBalances": {
     "title": "COD dugovi",
@@ -2142,7 +2199,7 @@
     "empty": "Nema nenaplaćenih COD dugova",
     "emptyDesc": "Sve organizacije su trenutno izmirene - ništa se ne duguje od COD provizije.",
     "settleTitle": "Naplata duga za {org}",
-    "settleDesc": "Zabeleži proviziju naplaćenu van aplikacije (bankovni prenos, keš). Ovo odmah umanjuje dug i beleži se u audit log.",
+    "settleDesc": "Zabeležite proviziju naplaćenu van aplikacije (bankovni prenos, keš). Ovo odmah umanjuje dug i beleži se u audit log.",
     "amountLabel": "Naplaćen iznos",
     "owedNow": "Trenutno duguje: {amount}",
     "confirmSettle": "Potvrdi",
@@ -2153,7 +2210,7 @@
     "creditNote": "Odlazi uz sledeću isplatu",
     "payAction": "Isplati",
     "payTitle": "Isplata kredita: {org}",
-    "payDesc": "Zabeleži novac vraćen van aplikacije (bankovni prenos, gotovina). Kredit se odmah umanjuje i upisuje se u zapisnik.",
+    "payDesc": "Zabeležite novac vraćen van aplikacije (bankovni prenos, gotovina). Kredit se odmah umanjuje i upisuje se u zapisnik.",
     "amountPaidLabel": "Isplaćen iznos",
     "creditNow": "Trenutno im dugujemo: {amount}",
     "amountTooHighCredit": "Iznos ne može biti veći od kredita.",
@@ -2165,7 +2222,176 @@
     "derivedHint": "Preračunato iz cene u {currency}.",
     "storedHint": "Sačuvani iznosi. Cena je uneta u {currency}.",
     "enterManually": "Unesi ručno",
-    "enterManuallyTooltip": "Unesi tačan iznos za ovu valutu. Ostaje tačno takav i ne menja se kad se kurs promeni.",
-    "useConvertedTooltip": "Vrati ovu valutu na preračunavanje iz cene iznad."
+    "enterManuallyTooltip": "Unesite tačan iznos za ovu valutu. Ostaje tačno takav i ne menja se kad se kurs promeni.",
+    "useConvertedTooltip": "Vratite ovu valutu na preračunavanje iz cene iznad."
+  },
+  "priceRules": {
+    "title": "Pravila cena",
+    "loading": "Učitavanje pravila cena...",
+    "description": "Zakazane promene cene i cene po tržištima za {title}.",
+    "backToProduct": "Nazad na proizvod",
+    "backToRules": "Nazad na pravila cena",
+    "addRule": "Dodaj pravilo",
+    "newTitle": "Dodaj pravilo cene",
+    "editTitle": "Izmeni pravilo cene",
+    "limitReached": "Ovaj proizvod ima {max} pravila cena, što je maksimum. Obrišite jedno da biste dodali novo.",
+    "readOnly": "Možete da vidite pravila cena ovog proizvoda, ali samo vlasnik ili administrator može da ih menja.",
+    "verifyTitle": "Potrebna je verifikacija",
+    "verifyDesc": "Vaša organizacija mora biti verifikovana pre nego što može da menja cene.",
+    "sortNote": "Sortiranje i filteri po ceni u prodavnici koriste cenu koja trenutno važi, pre pravila tržišta.",
+    "empty": "Još nema pravila cena. Dodajte jedno da zakažete akciju ili promenu cene.",
+    "wholeProduct": "Ceo proizvod",
+    "variant": "Varijanta {sku}",
+    "durationHM": "{hours} h {minutes} min",
+    "created": "Pravilo cene je dodato",
+    "updated": "Pravilo cene je sačuvano",
+    "deleted": "Pravilo cene je obrisano",
+    "deleteConfirm": "Obrisati „{name}“?",
+    "deleteDesc": "Gde god je ovo pravilo određivalo cenu, ponovo važi redovna cena.",
+    "deleting": "Brisanje...",
+    "table": {
+      "name": "Naziv",
+      "appliesTo": "Važi za",
+      "change": "Promena",
+      "schedule": "Raspored",
+      "priority": "Prioritet",
+      "status": "Status",
+      "actions": "Akcije",
+      "edit": "Izmeni",
+      "duplicate": "Dupliraj"
+    },
+    "status": {
+      "paused": "Pauzirano",
+      "upcoming": "Predstoji",
+      "live": "Aktivno",
+      "ended": "Završeno"
+    },
+    "change": {
+      "percentOff": "{value}% popusta",
+      "percentUp": "+{value}%",
+      "fixedPrice": "Cena {amount}",
+      "amountOff": "{amount} popusta"
+    },
+    "schedule": {
+      "once": "{from} do {to}",
+      "daily": "Svaki dan u {time}, traje {duration}",
+      "weekly": "Svakog {days} u {time}, traje {duration}",
+      "monthly": "Mesečno, {day}. u {time}, traje {duration}",
+      "until": "do {date}",
+      "market": "Uvek, za kupce iz: {target}"
+    },
+    "calendar": {
+      "title": "Narednih {days} dana",
+      "base": "Redovna cena",
+      "overlap": "„{hidden}“ se preklapa sa „{winner}“ i ne važi kad god traju u isto vreme."
+    },
+    "form": {
+      "name": "Naziv",
+      "nameHint": "Vidite ga vi i stavke narudžbina, ne i kupci.",
+      "appliesTo": "Važi za",
+      "changeType": "Vrsta promene",
+      "adjustment": {
+        "PERCENT": "Procenat",
+        "FIXED_PRICE": "Fiksna cena",
+        "AMOUNT_OFF": "Iznos popusta"
+      },
+      "percent": "Promena u %",
+      "percentHint": "Negativno za popust (-20), pozitivno za poskupljenje (10).",
+      "fixedPrice": "Cena",
+      "amountOff": "Iznos popusta",
+      "repeat": "Ponavljanje",
+      "recurrence": {
+        "NONE": "Jednom",
+        "DAILY": "Svaki dan",
+        "WEEKLY": "Svake nedelje",
+        "MONTHLY": "Svakog meseca"
+      },
+      "recurringStrikeNote": "Po EU pravilima stara cena se prikazuje precrtano samo ako je nova cena niža od najniže cene iz poslednjih 30 dana, pa akcija koja se ponavlja u roku od 30 dana prikazuje nižu cenu bez precrtane.",
+      "timezone": "Vremenska zona",
+      "startDate": "Datum početka",
+      "seriesStart": "Prvi dan",
+      "startTime": "Vreme početka",
+      "dailyStartTime": "Počinje u",
+      "endDate": "Datum kraja",
+      "endTime": "Vreme kraja",
+      "duration": "Trajanje (minuti)",
+      "seriesEnd": "Poslednji dan",
+      "noEnd": "Bez kraja",
+      "weekdays": "Dani",
+      "monthDay": "Dan u mesecu",
+      "monthDayHint": "Meseci bez tog dana se preskaču.",
+      "priority": "Prioritet",
+      "priorityHint": "Kad se dva pravila preklope, pobeđuje viši prioritet. Pravilo za varijantu uvek pobeđuje pravilo za ceo proizvod, a pravilo za zemlju pravilo za tržište.",
+      "active": "Aktivno",
+      "activeDesc": "Pauzirano pravilo čuva podešavanja, ali ne menja cenu.",
+      "save": "Sačuvaj pravilo",
+      "create": "Dodaj pravilo",
+      "creating": "Dodavanje...",
+      "kind": "Vrsta pravila",
+      "kinds": {
+        "SCHEDULE": "Raspored",
+        "REGION": "Tržište"
+      },
+      "kindHint": {
+        "SCHEDULE": "Menja cenu za sve kupce u datumima i satima koje odredite.",
+        "REGION": "Menja cenu za kupce iz jednog tržišta ili zemlje, dok god je pravilo aktivno. Primenjuje se povrh zakazane cene."
+      },
+      "regionScope": "Važi za kupce iz",
+      "regionScopes": {
+        "MARKET": "Tržišta",
+        "COUNTRY": "Jedne zemlje"
+      },
+      "market": "Tržište",
+      "marketPlaceholder": "Izaberite tržište",
+      "defaultMarket": "{name} (sve ostale zemlje)",
+      "country": "Zemlja",
+      "countryPlaceholder": "Izaberite zemlju",
+      "countryClear": "Ukloni zemlju",
+      "countrySearch": "Pretraži zemlje...",
+      "countryEmpty": "Nijedna zemlja ne odgovara.",
+      "kindLocked": "Vrsta pravila ne može da se promeni nakon što je pravilo napravljeno."
+    },
+    "marketNote": "Pravila tržišta nisu u kalendaru: važe za kupce iz svog tržišta dok god su aktivna, povrh cene koju kalendar prikazuje.",
+    "duplicated": "Pravilo je duplirano kao pauzirano - uključite ga kad bude spremno",
+    "editCopy": "Izmeni kopiju"
+  },
+  "priceMarkets": {
+    "name": "Naziv",
+    "countries": "Zemlje",
+    "countriesDesc": "Kupci iz ovih zemalja vide cene ovog tržišta. Zemlja pripada samo jednom tržištu.",
+    "countriesNone": "Nijedna zemlja nije izabrana",
+    "countriesSelected": "{count, plural, one {Izabrana # zemlja} few {Izabrane # zemlje} other {Izabrano # zemalja}}",
+    "countriesSearch": "Pretraži zemlje...",
+    "countriesEmpty": "Nijedna zemlja ne odgovara.",
+    "countryRemove": "Ukloni {country}",
+    "defaultCountriesNote": "Svaka zemlja koja nije u drugom tržištu pripada ovom, pa ono nema sopstveni spisak zemalja.",
+    "defaultCountries": "Sve ostale zemlje",
+    "noCountries": "Još nema zemalja",
+    "rules": "Pravila",
+    "actions": "Akcije",
+    "default": "Podrazumevano",
+    "deleteConfirm": "Obrisati \"{name}\"?",
+    "deleteDesc": "Njegove zemlje prelaze u podrazumevano tržište, a kupci iz njih vide cene podrazumevanog tržišta.",
+    "deleteBlockedDefault": "Podrazumevano tržište ne može da se obriše: njemu pripada svaka zemlja van drugih tržišta.",
+    "deleteBlockedInUse": "{count, plural, one {# pravilo cene još cilja} few {# pravila cena još ciljaju} other {# pravila cena još cilja}} ovo tržište. Prvo ih obrišite.",
+    "deleted": "Tržište je obrisano",
+    "created": "Tržište je napravljeno",
+    "updated": "Tržište je sačuvano",
+    "saveChanges": "Sačuvaj izmene",
+    "create": "Napravi",
+    "creating": "Pravim...",
+    "searchPlaceholder": "Pretraži tržišta ili zemlje...",
+    "count": "{count, plural, one {# tržište} few {# tržišta} other {# tržišta}}",
+    "noneFound": "Nema pronađenih tržišta",
+    "adjustSearch": "Probajte drugu pretragu.",
+    "priceFor": "Cena za: {country}",
+    "priceForRegion": "Regionalna cena",
+    "countryLabel": "Zemlja za cene",
+    "countryNone": "Izaberite zemlju",
+    "countryHint": "Neki prodavci imaju različite cene po zemljama.",
+    "filterNote": "Filter i sortiranje po ceni koriste standardnu cenu, pre cena po zemljama.",
+    "duplicate": "Dupliraj",
+    "duplicated": "Tržište je duplirano, bez zemalja - dodajte mu sopstvene",
+    "editCopy": "Izmeni kopiju"
   }
 }

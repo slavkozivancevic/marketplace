@@ -15,11 +15,16 @@ import {
   InnerProviders,
 } from "@/providers/providers";
 import { CurrencyRatesProvider } from "@/providers/CurrencyRatesProvider";
+import { MarketProvider } from "@/providers/MarketProvider";
+import { getViewerCountry } from "@/features/priceMarkets/db/viewer";
+import { getPriceMarketConfig } from "@/features/priceMarkets/db/markets";
 import { getCurrencyRates } from "@/features/currency/db/currencyRates";
 import { FoucScript } from "@/providers/theme/FoucScript";
+import { ScrollbarScript } from "@/providers/scrollbars/ScrollbarScript";
 import { NavigationProgress } from "@/components/layout/NavigationProgress";
 import { LocaleSwitchLoader } from "@/components/layout/locale-switch-loader";
 import { BootLoaderFallback } from "@/components/layout/boot-loader-fallback";
+import { HistoryHydrationGate } from "@/lib/navigation/hydrationGate";
 import { CacheTags } from "@/lib/cache/tags";
 import { cn } from "@/lib/utils";
 import { env } from "@/env/server";
@@ -125,6 +130,11 @@ export default async function LocaleRootLayout({
             HTML parser executes it before any visible content paints. See
             FoucScript.tsx for the React-19-warning workaround details. */}
         <FoucScript />
+        <ScrollbarScript />
+        {/* Parser-run like the two above: a Back/Forward that arrives before
+            the streamed app hydrates becomes a full load instead of a soft
+            navigation React cannot hydrate. */}
+        <HistoryHydrationGate />
         {/* Wrapped in Suspense: NavigationProgress is a client component that
             reads usePathname(), a dynamic API. Outside a Suspense boundary that
             opts the whole route into blocking (dev "blocking-route" warning)
@@ -182,17 +192,24 @@ async function LocaleDataProviders({
   locale: string;
   children: React.ReactNode;
 }) {
-  const [messages, rates, cookieStore] = await Promise.all([
+  const [messages, rates, cookieStore, viewerCountry, marketConfig] = await Promise.all([
     loadMessages(locale),
     fetchCurrencyRates(),
     cookies(),
+    // The pricing country, the same way: read per request, never part of a
+    // cached payload or a cache key. The market map rides along so a country
+    // switch resolves its market on the client, without a round trip.
+    getViewerCountry(),
+    getPriceMarketConfig(),
   ]);
   const initialCurrency = cookieStore.get("NEXT_CURRENCY")?.value;
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
       <CurrencyRatesProvider rates={rates} initialCurrency={initialCurrency}>
-        {children}
+        <MarketProvider country={viewerCountry} config={marketConfig}>
+          {children}
+        </MarketProvider>
       </CurrencyRatesProvider>
     </NextIntlClientProvider>
   );

@@ -2,7 +2,7 @@
 
 import { ClerkProvider } from "@clerk/nextjs";
 import { NuqsAdapter } from "nuqs/adapters/next";
-import { Suspense } from "react";
+import { Suspense, type ComponentProps } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryProvider } from "./QueryProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,6 +15,8 @@ import { LocaleSync } from "@/components/layout/locale-sync";
 import { NavigationGenerationTracker } from "@/components/layout/navigation-generation-tracker";
 import { ThemeProvider } from "@/providers/theme/ThemeProvider";
 import { PullToRefresh } from "@/components/layout/pull-to-refresh";
+import { HydrationMark } from "@/lib/navigation/hydrationGate";
+import { CLERK_LOCALIZATIONS } from "@/lib/auth/clerkLocalization";
 import { type Locale } from "@/i18n/config";
 
 /**
@@ -52,6 +54,33 @@ export function StableOuterProviders({
   );
 }
 
+/**
+ * Clerk's components drawn from the app's own theme tokens. The values are
+ * CSS variables, not colours, so light, dark and cosmos switch with the
+ * `<html>` class like the rest of the app - no theme state to pass in, and no
+ * white card on a dark page.
+ */
+const CLERK_APPEARANCE: ComponentProps<typeof ClerkProvider>["appearance"] = {
+  variables: {
+    colorBackground: "var(--card)",
+    colorForeground: "var(--card-foreground)",
+    colorMutedForeground: "var(--muted-foreground)",
+    colorPrimary: "var(--primary)",
+    colorPrimaryForeground: "var(--primary-foreground)",
+    colorInput: "var(--background)",
+    colorInputForeground: "var(--foreground)",
+    // A base colour, not the app's `--border`: Clerk applies its own alpha
+    // (7-11%) on top, and the dark tokens are already 10-50% opaque, so the
+    // two multiplied into lines nobody could see.
+    colorBorder: "var(--foreground)",
+    colorRing: "var(--ring)",
+    colorDanger: "var(--destructive)",
+    colorNeutral: "var(--foreground)",
+    borderRadius: "var(--radius)",
+    fontFamily: "var(--font-sans)",
+  },
+};
+
 export function ClerkLocaleProvider({
   children,
   locale,
@@ -68,6 +97,8 @@ export function ClerkLocaleProvider({
 
   return (
     <ClerkProvider
+      localization={CLERK_LOCALIZATIONS[locale]}
+      appearance={CLERK_APPEARANCE}
       signInUrl={signInUrl}
       signUpUrl={signUpUrl}
       signInFallbackRedirectUrl={localeHome}
@@ -99,6 +130,9 @@ export function InnerProviders({ children }: { children: React.ReactNode }) {
               floats over the sticky header, like the platform gesture does. */}
           <PullToRefresh />
           <ClerkGate>{children}</ClerkGate>
+          {/* Tells HistoryHydrationGate (root layout) that the streamed app
+              has hydrated and Back/Forward may soft-navigate again. */}
+          <HydrationMark />
           <Toaster />
           {/* Raises the toast a create/edit queued before it navigated away -
               the confirmation belongs to the list we land on, not to the form

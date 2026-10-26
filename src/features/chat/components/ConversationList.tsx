@@ -8,6 +8,7 @@ import { FallbackImg } from "@/components/FallbackImg";
 import { Conversation } from "../types";
 import { UserProfile } from "../hooks/useUserProfiles";
 import { TypingPreview } from "./TypingIndicator";
+import { ConversationListSkeleton } from "./MessagesPageSkeleton";
 import { classifyDay, formatChatDate, formatChatTime } from "../utils/dateLabels";
 
 interface Props {
@@ -74,21 +75,7 @@ export function ConversationList({
     return formatChatDate(at);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col gap-1 p-2">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="flex items-center gap-3 p-3">
-            <Skeleton className="size-9 rounded-full shrink-0" />
-            <div className="flex-1 space-y-1.5">
-              <Skeleton className="h-3.5 w-24" />
-              <Skeleton className="h-3 w-40" />
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
+  if (isLoading) return <ConversationListSkeleton />;
 
   if (conversations.length === 0) {
     return (
@@ -161,7 +148,12 @@ export function ConversationList({
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
                 {profileLoading ? (
-                  <Skeleton className="h-5 w-24" />
+                  // The name's 20px line box with the list skeleton's bar in
+                  // it, so neither the row nor the bar changes when the list
+                  // skeleton hands over to rows still waiting on profiles.
+                  <div className="flex h-5 items-center">
+                    <Skeleton className="h-3.5 w-24" />
+                  </div>
                 ) : (
                   <span className="text-sm font-medium truncate">{displayName}</span>
                 )}

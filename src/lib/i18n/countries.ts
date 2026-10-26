@@ -107,6 +107,16 @@ export function countryName(code: string, locale: string): string {
   return resolved ?? code;
 }
 
+/**
+ * `Order.shippingCountry` for display. New orders store an ISO code (Stripe
+ * collects one, the COD form picks one) and show its name in the reader's
+ * language; older COD orders hold whatever the buyer typed, shown as typed.
+ */
+export function shippingCountryLabel(stored: string, locale: string): string {
+  const code = normalizeCountryCode(stored);
+  return code ? countryName(code, locale) : stored;
+}
+
 /** Every country as `{ code, name }`, ordered by localized name. */
 export function sortedCountries(
   locale: string,

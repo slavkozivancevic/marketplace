@@ -24,6 +24,7 @@ import { getAllBrands } from "@/features/brands/db/brands";
 import { getAllTags } from "@/features/tags/db/tags";
 import { getStorefrontCategoryTree } from "@/features/categories/db/categories";
 import { getPublicProductsPage } from "@/features/products/db/publicProducts";
+import { getViewerCountry } from "@/features/priceMarkets/db/viewer";
 import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
 
 // Matches a v4 UUID - used to redirect legacy `/brands/<uuid>` URLs to the
@@ -249,7 +250,8 @@ export default async function BrandDetailPage({ params }: BrandPageProps) {
     : "usd";
 
   await queryClient.prefetchInfiniteQuery({
-    queryKey: ["products", "public", lockedFilters, currency, locale],
+    // The viewer's country too: "on sale" is per market (see marketSaleExclusions).
+    queryKey: ["products", "public", lockedFilters, currency, locale, await getViewerCountry()],
     queryFn: () =>
       getPublicProductsPage({
         take: GRID_PAGE_SIZE,

@@ -1,4 +1,4 @@
-import { useCartStore, type CartItem } from "../store/cartStore";
+import { useCartStore, type CartItem, type RepricedLine } from "../store/cartStore";
 import type { CartItemRef, CartLinePrice } from "../db/resolveCart";
 
 /**
@@ -23,9 +23,12 @@ import type { CartItemRef, CartLinePrice } from "../db/resolveCart";
 export function applyCartResolution(
   res: { prices: CartLinePrice[]; unavailable: CartItemRef[] },
   onRemoved: (removed: CartItem) => void,
+  onRepriced: (line: RepricedLine) => void = () => {},
 ): void {
   const { syncPrices, removeItem } = useCartStore.getState();
-  syncPrices(res.prices);
+  // A re-price is announced by whichever caller actually changed the snapshot,
+  // so it too is said exactly once.
+  for (const line of syncPrices(res.prices)) onRepriced(line);
   for (const u of res.unavailable) {
     // Fresh per iteration, not hoisted: `removeItem` below rewrites the array,
     // and so may another caller between two of these callbacks.

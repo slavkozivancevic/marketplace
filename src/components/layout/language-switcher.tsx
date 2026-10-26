@@ -8,7 +8,7 @@ import { useParams, useRouter } from "next/navigation";
 import { usePathname, getPathname } from "@/i18n/navigation";
 import Image from "next/image";
 import { Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/IconButton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -81,9 +81,9 @@ export function LanguageSwitcher() {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button
+        <IconButton
+          label={t("label")}
           variant="outline"
-          size="icon"
           className="h-9 w-9 cursor-pointer! overflow-hidden"
           disabled={isPending}
         >
@@ -95,7 +95,7 @@ export function LanguageSwitcher() {
             className="rounded-sm object-cover"
             unoptimized
           />
-        </Button>
+        </IconButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"

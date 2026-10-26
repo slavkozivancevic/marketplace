@@ -13,6 +13,7 @@ import {
 } from "@/features/common/errors/domainErrors";
 import { CacheTags } from "@/lib/cache/tags";
 import { ProductFormView } from "@/features/products/components/ProductFormView";
+import { getRuleCountByVariant } from "@/features/pricing/db/pricingPage";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Button } from "@/components/ui/button";
@@ -148,6 +149,7 @@ export default async function EditProductPage({
           tags={tags}
           attributeLibrary={attributeLibrary}
           categoryAttributeMap={categoryAttributeMap}
+          priceRuleCountByVariant={await getRuleCountByVariant(product.organizationId, product.id)}
         />
       </div>
     </div>

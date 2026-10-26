@@ -4,13 +4,13 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { ActionButton } from "@/components/ActionButton";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useChatStore } from "../store/chatStore";
 import { useDeleteConversation } from "../hooks/useDeleteConversation";
 import type { UserPresence } from "../types";
 import { PresenceLine } from "./PresenceLine";
+import { IconButton } from "@/components/IconButton";
 
 interface Props {
   conversationId: string;
@@ -46,10 +46,9 @@ export function BackToInboxButton({
 }) {
   const t = useTranslations("chat");
   return (
-    <Button variant="ghost" size="icon-sm" onClick={onClick} className={cn("-ml-1", className)}>
+    <IconButton label={t("backToInbox")} variant="ghost" size="icon-sm" onClick={onClick} className={cn("-ml-1", className)}>
       <ArrowLeft className="size-4" />
-      <span className="sr-only">{t("backToInbox")}</span>
-    </Button>
+    </IconButton>
   );
 }
 
@@ -87,7 +86,10 @@ export function ThreadHeader({
       {/* min-w-0 so the name can still truncate once it sits in a column */}
       <div className="flex flex-col min-w-0">
         {renderTitle(
-          profilesLoading ? <Skeleton className="h-4 w-28" /> : name || t("conversation")
+          // `my-0.5`: the bar is a block, so without it the title line is
+          // 16px instead of text-sm's 20px and the header text shifts 2px
+          // when the name arrives.
+          profilesLoading ? <Skeleton className="h-4 w-28 my-0.5" /> : name || t("conversation")
         )}
         <PresenceLine
           presence={presence}
@@ -109,10 +111,9 @@ export function ThreadHeader({
         >
           {/* Resting control - the dialog's confirm button carries the
               spinner. */}
-          <Button variant="ghost" size="icon-sm">
+          <IconButton label={t("deleteConversation")} variant="ghost" size="icon-sm">
             <Trash2 className="size-4 text-muted-foreground" />
-            <span className="sr-only">{t("deleteConversation")}</span>
-          </Button>
+          </IconButton>
         </ActionButton>
         {trailing}
       </div>

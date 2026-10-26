@@ -2,10 +2,12 @@
 
 import { Link, usePathname } from "@/i18n/navigation";
 import { Heart } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useTranslations } from "next-intl";
+import { IconButton } from "@/components/IconButton";
 import { useWishlistCount } from "../hooks/useWishlist";
 
 export function WishlistHeaderButton() {
+  const t = useTranslations("wishlist");
   const count = useWishlistCount();
   // On the wishlist itself the heart marks where the user is instead of
   // linking to the page they are already on: an inert `aria-current="page"`
@@ -15,17 +17,17 @@ export function WishlistHeaderButton() {
 
   return (
     <div className="relative">
-      <Button variant="outline" size="icon" asChild>
+      <IconButton label={t("label")} variant="outline" asChild>
         {onPage ? (
-          <span role="img" aria-label="Wishlist" aria-current="page">
+          <span role="img" aria-current="page">
             <Heart className="h-4 w-4" />
           </span>
         ) : (
-          <Link href="/wishlist" aria-label="Wishlist">
+          <Link href="/wishlist">
             <Heart className="h-4 w-4" />
           </Link>
         )}
-      </Button>
+      </IconButton>
       {count > 0 && (
         <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground pointer-events-none">
           {count > 99 ? "99+" : count}

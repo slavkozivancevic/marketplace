@@ -6,6 +6,8 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { safeAuth } from "@/lib/auth/safeAuth";
 
 import { prisma } from "@/core/db/prisma";
+import { ensurePricesCurrent } from "@/features/pricing/db/roll";
+import { expireAtNextPriceChange } from "@/features/pricing/db/projection";
 import { getPathname } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import { CacheTags } from "@/lib/cache/tags";
@@ -395,6 +397,7 @@ async function fetchPublicProductBySlug(
 
   cacheTag(CacheTags.products.publicById(translationRow.productId));
 
+  await ensurePricesCurrent();
   const product = await prisma.product.findFirst({
     where: { id: translationRow.productId, status: "PUBLISHED", deletedAt: null },
     include: publicProductInclude,
@@ -402,6 +405,8 @@ async function fetchPublicProductBySlug(
 
   if (!product) return null;
 
+  // Expire this entry when the product's or any variant's price next changes.
+  expireAtNextPriceChange([product, ...product.variants]);
   return serializePublicProduct(product);
 }
 
@@ -490,6 +495,7 @@ async function fetchRelatedProducts(
 
   if (!current) return [];
 
+  await ensurePricesCurrent();
   const categoryIds = current.categories.map((c) => c.categoryId);
 
   const products = await prisma.product.findMany({
@@ -513,6 +519,7 @@ async function fetchRelatedProducts(
     include: { ...listItemInclude, media: { orderBy: { order: "asc" }, take: 1 } },
   });
   tagSellerTerms(products);
+  expireAtNextPriceChange(products);
 
   return products.map(serializeListItem);
 }

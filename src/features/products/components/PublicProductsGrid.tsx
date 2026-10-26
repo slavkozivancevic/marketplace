@@ -16,6 +16,7 @@ import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
 import type { ProductFilters } from "@/lib/query/searchParams";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
 import { useCurrencyStore, getCurrentRate } from "@/store/currency";
+import { useViewerMarket } from "@/providers/MarketProvider";
 import { QuickViewModal } from "./QuickViewModal";
 import { ProductCard } from "./ProductCard";
 
@@ -61,7 +62,12 @@ export function PublicProductsGrid({
   scrollContainerRef,
 }: {
   filters: ProductFilters;
-  scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
+  /**
+   * The page's scroll viewport (sidebar + grid + footer scroll as one). The
+   * grid never scrolls itself - it is a `@container` that measures its own
+   * width for the column count.
+   */
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const t = useTranslations("products");
   const locale = useLocale();
@@ -70,6 +76,7 @@ export function PublicProductsGrid({
   // Include currency in the query key so that switching currency triggers a
   // fresh fetch with the correct rate (buildFetcher reads it imperatively).
   const { currency } = useCurrencyStore();
+  const { country: viewerCountry } = useViewerMarket();
 
   const {
     parentRef,
@@ -85,7 +92,9 @@ export function PublicProductsGrid({
     isSentinelRow,
     isPlaceholderData,
   } = useInfiniteVirtualGrid<SerializedProductListItem>({
-    queryKey: ["products", "public", filters, currency, locale],
+    // The viewer's country: "on sale" is per market (see marketSaleExclusions),
+    // and the SSR prefetch keys on the same cookie.
+    queryKey: ["products", "public", filters, currency, locale, viewerCountry],
     queryFn: buildFetcher(filters, locale),
     minCardWidth: 280,
     gap: 24,
@@ -111,7 +120,7 @@ export function PublicProductsGrid({
   // returned nothing.
   if (query.status === "pending" || isPlaceholderData) {
     return (
-      <div ref={parentRef} className={cn("@container", !scrollContainerRef && "flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable]")}>
+      <div ref={parentRef} className="@container">
         <div className="grid grid-cols-1 @[584px]:grid-cols-2 @[888px]:grid-cols-3 @[1192px]:grid-cols-4 @[1496px]:grid-cols-5 @[1800px]:grid-cols-6 gap-6">
           {Array.from({ length: skeletonCount }).map((_, i) => (
             <SkeletonProductGridCard key={i} />
@@ -150,7 +159,7 @@ export function PublicProductsGrid({
   if (!query.hasNextPage) {
     return (
       <>
-        <div ref={parentRef} className={cn("@container", !scrollContainerRef && "flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}>
+        <div ref={parentRef} className={cn("@container", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}>
           {!columnCountReady ? (
             <div className="grid grid-cols-1 @[584px]:grid-cols-2 @[888px]:grid-cols-3 @[1192px]:grid-cols-4 @[1496px]:grid-cols-5 @[1800px]:grid-cols-6 gap-6">
               {Array.from({ length: skeletonCount }).map((_, i) => (
@@ -173,7 +182,7 @@ export function PublicProductsGrid({
     <>
       <div
         ref={parentRef}
-        className={cn("@container", !scrollContainerRef && "flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
+        className={cn("@container", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
       >
         {!columnCountReady ? (
           <div className="grid grid-cols-1 @[584px]:grid-cols-2 @[888px]:grid-cols-3 @[1192px]:grid-cols-4 @[1496px]:grid-cols-5 @[1800px]:grid-cols-6 gap-6">

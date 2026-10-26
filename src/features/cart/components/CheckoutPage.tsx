@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useTransition } from "react";
 import { usePathname } from "next/navigation";
-import { useForm, useFormState } from "react-hook-form";
+import { useForm, useFormState, useWatch } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
 import { z } from "zod/v4";
 import { useRouter } from "@/i18n/navigation";
@@ -33,6 +33,9 @@ import { createCheckoutSession } from "../actions/checkout";
 import { createCodCheckout } from "../actions/codCheckout";
 import { validateCouponAction } from "@/features/coupons/actions/validateCoupon";
 import { Link } from "@/i18n/navigation";
+import { CountrySelect } from "@/features/products/components/CountrySelect";
+import { useViewerMarket } from "@/providers/MarketProvider";
+import { isCountryCode } from "@/lib/i18n/countries";
 
 type PaymentMethod = "card" | "cod";
 
@@ -43,7 +46,12 @@ const shippingSchema = z.object({
   city: z.string().trim().min(1),
   state: z.string().optional(),
   postalCode: z.string().trim().min(1),
-  country: z.string().trim().min(2),
+  // An ISO code from the picker, the same shape Stripe stores for a card
+  // order - never free text a courier has to decipher.
+  // A plain boolean, not the type guard: a guard (including one TypeScript
+  // infers from an arrow) narrows the schema's output to CountryCode and the
+  // form's input type stops matching.
+  country: z.string().refine((v): boolean => isCountryCode(v)),
 });
 
 type ShippingForm = z.infer<typeof shippingSchema>;
@@ -191,12 +199,18 @@ export function CheckoutPage() {
   // describe one and the same cart.
   const shipping = useCartShipping();
 
-  const { register, handleSubmit, control } = useForm<ShippingForm>({
+  // Starts on the buyer's pricing country - where they most likely live - but
+  // stays theirs to change: shipping a gift abroad is a real order.
+  const { country: viewerCountry } = useViewerMarket();
+  const { register, handleSubmit, control, setValue } = useForm<ShippingForm>({
     // Validate on every change so errors surface immediately and `hasErrors`
     // is accurate while the user is still typing (house rule for every form).
     mode: "onChange",
     resolver: useZodResolver(shippingSchema),
+    defaultValues: { country: viewerCountry ?? "" },
   });
+  const country = useWatch({ control, name: "country" });
+  const tMarkets = useTranslations("priceMarkets");
 
   // Read via `useFormState`, not by destructuring `formState` off `useForm`:
   // that is a proxy getter whose values change while the returned object's
@@ -465,8 +479,19 @@ export function CheckoutPage() {
                   <Input id="state" {...register("state")} />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="country" required>{t("country")}</Label>
-                  <Input id="country" {...register("country")} aria-invalid={!!errors.country} />
+                  <Label required>{t("country")}</Label>
+                  <CountrySelect
+                    value={country}
+                    onChange={(code) => setValue("country", code ?? "", { shouldDirty: true, shouldValidate: true })}
+                    clearable={false}
+                    aria-invalid={!!errors.country}
+                    labels={{
+                      none: tMarkets("countryNone"),
+                      clear: tMarkets("countryNone"),
+                      search: tMarkets("countriesSearch"),
+                      empty: tMarkets("countriesEmpty"),
+                    }}
+                  />
                   {errors.country && (
                     <p className="text-xs text-destructive">{errors.country.message}</p>
                   )}

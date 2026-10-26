@@ -72,6 +72,8 @@ function DialogContent({
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close data-slot="dialog-close" asChild>
+            {/* Agreed IconButton exception (close X of a dialog): the symbol is the label. */}
+            {/* eslint-disable-next-line no-restricted-syntax */}
             <Button
               variant="ghost"
               className="absolute top-2 right-2"

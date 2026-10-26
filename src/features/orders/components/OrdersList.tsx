@@ -14,6 +14,7 @@ import type { UserOrderListItem } from "../db/orders";
 import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
 import type { OrderFilters } from "@/lib/query/searchParams";
+import { TableScroll } from "@/components/ui/table-scroll";
 
 function buildFetcher(filters: OrderFilters) {
   return async ({
@@ -81,12 +82,12 @@ export function OrdersList({
 
   if (query.status === "pending") {
     return (
-      <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
+      <TableScroll>
         <OrderTableHeader t={t} />
         {Array.from({ length: 8 }).map((_, i) => (
           <OrderSkeletonRow key={i} />
         ))}
-      </div>
+      </TableScroll>
     );
   }
 
@@ -123,26 +124,18 @@ export function OrdersList({
   // Small dataset - render rows directly without virtualization.
   if (!query.hasNextPage) {
     return (
-      <div
-        role="table"
-        className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
-        ref={parentRef}
-      >
+      <TableScroll ref={parentRef} locked={isPlaceholderData}>
         <OrderTableHeader t={t} />
         {items.map((order) => (
           <OrderTableRow key={order.id} order={order} />
         ))}
-      </div>
+      </TableScroll>
     );
   }
 
   // Large dataset - virtualized scroll container.
   return (
-    <div
-      role="table"
-      className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
-      ref={parentRef}
-    >
+    <TableScroll ref={parentRef} locked={isPlaceholderData}>
       <OrderTableHeader t={t} />
       <div
         style={{
@@ -190,6 +183,6 @@ export function OrdersList({
           );
         })}
       </div>
-    </div>
+    </TableScroll>
   );
 }

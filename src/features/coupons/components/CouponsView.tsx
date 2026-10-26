@@ -28,7 +28,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 // Grid template + row placeholder are owned by the skeleton module so the real
 // table and its loading state can never describe different columns.
 import { COUPON_COLS as GRID, CouponSkeletonRow as SkeletonRow } from "./CouponTableSkeleton";
@@ -38,6 +37,11 @@ import { useRouter, usePathname } from "@/i18n/navigation";
 import { toast } from "@/components/ui/sonner";
 import type { CouponListItem } from "../db/coupons";
 import { deleteCouponAction, duplicateCouponAction } from "../actions/coupons";
+import { TableScroll } from "@/components/ui/table-scroll";
+import { IconButton } from "@/components/IconButton";
+import { parseMoney } from "@/lib/money";
+import { setRouteShape } from "@/lib/navigation/routeShape";
+import { couponShapeKey, type CouponFormShape } from "./CouponFormSkeleton";
 
 const ALL = "__all__";
 
@@ -90,28 +94,26 @@ function RowActions({
 
   return (
     <div className="flex items-center justify-end gap-1">
-      <Button
+      <IconButton
+        label={t("table.edit")}
         size="icon"
         variant="ghost"
         className="h-8 w-8"
         disabled={isEditing}
-        title={t("table.edit")}
         onClick={() => onEdit(id)}
       >
         {isEditing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
-        <span className="sr-only">{t("table.edit")}</span>
-      </Button>
-      <Button
+      </IconButton>
+      <IconButton
+        label={t("table.duplicate")}
         size="icon"
         variant="ghost"
         className="h-8 w-8"
         disabled={isDuplicating}
-        title={t("table.duplicate")}
         onClick={() => onDuplicate(id)}
       >
         {isDuplicating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
-        <span className="sr-only">{t("table.duplicate")}</span>
-      </Button>
+      </IconButton>
       <ActionButton
         open={deleteOpen}
         onOpenChange={onDeleteOpenChange}
@@ -123,10 +125,9 @@ function RowActions({
         onConfirm={() => onDelete(id)}
       >
         {/* Resting control - the dialog's confirm button carries the spinner. */}
-        <Button size="icon" variant="ghostDestructive" className="h-8 w-8">
+        <IconButton label={tc("delete")} size="icon" variant="ghostDestructive" className="h-8 w-8">
           <Trash2 className="h-4 w-4" />
-          <span className="sr-only">{tc("delete")}</span>
-        </Button>
+        </IconButton>
       </ActionButton>
     </div>
   );
@@ -252,6 +253,17 @@ export function CouponsView() {
 
   const handleEdit = (id: string) => {
     setEditingId(id);
+    // The edit skeleton draws this coupon's value and minimum fields, whose
+    // currency blocks size by the amounts they hold.
+    const coupon = items.find((c) => c.id === id);
+    if (coupon) {
+      const shape: CouponFormShape = {
+        type: coupon.type,
+        valueMoney: coupon.type === "FIXED" ? parseMoney(coupon.valueMoney) : null,
+        minOrderMoney: coupon.minOrder != null ? parseMoney(coupon.minOrderMoney) : null,
+      };
+      setRouteShape(couponShapeKey(id), shape);
+    }
     // Locale-aware typed nav; keep the spinner until the route transition ends.
     startNavigate(() => router.push({ pathname: "/admin/coupons/[id]/edit", params: { id } }));
   };
@@ -365,7 +377,6 @@ export function CouponsView() {
   // Lock the whole table while any row action is in flight so a second action
   // can't be started elsewhere (and the placeholder fade during a filter swap).
   const blocked = busy || isPlaceholderData;
-  const blockClass = blocked && "opacity-50 pointer-events-none transition-opacity duration-150";
 
   let body: React.ReactNode;
   if (query.status === "error") {
@@ -377,10 +388,10 @@ export function CouponsView() {
     );
   } else if (query.status === "pending") {
     body = (
-      <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
+      <TableScroll>
         {Header}
         {Array.from({ length: 10 }).map((_, i) => <SkeletonRow key={i} />)}
-      </div>
+      </TableScroll>
     );
   } else if (items.length === 0) {
     const hasFilters = !!f.search || !!f.status;
@@ -391,7 +402,7 @@ export function CouponsView() {
     );
   } else if (!query.hasNextPage) {
     body = (
-      <div role="table" className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", blockClass)}>
+      <TableScroll locked={blocked}>
         {Header}
         {items.map((c) => (
           <Row
@@ -407,11 +418,11 @@ export function CouponsView() {
             onDeleteOpenChange={setDeleteOpenId}
           />
         ))}
-      </div>
+      </TableScroll>
     );
   } else {
     body = (
-      <div role="table" ref={parentRef} className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", blockClass)}>
+      <TableScroll ref={parentRef} locked={blocked}>
         {Header}
         <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
           {virtualizer.getVirtualItems().map((vRow) => {
@@ -443,7 +454,7 @@ export function CouponsView() {
             );
           })}
         </div>
-      </div>
+      </TableScroll>
     );
   }
 

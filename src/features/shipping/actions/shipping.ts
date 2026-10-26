@@ -13,6 +13,7 @@ import {
   type OrgShippingLine,
 } from "../db/shipping";
 import { getMoneyContext } from "@/features/currency/db/activeCurrency";
+import { getViewerMarket } from "@/features/priceMarkets/db/viewer";
 import type { Currency } from "@/lib/currency-config";
 
 /**
@@ -44,7 +45,7 @@ export async function getCartShippingAction(
   prices: CartLinePrice[];
 }> {
   const ctx = await getMoneyContext();
-  const { lines: resolvedLines, unavailable } = await resolveCart(items);
+  const { lines: resolvedLines, unavailable } = await resolveCart(items, await getViewerMarket());
   const lines = await shippingLinesForResolved(resolvedLines, ctx);
   return {
     lines,

@@ -1,15 +1,17 @@
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TableScroll } from "@/components/ui/table-scroll";
 
 /**
  * Trust-point table layout + loading state. `AdminTrustPointsPage.tsx` imports
  * the template from here so the two can never describe different columns.
  *
  * 5 columns: label | icon | order | status | actions. The actions column fits
- * two 32px icon buttons plus the `pr-2.5` the house style puts after an icon
- * row (32 + 4 + 32 + 10 = 78, rounded to 80).
+ * three 32px icon buttons (edit, duplicate, delete) - the same 116px as tags,
+ * brands and price markets. It was 80px, sized for two, so the delete button
+ * hung past the row's edge once duplicate was added.
  */
-export const TRUST_POINT_COLS = "minmax(140px,1fr) 110px 80px 110px 80px";
+export const TRUST_POINT_COLS = "minmax(140px,1fr) 110px 80px 110px 116px";
 
 /**
  * One placeholder row. The tallest element is the icon-button group (h-8), so
@@ -37,6 +39,7 @@ export function TrustPointSkeletonRow() {
       <div className="flex items-center justify-end gap-1">
         <Skeleton className="h-8 w-8 rounded-lg" />
         <Skeleton className="h-8 w-8 rounded-lg" />
+        <Skeleton className="h-8 w-8 rounded-lg" />
       </div>
     </div>
   );
@@ -56,10 +59,7 @@ export function TrustPointTableSkeleton({ rows = 6 }: { rows?: number }) {
         </div>
       </div>
 
-      <div
-        role="table"
-        className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]"
-      >
+      <TableScroll>
         <div
           role="row"
           className="grid items-center gap-4 border-b p-3 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit"
@@ -74,7 +74,7 @@ export function TrustPointTableSkeleton({ rows = 6 }: { rows?: number }) {
         {Array.from({ length: rows }, (_, i) => (
           <TrustPointSkeletonRow key={i} />
         ))}
-      </div>
+      </TableScroll>
     </div>
   );
 }
