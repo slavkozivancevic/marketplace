@@ -113,6 +113,7 @@ model Organization {
   returns            Return[]
   orderParts         OrderSellerPart[]
   balances           OrgBalance[]
+  priceRules         PriceRule[]
 }
 
 // A seller organization's Stripe Connect (Express) account. Created during
@@ -409,7 +410,44 @@ model Product {
   // sees back exactly the number they typed.
   costPrice           Int?
   costPriceMoney      Json?
-  stock               Int?
+
+  // READ MODEL for dynamic pricing: the price a buyer is shown and charged
+  // RIGHT NOW. Equal to the base columns above unless a PriceWindow is active.
+  // Storefront filters, sorting and "on sale" read these, so the existing
+  // Prisma where/orderBy/cursor code keeps working unchanged.
+  //
+  // Kept current lazily: a reader first rolls every row whose `effectiveUntil`
+  // has passed (src/features/pricing/db/roll.ts), so no cron is needed for a
+  // price to flip on time. Database triggers (see the add_price_windows
+  // migration) copy the base into these columns on insert, and on a base price
+  // edit either copy it (no windows) or mark the row due - every write path,
+  // including bulk edit, CSV import and scripts, is covered without knowing.
+  //
+  // `effectiveCompareAtPrice` is the struck-through price: while a window is
+  // active it is the lowest price of the previous 30 days (EU Omnibus, from
+  // PricePoint), otherwise the seller's own `compareAtPrice`. Same mirror + set
+  // money contract as the base columns.
+  effectivePrice               Int @default(dbgenerated())
+  effectivePriceMoney          Json @default(dbgenerated())
+  effectiveCompareAtPrice      Int?
+  effectiveCompareAtPriceMoney Json?
+  effectiveRuleId              String?
+  effectiveRuleLabel           String?
+  // Null = valid until something changes; otherwise the instant to re-roll.
+  effectiveUntil               DateTime?
+  // Start of the window behind `effectiveRuleId`. Meaningful only while that is
+  // set: the Omnibus reference covers the 30 days before it, and a market price
+  // may show that reference only if nothing about markets changed since.
+  effectiveSince               DateTime?
+  // Last create, edit or delete of this product's market (REGION) rules, per
+  // target: { "m:<marketId>": iso, "c:<CC>": iso }. Market prices are computed
+  // per viewer and never recorded, so this is what tells the read path whether
+  // a buyer's market prices of the last 30 days are the default ones adjusted -
+  // per target, so a Germany rule edit never touches a Serbian buyer's
+  // reference. See applyMarket in src/features/pricing/engine/market.ts.
+  marketRuleClocks             Json?
+
+  stock Int?
 
   status ProductStatus @default(DRAFT)
 
@@ -496,6 +534,7 @@ model Product {
   tags            ProductTag[]
   wishlists       Wishlist[]
   attributeValues ProductAttributeValue[]
+  priceRules      PriceRule[]
 
   @@index([organizationId, deletedAt])
   @@index([organizationId, status])
@@ -503,6 +542,8 @@ model Product {
   @@index([brandId])
   @@index([featuredAt])
   @@index([isBestseller])
+  @@index([effectivePrice])
+  @@index([effectiveUntil])
   @@index([countryOfOrigin])
   @@index([warrantyMonths])
 }
@@ -567,31 +608,236 @@ model ProductHistory {
 }
 
 model ProductVariant {
-  id                  String      @id @default(uuid())
-  productId           String
-  sku                 String
+  id                           String      @id @default(uuid())
+  productId                    String
+  sku                          String
   // Same money contract as Product - see the invariant note there.
-  price               Int
-  priceMoney          Json
-  compareAtPrice      Int?
-  compareAtPriceMoney Json?
-  costPrice           Int?
-  costPriceMoney      Json?
-  stock               Int         @default(0)
-  barcode             String?
-  weight              Float?
-  weightUnit          WeightUnit?
-  order               Int         @default(0)
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
+  price                        Int
+  priceMoney                   Json
+  compareAtPrice               Int?
+  compareAtPriceMoney          Json?
+  costPrice                    Int?
+  costPriceMoney               Json?
+  // Dynamic pricing read model - see the note on Product.effectivePrice.
+  effectivePrice               Int @default(dbgenerated())
+  effectivePriceMoney          Json @default(dbgenerated())
+  effectiveCompareAtPrice      Int?
+  effectiveCompareAtPriceMoney Json?
+  effectiveRuleId              String?
+  effectiveRuleLabel           String?
+  effectiveUntil               DateTime?
+  effectiveSince               DateTime?
+  stock                        Int         @default(0)
+  barcode                      String?
+  weight                       Float?
+  weightUnit                   WeightUnit?
+  order                        Int         @default(0)
+  createdAt                    DateTime    @default(now())
+  updatedAt                    DateTime    @updatedAt
 
   product         Product                        @relation(fields: [productId], references: [id], onDelete: Cascade)
   media           ProductVariantMedia[]
   attributeValues ProductVariantAttributeValue[]
   orderItems      OrderItem[]
+  priceRules      PriceRule[]
 
   @@unique([productId, sku])
   @@index([productId])
+  @@index([effectiveUntil])
+}
+
+// Dynamic pricing. The full design is the dynamic-pricing spec; the parts a
+// reader of this file needs are below.
+enum PriceRuleKind {
+  SCHEDULE // by date and time; materialised into price windows ahead of time
+  REGION // by the buyer's market or country; resolved per viewer at read time
+}
+
+enum PriceAdjustmentType {
+  PERCENT // signed basis points of the base price, applied per currency
+  FIXED_PRICE // the rule's own amount replaces the base price
+  AMOUNT_OFF // the rule's amount is subtracted from the base price, per currency
+}
+
+enum PriceRecurrence {
+  NONE // one window, [startsAt, endsAt)
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+// A seller's rule that changes a product's (or one variant's) price for a
+// stretch of time or a market. The base price on Product / ProductVariant is
+// NEVER mutated by a rule - this row only describes the change.
+//
+// Times. `startsAt` / `endsAt` are UTC instants. For NONE they are the window
+// itself. For a recurring rule they bound the series (`endsAt` null = no end),
+// and every occurrence starts at `startMinute` LOCAL time in `timezone` (an IANA
+// name) and lasts `durationMinutes` of wall-clock time, so "Friday 17-21" stays
+// 17-21 on both sides of a DST switch.
+//
+// Money follows the invariant on Product.price: `amountMoney` is the MoneySet,
+// `amount` its USD-cent mirror, written together. Both are null for PERCENT,
+// which stores `percentBps` instead (-2000 = 20% off, +1000 = 10% up).
+//
+// Deletes. Both relations are Restrict on purpose. Variants are hard-deleted by
+// the variant sync whenever the seller removes one or changes its SKU, so a
+// cascade would drop that variant's rules silently on an ordinary edit. The db
+// layer deletes them explicitly first, with an audit row per rule.
+//
+// `createdById` / `updatedById` are plain ids, not relations: who changed a rule
+// is recorded in AuditLog, and these only label the row.
+model PriceRule {
+  id             String  @id @default(uuid())
+  organizationId String
+  productId      String
+  // Null = applies to the product and every variant, each from its own price.
+  variantId      String?
+
+  kind        PriceRuleKind
+  // The seller's label. Snapshotted onto the order line that used the rule, so
+  // promo attribution survives the rule being renamed or deleted.
+  name        String
+  adjustment  PriceAdjustmentType
+  percentBps  Int?
+  amount      Int?
+  amountMoney Json?
+  // Higher wins an overlap, after scope (variant over product) and geography.
+  priority    Int                 @default(0)
+  active      Boolean             @default(true)
+
+  startsAt        DateTime
+  endsAt          DateTime?
+  timezone        String
+  recurrence      PriceRecurrence @default(NONE)
+  startMinute     Int?
+  durationMinutes Int?
+  // ISO weekdays, 1 = Monday. WEEKLY only.
+  weekdays        Int[]
+  // 1-31. MONTHLY only; a month without that day has no occurrence.
+  monthDay        Int?
+
+  // REGION only, exactly one of the two (a CHECK constraint holds it): a whole
+  // market, or one country (ISO alpha-2) - whose market is derived, never
+  // stored, so moving a country between markets needs no rule edit. A REGION
+  // rule has no schedule: it applies while `active`, on top of whatever the
+  // schedule rules made the price, and its time columns hold neutral values.
+  marketId    String?
+  countryCode String?
+
+  createdById String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  product      Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant      ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  // Restrict for the same reason as above; deleting a market that rules use is
+  // refused by assertNotInUse before it gets here.
+  market       PriceMarket?    @relation(fields: [marketId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId])
+  @@index([productId])
+  @@index([variantId])
+  @@index([marketId])
+  @@index([countryCode])
+}
+
+// A group of countries the platform prices together ("Eurozone", "Balkans").
+// Platform-owned on purpose: if sellers defined their own groups, every seller
+// would have a different "Europe" and the buyer no single country selector.
+//
+// Exactly one market is the default: it has no countries of its own, every
+// country not mapped anywhere falls into it, and it cannot be deleted. Market
+// and currency are independent - the market decides the price, NEXT_CURRENCY
+// only how it is displayed.
+model PriceMarket {
+  id        String   @id @default(uuid())
+  // `true` on the default market and NULL on every other one - never `false`.
+  // Postgres does not count NULLs as duplicates, so the unique index allows
+  // any number of ordinary markets and at most one default, in a form Prisma
+  // models (a partial index would read as drift to the next `migrate dev`).
+  isDefault Boolean? @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  translations PriceMarketTranslation[]
+  countries    PriceMarketCountry[]
+  rules        PriceRule[]
+}
+
+model PriceMarketTranslation {
+  id       String @id @default(uuid())
+  marketId String
+  locale   String
+  name     String
+
+  market PriceMarket @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  @@unique([marketId, locale])
+  @@index([marketId])
+}
+
+// The country code is the primary key, so a country belongs to at most one
+// market as a fact of the database, not of the form.
+model PriceMarketCountry {
+  code     String @id
+  marketId String
+
+  market PriceMarket @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  @@index([marketId])
+}
+
+// When a country last changed market (added to one, removed from one, or its
+// market deleted). Only that country's buyers had their market - and so their
+// prices of the last 30 days - changed by it; the Omnibus check in
+// applyMarket reads it per viewer. No FK: the move outlives the market.
+model PriceCountryMove {
+  code    String   @id
+  movedAt DateTime @default(now())
+}
+
+// Which rule sets a target's price, and when - the output of the engine's
+// buildWindows, materialised 90 days ahead. Windows of one target never
+// overlap: precedence is resolved when they are generated, so a reader takes
+// "the window covering now" without ranking anything.
+//
+// No money here on purpose. The price is computed from the CURRENT base price
+// when a row is rolled, so a base price edit never invalidates a window - only
+// rule edits regenerate them. `variantId` null = the product row itself.
+//
+// Plain ids, no relations: windows are derived data, rebuilt wholesale from the
+// rules, and must never hold a product or a rule back from being changed.
+model PriceWindow {
+  id        String   @id @default(uuid())
+  productId String
+  variantId String?
+  ruleId    String
+  startsAt  DateTime
+  endsAt    DateTime
+
+  @@index([productId, variantId, startsAt])
+  @@index([endsAt])
+}
+
+// Omnibus ledger: every effective price a target has actually had, so the
+// "was" price of a reduction can be the lowest of the previous 30 days. One
+// open row (`endedAt` null) per target; a roll that changes the price closes
+// it and opens the next. Rows closed more than 30 days ago are pruned by the
+// monthly horizon job, except each target's latest.
+model PricePoint {
+  id         String    @id @default(uuid())
+  productId  String
+  variantId  String?
+  price      Int
+  priceMoney Json
+  startedAt  DateTime  @default(now())
+  endedAt    DateTime?
+
+  @@index([productId, variantId, startedAt])
+  @@index([endedAt])
 }
 
 model ProductVariantMedia {
@@ -814,6 +1060,10 @@ model Order {
   currency     String  @default("usd")
   // Exchange rate used at checkout (1 USD = X of currency). Always 1 for USD orders.
   exchangeRate Decimal @default(1) @db.Decimal(12, 6)
+  // Country the buyer was priced in (ISO alpha-2, from the NEXT_COUNTRY cookie),
+  // which picked the market rules on the order's lines. Null = no country known,
+  // so the default market applied. Independent of the shipping country.
+  pricingCountry String?
 
   // Shipping address (from Stripe Checkout or COD form)
   shippingName       String?
@@ -1040,13 +1290,23 @@ model PaymentTransaction {
 }
 
 model OrderItem {
-  id        String  @id @default(uuid())
-  orderId   String
-  productId String
-  variantId String?
-  quantity  Int
+  id             String  @id @default(uuid())
+  orderId        String
+  productId      String
+  variantId      String?
+  quantity       Int
   // Stored in the smallest unit of the order's currency
-  price     Int
+  price          Int
+  // The price rule that produced `price`, snapshotted at checkout; both null
+  // when the base price applied. A plain id with no foreign key, like
+  // Order.couponCode: the attribution must survive the rule being edited or
+  // deleted, which a SetNull relation would erase silently.
+  priceRuleId    String?
+  priceRuleLabel String?
+  // The market rule applied on top of that price for the buyer's country, by
+  // the same snapshot rule. Both null when the buyer's market had none.
+  marketRuleId    String?
+  marketRuleLabel String?
 
   order       Order           @relation(fields: [orderId], references: [id])
   product     Product         @relation(fields: [productId], references: [id])

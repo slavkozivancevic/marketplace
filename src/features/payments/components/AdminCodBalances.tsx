@@ -26,6 +26,7 @@ import type { AdminCodBalanceItem } from "../db/payouts";
 import { settleCodBalanceAction, payOutCodCreditAction } from "../actions/codBalance";
 // Grid template is owned by the skeleton module so the two can never drift.
 import { COD_BALANCES_COLS as GRID } from "./AdminCodBalancesSkeleton";
+import { TableScroll } from "@/components/ui/table-scroll";
 
 /**
  * One dialog, two directions. A positive balance is commission to collect from
@@ -183,7 +184,7 @@ export function AdminCodBalances({ items }: { items: AdminCodBalanceItem[] }) {
   }
 
   return (
-    <div className="rounded-lg border flex-1 min-h-0 overflow-auto">
+    <TableScroll>
       <div
         role="row"
         className={cn(GRID, "border-b p-3 text-sm font-medium text-muted-foreground sticky top-0 z-10 bg-background min-w-fit")}
@@ -241,6 +242,6 @@ export function AdminCodBalances({ items }: { items: AdminCodBalanceItem[] }) {
           onCancel={() => setTarget(null)}
         />
       )}
-    </div>
+    </TableScroll>
   );
 }

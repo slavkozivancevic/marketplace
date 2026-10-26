@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { HydrationMark } from "@/lib/navigation/hydrationGate";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Menu, X } from "lucide-react";
 import { useDismissable } from "@/hooks/useDismissable";
 import { BrandHomeLink } from "./brand-home-link";
-import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/IconButton";
 import { cn } from "@/lib/utils";
 import { PreferencesPopover } from "./preferences-popover";
 import { NotFoundAuth } from "./not-found-auth";
@@ -45,6 +46,8 @@ export function NotFoundHeader() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 header-bg">
+      {/* Layout chrome hydrated - see HistoryHydrationGate. */}
+      <HydrationMark />
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center gap-4">
           {/* flex-1 left rail keeps the center nav screen-centered */}
@@ -88,10 +91,10 @@ export function NotFoundHeader() {
             </div>
             {/* Mobile menu button - reveals nav (and auth on phones) once the
                 inline nav/auth collapse below md. */}
-            <Button
+            <IconButton
+              label={t(mobileOpen ? "common.closeMenu" : "common.openMenu")}
               ref={triggerRef}
               variant="outline"
-              size="icon"
               className="md:hidden"
               aria-expanded={mobileOpen}
               onClick={() => setMobileOpen(!mobileOpen)}
@@ -101,7 +104,7 @@ export function NotFoundHeader() {
               ) : (
                 <Menu className="h-4 w-4" />
               )}
-            </Button>
+            </IconButton>
             {/* Avatar-only below md (matching the hamburger's own md:hidden -
                 a mismatched breakpoint here left the hamburger, not the
                 avatar, as the rightmost element between sm and md), always

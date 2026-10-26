@@ -3,7 +3,8 @@
     "brand": "MarketVerse",
     "tagline": "Enterprise Platform",
     "dashboardTagline": "Dashboard",
-    "adminTagline": "Admin Panel"
+    "adminTagline": "Admin Panel",
+    "preferences": "Preferences"
   },
   "pagination": {
     "ariaLabel": "Pagination",
@@ -72,7 +73,13 @@
     "editCoupon": "Edit Coupon",
     "bulkOperations": "Bulk Operations",
     "history": "History",
-    "codBalances": "COD Balances"
+    "codBalances": "COD Balances",
+    "priceRules": "Price rules",
+    "newPriceRule": "New rule",
+    "editPriceRule": "Edit rule",
+    "adminPriceMarkets": "Price Markets",
+    "newPriceMarket": "New Market",
+    "editPriceMarket": "Edit Market"
   },
   "auth": {
     "signIn": "Sign In",
@@ -105,7 +112,9 @@
     "audit": "Audit Log",
     "dashboard": "Dashboard",
     "quickLinks": "Quick Links",
-    "codBalances": "COD Balances"
+    "codBalances": "COD Balances",
+    "priceMarkets": "Price markets",
+    "openNavigation": "Open navigation"
   },
   "footer": {
     "tagline": "The enterprise-grade commerce platform built for modern sellers and buyers.",
@@ -257,8 +266,6 @@
     "productDeleted": "Product deleted",
     "editCopy": "Edit copy",
     "edit": "Edit",
-    "view": "View",
-    "duplicating": "Duplicating...",
     "deleting": "Deleting...",
     "duplicate": "Duplicate",
     "deleteProduct": "Delete Product",
@@ -443,7 +450,8 @@
     "empty": "Your wishlist is empty",
     "emptyDesc": "Browse products and click the heart icon to save items you love.",
     "continueShopping": "Continue Shopping",
-    "browseProducts": "Browse Products"
+    "browseProducts": "Browse Products",
+    "label": "Wishlist"
   },
   "checkout": {
     "success": "Payment successful",
@@ -539,7 +547,9 @@
         "coupon": "Coupon",
         "review": "Review",
         "tag": "Tag",
-        "trustPoint": "Trust point"
+        "trustPoint": "Trust point",
+        "priceRule": "Price rule",
+        "priceMarket": "Price market"
       },
       "fields": {
         "count": "Count",
@@ -688,6 +698,18 @@
           "updated": "Trust point updated",
           "deleted": "Trust point deleted",
           "duplicated": "Trust point duplicated"
+        },
+        "priceRule": {
+          "created": "Price rule created",
+          "updated": "Price rule updated",
+          "deleted": "Price rule deleted",
+          "duplicated": "Price rule duplicated"
+        },
+        "price_market": {
+          "created": "Price market created",
+          "updated": "Price market updated",
+          "deleted": "Price market deleted",
+          "duplicated": "Price market duplicated"
         }
       },
       "columns": {
@@ -817,7 +839,16 @@
     "loadingHistory": "Loading product history...",
     "historyTitle": "Product History",
     "editBrandLoading": "Edit Brand",
-    "editTagLoading": "Edit Tag"
+    "editTagLoading": "Edit Tag",
+    "priceMarkets": "Price Markets",
+    "priceMarketsManage": "Group countries that share prices. Sellers can then set a price per market or per country on each product.",
+    "addPriceMarket": "Add Market",
+    "createPriceMarket": "Create New Market",
+    "createPriceMarketDesc": "Name a group of countries that share prices.",
+    "backToPriceMarkets": "Back to Markets",
+    "editPriceMarket": "Edit: {name}",
+    "editPriceMarketDesc": "Update the market's name and countries.",
+    "editPriceMarketLoading": "Edit Market"
   },
   "adminCategories": {
     "actions": "Actions",
@@ -973,6 +1004,7 @@
     "increaseQty": "Increase quantity",
     "removeItem": "Remove item",
     "itemRemoved": "{item} was removed from your cart because it is no longer available.",
+    "itemRepriced": "The price of {item} has changed to {price}.",
     "subtotal": "Subtotal",
     "shipping": "Delivery",
     "discount": "Discount",
@@ -984,7 +1016,8 @@
     "leadTimeExact": "{count, plural, one {Delivery usually takes # working day.} other {Delivery usually takes # working days.}}",
     "pageTitle": "Cart",
     "emptyHint": "Browse the shop and add something you like.",
-    "continueShopping": "Continue shopping"
+    "continueShopping": "Continue shopping",
+    "label": "Cart"
   },
   "reviews": {
     "write": "Write a Review",
@@ -1370,7 +1403,8 @@
     "yes": "Yes",
     "no": "No",
     "validationFailed": "Please fix the form errors before submitting.",
-    "validationFailedOnTabs": "Fix errors on: {tabs}. {message}"
+    "validationFailedOnTabs": "Fix errors on: {tabs}. {message}",
+    "variantRulesWillBeDeleted": "Saving will delete {count, plural, one {# price rule} other {# price rules}} that belong to a variant you removed or whose SKU you changed."
   },
   "bulkProducts": {
     "filterExecute": "Filter & Execute",
@@ -1514,7 +1548,8 @@
     "noMatches": "No matches",
     "noMatchesDesc": "No products match the current conditions. Adjust the filters and preview again.",
     "bulkCategoryLimitTitle": "Too many products for this change",
-    "bulkCategoryLimitDesc": "This filter matches {count} products, but category/tag changes are limited to {limit} at a time. Add more conditions to narrow the selection, then preview again."
+    "bulkCategoryLimitDesc": "This filter matches {count} products, but category/tag changes are limited to {limit} at a time. Add more conditions to narrow the selection, then preview again.",
+    "removeCondition": "Remove condition"
   },
   "chat": {
     "messagePlaceholder": "Message...",
@@ -1556,7 +1591,8 @@
     "sendFailedRejected": "The server refused this message",
     "sendFailedExpired": "The attached files have expired",
     "jumpToLatest": "Jump to latest",
-    "newMessagesBelow": "{count, plural, one {# new message} other {# new messages}}"
+    "newMessagesBelow": "{count, plural, one {# new message} other {# new messages}}",
+    "openMessages": "Messages"
   },
   "mediaUpload": {
     "title": "Upload Product Media",
@@ -1569,7 +1605,8 @@
     "typeNotAllowed": "File type not allowed: {name}",
     "tooLarge": "File too large: {name}",
     "uploaded": "Uploaded: {name}",
-    "uploadFailed": "Failed to upload: {name}"
+    "uploadFailed": "Failed to upload: {name}",
+    "remove": "Remove"
   },
   "csvImport": {
     "step1Title": "1. Download template",
@@ -1698,7 +1735,9 @@
     "loadingDetails": "Loading product details...",
     "stuckMessage": "This is taking longer than usual.",
     "reloadPage": "Reload page",
-    "close": "Close"
+    "close": "Close",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
   },
   "orgOrders": {
     "readOnly": "Read-only access",
@@ -1810,7 +1849,8 @@
     "recentlyViewed": "Recently Viewed"
   },
   "theme": {
-    "appearance": "Appearance"
+    "appearance": "Appearance",
+    "toggle": "Change theme"
   },
   "currency": {
     "label": "Currency",
@@ -1841,9 +1881,20 @@
     "duplicateVariantCombo": "Same option combination as variant #{other}",
     "duplicateSku": "Duplicate SKU \"{sku}\" (also variant #{other})",
     "couponPercentRange": "Percentage must be between 1 and 100",
+    "priceRulePercentRange": "Enter a change between -99.99% and +100%, other than 0",
+    "priceRuleAmountPositive": "Amount must be greater than 0",
+    "priceRuleTimezoneInvalid": "Choose a valid time zone",
+    "priceRuleEndRequired": "Enter when the price ends",
+    "priceRuleEndBeforeStart": "The end must come after the start",
+    "priceRuleWindowTooShort": "A price must last at least {minutes} minutes",
+    "priceRuleDurationRange": "Duration must be between {min} and {max} minutes",
+    "priceRuleWeekdaysRequired": "Select at least one day of the week",
+    "priceRuleMonthDayRange": "Enter a day of the month between 1 and 31",
     "leadTimeNeedsBoth": "Enter both the shortest and the longest delivery time",
     "leadTimeMaxBeforeMin": "The longest delivery time cannot be shorter than the shortest",
-    "couponAmountPositive": "Enter a discount amount greater than zero"
+    "couponAmountPositive": "Enter a discount amount greater than zero",
+    "priceRuleMarketRequired": "Choose a market",
+    "priceRuleCountryRequired": "Choose a country"
   },
   "coupons": {
     "title": "Coupons",
@@ -2058,6 +2109,8 @@
     "bulkCategoryLimit": "The selected filter matches {count} products, but bulk category changes are limited to {limit} at a time. Narrow the filter and try again.",
     "internalError": "Something went wrong. Please try again.",
     "inUse": "This record is still in use and cannot be deleted.",
+    "limitReached": "This limit has been reached.",
+    "priceRuleLimitReached": "A product can have at most {max} price rules.",
     "categoryHasChildren": "This department still has {count} subcategories. Move or delete them first.",
     "categoryHasProducts": "This category still holds {count} products. Move them to another category first.",
     "attributeInUse": "This attribute still holds {count} values on products. Remove it from those products first.",
@@ -2124,12 +2177,16 @@
     "checkoutSessionFailed": "Failed to create checkout session",
     "itemNoLongerAvailable": "Item no longer available",
     "insufficientStock": "Insufficient stock",
+    "shippingCountryInvalid": "Choose the country to ship to.",
     "productTitleRequiredBeforePublish": "Product title is required before publishing",
     "productDescriptionRequiredBeforePublish": "Product description is required before publishing",
     "productPriceRequiredBeforePublish": "Product price must be greater than 0 before publishing",
     "productMediaRequiredBeforePublish": "At least one product image or video is required before publishing",
     "invalidStatusTransition": "Invalid status transition from {from} to {to}",
-    "exchangeRateUnavailable": "The {currency} exchange rate is unavailable right now, so the price could not be saved. Please try again in a moment."
+    "exchangeRateUnavailable": "The {currency} exchange rate is unavailable right now, so the price could not be saved. Please try again in a moment.",
+    "priceMarketDefault": "The default market cannot be deleted.",
+    "priceMarketInUse": "{count, plural, one {# price rule still targets} other {# price rules still target}} this market. Delete them first.",
+    "priceMarketCountryTaken": "Already in another market: {countries}."
   },
   "adminCodBalances": {
     "title": "COD Balances",
@@ -2167,5 +2224,174 @@
     "enterManually": "Enter manually",
     "enterManuallyTooltip": "Enter an exact amount for this currency. It stays exactly that, unaffected by later rate changes.",
     "useConvertedTooltip": "Go back to converting this currency from the price above."
+  },
+  "priceRules": {
+    "title": "Price rules",
+    "loading": "Loading price rules...",
+    "description": "Scheduled and market price changes for {title}.",
+    "backToProduct": "Back to product",
+    "backToRules": "Back to price rules",
+    "addRule": "Add rule",
+    "newTitle": "Add price rule",
+    "editTitle": "Edit price rule",
+    "limitReached": "This product has {max} price rules, the maximum. Delete one to add another.",
+    "readOnly": "You can view this product's price rules, but only an owner or admin can change them.",
+    "verifyTitle": "Verification required",
+    "verifyDesc": "Your organization must be verified before it can change prices.",
+    "sortNote": "Sorting and price filters in the shop use the price that applies right now, before any market rule.",
+    "empty": "No price rules yet. Add one to schedule a promotion or a price change.",
+    "wholeProduct": "Whole product",
+    "variant": "Variant {sku}",
+    "durationHM": "{hours} h {minutes} min",
+    "created": "Price rule added",
+    "updated": "Price rule saved",
+    "deleted": "Price rule deleted",
+    "deleteConfirm": "Delete \"{name}\"?",
+    "deleteDesc": "Wherever this rule was setting the price, the normal price applies again.",
+    "deleting": "Deleting...",
+    "table": {
+      "name": "Name",
+      "appliesTo": "Applies to",
+      "change": "Change",
+      "schedule": "Schedule",
+      "priority": "Priority",
+      "status": "Status",
+      "actions": "Actions",
+      "edit": "Edit",
+      "duplicate": "Duplicate"
+    },
+    "status": {
+      "paused": "Paused",
+      "upcoming": "Upcoming",
+      "live": "Live",
+      "ended": "Ended"
+    },
+    "change": {
+      "percentOff": "{value}% off",
+      "percentUp": "+{value}%",
+      "fixedPrice": "Price {amount}",
+      "amountOff": "{amount} off"
+    },
+    "schedule": {
+      "once": "{from} to {to}",
+      "daily": "Every day at {time} for {duration}",
+      "weekly": "Every {days} at {time} for {duration}",
+      "monthly": "Monthly on day {day} at {time} for {duration}",
+      "until": "until {date}",
+      "market": "Always, for buyers in {target}"
+    },
+    "calendar": {
+      "title": "Next {days} days",
+      "base": "Normal price",
+      "overlap": "\"{hidden}\" overlaps \"{winner}\" and is hidden wherever they run at the same time."
+    },
+    "form": {
+      "name": "Name",
+      "nameHint": "Shown to you and on order lines, not to buyers.",
+      "appliesTo": "Applies to",
+      "changeType": "Type of change",
+      "adjustment": {
+        "PERCENT": "Percentage",
+        "FIXED_PRICE": "Fixed price",
+        "AMOUNT_OFF": "Amount off"
+      },
+      "percent": "Change in %",
+      "percentHint": "Negative for a discount (-20), positive for a markup (10).",
+      "fixedPrice": "Price",
+      "amountOff": "Amount off",
+      "repeat": "Repeat",
+      "recurrence": {
+        "NONE": "Once",
+        "DAILY": "Every day",
+        "WEEKLY": "Every week",
+        "MONTHLY": "Every month"
+      },
+      "recurringStrikeNote": "EU rules show the old price struck through only if the new price is below the lowest price of the last 30 days, so a promo that repeats within 30 days shows its lower price without the strike-through.",
+      "timezone": "Time zone",
+      "startDate": "Start date",
+      "seriesStart": "First day",
+      "startTime": "Start time",
+      "dailyStartTime": "Starts at",
+      "endDate": "End date",
+      "endTime": "End time",
+      "duration": "Duration (minutes)",
+      "seriesEnd": "Last day",
+      "noEnd": "No end",
+      "weekdays": "Days",
+      "monthDay": "Day of the month",
+      "monthDayHint": "Months without this day are skipped.",
+      "priority": "Priority",
+      "priorityHint": "When two rules overlap, the higher priority wins. A variant rule always wins over a whole-product rule, and a country rule over a market rule.",
+      "active": "Active",
+      "activeDesc": "A paused rule keeps its settings but changes no price.",
+      "save": "Save rule",
+      "create": "Add rule",
+      "creating": "Adding...",
+      "kind": "Rule type",
+      "kinds": {
+        "SCHEDULE": "Schedule",
+        "REGION": "Market"
+      },
+      "kindHint": {
+        "SCHEDULE": "Changes the price for everyone during the dates and times you set.",
+        "REGION": "Changes the price for buyers in one market or country, for as long as the rule is active. It applies on top of any scheduled price."
+      },
+      "regionScope": "Applies to buyers in",
+      "regionScopes": {
+        "MARKET": "A market",
+        "COUNTRY": "One country"
+      },
+      "market": "Market",
+      "marketPlaceholder": "Choose a market",
+      "defaultMarket": "{name} (all other countries)",
+      "country": "Country",
+      "countryPlaceholder": "Choose a country",
+      "countryClear": "Clear country",
+      "countrySearch": "Search countries...",
+      "countryEmpty": "No country matches.",
+      "kindLocked": "A rule's type cannot be changed after it is created."
+    },
+    "marketNote": "Market rules are not on the calendar: they apply to buyers in their market whenever they are active, on top of the price the calendar shows.",
+    "duplicated": "Rule duplicated as paused - switch it on when it is ready",
+    "editCopy": "Edit copy"
+  },
+  "priceMarkets": {
+    "name": "Name",
+    "countries": "Countries",
+    "countriesDesc": "Buyers from these countries see this market's prices. A country belongs to one market only.",
+    "countriesNone": "No countries selected",
+    "countriesSelected": "{count, plural, one {# country selected} other {# countries selected}}",
+    "countriesSearch": "Search countries...",
+    "countriesEmpty": "No country matches.",
+    "countryRemove": "Remove {country}",
+    "defaultCountriesNote": "Every country that is not in another market belongs to this one, so it has no country list of its own.",
+    "defaultCountries": "All other countries",
+    "noCountries": "No countries yet",
+    "rules": "Rules",
+    "actions": "Actions",
+    "default": "Default",
+    "deleteConfirm": "Delete \"{name}\"?",
+    "deleteDesc": "Its countries move to the default market, and buyers there see default-market prices.",
+    "deleteBlockedDefault": "The default market cannot be deleted: every country outside the other markets belongs to it.",
+    "deleteBlockedInUse": "{count, plural, one {# price rule still targets} other {# price rules still target}} this market. Delete them first.",
+    "deleted": "Market deleted",
+    "created": "Market created",
+    "updated": "Market saved",
+    "saveChanges": "Save Changes",
+    "create": "Create",
+    "creating": "Creating...",
+    "searchPlaceholder": "Search markets or countries...",
+    "count": "{count, plural, one {# market} other {# markets}}",
+    "noneFound": "No markets found",
+    "adjustSearch": "Try a different search.",
+    "priceFor": "Price for {country}",
+    "priceForRegion": "Regional price",
+    "countryLabel": "Pricing country",
+    "countryNone": "Choose a country",
+    "countryHint": "Some sellers price differently by country.",
+    "filterNote": "Price filter and sorting use the standard price, before country pricing.",
+    "duplicate": "Duplicate",
+    "duplicated": "Market duplicated, without countries - add its own",
+    "editCopy": "Edit copy"
   }
 }

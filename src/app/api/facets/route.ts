@@ -8,6 +8,8 @@ import {
   getChainIds,
 } from "@/features/categories/db/categories";
 import { getCategoryFacets } from "@/features/attributes/db/facets";
+import { marketSaleExclusions } from "@/features/priceMarkets/db/saleExclusions";
+import { getViewerMarket } from "@/features/priceMarkets/db/viewer";
 import { parseAttrs } from "@/lib/query/attrs";
 
 function parseOptionalFloat(value: string | null): number | undefined {
@@ -68,10 +70,15 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // The on-sale count is per viewer: their market may show some sales with
+    // no strike-through, and those are not on sale for them.
+    const saleExcludedIds = await marketSaleExclusions(await getViewerMarket());
+
     const result = await getCategoryFacets({
       deptDescendantIds,
       chainIds,
       base: {
+        saleExcludedIds,
         search,
         searchLocale,
         minPrice,

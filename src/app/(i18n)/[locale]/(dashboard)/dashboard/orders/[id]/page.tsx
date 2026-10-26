@@ -24,6 +24,7 @@ import { formatPrice } from "@/lib/currency";
 import type { Currency } from "@/lib/currency-config";
 import { getVariantLabel } from "@/features/attributes/utils/translations";
 import { getProductTitle } from "@/features/products/utils/translations";
+import { shippingCountryLabel } from "@/lib/i18n/countries";
 
 interface OrderDetailPageProps {
   params: Promise<{ id: string }>;
@@ -509,7 +510,7 @@ export default async function OrderDetailPage({
                   .filter(Boolean)
                   .join(", ")}
               </p>
-              {order.shippingCountry && <p>{order.shippingCountry}</p>}
+              {order.shippingCountry && <p>{shippingCountryLabel(order.shippingCountry, locale)}</p>}
             </CardContent>
           </Card>
         )}

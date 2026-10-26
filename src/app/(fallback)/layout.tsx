@@ -3,6 +3,7 @@ import "../globals.css";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { DEFAULT_LOCALE } from "@/i18n/config";
+import { ScrollbarScript } from "@/providers/scrollbars/ScrollbarScript";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -33,7 +34,10 @@ export default function FallbackRootLayout({
       className={cn("font-sans", geist.variable)}
       suppressHydrationWarning
     >
-      <body className="min-h-dvh bg-background antialiased">{children}</body>
+      <body className="min-h-dvh bg-background antialiased">
+        <ScrollbarScript />
+        {children}
+      </body>
     </html>
   );
 }

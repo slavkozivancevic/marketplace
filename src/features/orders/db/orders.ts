@@ -395,7 +395,110 @@ export type FulfillOrderItem = {
   productId: string;
   variantId: string | null;
   quantity: number;
+  /**
+   * The unit price the buyer was CHARGED, in the order currency's minor unit,
+   * when the caller knows it: Stripe's line item `unit_amount`, or the cart the
+   * COD checkout just resolved. With dynamic pricing the catalogue can move
+   * between checkout and the webhook, so a known charged price always wins
+   * over a fresh read.
+   */
+  unitPrice?: number;
+  /** The price rule behind `unitPrice`, when known (null = base price). */
+  priceRuleId?: string | null;
+  priceRuleLabel?: string | null;
+  /** The market rule applied on top of it for the buyer's country (null = none). */
+  marketRuleId?: string | null;
+  marketRuleLabel?: string | null;
 };
+
+/**
+ * The order lines with the price each one is recorded at, plus the products'
+ * stock (the Stripe path decrements it).
+ *
+ * A line that carries its charged `unitPrice` keeps it. A line without one - a
+ * Stripe session created before line items carried their price - falls back to
+ * the CURRENT effective price, the same number the storefront shows: the
+ * exact amount stored for the order currency, never a conversion of the USD
+ * mirror. Rule labels missing from a caller (Stripe metadata holds only the id)
+ * are looked up once; a rule deleted in the meantime simply leaves it null.
+ */
+async function priceOrderItems(items: FulfillOrderItem[], currency: Currency, rate: number) {
+  const variantIds = items.filter((i) => i.variantId).map((i) => i.variantId!);
+  const productOnlyIds = items.filter((i) => !i.variantId).map((i) => i.productId);
+  const effective = {
+    id: true,
+    effectivePriceMoney: true,
+    effectiveRuleId: true,
+    effectiveRuleLabel: true,
+  } as const;
+  const missingLabels = [
+    ...new Set([
+      ...items.filter((i) => i.priceRuleId && i.priceRuleLabel === undefined).map((i) => i.priceRuleId!),
+      ...items.filter((i) => i.marketRuleId && i.marketRuleLabel === undefined).map((i) => i.marketRuleId!),
+    ]),
+  ];
+
+  const [variants, products, rules] = await Promise.all([
+    variantIds.length
+      ? prisma.productVariant.findMany({ where: { id: { in: variantIds } }, select: effective })
+      : [],
+    productOnlyIds.length
+      ? prisma.product.findMany({
+          where: { id: { in: productOnlyIds } },
+          select: { ...effective, stock: true },
+        })
+      : [],
+    missingLabels.length
+      ? prisma.priceRule.findMany({
+          where: { id: { in: missingLabels } },
+          select: { id: true, name: true },
+        })
+      : [],
+  ]);
+
+  const variantMap = new Map(variants.map((v) => [v.id, v]));
+  const productMap = new Map(products.map((p) => [p.id, p]));
+  const labelOf = new Map(rules.map((r) => [r.id, r.name]));
+
+  const itemsWithPrice = items.map((item) => {
+    const row = item.variantId ? variantMap.get(item.variantId) : productMap.get(item.productId);
+    if (!row) {
+      throw new Error(
+        item.variantId ? `Variant ${item.variantId} not found` : `Product ${item.productId} not found`,
+      );
+    }
+    if (item.unitPrice !== undefined) {
+      const ruleId = item.priceRuleId ?? null;
+      const marketRuleId = item.marketRuleId ?? null;
+      return {
+        ...item,
+        price: item.unitPrice,
+        priceRuleId: ruleId,
+        priceRuleLabel: item.priceRuleLabel ?? (ruleId ? (labelOf.get(ruleId) ?? null) : null),
+        marketRuleId,
+        marketRuleLabel:
+          item.marketRuleLabel ?? (marketRuleId ? (labelOf.get(marketRuleId) ?? null) : null),
+      };
+    }
+    // No charged price known: the neutral current price. No market rule can be
+    // claimed for it - nothing here knows whose country the buyer priced in.
+    const unit = moneyIn(
+      requireMoney(row.effectivePriceMoney, `effectivePriceMoney on ${row.id}`),
+      currency,
+      { [currency]: rate },
+    );
+    return {
+      ...item,
+      price: unit,
+      priceRuleId: row.effectiveRuleId,
+      priceRuleLabel: row.effectiveRuleLabel,
+      marketRuleId: null,
+      marketRuleLabel: null,
+    };
+  });
+
+  return { itemsWithPrice, productMap };
+}
 
 export type ShippingAddress = {
   name: string | null;
@@ -421,6 +524,7 @@ export async function fulfillOrder({
   couponCode,
   shippingTotal = 0,
   shippingByOrg,
+  pricingCountry = null,
 }: {
   userId: string;
   stripeSessionId: string;
@@ -439,6 +543,9 @@ export async function fulfillOrder({
   // per-seller split (orgId -> amount) snapshotted for payouts.
   shippingTotal?: number;
   shippingByOrg?: Record<string, number>;
+  // The country the buyer was priced in (NEXT_COUNTRY), which chose the
+  // market rules on the lines; null = default market.
+  pricingCountry?: string | null;
 }) {
   const existing = await prisma.order.findUnique({
     where: { stripeSessionId },
@@ -451,45 +558,11 @@ export async function fulfillOrder({
     return existing;
   }
 
-  // Batch-fetch all prices upfront - avoids N+1 queries inside the transaction
-  const variantIds = items.filter((i) => i.variantId).map((i) => i.variantId!);
-  const productOnlyIds = items.filter((i) => !i.variantId).map((i) => i.productId);
-
-  const [variants, products] = await Promise.all([
-    variantIds.length
-      ? prisma.productVariant.findMany({
-          where: { id: { in: variantIds } },
-          select: { id: true, price: true, priceMoney: true },
-        })
-      : [],
-    productOnlyIds.length
-      ? prisma.product.findMany({
-          where: { id: { in: productOnlyIds } },
-          select: { id: true, price: true, priceMoney: true, stock: true },
-        })
-      : [],
-  ]);
-
-  const variantMap = new Map(variants.map((v) => [v.id, v]));
-  const productMap = new Map(products.map((p) => [p.id, p]));
-
-  const rate = exchangeRate ?? 1;
-  const curr = (currency ?? "usd") as Currency;
-  // Snapshot the price the buyer was actually charged: the exact amount stored
-  // for the order currency, not a conversion of the USD mirror.
-  const unitIn = (row: { id: string; priceMoney: unknown }, c: Currency, r: number) =>
-    moneyIn(requireMoney(row.priceMoney, `priceMoney on ${row.id}`), c, { [c]: r });
-
-  const itemsWithPrice = items.map((item) => {
-    if (item.variantId) {
-      const variant = variantMap.get(item.variantId);
-      if (!variant) throw new Error(`Variant ${item.variantId} not found`);
-      return { ...item, price: unitIn(variant, curr, rate) };
-    }
-    const product = productMap.get(item.productId);
-    if (!product) throw new Error(`Product ${item.productId} not found`);
-    return { ...item, price: unitIn(product, curr, rate) };
-  });
+  const { itemsWithPrice, productMap } = await priceOrderItems(
+    items,
+    (currency ?? "usd") as Currency,
+    exchangeRate ?? 1,
+  );
 
   // `totalCents` (Stripe amount_total) = (subtotal - coupon discount) + shipping.
   // Recover the items discount net of shipping (shipping is added on top and is
@@ -564,6 +637,7 @@ export async function fulfillOrder({
         discountAmount,
         shippingTotal,
         shippingByOrg: shippingByOrg ?? undefined,
+        pricingCountry,
         locale,
         currency: currency ?? "usd",
         exchangeRate: exchangeRate ?? 1,
@@ -580,6 +654,10 @@ export async function fulfillOrder({
             variantId: item.variantId,
             quantity: item.quantity,
             price: item.price,
+            priceRuleId: item.priceRuleId,
+            priceRuleLabel: item.priceRuleLabel,
+            marketRuleId: item.marketRuleId,
+            marketRuleLabel: item.marketRuleLabel,
           })),
         },
       },
@@ -646,6 +724,7 @@ export async function createCodOrder({
   couponCode,
   shippingTotal = 0,
   shippingByOrg,
+  pricingCountry = null,
 }: {
   userId: string;
   totalInCurrency: number;
@@ -660,44 +739,16 @@ export async function createCodOrder({
   // per-seller split (orgId -> amount) snapshotted for payouts.
   shippingTotal?: number;
   shippingByOrg?: Record<string, number>;
+  // The country the buyer was priced in (NEXT_COUNTRY), which chose the
+  // market rules on the lines; null = default market.
+  pricingCountry?: string | null;
 }) {
-  const variantIds = items.filter((i) => i.variantId).map((i) => i.variantId!);
-  const productOnlyIds = items.filter((i) => !i.variantId).map((i) => i.productId);
-
-  const [variants, products] = await Promise.all([
-    variantIds.length
-      ? prisma.productVariant.findMany({
-          where: { id: { in: variantIds } },
-          select: { id: true, price: true, priceMoney: true },
-        })
-      : [],
-    productOnlyIds.length
-      ? prisma.product.findMany({
-          where: { id: { in: productOnlyIds } },
-          select: { id: true, price: true, priceMoney: true, stock: true },
-        })
-      : [],
-  ]);
-
-  const variantMap = new Map(variants.map((v) => [v.id, v]));
-  const productMap = new Map(products.map((p) => [p.id, p]));
-
   // Same rule as the Stripe path above: the stored per-currency amount wins.
-  const unitIn = (row: { id: string; priceMoney: unknown }) =>
-    moneyIn(requireMoney(row.priceMoney, `priceMoney on ${row.id}`), currency as Currency, {
-      [currency]: exchangeRate,
-    });
-
-  const itemsWithPrice = items.map((item) => {
-    if (item.variantId) {
-      const variant = variantMap.get(item.variantId);
-      if (!variant) throw new Error(`Variant ${item.variantId} not found`);
-      return { ...item, price: unitIn(variant) };
-    }
-    const product = productMap.get(item.productId);
-    if (!product) throw new Error(`Product ${item.productId} not found`);
-    return { ...item, price: unitIn(product) };
-  });
+  const { itemsWithPrice, productMap } = await priceOrderItems(
+    items,
+    currency as Currency,
+    exchangeRate,
+  );
 
   // `totalInCurrency` = (subtotal - coupon discount) + shipping. Recover the
   // items discount net of shipping (shipping is added on top, never discounted).
@@ -766,6 +817,7 @@ export async function createCodOrder({
         discountAmount,
         shippingTotal,
         shippingByOrg: shippingByOrg ?? undefined,
+        pricingCountry,
         locale: locale ?? "en",
         currency,
         exchangeRate,
@@ -782,6 +834,10 @@ export async function createCodOrder({
             variantId: item.variantId,
             quantity: item.quantity,
             price: item.price,
+            priceRuleId: item.priceRuleId,
+            priceRuleLabel: item.priceRuleLabel,
+            marketRuleId: item.marketRuleId,
+            marketRuleLabel: item.marketRuleLabel,
           })),
         },
       },

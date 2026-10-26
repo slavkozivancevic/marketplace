@@ -6,16 +6,19 @@ import { auth } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/core/db/prisma";
-import { createCodOrder } from "@/features/orders/db/orders";
+import { createCodOrder, type FulfillOrderItem } from "@/features/orders/db/orders";
+import { resolveCart, type CartItemRef } from "@/features/cart/db/resolveCart";
+import { getViewerMarket } from "@/features/priceMarkets/db/viewer";
 import { publishCodOrderPlaced } from "@/services/notifications";
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import { enforceRateLimit, getClientIp } from "@/lib/rateLimit/guard";
 import { getCurrencyRate } from "@/features/currency/db/currencyRates";
-import { moneyIn, requireMoney } from "@/lib/money";
+import { moneyIn } from "@/lib/money";
 import { validateCoupon } from "@/features/coupons/db/coupons";
-import { cartShippingLines } from "@/features/shipping/db/shipping";
+import { shippingLinesForResolved } from "@/features/shipping/db/shipping";
 import type { ActionErrorResult } from "@/types/types";
 import type { CheckoutCartItem } from "./checkout";
+import { normalizeCountryCode } from "@/lib/i18n/countries";
 import { VALID_CURRENCIES, type Currency } from "@/lib/currency-config";
 
 export type CodShippingInput = {
@@ -27,6 +30,33 @@ export type CodShippingInput = {
   postalCode: string;
   country: string;
 };
+
+/**
+ * Whether every line still has the stock it asks for. A product with untracked
+ * stock (`null`) always does. The order write re-checks atomically
+ * (`stock >= quantity` in the decrement), so this only turns the common race
+ * into a readable message instead of a failed transaction.
+ */
+async function hasStockFor(items: CartItemRef[]): Promise<boolean> {
+  const variantIds = items.filter((i) => i.variantId).map((i) => i.variantId!);
+  const productIds = items.filter((i) => !i.variantId).map((i) => i.productId);
+  const [variants, products] = await Promise.all([
+    variantIds.length
+      ? prisma.productVariant.findMany({ where: { id: { in: variantIds } }, select: { id: true, stock: true } })
+      : [],
+    productIds.length
+      ? prisma.product.findMany({ where: { id: { in: productIds } }, select: { id: true, stock: true } })
+      : [],
+  ]);
+  const stock = new Map<string, number | null>([
+    ...variants.map((v) => [v.id, v.stock] as const),
+    ...products.map((p) => [p.id, p.stock] as const),
+  ]);
+  return items.every((i) => {
+    const s = stock.get(i.variantId ?? i.productId);
+    return s === null || (s !== undefined && s >= i.quantity);
+  });
+}
 
 // Observed (ROADMAP #23) - see the note on createCheckoutSession. Same shape,
 // tagged `paymentMethod: "cod"` so one alarm covers both rails while the
@@ -70,55 +100,48 @@ async function runCodCheckout(
 
     if (!user) return { error: true, message: t("userNotFound") };
     if (items.length === 0) return { error: true, message: t("cartEmpty") };
+    // The form only offers ISO codes; a request that skips the form does not
+    // get to put free text on the label a courier reads.
+    const shippingCountry = normalizeCountryCode(shipping.country);
+    if (!shippingCountry) return { error: true, message: t("shippingCountryInvalid") };
 
     // Fetch exchange rate once for the entire order
     const exchangeRate = await getCurrencyRate(currency);
 
-    // Server-side price calculation - never trust client
-    const productIds = items.filter((i) => !i.variantId).map((i) => i.productId);
-    const variantIds = items.filter((i) => i.variantId).map((i) => i.variantId!);
-
-    const [dbProducts, dbVariants] = await Promise.all([
-      productIds.length
-        ? prisma.product.findMany({
-            where: { id: { in: productIds }, status: "PUBLISHED", deletedAt: null },
-            select: { id: true, price: true, priceMoney: true, stock: true },
-          })
-        : [],
-      variantIds.length
-        ? prisma.productVariant.findMany({
-            where: { id: { in: variantIds } },
-            select: { id: true, price: true, priceMoney: true, stock: true },
-          })
-        : [],
-    ]);
-
-    const productMap = new Map(dbProducts.map((p) => [p.id, p]));
-    const variantMap = new Map(dbVariants.map((v) => [v.id, v]));
+    // Server-side prices - never trust the client - from `resolveCart`, the one
+    // place a cart line is priced: the effective price (any active schedule
+    // rule, rolled first), then the buyer's market on top. The cart page, the
+    // coupon check and the shipping thresholds all read the same resolution.
+    const viewer = await getViewerMarket();
+    const resolved = await resolveCart(items, viewer);
+    if (resolved.unavailable.length > 0) {
+      return { error: true, message: t("itemNoLongerAvailable") };
+    }
+    if (!(await hasStockFor(items))) {
+      return { error: true, message: t("insufficientStock") };
+    }
 
     let totalInCurrency = 0;
     let subtotalUsd = 0;
-    for (const item of items) {
-      if (item.variantId) {
-        const v = variantMap.get(item.variantId);
-        if (!v) return { error: true, message: t("itemNoLongerAvailable") };
-        if (v.stock < item.quantity) return { error: true, message: t("insufficientStock") };
-        subtotalUsd += Number(v.price) * item.quantity;
-        // Charge the amount stored for this currency, not a conversion of the
-        // USD mirror - same rule as the card path.
-        const unitMoney = requireMoney(v.priceMoney, `ProductVariant.priceMoney on ${v.id}`);
-        const unitCents = moneyIn(unitMoney, currency, { [currency]: exchangeRate });
-        totalInCurrency += unitCents * item.quantity;
-      } else {
-        const p = productMap.get(item.productId);
-        if (!p) return { error: true, message: t("itemNoLongerAvailable") };
-        if (p.stock !== null && p.stock < item.quantity)
-          return { error: true, message: t("insufficientStock") };
-        subtotalUsd += Number(p.price) * item.quantity;
-        const unitMoney = requireMoney(p.priceMoney, `Product.priceMoney on ${p.id}`);
-        const unitCents = moneyIn(unitMoney, currency, { [currency]: exchangeRate });
-        totalInCurrency += unitCents * item.quantity;
-      }
+    // Each line with the exact price charged and the rules behind it, so the
+    // order records this number rather than re-reading the catalogue.
+    const pricedItems: FulfillOrderItem[] = [];
+    for (const line of resolved.lines) {
+      subtotalUsd += line.unitPriceUsd * line.quantity;
+      // Charge the amount stored for this currency, not a conversion of the
+      // USD mirror - same rule as the card path.
+      const unitCents = moneyIn(line.unitMoney, currency, { [currency]: exchangeRate });
+      totalInCurrency += unitCents * line.quantity;
+      pricedItems.push({
+        productId: line.productId,
+        variantId: line.variantId,
+        quantity: line.quantity,
+        unitPrice: unitCents,
+        priceRuleId: line.priceRuleId,
+        priceRuleLabel: line.priceRuleLabel,
+        marketRuleId: line.marketRuleId,
+        marketRuleLabel: line.marketRuleLabel,
+      });
     }
 
     // Coupon: re-validate server-side and subtract the discount from the COD
@@ -141,7 +164,8 @@ async function runCodCheckout(
 
     // Per-seller delivery (added on top of the discounted items total). Snapshot
     // the per-org split for payouts.
-    const shipLines = await cartShippingLines(items, {
+    // From the lines resolved above, not a second resolution.
+    const shipLines = await shippingLinesForResolved(resolved.lines, {
       currency,
       rates: { [currency]: exchangeRate },
     });
@@ -162,11 +186,12 @@ async function runCodCheckout(
       totalInCurrency,
       currency,
       exchangeRate,
-      items,
+      items: pricedItems,
       couponId: appliedCouponId,
       couponCode: appliedCouponCode,
       shippingTotal,
       shippingByOrg,
+      pricingCountry: viewer.country,
       shipping: {
         name: shipping.name,
         line1: shipping.line1,
@@ -174,7 +199,7 @@ async function runCodCheckout(
         city: shipping.city,
         state: shipping.state ?? null,
         postalCode: shipping.postalCode,
-        country: shipping.country,
+        country: shippingCountry,
       },
       locale,
     });

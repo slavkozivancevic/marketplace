@@ -1,9 +1,39 @@
 import { ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { cn } from "@/lib/utils";
+import { VALID_CURRENCIES, type Currency } from "@/lib/currency-config";
+import { getCurrencyConfig } from "@/lib/currency";
+import type { MoneySet } from "@/lib/money";
+import { sameMoneyInput, toMoneyInput, type MoneyInput } from "@/lib/money-input";
+import { DEFAULT_LOCALE, NON_DEFAULT_LOCALES } from "@/i18n/config";
+import { Card, CardDescription, CardHeader, CardTitle } from "./card";
+import { Textarea } from "./textarea";
 
 import { buttonVariants } from "./button";
+
+/** What a known record's <Textarea> holds: its text, else the placeholder it shows. */
+export type SkeletonTextareaContent = { value: string; placeholder: string; rows: number };
+
+/**
+ * The four locale sections' description textareas of a translatable form, in
+ * form order (default locale first), for a record whose texts are known. The
+ * brand and category forms placeholder a blank translation with the default
+ * locale's text (its fallback) and the default locale with `emptyPlaceholder`.
+ */
+export function skeletonLocaleTextareas(
+  byLocale: Readonly<Record<string, string | null | undefined>>,
+  emptyPlaceholder: string,
+  rows: number,
+): SkeletonTextareaContent[] {
+  const fallback = byLocale[DEFAULT_LOCALE] ?? "";
+  return [DEFAULT_LOCALE, ...NON_DEFAULT_LOCALES].map((loc) => ({
+    value: byLocale[loc] ?? "",
+    placeholder: loc === DEFAULT_LOCALE ? emptyPlaceholder : fallback || emptyPlaceholder,
+    rows,
+  }));
+}
 
 export function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
@@ -29,21 +59,55 @@ export function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
 export function SkeletonButton({
   className,
   size = "default",
+  label,
+  withIcon = false,
 }: {
   className?: string;
   size?: "default" | "sm" | "xs" | "lg";
+  /**
+   * The real button's label, drawn transparent so the placeholder takes the
+   * button's exact width in every locale instead of a guessed `w-*`. For a
+   * button whose label is known but whose href is not (loading.tsx gets no
+   * route params).
+   */
+  label?: string;
+  /** The real button leads with an icon: an empty box of the size's icon size. */
+  withIcon?: boolean;
 }) {
   return (
     <div
+      aria-hidden
       className={cn(
         buttonVariants({
           variant: "secondary",
           size,
-          className: "pointer-events-none w-24 animate-pulse bg-muted",
+          className: cn(
+            "pointer-events-none animate-pulse bg-muted",
+            label ? "text-transparent" : "w-24",
+          ),
         }),
         className,
       )}
-    />
+    >
+      {/* buttonVariants sizes a bare svg per size; a span needs it spelled out. */}
+      {withIcon && <span className={cn("shrink-0", size === "sm" ? "size-3.5" : size === "xs" ? "size-3" : "size-4")} />}
+      {label}
+    </div>
+  );
+}
+
+/**
+ * Known copy drawn as a placeholder: the real string, transparent, on a muted
+ * bar per line (`box-decoration-clone`). It wraps exactly where the loaded text
+ * will, in every locale and at every width, so a multi-line hint is never a
+ * one-line bar that grows when the page lands. The caller supplies the element
+ * that carries the real typography (`text-xs`, `text-sm leading-none` ...).
+ */
+export function SkeletonCopy({ children }: { children: ReactNode }) {
+  return (
+    <span className="animate-pulse rounded-sm bg-muted text-transparent box-decoration-clone select-none">
+      {children}
+    </span>
   );
 }
 
@@ -144,11 +208,21 @@ export function SkeletonBreadcrumbs({
  * matches it 1:1 at every breakpoint instead of only on desktop.
  */
 export function SkeletonPageHeader({
+  title,
+  description,
   titleWidth = "w-56",
   descriptionWidth = "w-80",
   withDescription = true,
   actions,
 }: {
+  /**
+   * The real title when the route knows it but not the description (a form
+   * whose description is the record's name): rendered with <PageHeader>'s own
+   * h1 classes, so only the description is a placeholder.
+   */
+  title?: string;
+  /** The real description, when the caller knows it - drawn as <PageHeader> draws it. */
+  description?: string;
   titleWidth?: string;
   descriptionWidth?: string;
   /**
@@ -165,10 +239,16 @@ export function SkeletonPageHeader({
     <div className="sticky top-0 z-10 pt-3 pb-3 mb-2 sm:pt-6 sm:pb-4 sticky-header-bg will-change-transform">
       <div className="flex flex-col gap-2 sm:gap-3 md:flex-row md:items-center md:justify-between">
         <div className="space-y-0.5 min-w-0">
-          <div className="flex h-7 items-center sm:h-8">
-            <Skeleton className={cn("h-5 sm:h-6", titleWidth)} />
-          </div>
-          {withDescription && (
+          {title ? (
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate">{title}</h1>
+          ) : (
+            <div className="flex h-7 items-center sm:h-8">
+              <Skeleton className={cn("h-5 sm:h-6", titleWidth)} />
+            </div>
+          )}
+          {description ? (
+            <p className="text-sm text-muted-foreground line-clamp-2 sm:line-clamp-none">{description}</p>
+          ) : withDescription && (
             <div className="flex h-5 items-center">
               <Skeleton className={cn("h-3.5", descriptionWidth)} />
             </div>
@@ -286,113 +366,6 @@ export function SkeletonProductGridCard({
           </div>
         </div>
         {showButton && <SkeletonButton className="w-full mt-3" />}
-      </div>
-    </div>
-  );
-}
-
-function SkeletonDetailsCard({
-  titleWidth,
-  rows,
-}: {
-  titleWidth: string;
-  rows: number;
-}) {
-  return (
-    <div className="flex flex-col gap-4 overflow-hidden rounded-xl bg-card py-4 ring-1 ring-foreground/10">
-      <div className="px-4">
-        <SkeletonText rows={1} size="lg" className={titleWidth} />
-      </div>
-      <div className="px-4 space-y-3">
-        <SkeletonArray amount={rows}>
-          <div className="flex gap-3">
-            <SkeletonText rows={1} size="md" className="w-32 shrink-0" />
-            <SkeletonText rows={1} size="md" className="w-1/2" />
-          </div>
-        </SkeletonArray>
-      </div>
-    </div>
-  );
-}
-
-export function SkeletonProductCard() {
-  return (
-    <div className="space-y-6">
-      {/* Basic info */}
-      <div className="flex flex-col gap-4 overflow-hidden rounded-xl bg-card py-4 ring-1 ring-foreground/10">
-        <div className="flex items-center justify-between px-4">
-          <SkeletonText rows={1} size="lg" className="w-48" />
-          <SkeletonButton className="w-28" />
-        </div>
-
-        <div className="px-4 space-y-3">
-          <div className="flex gap-3">
-            <SkeletonText rows={1} size="md" className="w-24 shrink-0" />
-            <SkeletonText rows={1} size="md" className="w-1/2" />
-          </div>
-          <div className="flex gap-3">
-            <SkeletonText rows={1} size="md" className="w-24 shrink-0" />
-            <SkeletonText rows={1} size="md" className="w-1/3" />
-          </div>
-          <div className="flex gap-3">
-            <SkeletonText rows={1} size="md" className="w-24 shrink-0" />
-            <div className="flex flex-wrap gap-1.5">
-              <Skeleton className="h-5 w-16 rounded-full" />
-              <Skeleton className="h-5 w-20 rounded-full" />
-            </div>
-          </div>
-          <div>
-            <SkeletonText rows={1} size="md" className="w-28" />
-            <div className="mt-2">
-              <SkeletonText rows={2} size="md" className="w-full" />
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <SkeletonText rows={1} size="md" className="w-24 shrink-0" />
-            <Skeleton className="h-5 w-20 rounded-full" />
-          </div>
-        </div>
-      </div>
-
-      {/* Images */}
-      <div className="flex flex-col gap-4 overflow-hidden rounded-xl bg-card py-4 ring-1 ring-foreground/10">
-        <div className="px-4">
-          <SkeletonText rows={1} size="lg" className="w-24" />
-        </div>
-        <div className="px-4 space-y-3">
-          <Skeleton className="w-full h-96 rounded-lg" />
-          <div className="flex gap-2 flex-wrap">
-            <SkeletonArray amount={5}>
-              <Skeleton className="h-16 w-16 rounded border-2" />
-            </SkeletonArray>
-          </div>
-        </div>
-      </div>
-
-      {/* Pricing & Inventory */}
-      <SkeletonDetailsCard titleWidth="w-40" rows={4} />
-
-      {/* Shipping */}
-      <SkeletonDetailsCard titleWidth="w-28" rows={3} />
-
-      {/* Variants */}
-      <div className="flex flex-col gap-4 overflow-hidden rounded-xl bg-card py-4 ring-1 ring-foreground/10">
-        <div className="px-4">
-          <SkeletonText rows={1} size="lg" className="w-24" />
-        </div>
-
-        <div className="px-4 space-y-3">
-          <SkeletonArray amount={3}>
-            <div className="rounded-lg border p-4 bg-background">
-              <SkeletonText rows={1} size="md" className="w-3/4" />
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Skeleton className="h-6 w-16 rounded-full" />
-                <Skeleton className="h-6 w-20 rounded-full" />
-                <Skeleton className="h-6 w-14 rounded-full" />
-              </div>
-            </div>
-          </SkeletonArray>
-        </div>
       </div>
     </div>
   );
@@ -884,11 +857,10 @@ export function SkeletonActiveFiltersSpacer() {
  *
  * `input` covers <Input>, <Select> and <NumberStepper> alike - all three are
  * h-8 rounded-lg. `input-hint` adds the FormDescription line under it.
- * `slug` is the compound slug control: the input shares a `flex gap-2` row with
- * a `size="sm"` regenerate button, and the line underneath is a
- * `justify-between` pair of the description and the availability indicator.
- * `key` is the same control without the availability half - AttributeForm's key
- * field regenerates like a slug but has nothing to check for collisions.
+ * `slug` is the compound slug control: the input (its `size="sm"` regenerate
+ * button only appears after a manual edit), then a `justify-between` line of
+ * the description and, on an edit, the availability indicator. `key` is
+ * AttributeForm's key field, which works the same way and is drawn the same.
  * `textarea` is the taller control.
  */
 export type SkeletonFormRowKind =
@@ -916,11 +888,21 @@ export function SkeletonFormRow({
   kind = "input",
   textareaHeight = "h-16",
   spacing = "space-y-2",
+  mode = "create",
+  textarea,
 }: {
   labelWidth?: string;
   kind?: SkeletonFormRowKind;
   textareaHeight?: string;
   spacing?: string;
+  /**
+   * The record's text for a 	extarea row. <Textarea> is ield-sizing-content,
+   * so its height IS its text (or, while empty, its placeholder): the row draws a
+   * real textarea holding the same text, transparent, and gets the same height.
+   */
+  textarea?: SkeletonTextareaContent;
+  /** Only the slug / key row differs: an edit's saved value shows its availability. */
+  mode?: "create" | "edit";
 }) {
   return (
     <div className={spacing}>
@@ -929,22 +911,27 @@ export function SkeletonFormRow({
 
       {kind === "slug" || kind === "key" ? (
         <>
-          <div className="flex gap-2">
-            <Skeleton className="h-8 flex-1 rounded-lg" />
-            {/* Regenerate button: variant="outline" size="sm" -> h-7. */}
-            <Skeleton className="h-7 w-9 rounded-lg" />
-          </div>
-          {kind === "slug" ? (
-            <div className="flex items-center justify-between">
-              {/* FormDescription is text-[0.8rem]; the indicator is a text-xs
-                  span with a 12px icon beside it. */}
-              <Skeleton className="h-3 w-40" />
-              <Skeleton className="h-3 w-20" />
-            </div>
-          ) : (
+          {/* The regenerate button only appears once the value has been typed
+              over (`slugManuallyEdited` starts false), so a loaded form shows
+              the input alone, full width. */}
+          <Skeleton className="h-8 w-full rounded-lg" />
+          {/* FormDescription's 19.2px line; on an edit the availability
+              indicator (a text-xs span with a 12px icon) checks the saved value
+              beside it. A create's value is empty, and an empty one shows none. */}
+          <div className="flex h-[19.2px] items-center justify-between">
             <Skeleton className="h-3 w-40" />
-          )}
+            {mode === "edit" && <Skeleton className="h-3 w-20" />}
+          </div>
         </>
+      ) : kind === "textarea" && textarea ? (
+        <Textarea
+          readOnly
+          tabIndex={-1}
+          rows={textarea.rows}
+          value={textarea.value}
+          placeholder={textarea.placeholder}
+          className="pointer-events-none resize-none animate-pulse border-transparent bg-muted text-transparent placeholder:text-transparent dark:bg-muted"
+        />
       ) : (
         <Skeleton
           className={cn(
@@ -954,7 +941,173 @@ export function SkeletonFormRow({
         />
       )}
 
-      {kind === "input-hint" && <Skeleton className="h-3 w-64" />}
+      {kind === "input-hint" && <SkeletonDescription className="w-64" />}
+    </div>
+  );
+}
+
+/**
+ * A raw <Label> drawn from its real text: `flex items-center gap-2 text-sm
+ * leading-none font-medium` (a 14px box), the required "*" as a second item.
+ * For the forms that use <Label> + control rather than <FormItem>.
+ */
+export function SkeletonLabel({ label, required = false }: { label: string; required?: boolean }) {
+  return (
+    <div className="flex items-center gap-2 text-sm leading-none font-medium">
+      <SkeletonCopy>{label}</SkeletonCopy>
+      {required && <SkeletonCopy>*</SkeletonCopy>}
+    </div>
+  );
+}
+
+/**
+ * A <FormDescription> from its real text: `text-[0.8rem]` with the inherited
+ * 1.5 line height (19.2px a line), wrapping like the real one.
+ */
+export function SkeletonFormDescription({ children }: { children: ReactNode }) {
+  return (
+    <p className="text-[0.8rem]">
+      <SkeletonCopy>{children}</SkeletonCopy>
+    </p>
+  );
+}
+
+/**
+ * Stand-in for the hidden native `<select>` a Radix <Select> renders right
+ * after its trigger inside a <form>. It is absolutely positioned and takes no
+ * room itself, but it is a CHILD: in a `space-y-*` stack it makes the trigger
+ * a non-last child, so the trigger gets the stack's margin - 6px in a
+ * `space-y-1.5` field whose Select is its last control. Place it after the
+ * trigger placeholder of every Select field.
+ */
+export function SkeletonSelectTail() {
+  return <span aria-hidden className="absolute" />;
+}
+
+/** A `text-xs` hint paragraph from its real text, wrapping like the real one. */
+export function SkeletonHint({ children }: { children: ReactNode }) {
+  return (
+    <p className="text-xs">
+      <SkeletonCopy>{children}</SkeletonCopy>
+    </p>
+  );
+}
+
+/**
+ * The bordered "active" card of the raw-<Label> forms: `<Label
+ * className="text-base">` (twMerge drops the label's `leading-none` for it, so
+ * a 24px line) over a `text-sm` description, a default <Switch> on the right.
+ */
+export function SkeletonSwitchCard({
+  label,
+  description,
+  gap = false,
+  hintSlot = false,
+}: {
+  label: string;
+  description: string;
+  /** The row's `gap-4`, where the real card has one - it narrows the text. */
+  gap?: boolean;
+  /**
+   * The card ends in an `mt-2` wrapper for a saved-value hint (CouponForm on
+   * an edit). Empty until a change, but its margin is there from the start.
+   */
+  hintSlot?: boolean;
+}) {
+  return (
+    <div className="rounded-lg border p-4">
+      <div className={cn("flex items-center justify-between", gap && "gap-4")}>
+        <div className="space-y-0.5">
+          <div className="text-base font-medium">
+            <SkeletonCopy>{label}</SkeletonCopy>
+          </div>
+          <p className="text-sm">
+            <SkeletonCopy>{description}</SkeletonCopy>
+          </p>
+        </div>
+        {/* <Switch> is h-[18.4px] w-8. */}
+        <Skeleton className="h-[18.4px] w-8 shrink-0 rounded-full" />
+      </div>
+      {hintSlot && <div className="mt-2" />}
+    </div>
+  );
+}
+
+/**
+ * Placeholder for <MoneyField showDerived>: the amount input beside its `w-24`
+ * currency select, then the bordered block under it - the hint line and one
+ * row per currency other than the one on screen. That block is always there,
+ * empty amount or not, and it is most of the field's height.
+ *
+ * It takes what the field takes - the form value, the stored set, the
+ * currency on screen - and works the block out the field's way: untouched
+ * stored money says "saved amounts, entered in X", anything else "converted
+ * from X"; a currency pinned to a typed amount opens as a 28px input row
+ * instead of a 16px text line. So it draws the block the field will.
+ */
+export function SkeletonMoneyField({
+  value,
+  stored = null,
+  display,
+}: {
+  value: MoneyInput;
+  stored?: MoneySet | null;
+  /** The currency the box shows: the viewer's (`useCurrencyStore`), as the field's `preferredCurrency`. */
+  display: Currency;
+}) {
+  const t = useTranslations("money");
+  const pristine = stored != null && sameMoneyInput(value, toMoneyInput(stored));
+  const hint =
+    pristine && stored
+      ? t("storedHint", { currency: getCurrencyConfig(stored.primary).label })
+      : t("derivedHint", { currency: getCurrencyConfig(display).label });
+  const overrides = value.overrides ?? {};
+
+  return (
+    <div>
+      <div className="flex gap-2">
+        <Skeleton className="h-8 flex-1 rounded-lg" />
+        <Skeleton className="h-8 w-24 shrink-0 rounded-lg" />
+      </div>
+      <div className="mt-2 rounded-lg border bg-muted/30 p-2.5 space-y-2">
+        <p className="text-xs">
+          <SkeletonCopy>{hint}</SkeletonCopy>
+        </p>
+        {VALID_CURRENCIES.filter((c) => c !== display).map((c) => (
+          <div key={c} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+            {overrides[c] != null ? (
+              // A pinned currency: its code, the h-7 input, the 24px revert icon.
+              <>
+                <span className="w-8 shrink-0 font-medium">
+                  <SkeletonCopy>{getCurrencyConfig(c).label}</SkeletonCopy>
+                </span>
+                <Skeleton className="h-7 min-w-0 flex-1 basis-20 rounded-lg" />
+                <Skeleton className="ml-auto size-6 shrink-0 rounded" />
+              </>
+            ) : (
+              // The converted amount, then the "enter manually" link pushed right.
+              <>
+                <Skeleton className="h-3 w-16" />
+                <span className="ml-auto shrink-0 whitespace-nowrap">
+                  <SkeletonCopy>{t("enterManually")}</SkeletonCopy>
+                </span>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+/**
+ * Stand-in for one line of <FormDescription>. Its `text-[0.8rem]` sets no
+ * line-height, so the line inherits preflight's 1.5: 19.2px, not the 12px of
+ * the bar inside it. A bare `h-3` bar left every described field 7.2px short.
+ */
+export function SkeletonDescription({ className }: { className?: string }) {
+  return (
+    <div className="flex h-[19.2px] items-center">
+      <Skeleton className={cn("h-3", className)} />
     </div>
   );
 }
@@ -971,19 +1124,34 @@ export function SkeletonFormRow({
 export function SkeletonFormFooter({
   mode = "create",
   submitWidth = "w-32",
+  submitLabel,
+  submitMinWidth = true,
 }: {
   mode?: "create" | "edit";
   submitWidth?: string;
+  /**
+   * The real submit label. Most forms' submit is `min-w-32`, so with the label
+   * the placeholder is exactly as wide as the button: 128px or the text,
+   * whichever is wider.
+   */
+  submitLabel?: string;
+  /** False for a submit without `min-w-32` (CouponForm): the label alone sizes it. */
+  submitMinWidth?: boolean;
 }) {
   if (mode === "edit") {
+    // The quiet line is `text-sm`: a 20px line box, not the 16px icon.
     return (
-      <div className="flex items-center gap-1.5">
+      <div className="flex h-5 items-center gap-1.5">
         <Skeleton className="size-4 rounded" />
         <Skeleton className="h-3.5 w-36" />
       </div>
     );
   }
-  return <SkeletonButton className={submitWidth} />;
+  return submitLabel ? (
+    <SkeletonButton label={submitLabel} className={submitMinWidth ? "min-w-32" : undefined} />
+  ) : (
+    <SkeletonButton className={submitWidth} />
+  );
 }
 
 /**
@@ -1000,11 +1168,16 @@ export function SkeletonLocaleSection({
   labelWidths = ["w-16", "w-12", "w-32", "w-24"],
   radius = "md",
   textareaHeight = "h-16",
+  mode = "create",
+  textarea,
 }: {
   fields?: SkeletonFormRowKind[];
   labelWidths?: string[];
   radius?: "md" | "lg";
   textareaHeight?: string;
+  mode?: "create" | "edit";
+  /** This locale's textarea text, when the record is known. */
+  textarea?: SkeletonTextareaContent;
 }) {
   return (
     <div
@@ -1023,6 +1196,8 @@ export function SkeletonLocaleSection({
           kind={kind}
           labelWidth={labelWidths[i % labelWidths.length]}
           textareaHeight={textareaHeight}
+          mode={mode}
+          textarea={textarea}
         />
       ))}
     </div>
@@ -1035,13 +1210,17 @@ export function SkeletonLocaleSection({
  * identical boxes - a single-box placeholder leaves everything below it
  * mismatched and the page visibly shifts when the real form streams in.
  */
-export function SkeletonLocaleSections(
-  props: Parameters<typeof SkeletonLocaleSection>[0],
-) {
+export function SkeletonLocaleSections({
+  textareas,
+  ...props
+}: Omit<Parameters<typeof SkeletonLocaleSection>[0], "textarea"> & {
+  /** Per section, in form order (default locale first): its textarea text. */
+  textareas?: (SkeletonTextareaContent | undefined)[];
+}) {
   return (
     <>
       {Array.from({ length: 4 }, (_, i) => (
-        <SkeletonLocaleSection key={i} {...props} />
+        <SkeletonLocaleSection key={i} {...props} textarea={textareas?.[i]} />
       ))}
     </>
   );
@@ -1057,23 +1236,40 @@ export function SkeletonAdminForm({
   maxWidth = "max-w-2xl",
   spacing = "space-y-6",
   submitWidth = "w-32",
+  submitLabel,
+  submitMinWidth = true,
   mode = "create",
   children,
 }: {
   maxWidth?: string;
   spacing?: string;
   submitWidth?: string;
+  submitLabel?: string;
+  submitMinWidth?: boolean;
   mode?: "create" | "edit";
   children: ReactNode;
 }) {
   return (
-    <div className={cn(spacing, maxWidth)}>
-      {/* <RequiredFieldsNote /> is a single `text-xs` line. */}
-      <Skeleton className="h-3 w-56" />
+    <div aria-hidden className={cn(spacing, maxWidth)}>
+      <RequiredFieldsNoteSkeleton />
       {children}
-      <SkeletonFormFooter mode={mode} submitWidth={submitWidth} />
+      {/* Create: the submit sits in a `flex flex-wrap items-center gap-3` row. */}
+      <div className="flex flex-wrap items-center gap-3">
+        <SkeletonFormFooter
+          mode={mode}
+          submitWidth={submitWidth}
+          submitLabel={submitLabel}
+          submitMinWidth={submitMinWidth}
+        />
+      </div>
     </div>
   );
+}
+
+/** <RequiredFieldsNote />: its real `text-xs` sentence, so its real width. */
+export function RequiredFieldsNoteSkeleton({ className }: { className?: string }) {
+  const t = useTranslations("form");
+  return <p className={cn("text-xs", className)}><SkeletonCopy>{t("requiredHint")}</SkeletonCopy></p>;
 }
 
 export function SkeletonProductForm({
@@ -1086,9 +1282,11 @@ export function SkeletonProductForm({
   // plus warranty / country of origin / brand), another separator, then media.
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      {/* <RequiredFieldsNote /> - text-xs line sitting directly above <Tabs>,
-          no gap class between them on the form element itself. */}
-      <Skeleton className="h-3 w-56 shrink-0" />
+      {/* <RequiredFieldsNote /> - text-xs line (16px) sitting directly above
+          <Tabs>, no gap class between them on the form element itself. */}
+      <div className="flex h-4 shrink-0 items-center">
+        <Skeleton className="h-3 w-56" />
+      </div>
 
       {/* <Tabs> is `flex gap-2 data-horizontal:flex-col` - the 8px gap between
           the tab list and its content must be reproduced or the fields sit 8px
@@ -1117,9 +1315,10 @@ export function SkeletonProductForm({
           <div className="h-px bg-border" />
 
           {/* Specifications: a `text-base font-semibold` heading over warranty,
-              country of origin and brand. */}
+              country of origin and brand. It is a <FormLabel>, and twMerge
+              drops the label's `leading-none` for `text-base`: a 24px line. */}
           <div className="space-y-4">
-            <div className="flex h-4 items-center">
+            <div className="flex h-6 items-center">
               <Skeleton className="h-4 w-32" />
             </div>
             <SkeletonFormRow labelWidth="w-20" />
@@ -1129,9 +1328,10 @@ export function SkeletonProductForm({
 
           <div className="h-px bg-border" />
 
-          {/* Media: `space-y-2`, a text-base font-semibold label, the uploader. */}
+          {/* Media: `space-y-2`, a text-base font-semibold label (24px, as
+              above), the uploader. */}
           <div className="space-y-2">
-            <div className="flex h-4 items-center">
+            <div className="flex h-6 items-center">
               <Skeleton className="h-4 w-20" />
             </div>
             <Skeleton className="h-36 w-full rounded-lg" />
@@ -1151,28 +1351,49 @@ export function SkeletonProductForm({
 
 /**
  * Placeholder for the navigation card grids on the admin and dashboard home
- * pages: a `md:grid-cols-2` grid of <Card>s, each a 40px icon tile beside a
- * title and description.
+ * pages: a `md:grid-cols-2` grid of the SAME <Card> / <CardHeader> / <CardTitle>
+ * / <CardDescription> the pages render, each a 40px icon tile beside the
+ * card's real title and description (transparent), then the 16px hover arrow,
+ * which takes width from the text - so every description wraps where the
+ * loaded one does and every card is its loaded height.
  *
  * Both pages call `await connection()` and then query the user before rendering
  * anything, so they are fully dynamic and this is what fills the gap.
  */
-export function SkeletonNavCardGrid({ cards = 6 }: { cards?: number }) {
+export function SkeletonNavCardGrid({ cards }: { cards: { title: string; description: string }[] }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <SkeletonArray amount={cards}>
-        <div className="flex h-full flex-col gap-4 overflow-hidden rounded-xl bg-card py-4 ring-1 ring-foreground/10">
-          <div className="flex items-center gap-3 px-4">
-            <Skeleton className="h-10 w-10 shrink-0 rounded-lg" />
-            <div className="flex-1 space-y-1.5">
-              {/* CardTitle is `text-base leading-snug`, CardDescription text-sm. */}
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-3 w-48" />
-            </div>
-          </div>
+      {cards.map((card) => (
+        <div key={card.title}>
+          <Card className="h-full border-border/50">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-10 w-10 shrink-0 rounded-lg" />
+                <div className="flex-1">
+                  <CardTitle>
+                    <SkeletonCopy>{card.title}</SkeletonCopy>
+                  </CardTitle>
+                  <CardDescription>
+                    <SkeletonCopy>{card.description}</SkeletonCopy>
+                  </CardDescription>
+                </div>
+                {/* The ArrowRight, invisible until hover but always in the row. */}
+                <div className="h-4 w-4 shrink-0" />
+              </div>
+            </CardHeader>
+          </Card>
         </div>
-      </SkeletonArray>
+      ))}
     </div>
+  );
+}
+
+/** The `text-xs` uppercase caption above a home-page card grid, from its real text. */
+export function SkeletonNavCardCaption({ children }: { children: ReactNode }) {
+  return (
+    <h2 className="text-xs font-semibold uppercase tracking-widest mb-3">
+      <SkeletonCopy>{children}</SkeletonCopy>
+    </h2>
   );
 }
 
@@ -1181,22 +1402,38 @@ export function SkeletonNavCardGrid({ cards = 6 }: { cards?: number }) {
  * <PageHeader>: a breadcrumb trail, an `text-2xl font-bold` h1 and a `text-sm`
  * subtitle, in a `px-6 sticky-header-bg` box with `pt-2` / `pb-4`.
  *
- * The real heading interpolates the user's name, which is exactly what the page
- * is still waiting on, so it stays a placeholder bar here.
+ * Each line is real copy where the route knows it. The line that greets the
+ * user by name is real too when the caller has the name (the dashboard layout
+ * provides it), otherwise a bar of that line's height.
  */
-export function SkeletonGreetingHeader() {
+export function SkeletonGreetingHeader({
+  breadcrumbs,
+  title,
+  subtitle,
+}: {
+  /** The real <Breadcrumbs> - the home pages' trails are static. */
+  breadcrumbs?: ReactNode;
+  title?: string;
+  subtitle?: string;
+}) {
   return (
     <div className="shrink-0 px-6 sticky-header-bg">
-      <div className="pt-2">
-        <SkeletonBreadcrumbs />
-      </div>
+      <div className="pt-2">{breadcrumbs ?? <SkeletonBreadcrumbs />}</div>
       <div className="pb-4">
-        <div className="flex h-8 items-center">
-          <Skeleton className="h-6 w-64" />
-        </div>
-        <div className="mt-0.5 flex h-5 items-center">
-          <Skeleton className="h-3.5 w-80" />
-        </div>
+        {title ? (
+          <h1 className="text-2xl font-bold">{title}</h1>
+        ) : (
+          <div className="flex h-8 items-center">
+            <Skeleton className="h-6 w-64" />
+          </div>
+        )}
+        {subtitle ? (
+          <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>
+        ) : (
+          <div className="mt-0.5 flex h-5 items-center">
+            <Skeleton className="h-3.5 w-80" />
+          </div>
+        )}
       </div>
     </div>
   );

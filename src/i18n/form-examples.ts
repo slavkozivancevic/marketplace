@@ -82,6 +82,18 @@ export const TRUST_POINT_EXAMPLES: {
   },
 };
 
+export const PRICE_MARKET_EXAMPLES: {
+  /** Example market name per section locale - a group of countries priced together. */
+  name: LocaleExamples;
+} = {
+  name: {
+    en: "Eurozone",
+    sr: "Evrozona",
+    de: "Eurozone",
+    es: "Eurozona",
+  },
+};
+
 export const ATTRIBUTE_EXAMPLES: {
   /** Example attribute label per section locale (e.g. the "Color" attribute). */
   label: LocaleExamples;

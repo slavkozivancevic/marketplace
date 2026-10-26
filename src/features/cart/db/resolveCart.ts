@@ -1,6 +1,21 @@
 import { prisma } from "@/core/db/prisma";
-import { moneyIn, parseMoney, requireMoney, type CurrencyRates, type MoneySet } from "@/lib/money";
+import {
+  moneyIn,
+  moneyUsdCents,
+  parseMoney,
+  requireMoney,
+  type CurrencyRates,
+  type MoneySet,
+} from "@/lib/money";
 import type { Currency } from "@/lib/currency-config";
+import { ensurePricesCurrent } from "@/features/pricing/db/roll";
+import {
+  marketRulesInclude,
+  marketRulesOf,
+  schedulePricing,
+  variantCompareAt,
+} from "@/features/pricing/db/projection";
+import { applyMarket, type MarketViewer } from "@/features/pricing/engine/market";
 
 /** A cart line as the client knows it. Prices are intentionally absent - they
  *  are snapshots on the client and are always re-read from the DB here. */
@@ -28,6 +43,14 @@ export type ResolvedCartLine = {
    *  the sale that produced it. Null is a real answer - not on sale. */
   unitCompareAtMoney: MoneySet | null;
   organizationId: string;
+  /** The price rule that set `unitMoney`, and its label, snapshotted onto the
+   *  order line at checkout; both null when the base price applies. */
+  priceRuleId: string | null;
+  priceRuleLabel: string | null;
+  /** The market rule applied on top for the buyer's country, snapshotted the
+   *  same way; both null when the buyer's market has none for this line. */
+  marketRuleId: string | null;
+  marketRuleLabel: string | null;
 };
 
 export type CartResolution = {
@@ -54,28 +77,50 @@ export type CartResolution = {
  *
  * "Purchasable" matches checkout: the product must be PUBLISHED and not deleted,
  * and a referenced variant must still exist under it.
+ *
+ * Prices are the EFFECTIVE ones - the base price with any active price rule
+ * applied, exactly what the product page shows right now. Due rows are rolled
+ * first, so a cart resolved one second after a promo ends is already back on
+ * the base price.
+ *
+ * Then the buyer's market: `viewer` is whose cart this is (`getViewerMarket()`
+ * in every caller), and the same `applyMarket` the storefront runs in the
+ * browser puts its market rule on top - so the cart, the coupon minimum, the
+ * free-shipping threshold and the charge all agree with the product page. It
+ * is required, not optional, so no caller can price a cart for nobody.
  */
-export async function resolveCart(items: CartItemRef[]): Promise<CartResolution> {
+export async function resolveCart(items: CartItemRef[], viewer: MarketViewer): Promise<CartResolution> {
   if (items.length === 0) return { lines: [], unavailable: [], subtotalUsd: 0 };
+
+  await ensurePricesCurrent();
 
   const variantIds = items.filter((i) => i.variantId).map((i) => i.variantId!);
   const productIds = items.filter((i) => !i.variantId).map((i) => i.productId);
+  const effective = {
+    effectivePrice: true,
+    effectivePriceMoney: true,
+    effectiveCompareAtPriceMoney: true,
+    effectiveRuleId: true,
+    effectiveRuleLabel: true,
+    effectiveSince: true,
+  } as const;
+  const market = { marketRuleClocks: true, ...marketRulesInclude } as const;
   const [variants, products] = await Promise.all([
     variantIds.length
       ? prisma.productVariant.findMany({
           where: { id: { in: variantIds } },
           select: {
             id: true,
-            price: true,
-            priceMoney: true,
-            compareAtPriceMoney: true,
+            ...effective,
             product: {
               select: {
                 id: true,
                 organizationId: true,
                 status: true,
                 deletedAt: true,
-                compareAtPriceMoney: true,
+                effectiveCompareAtPriceMoney: true,
+                effectiveRuleId: true,
+                ...market,
               },
             },
           },
@@ -86,9 +131,8 @@ export async function resolveCart(items: CartItemRef[]): Promise<CartResolution>
           where: { id: { in: productIds } },
           select: {
             id: true,
-            price: true,
-            priceMoney: true,
-            compareAtPriceMoney: true,
+            ...effective,
+            ...market,
             organizationId: true,
             status: true,
             deletedAt: true,
@@ -96,6 +140,32 @@ export async function resolveCart(items: CartItemRef[]): Promise<CartResolution>
         })
       : [],
   ]);
+
+  /** One line's money for this buyer: the neutral price with their market on top. */
+  const forViewer = (
+    row: { effectivePrice: number; effectivePriceMoney: unknown; effectiveRuleId: string | null; effectiveSince: Date | null },
+    compareAtMoney: MoneySet | null,
+    variantId: string | null,
+    owner: { priceRules: Parameters<typeof marketRulesOf>[0]["priceRules"]; marketRuleClocks: unknown },
+    label: string,
+  ) => {
+    const neutral = requireMoney(row.effectivePriceMoney, label);
+    const r = applyMarket(
+      { priceMoney: neutral, compareAtMoney, schedule: schedulePricing(row) },
+      variantId,
+      marketRulesOf(owner),
+      viewer,
+    );
+    return {
+      // The neutral mirror is kept as is when no market rule applies, so a
+      // cart with no market rules prices exactly as it did before markets.
+      unitPriceUsd: r.marketRule ? moneyUsdCents(r.priceMoney) : Number(row.effectivePrice),
+      unitMoney: r.priceMoney,
+      unitCompareAtMoney: r.compareAtMoney,
+      marketRuleId: r.marketRule?.id ?? null,
+      marketRuleLabel: r.marketRule?.name ?? null,
+    };
+  };
   const variantMap = new Map(variants.map((v) => [v.id, v]));
   const productMap = new Map(products.map((p) => [p.id, p]));
 
@@ -113,38 +183,46 @@ export async function resolveCart(items: CartItemRef[]): Promise<CartResolution>
         unavailable.push(it);
         continue;
       }
-      const unit = Number(v.price);
+      const priced = forViewer(
+        v,
+        variantCompareAt(v, v.product),
+        v.id,
+        v.product,
+        `ProductVariant.effectivePriceMoney on ${v.id}`,
+      );
       lines.push({
         productId: v.product.id,
         variantId: it.variantId,
         quantity: it.quantity,
-        unitPriceUsd: unit,
-        unitMoney: requireMoney(v.priceMoney, `ProductVariant.priceMoney on ${v.id}`),
-        // A variant with no "was" price of its own inherits the product's, the
-        // same rule the product page and quick view apply - otherwise picking a
-        // variant would silently drop the sale badge the buyer clicked on.
-        unitCompareAtMoney:
-          parseMoney(v.compareAtPriceMoney) ?? parseMoney(v.product.compareAtPriceMoney),
+        ...priced,
         organizationId: v.product.organizationId,
+        priceRuleId: v.effectiveRuleId,
+        priceRuleLabel: v.effectiveRuleLabel,
       });
-      subtotalUsd += unit * it.quantity;
+      subtotalUsd += priced.unitPriceUsd * it.quantity;
     } else {
       const p = productMap.get(it.productId);
       if (!p || !purchasable(p)) {
         unavailable.push(it);
         continue;
       }
-      const unit = Number(p.price);
+      const priced = forViewer(
+        p,
+        parseMoney(p.effectiveCompareAtPriceMoney),
+        null,
+        p,
+        `Product.effectivePriceMoney on ${p.id}`,
+      );
       lines.push({
         productId: it.productId,
         variantId: null,
         quantity: it.quantity,
-        unitPriceUsd: unit,
-        unitMoney: requireMoney(p.priceMoney, `Product.priceMoney on ${p.id}`),
-        unitCompareAtMoney: parseMoney(p.compareAtPriceMoney),
+        ...priced,
         organizationId: p.organizationId,
+        priceRuleId: p.effectiveRuleId,
+        priceRuleLabel: p.effectiveRuleLabel,
       });
-      subtotalUsd += unit * it.quantity;
+      subtotalUsd += priced.unitPriceUsd * it.quantity;
     }
   }
 

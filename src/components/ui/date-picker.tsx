@@ -97,11 +97,15 @@ export function DatePicker({
       </PopoverTrigger>
       <PopoverContent className="w-auto p-3" align="start">
         <div className="flex items-center justify-between pb-2">
+          {/* Agreed IconButton exception (calendar month arrow): the symbol is the label. */}
+          {/* eslint-disable-next-line no-restricted-syntax */}
           <Button type="button" size="icon" variant="ghost" className="h-7 w-7"
             onClick={() => setView(new Date(view.getFullYear(), view.getMonth() - 1, 1))}>
             <ChevronLeft className="size-4" />
           </Button>
           <span className="text-sm font-medium capitalize">{monthLabel}</span>
+          {/* Agreed IconButton exception (calendar month arrow): the symbol is the label. */}
+          {/* eslint-disable-next-line no-restricted-syntax */}
           <Button type="button" size="icon" variant="ghost" className="h-7 w-7"
             onClick={() => setView(new Date(view.getFullYear(), view.getMonth() + 1, 1))}>
             <ChevronRight className="size-4" />

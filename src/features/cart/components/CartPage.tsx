@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Loader2, ShoppingCart } from "lucide-react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { CartSummary } from "./CartSummary";
 import { CartPageSkeleton } from "./CartPageSkeleton";
 import { FreeShippingProgress } from "./FreeShippingProgress";
 import { SellerLeadTimes } from "./SellerLeadTimes";
+import { localizedVariantLabel } from "../utils/variantOptions";
 
 /**
  * The cart as a page of its own, beside the drawer rather than instead of it.
@@ -44,22 +45,12 @@ export function CartPage() {
   // Until the persisted cart is read back, an empty `items` means "not loaded
   // yet", not "empty" - see `useCartHydrated`. The skeleton is the route's own
   // loading state, so the hand-over to the real cart does not move anything.
-  if (!hydrated) return <CartPageSkeleton />;
+  // It also waits for the first server pass: the free-delivery bars and the
+  // lead-time notice above the lines come from it, and drawing the cart first
+  // pushed the lines down under them a moment later.
+  if (!hydrated || !shipping.ready) return <CartPageLoading />;
 
-  if (items.length === 0) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-16 text-center">
-        <ShoppingCart className="h-12 w-12 text-muted-foreground opacity-30" />
-        <div className="space-y-1">
-          <p className="font-medium">{t("empty")}</p>
-          <p className="text-sm text-muted-foreground">{t("emptyHint")}</p>
-        </div>
-        <Button asChild>
-          <Link href="/products">{t("continueShopping")}</Link>
-        </Button>
-      </div>
-    );
-  }
+  if (items.length === 0) return <CartEmpty />;
 
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-6">
@@ -120,5 +111,50 @@ export function CartPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+function CartEmpty() {
+  const t = useTranslations("cart");
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-16 text-center">
+      <ShoppingCart className="h-12 w-12 text-muted-foreground opacity-30" />
+      <div className="space-y-1">
+        <p className="font-medium">{t("empty")}</p>
+        <p className="text-sm text-muted-foreground">{t("emptyHint")}</p>
+      </div>
+      <Button asChild>
+        <Link href="/products">{t("continueShopping")}</Link>
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * The cart page before it can be drawn: the route's `loading.tsx`, and
+ * `CartPage` while it waits for the persisted cart and the first server pass.
+ *
+ * The cart lives in this browser, so once the store has been read back (on any
+ * soft navigation it already has) the skeleton draws THIS cart: the real
+ * heading with its count, one placeholder per line, a variant row where the
+ * line has one - and an empty cart goes straight to its own page instead of a
+ * two-line skeleton that turns into something else entirely. Only a direct
+ * load, before localStorage is read, gets the generic shape.
+ */
+export function CartPageLoading() {
+  const t = useTranslations("cart");
+  const locale = useLocale();
+  const items = useCartStore((s) => s.items);
+  const hydrated = useCartHydrated();
+
+  if (!hydrated) return <CartPageSkeleton />;
+  if (items.length === 0) return <CartEmpty />;
+  return (
+    <CartPageSkeleton
+      title={t("title", { count: items.reduce((sum, i) => sum + i.quantity, 0) })}
+      lines={items.map((i) => ({
+        variant: !!localizedVariantLabel(i.variantOptions, locale, i.variantLabel),
+      }))}
+    />
   );
 }

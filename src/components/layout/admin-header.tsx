@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { HydrationMark } from "@/lib/navigation/hydrationGate";
 import { useTranslations } from "next-intl";
 import { HeaderAuth } from "./header-auth";
 import { PreferencesPopover } from "./preferences-popover";
@@ -29,6 +30,8 @@ export function AdminHeader() {
           : "border-border/50",
       )}
     >
+      {/* Layout chrome hydrated - see HistoryHydrationGate. */}
+      <HydrationMark />
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-4">
           {/* Same lockup, same comet, and the same touch gesture as every

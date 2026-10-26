@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TableScroll } from "@/components/ui/table-scroll";
 
 /**
  * Tag table layout + loading state. `AdminTagsPage.tsx` imports the template
@@ -48,10 +49,7 @@ export function TagTableSkeleton({ rows = 8 }: { rows?: number }) {
         </div>
       </div>
 
-      <div
-        role="table"
-        className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]"
-      >
+      <TableScroll>
         <div
           role="row"
           className="grid items-center gap-4 border-b p-3 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit"
@@ -65,7 +63,7 @@ export function TagTableSkeleton({ rows = 8 }: { rows?: number }) {
         {Array.from({ length: rows }, (_, i) => (
           <TagSkeletonRow key={i} />
         ))}
-      </div>
+      </TableScroll>
     </div>
   );
 }

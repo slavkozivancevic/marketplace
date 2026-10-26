@@ -1347,29 +1347,11 @@
     radial-gradient(ellipse 45% 55% at 78% 18%,  oklch(0.21 0.035 262 / 20%) 0%, transparent 45%);
 }
 
-/* ===== SCROLLBAR STYLING ===== */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--muted-foreground) transparent;
-}
-
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--muted-foreground);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--foreground);
-}
+/* ===== SCROLLBAR STYLING =====
+   Not here: the scrollbar look and its platform detection live in
+   src/lib/scrollbars/scrollbarStyle.ts, the one source every document
+   includes (both root layouts, global-error, and the proxy static 404 that
+   never loads this file). scrollbars.test.ts fails on a scrollbar rule here. */
 
 /* ===== NUMBER INPUT SPINNERS ===== */
 /* Tell the browser to render spinners in light-mode style (dark arrows) by default. */

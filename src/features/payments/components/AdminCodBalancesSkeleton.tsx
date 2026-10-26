@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TableScroll } from "@/components/ui/table-scroll";
 
 /**
  * Admin COD-balances table layout + loading state. `AdminCodBalances.tsx`
@@ -16,13 +17,12 @@ export const COD_BALANCES_COLS =
 /**
  * Full COD-balances table placeholder.
  *
- * Two details that differ from the other admin tables and must be kept: the
- * container has NO `[scrollbar-gutter:stable]`, and the sticky header has NO
- * `rounded-t-lg`.
+ * One detail that differs from the other admin tables and must be kept: the
+ * sticky header has NO `rounded-t-lg`.
  */
 export function AdminCodBalancesSkeleton({ rows = 6 }: { rows?: number }) {
   return (
-    <div className="rounded-lg border flex-1 min-h-0 overflow-auto">
+    <TableScroll>
       <div
         role="row"
         className={cn(
@@ -49,7 +49,7 @@ export function AdminCodBalancesSkeleton({ rows = 6 }: { rows?: number }) {
           <Skeleton className="h-7 w-16 rounded-lg" />
         </div>
       ))}
-    </div>
+    </TableScroll>
   );
 }
 

@@ -8,24 +8,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Link, getPathname } from "@/i18n/navigation";
-import {
-  BadgeCheck,
-  Package,
-  Tag,
-  Tags,
-  Building2,
-  Users,
-  LayoutDashboard,
-  LayoutGrid,
-  SlidersHorizontal,
-  ScrollText,
-  Ticket,
-  Star,
-  Wallet,
-  ArrowRight,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
+import { adminHomeCards } from "./cards";
 
 export default async function AdminPage() {
   await connection();
@@ -48,91 +34,7 @@ export default async function AdminPage() {
       })
     : null;
 
-  const adminCards = [
-    {
-      href: "/admin/products",
-      title: t("admin.products"),
-      description: t("admin.productsDesc"),
-      icon: Package,
-    },
-    {
-      href: "/admin/brands",
-      title: t("admin.brands"),
-      description: t("admin.brandsDesc"),
-      icon: Tag,
-    },
-    {
-      href: "/admin/categories",
-      title: t("admin.categories"),
-      description: t("admin.categoriesDesc"),
-      icon: LayoutGrid,
-    },
-    {
-      href: "/admin/attributes",
-      title: t("admin.attributes"),
-      description: t("admin.attributesDesc"),
-      icon: SlidersHorizontal,
-    },
-    {
-      href: "/admin/tags",
-      title: t("admin.tags"),
-      description: t("admin.tagsDesc"),
-      icon: Tags,
-    },
-    {
-      href: "/admin/trust-points",
-      title: t("admin.trustPoints"),
-      // Same sentence the list page's header uses - one description, so the
-      // card and the page it opens cannot drift apart.
-      description: t("admin.trustPointsManage"),
-      icon: BadgeCheck,
-    },
-    {
-      href: "/admin/organizations",
-      title: t("admin.orgs"),
-      description: t("admin.orgsDesc"),
-      icon: Building2,
-    },
-    {
-      href: "/admin/users",
-      title: t("admin.users"),
-      description: t("admin.usersDesc"),
-      icon: Users,
-    },
-    {
-      href: "/admin/coupons",
-      title: t("coupons.title"),
-      description: t("coupons.description"),
-      icon: Ticket,
-    },
-    {
-      href: "/admin/cod-balances",
-      title: t("adminCodBalances.title"),
-      description: t("adminCodBalances.description"),
-      icon: Wallet,
-    },
-    {
-      href: "/admin/reviews",
-      title: t("admin.reviews.title"),
-      description: t("admin.reviews.description"),
-      icon: Star,
-    },
-    {
-      href: "/admin/audit",
-      title: t("admin.audit.title"),
-      description: t("admin.audit.description"),
-      icon: ScrollText,
-    },
-  ];
-
-  const quickCards = [
-    {
-      href: "/dashboard",
-      title: t("admin.dashboard"),
-      description: t("admin.dashboardDesc"),
-      icon: LayoutDashboard,
-    },
-  ];
+  const { manage: adminCards, quick: quickCards } = adminHomeCards(t);
 
   return (
     <div className="flex-1 flex flex-col min-h-0">

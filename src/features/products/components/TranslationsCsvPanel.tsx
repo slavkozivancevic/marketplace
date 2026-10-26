@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { TableScroll } from "@/components/ui/table-scroll";
 import { cn } from "@/lib/utils";
 import { SUPPORTED_LOCALES } from "@/i18n/config";
 import {
@@ -251,7 +252,7 @@ export function TranslationsCsvPanel() {
             </Alert>
           )}
 
-          <div className="rounded-lg border overflow-auto max-h-96">
+          <TableScroll height="capped" nativeTable>
             <table className="w-full text-xs">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b">
@@ -282,7 +283,7 @@ export function TranslationsCsvPanel() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableScroll>
 
           <Button onClick={handleImport} disabled={validRows.length === 0 || isImporting} className="w-fit gap-2">
             {isImporting ? (

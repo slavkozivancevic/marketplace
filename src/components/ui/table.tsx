@@ -3,21 +3,19 @@
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { TableScroll } from "@/components/ui/table-scroll";
 
 const Table = React.forwardRef<HTMLTableElement, React.ComponentProps<"table">>(
   ({ className, ...props }, ref) => {
     return (
-      <div
-        data-slot="table-container"
-        className="relative w-full overflow-x-auto"
-      >
+      <TableScroll height="auto" bordered={false} nativeTable className="w-full">
         <table
           ref={ref}
           data-slot="table"
           className={cn("w-full caption-bottom text-sm", className)}
           {...props}
         />
-      </div>
+      </TableScroll>
     );
   },
 );

@@ -6,6 +6,8 @@ import { usePathname, useRouter } from "@/i18n/navigation";
 import { useTheme } from "@/providers/theme/ThemeProvider";
 import { useEffect, useState, useTransition } from "react";
 import { setCurrency } from "@/actions/setCurrency";
+import { useSetViewerCountry, useViewerMarket } from "@/providers/MarketProvider";
+import { CountrySelect } from "@/features/products/components/CountrySelect";
 import { useLocalePaths } from "@/i18n/LocalePathsContext";
 import { markLanguageSwitch, shouldHardSwitchLocale } from "@/lib/i18n/localeSwitch";
 import { localeSwitchOverlayStore } from "@/lib/i18n/localeSwitchOverlay";
@@ -16,7 +18,6 @@ import { VALID_CURRENCIES } from "@/lib/currency-config";
 import { useCurrencyStore } from "@/store/currency";
 import { SUPPORTED_LOCALES, LOCALE_LABELS } from "@/i18n/config";
 import { Sun, Moon, Sparkles, Monitor, SlidersHorizontal } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
@@ -25,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { IconButton } from "@/components/IconButton";
 
 const currencySymbols: Record<string, string> = {
   usd: "$",
@@ -81,6 +83,9 @@ export function PreferencesPopover() {
   const [open, setOpen] = useState(false);
 
   const { currency, setCurrency: setStoreCurrency } = useCurrencyStore();
+  const { country: viewerCountry } = useViewerMarket();
+  const setViewerCountry = useSetViewerCountry();
+  const tMarkets = useTranslations("priceMarkets");
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -169,6 +174,13 @@ export function PreferencesPopover() {
     });
   }
 
+  function handleCountry(code: string | null) {
+    // Unlike currency, the country changes the PRICE, not only its display:
+    // the market provider resolves the new market at once, writes the cookie
+    // and refreshes, and the cart re-resolves with its repriced notice.
+    if (code) setViewerCountry(code);
+  }
+
   async function handleCurrency(newCurrency: string) {
     setStoreCurrency(newCurrency as (typeof VALID_CURRENCIES)[number]);
     await setCurrency(newCurrency);
@@ -182,10 +194,9 @@ export function PreferencesPopover() {
   return (
     <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon">
+        <IconButton label={tHeader("preferences")} variant="outline" size="icon">
           <SlidersHorizontal className="h-4 w-4" />
-          <span className="sr-only">Preferences</span>
-        </Button>
+        </IconButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
@@ -255,6 +266,27 @@ export function PreferencesPopover() {
             </button>
           ))}
         </div>
+
+        <DropdownMenuSeparator className="my-3" />
+
+        {/* Pricing country. Seeded from where the buyer browses from, always
+            theirs to change - a regional price is a price list the buyer can
+            see and switch, never one they are locked into. */}
+        <p className="mb-2 px-0.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          {tMarkets("countryLabel")}
+        </p>
+        <CountrySelect
+          value={viewerCountry}
+          onChange={handleCountry}
+          clearable={false}
+          labels={{
+            none: tMarkets("countryNone"),
+            clear: tMarkets("countryNone"),
+            search: tMarkets("countriesSearch"),
+            empty: tMarkets("countriesEmpty"),
+          }}
+        />
+        <p className="mt-1.5 px-0.5 text-xs text-muted-foreground">{tMarkets("countryHint")}</p>
 
         <DropdownMenuSeparator className="my-3" />
 

@@ -21,6 +21,7 @@ import {
   fetchCategoryAttributeMap,
 } from "@/features/attributes/db/formData";
 import { ProductFormView } from "@/features/products/components/ProductFormView";
+import { getRuleCountByVariant } from "@/features/pricing/db/pricingPage";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Button } from "@/components/ui/button";
@@ -148,6 +149,7 @@ async function ProductEditContent({ productId }: { productId: string }) {
       attributeLibrary={attributeLibrary}
       categoryAttributeMap={categoryAttributeMap}
       redirectTo={`/dashboard/my-products/${productData.id}`}
+      priceRuleCountByVariant={await getRuleCountByVariant(productData.organizationId, productData.id)}
     />
   );
 }

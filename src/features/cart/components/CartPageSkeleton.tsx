@@ -1,9 +1,4 @@
-import {
-  Skeleton,
-  SkeletonArray,
-  SkeletonButton,
-  SkeletonText,
-} from "@/components/ui/skeleton";
+import { Skeleton, SkeletonButton, SkeletonText } from "@/components/ui/skeleton";
 
 /**
  * The cart page body while there is nothing real to show yet.
@@ -23,37 +18,61 @@ import {
  *   sides and a shade different in both themes.
  * - A line is CartLineRow's own stack: a 64px thumbnail beside title (20px),
  *   price (20px) and the 24px stepper row, with `gap-1` and `mt-1` between
- *   them, inside `py-1`. Separators repeat the page's `my-3`.
- * - The two buttons are `size="lg"`, matching the real ones, so the card's
- *   height is right to the pixel.
+ *   them, inside `py-1`. Lines sit 25px apart: the page's Separator is 1px
+ *   with `my-3` on each side.
+ * - The two buttons are `size="lg"`, matching the real ones, and are stacked
+ *   in a flex column: a text-less SkeletonButton is inline-flex with its
+ *   baseline at the bottom edge, so in a plain block it sits on a line box
+ *   that is 7px taller than the button.
+ *
+ * `title` and `lines` come from `CartPageLoading` once the persisted cart is
+ * known; without them (a direct load) it is the generic two-line shape.
  *
  * The free-shipping bar and the delivery-estimate notice are deliberately NOT
  * drawn: both are conditional on the cart's contents, and reserving space for
  * something that usually is not there is a worse jump than not reserving it.
  */
-export function CartPageSkeleton() {
+export function CartPageSkeleton({
+  title,
+  lines = [{ variant: false }, { variant: false }],
+}: {
+  /** The real heading, when the cart's count is known. */
+  title?: string;
+  /** One entry per cart line; `variant` adds CartLineRow's text-xs row. */
+  lines?: { variant: boolean }[];
+}) {
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-6">
-      {/* `text-2xl` heading: a 32px line box with the bar inside it. */}
-      <div className="flex h-8 items-center mb-5">
-        <Skeleton className="h-6 w-28" />
-      </div>
+      {title ? (
+        <h1 className="text-2xl font-semibold mb-5">{title}</h1>
+      ) : (
+        // `text-2xl` heading: a 32px line box with the bar inside it.
+        <div className="flex h-8 items-center mb-5">
+          <Skeleton className="h-6 w-28" />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_20rem] gap-6 items-start">
         <div className="min-w-0">
           <div className="rounded-xl bg-card py-4 ring-1 ring-foreground/10">
             <div className="px-4">
-              <SkeletonArray amount={2}>
-                {/* `first:mt-0` reproduces the Separator the real list puts
-                    BETWEEN rows (my-3 on each side plus its own 1px). */}
-                <div className="mt-6.25 first:mt-0">
-                  <div className="flex gap-3 py-1">
+              <div className="flex flex-col gap-6.25">
+                {lines.map((line, i) => (
+                  <div key={i} className="flex gap-3 py-1">
                     <Skeleton className="h-16 w-16 shrink-0 rounded" />
                     <div className="flex flex-1 flex-col gap-1 min-w-0">
-                      {/* title: text-sm, a 20px line box */}
+                      {/* title: text-sm, a 20px line box. A plain Skeleton,
+                          not SkeletonText: its wrapper is a flex item here
+                          with no width of its own, so `w-2/3` came to 0. */}
                       <div className="flex h-5 items-center">
-                        <SkeletonText rows={1} size="md" className="w-2/3" />
+                        <Skeleton className="h-3 w-2/3 rounded-sm" />
                       </div>
+                      {/* variant: text-xs, a 16px line box */}
+                      {line.variant && (
+                        <div className="flex h-4 items-center">
+                          <Skeleton className="h-2.5 w-20 rounded-sm" />
+                        </div>
+                      )}
                       {/* price: text-sm, same 20px box */}
                       <div className="flex h-5 items-center">
                         <SkeletonText rows={1} size="md" className="w-24" />
@@ -67,8 +86,8 @@ export function CartPageSkeleton() {
                       </div>
                     </div>
                   </div>
-                </div>
-              </SkeletonArray>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -100,7 +119,7 @@ export function CartPageSkeleton() {
                 </div>
               </div>
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <SkeletonButton size="lg" className="w-full" />
               <SkeletonButton size="lg" className="w-full" />
             </div>

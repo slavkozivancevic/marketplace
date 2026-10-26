@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Inbox, MessageCircle } from "lucide-react";
+import { Inbox } from "lucide-react";
 import { FloatingSidebarTrigger } from "@/components/layout/floating-sidebar-trigger";
 import {
   Sheet,
@@ -19,7 +19,7 @@ import { useUrlConversationId } from "../hooks/useUrlConversationId";
 import { useChatRuntime, type ChatRuntime } from "./ChatRuntime";
 import { InboxPanel } from "./InboxPanel";
 import { MessageThread } from "./MessageThread";
-import { MessagesPageSkeleton } from "./MessagesPageSkeleton";
+import { MessagesPageSkeleton, NoConversationSelected } from "./MessagesPageSkeleton";
 import { BackToInboxButton, ThreadHeader } from "./ThreadHeader";
 import { MESSAGES_FRAME_CLASS, MESSAGES_HEADER_CLASS } from "./messagesLayout";
 
@@ -182,15 +182,7 @@ function MessagesPageInner({ runtime }: { runtime: ChatRuntime }) {
             </div>
           </>
         ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center chat-message-bg">
-            <div className="flex size-16 items-center justify-center rounded-full bg-muted">
-              <MessageCircle className="size-8 text-muted-foreground" />
-            </div>
-            <h2 className="text-lg font-semibold">{t("selectConversation")}</h2>
-            <p className="max-w-sm text-sm text-muted-foreground">
-              {t("selectConversationDesc")}
-            </p>
-          </div>
+          <NoConversationSelected />
         )}
       </section>
 
@@ -200,14 +192,13 @@ function MessagesPageInner({ runtime }: { runtime: ChatRuntime }) {
         <div className="lg:hidden">
           <Sheet open={sheetOpen && !isWide} onOpenChange={setSheetOpen}>
             <SheetTrigger asChild>
-              <FloatingSidebarTrigger>
+              <FloatingSidebarTrigger label={t("openInbox")}>
                 <Inbox className="size-4" />
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white pointer-events-none leading-none ring-2 ring-background">
                     {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
-                <span className="sr-only">{t("openInbox")}</span>
               </FloatingSidebarTrigger>
             </SheetTrigger>
             <SheetContent

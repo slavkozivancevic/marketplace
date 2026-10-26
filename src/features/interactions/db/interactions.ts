@@ -4,6 +4,8 @@ import { cacheTag } from "next/cache";
 import { CacheTags } from "@/lib/cache/tags";
 import { Prisma, InteractionType } from "@/generated/prisma/client";
 import type { SerializedProductListItem } from "@/types/types";
+import { ensurePricesCurrent } from "@/features/pricing/db/roll";
+import { expireAtNextPriceChange } from "@/features/pricing/db/projection";
 import {
   listItemInclude,
   serializeListItem,
@@ -159,6 +161,7 @@ export async function getRecentlyViewed(params: {
   }
   if (ids.length === 0) return [];
 
+  await ensurePricesCurrent();
   const rows = await prisma.product.findMany({
     where: { id: { in: ids }, status: "PUBLISHED", deletedAt: null },
     include: CARD_INCLUDE,
@@ -197,11 +200,13 @@ export async function getFrequentlyBoughtTogether(
   const ids = grouped.map((g) => g.productId);
   if (ids.length === 0) return [];
 
+  await ensurePricesCurrent();
   const rows = await prisma.product.findMany({
     where: { id: { in: ids }, status: "PUBLISHED", deletedAt: null },
     include: CARD_INCLUDE,
   });
   tagSellerTerms(rows);
+  expireAtNextPriceChange(rows);
 
   return orderByIds(rows, ids).slice(0, limit);
 }

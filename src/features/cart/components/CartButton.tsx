@@ -2,11 +2,13 @@
 
 import { useSyncExternalStore } from "react";
 import { ShoppingCart } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useTranslations } from "next-intl";
+import { IconButton } from "@/components/IconButton";
 import { usePathname } from "@/i18n/navigation";
 import { useCartStore } from "../store/cartStore";
 
 export function CartButton() {
+  const t = useTranslations("cart");
   const isOpen = useCartStore((s) => s.isOpen);
   const openCart = useCartStore((s) => s.openCart);
   const closeCart = useCartStore((s) => s.closeCart);
@@ -26,15 +28,15 @@ export function CartButton() {
   return (
     <div className="relative">
       {onPage ? (
-        <Button variant="outline" size="icon" asChild>
-          <span role="img" aria-label="Cart" aria-current="page">
+        <IconButton label={t("label")} variant="outline" asChild>
+          <span role="img" aria-current="page">
             <ShoppingCart className="h-4 w-4" />
           </span>
-        </Button>
+        </IconButton>
       ) : (
-        <Button variant="outline" size="icon" data-cart-trigger onClick={isOpen ? closeCart : openCart}>
+        <IconButton label={t("label")} variant="outline" data-cart-trigger onClick={isOpen ? closeCart : openCart}>
           <ShoppingCart className="h-4 w-4" />
-        </Button>
+        </IconButton>
       )}
       {count > 0 && (
         <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground pointer-events-none">

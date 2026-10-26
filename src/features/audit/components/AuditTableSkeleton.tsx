@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TableScroll } from "@/components/ui/table-scroll";
 
 /**
  * Audit log table layout + loading state. `AuditLogView.tsx` imports the
@@ -44,10 +45,7 @@ export function AuditSkeletonRow() {
 /** Full audit table placeholder, header included. */
 export function AuditTableSkeleton({ rows = 10 }: { rows?: number }) {
   return (
-    <div
-      role="table"
-      className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]"
-    >
+    <TableScroll>
       {/* Header is `items-center p-3` (rows are `items-start px-3 py-2.5`). */}
       <div
         role="row"
@@ -66,7 +64,7 @@ export function AuditTableSkeleton({ rows = 10 }: { rows?: number }) {
       {Array.from({ length: rows }, (_, i) => (
         <AuditSkeletonRow key={i} />
       ))}
-    </div>
+    </TableScroll>
   );
 }
 

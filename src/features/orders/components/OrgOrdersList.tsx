@@ -2,7 +2,6 @@
 
 import axios from "axios";
 import { useTranslations } from "next-intl";
-import { cn } from "@/lib/utils";
 import { useInfiniteVirtualList } from "@/components/infinite/useInfiniteVirtualList";
 import { OrgOrderTableRow } from "./OrgOrderTableRow";
 // Grid template is owned by the skeleton module so the two can never drift.
@@ -14,6 +13,7 @@ import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
 import type { OrgOrderFilters } from "@/lib/query/searchParams";
 import { useActiveOrgId } from "@/features/organizations/components/ActiveOrgContext";
+import { TableScroll } from "@/components/ui/table-scroll";
 
 function buildFetcher(filters: OrgOrderFilters) {
   return async ({
@@ -80,12 +80,12 @@ export function OrgOrdersList({
 
   if (query.status === "pending") {
     return (
-      <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
+      <TableScroll>
         <OrgOrderTableHeader t={t} />
         {Array.from({ length: 8 }).map((_, i) => (
           <OrderSkeletonRow key={i} cols={COL} withBuyer />
         ))}
-      </div>
+      </TableScroll>
     );
   }
 
@@ -120,26 +120,18 @@ export function OrgOrdersList({
   // Small dataset - no virtualization needed
   if (!query.hasNextPage) {
     return (
-      <div
-        role="table"
-        className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
-        ref={parentRef}
-      >
+      <TableScroll ref={parentRef} locked={isPlaceholderData}>
         <OrgOrderTableHeader t={t} />
         {items.map((order) => (
           <OrgOrderTableRow key={order.id} order={order} />
         ))}
-      </div>
+      </TableScroll>
     );
   }
 
   // Large dataset - virtualized
   return (
-    <div
-      role="table"
-      className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", isPlaceholderData && "opacity-50 pointer-events-none transition-opacity duration-150")}
-      ref={parentRef}
-    >
+    <TableScroll ref={parentRef} locked={isPlaceholderData}>
       <OrgOrderTableHeader t={t} />
       <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
         {virtualizer.getVirtualItems().map((vRow) => {
@@ -172,6 +164,6 @@ export function OrgOrdersList({
           );
         })}
       </div>
-    </div>
+    </TableScroll>
   );
 }

@@ -12,13 +12,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useChatStore } from "../store/chatStore";
 import { useChatThreadData } from "../hooks/useChatThreadData";
 import { useChatRuntime, type ChatRuntime } from "./ChatRuntime";
 import { InboxPanel } from "./InboxPanel";
 import { MessageThread } from "./MessageThread";
 import { BackToInboxButton, ThreadHeader } from "./ThreadHeader";
+import { IconButton } from "@/components/IconButton";
 
 /**
  * Trigger button rendered in the header - visible only when signed in.
@@ -85,34 +85,35 @@ function useOnMessagesPage(): boolean {
  * loader without risking a hydration mismatch on the persisted unread badge.
  */
 function ChatDrawerTriggerShell() {
+  const t = useTranslations("chat");
   const openInbox = useChatStore((s) => s.openInbox);
   const onPage = useOnMessagesPage();
   const content = (
     <>
       <MessageCircle className="size-4" />
-      <span className="sr-only">Open messages</span>
     </>
   );
-  if (onPage) return <CurrentPageMarker>{content}</CurrentPageMarker>;
+  if (onPage) return <CurrentPageMarker label={t("openMessages")}>{content}</CurrentPageMarker>;
   return (
-    <Button variant="outline" size="icon" data-chat-trigger onClick={openInbox} className="relative">
+    <IconButton label={t("openMessages")} variant="outline" data-chat-trigger onClick={openInbox} className="relative">
       {content}
-    </Button>
+    </IconButton>
   );
 }
 
 /** The trigger's look, inert - see `useOnMessagesPage`. */
-function CurrentPageMarker({ children }: { children: React.ReactNode }) {
+function CurrentPageMarker({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <Button variant="outline" size="icon" asChild className="relative">
+    <IconButton label={label} variant="outline" asChild className="relative">
       <span data-chat-trigger aria-current="page">
         {children}
       </span>
-    </Button>
+    </IconButton>
   );
 }
 
 function ChatDrawerTriggerInner() {
+  const t = useTranslations("chat");
   const isOpen = useChatStore((s) => s.isOpen);
   const openInbox = useChatStore((s) => s.openInbox);
   const closeInbox = useChatStore((s) => s.close);
@@ -127,14 +128,13 @@ function ChatDrawerTriggerInner() {
           {unreadCount > 9 ? "9+" : unreadCount}
         </span>
       )}
-      <span className="sr-only">Open messages</span>
     </>
   );
-  if (onPage) return <CurrentPageMarker>{content}</CurrentPageMarker>;
+  if (onPage) return <CurrentPageMarker label={t("openMessages")}>{content}</CurrentPageMarker>;
   return (
-    <Button variant="outline" size="icon" data-chat-trigger onClick={isOpen ? closeInbox : openInbox} className="relative">
+    <IconButton label={t("openMessages")} variant="outline" data-chat-trigger onClick={isOpen ? closeInbox : openInbox} className="relative">
       {content}
-    </Button>
+    </IconButton>
   );
 }
 
@@ -183,25 +183,22 @@ function ChatDrawerInner({ runtime }: { runtime: ChatRuntime }) {
   // which the page reads as its selection. Object `href`: the string form
   // loses its query under the pathnames map.
   const toPage = (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon-sm" asChild>
-          <Link
-            href={{
-              pathname: "/messages",
-              query: selectedConvId ? { c: selectedConvId } : undefined,
-            }}
-            onClick={close}
-          >
-            <Maximize2 className="size-4" />
-            <span className="sr-only">{t("openFullPage")}</span>
-          </Link>
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{t("openFullPage")}</TooltipContent>
-    </Tooltip>
+    <IconButton label={t("openFullPage")} variant="ghost" size="icon-sm" asChild>
+      <Link
+        href={{
+          pathname: "/messages",
+          query: selectedConvId ? { c: selectedConvId } : undefined,
+        }}
+        onClick={close}
+      >
+        <Maximize2 className="size-4" />
+      </Link>
+    </IconButton>
   );
   const closeButton = (
+    // Close X of a drawer header: an agreed exception to IconButton (CLAUDE.md,
+    // "Icon-only buttons") - the symbol is the label.
+    // eslint-disable-next-line no-restricted-syntax
     <Button variant="ghost" size="icon-sm" onClick={close}>
       <X className="size-4" />
       <span className="sr-only">{t("close")}</span>

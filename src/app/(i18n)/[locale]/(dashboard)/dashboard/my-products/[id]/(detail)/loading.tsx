@@ -2,14 +2,16 @@ import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
-import { SkeletonBreadcrumbs, SkeletonProductCard } from "@/components/ui/skeleton";
+import { SkeletonBreadcrumbs, SkeletonButton } from "@/components/ui/skeleton";
+import { ProductDetailsSkeleton } from "@/features/products/components/ProductDetailsSkeleton";
 
 /**
  * See ../../../../../admin/products/[id]/(detail)/loading.tsx - the page has its own
  * <Suspense> fallback, but this is what the router shows before the payload
  * arrives. The Edit action is omitted rather than placeheld: it only renders
  * for OWNER/ADMIN members, so a placeholder would promise a button that may
- * never appear.
+ * never appear. Price rules DO get a placeholder: every member sees that button
+ * (read-only for a viewer), and without one the header jumped when it arrived.
  */
 export default async function MyProductLoadingPage() {
   const t = await getTranslations();
@@ -24,10 +26,11 @@ export default async function MyProductLoadingPage() {
           <Button asChild variant="outline">
             <Link href="/dashboard/my-products">{t("myProducts.backTo")}</Link>
           </Button>
+          <SkeletonButton label={t("priceRules.title")} />
         </PageHeader>
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
-        <SkeletonProductCard />
+        <ProductDetailsSkeleton showActions={false} />
       </div>
     </div>
   );

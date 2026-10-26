@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TableScroll } from "@/components/ui/table-scroll";
 
 /**
  * Product history table layout + loading state. As with the product table, the
@@ -16,10 +17,7 @@ export const HISTORY_COLS =
 
 export function ProductHistoryTableSkeleton({ rows = 8 }: { rows?: number }) {
   return (
-    <div
-      role="table"
-      className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]"
-    >
+    <TableScroll>
       {/* Header - `text-sm` cells make the real header 44px (12 + 20 + 12), so
           the bars sit inside a 20px line box instead of setting the height. */}
       <div
@@ -64,7 +62,7 @@ export function ProductHistoryTableSkeleton({ rows = 8 }: { rows?: number }) {
           <Skeleton className="h-7 w-16 rounded-lg" />
         </div>
       ))}
-    </div>
+    </TableScroll>
   );
 }
 

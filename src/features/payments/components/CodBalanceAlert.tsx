@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Wallet, ChevronDown } from "lucide-react";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
@@ -12,6 +11,7 @@ import {
 } from "@/components/ui/collapsible";
 import { formatPrice } from "@/lib/currency";
 import type { Currency } from "@/lib/currency-config";
+import { IconButton } from "@/components/IconButton";
 
 /**
  * The running COD balance, which points both ways.
@@ -68,12 +68,11 @@ function BalanceBanner({
         <AlertTitle>{t(kind === "owed" ? "codBalanceTitle" : "codCreditTitle")}</AlertTitle>
         <AlertAction>
           <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-6 w-6">
+            <IconButton label={t("toggleDetails")} variant="ghost" size="icon" className="h-6 w-6">
               <ChevronDown
                 className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
               />
-              <span className="sr-only">{t("toggleDetails")}</span>
-            </Button>
+            </IconButton>
           </CollapsibleTrigger>
         </AlertAction>
         <AlertDescription>

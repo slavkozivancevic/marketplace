@@ -74,11 +74,19 @@ export const POST = observedRoute("POST /api/webhooks/stripe", async (req: Reque
           return new Response("Missing metadata", { status: 400 });
         }
 
-        const items = JSON.parse(itemsJson) as {
+        const refs = JSON.parse(itemsJson) as {
           productId: string;
           variantId: string | null;
           quantity: number;
         }[];
+        // Record what Stripe CHARGED per line, and the price rule behind it,
+        // rather than re-reading the catalogue: with scheduled pricing a promo
+        // can start or end between the buyer paying and this webhook running.
+        const charged = await chargedLinePrices(session.id);
+        const items = refs.map((ref) => ({
+          ...ref,
+          ...charged.get(lineKey(ref.productId, ref.variantId)),
+        }));
 
         const shippingDetails = session.collected_information?.shipping_details;
         const shipping = shippingDetails
@@ -114,6 +122,8 @@ export const POST = observedRoute("POST /api/webhooks/stripe", async (req: Reque
             couponCode,
             shippingTotal,
             shippingByOrg,
+            // Empty string = no country was known at checkout (default market).
+            pricingCountry: session.metadata?.pricingCountry || null,
           });
           logger.info("Order fulfilled for session:", session.id);
         } catch (fulfillError) {
@@ -228,3 +238,37 @@ export const POST = observedRoute("POST /api/webhooks/stripe", async (req: Reque
     return new Response("Internal Error", { status: 500 });
   }
 });
+
+const lineKey = (productId: string, variantId: string | null) => `${productId}:${variantId ?? ""}`;
+
+/**
+ * The unit price Stripe charged for each line of a session, keyed by product
+ * and variant, with the price rule checkout recorded on it.
+ *
+ * Checkout writes `{ productId, variantId, priceRuleId, marketRuleId }` into
+ * each line's product metadata. A session created before that has no such
+ * metadata, so its lines are simply absent here and `fulfillOrder` falls back
+ * to the current effective price, as it did before line items carried their
+ * price. A session from before market pricing has no `marketRuleId`, which
+ * reads as "no market rule" - true for it.
+ */
+type ChargedLine = { unitPrice: number; priceRuleId: string | null; marketRuleId: string | null };
+
+async function chargedLinePrices(sessionId: string): Promise<Map<string, ChargedLine>> {
+  const out = new Map<string, ChargedLine>();
+  for await (const line of stripe.checkout.sessions.listLineItems(sessionId, {
+    expand: ["data.price.product"],
+    limit: 100,
+  })) {
+    const product = line.price?.product;
+    const meta = product && typeof product === "object" && !product.deleted ? product.metadata : null;
+    const unit = line.price?.unit_amount;
+    if (!meta?.productId || unit == null) continue;
+    out.set(lineKey(meta.productId, meta.variantId || null), {
+      unitPrice: unit,
+      priceRuleId: meta.priceRuleId || null,
+      marketRuleId: meta.marketRuleId || null,
+    });
+  }
+  return out;
+}

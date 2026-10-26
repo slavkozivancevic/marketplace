@@ -74,6 +74,8 @@ function SheetContent({
         {children}
         {showCloseButton && (
           <SheetPrimitive.Close data-slot="sheet-close" asChild>
+            {/* Agreed IconButton exception (close X of a sheet): the symbol is the label. */}
+            {/* eslint-disable-next-line no-restricted-syntax */}
             <Button
               variant="ghost"
               className="absolute top-3 right-3"

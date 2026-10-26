@@ -18,6 +18,8 @@ import {
 } from "@/lib/seo/storefrontPaths";
 import { isUnknownLocalePath } from "@/lib/seo/appRoutes";
 import { THEME_COOKIE_NAME } from "@/providers/theme/constants";
+import { normalizeCountryCode } from "@/lib/i18n/countries";
+import { COUNTRY_COOKIE, COUNTRY_COOKIE_MAX_AGE } from "@/features/priceMarkets/utils/markets";
 
 const intlMiddleware = createIntlMiddleware(routing);
 
@@ -273,8 +275,30 @@ export default clerkMiddleware(async (auth, req) => {
     }
   }
 
-  return intlMiddleware(req);
+  return seedPricingCountry(req, intlMiddleware(req));
 });
+
+/**
+ * Gives a first-time visitor a pricing country from CloudFront's viewer
+ * country, once. Only ever SEEDS the cookie: a buyer who picked a country keeps
+ * it, wherever they browse from. The header itself never reaches a cache key -
+ * the server reads the cookie (and, on this very first request, whose cookie it
+ * cannot see yet, the header directly - see `getViewerCountry`).
+ *
+ * `x-open-next-country` is the copy SST's viewer-request function makes of the
+ * CloudFront header; either is accepted. Locally neither exists and nothing is
+ * set, which prices the visitor in the default market.
+ */
+function seedPricingCountry(req: Parameters<typeof intlMiddleware>[0], res: NextResponse): NextResponse {
+  if (req.cookies.has(COUNTRY_COOKIE)) return res;
+  const country = normalizeCountryCode(
+    req.headers.get("cloudfront-viewer-country") ?? req.headers.get("x-open-next-country"),
+  );
+  if (country) {
+    res.cookies.set(COUNTRY_COOKIE, country, { path: "/", maxAge: COUNTRY_COOKIE_MAX_AGE, sameSite: "lax" });
+  }
+  return res;
+}
 
 export const config = {
   matcher: [

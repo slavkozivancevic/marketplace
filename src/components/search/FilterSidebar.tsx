@@ -87,6 +87,8 @@ export interface RangeFilterGroup {
   type: "range";
   key: string;
   label: string;
+  /** One line under the inputs, for a caveat the buyer should read before filtering. */
+  hint?: string;
   min?: number;
   max?: number;
   prefix?: string;
@@ -408,6 +410,9 @@ function FilterGroups({
               values={(values[group.key] as [number?, number?]) ?? []}
               onChange={(v) => onChange(group.key, v)}
             />
+          )}
+          {group.type === "range" && group.hint && (
+            <p className="mt-1.5 text-xs text-muted-foreground">{group.hint}</p>
           )}
           {group.type === "rating" && (
             <StarRatingFilter

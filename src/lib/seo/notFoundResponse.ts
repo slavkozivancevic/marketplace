@@ -3,6 +3,7 @@ import { DEFAULT_LOCALE, isLocale } from "@/i18n/config";
 import { localizedSegment } from "@/lib/seo/storefrontPaths";
 import { HERO_IMAGE_URL } from "@/components/layout/hero-image";
 import { APP_VERSION } from "@/lib/version";
+import { SCROLLBAR_BOOTSTRAP_HTML } from "@/lib/scrollbars/scrollbarStyle";
 
 /**
  * A real HTTP 404 served from the proxy (middleware) for entity-detail URLs
@@ -327,6 +328,9 @@ export function notFoundResponse(locale: string, theme?: string): NextResponse {
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   ${themeCss(theme)}
+  /* The scrollbar bootstrap at the top of body tints its thumb from the
+     app's --foreground token; this page names its foreground --fg. */
+  :root { --foreground: var(--fg); }
   * { box-sizing: border-box; }
   /* Geist is the app's --font-sans (next/font/google); load the same family so
      type matches the React pages 1:1. Sizes below mirror the exact Tailwind
@@ -491,6 +495,7 @@ export function notFoundResponse(locale: string, theme?: string): NextResponse {
 </style>
 </head>
 <body>
+  ${SCROLLBAR_BOOTSTRAP_HTML}
   <div class="bg"></div>
   <header class="site-header">
     <div class="container hdr">

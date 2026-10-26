@@ -8,7 +8,6 @@ import { toast } from "@/components/ui/sonner";
 import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
 import { SearchInput } from "@/components/search/SearchInput";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ActionButton } from "@/components/ActionButton";
 import {
@@ -17,9 +16,12 @@ import {
 } from "../actions/attributes";
 import type { AttributeListItem } from "../db/attributes";
 import { getAttributeLabel } from "../utils/translations";
-import { cn } from "@/lib/utils";
 import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 import { ATTRIBUTE_COLS } from "./AttributeTableSkeleton";
+import { TableScroll } from "@/components/ui/table-scroll";
+import { IconButton } from "@/components/IconButton";
+import { setRouteShape } from "@/lib/navigation/routeShape";
+import { attributeShapeKey, type AttributeFormShape } from "./AttributeFormSkeleton";
 
 // Column layout (label | key | type | usage | actions) is owned by the
 // skeleton module so the two can never drift. It needs an explicit floor like
@@ -99,7 +101,15 @@ export function AdminAttributesPage({
         message: t("duplicated"),
         action: {
           label: t("editCopy"),
-          onClick: () => router.push(`/${locale}/admin/attributes/${copyId}/edit`),
+          onClick: () => {
+            // The copy has the source's type and options.
+            const source = attributes.find((a) => a.id === id);
+            if (source) {
+              const shape: AttributeFormShape = { type: source.type, optionCount: source._count.options };
+              setRouteShape(attributeShapeKey(copyId), shape);
+            }
+            router.push(`/${locale}/admin/attributes/${copyId}/edit`);
+          },
         },
       });
       router.refresh();
@@ -127,13 +137,7 @@ export function AdminAttributesPage({
           </AlertDescription>
         </Alert>
       ) : (
-        <div
-          className={cn(
-            "rounded-lg border flex-1 min-h-0 overflow-auto",
-            (isPending || isNavigating || isDuplicating) &&
-              "opacity-60 pointer-events-none transition-opacity duration-150",
-          )}
-        >
+        <TableScroll locked={isPending || isNavigating || isDuplicating}>
           {/* Header */}
           <div
             className="grid items-center gap-3 border-b p-3 text-xs font-medium text-muted-foreground bg-background sticky top-0 z-10 min-w-fit"
@@ -186,12 +190,16 @@ export function AdminAttributesPage({
 
               {/* Actions */}
               <div className="flex items-center justify-end gap-1">
-                <Button
+                <IconButton
+                  label={t("edit")}
                   variant="ghost"
                   size="icon"
                   disabled={isNavigating && editingId === row.id}
                   onClick={() => {
                     setEditingId(row.id);
+                    // The edit skeleton draws this attribute's type and option rows.
+                    const shape: AttributeFormShape = { type: row.type, optionCount: row._count.options };
+                    setRouteShape(attributeShapeKey(row.id), shape);
                     startNavigate(() =>
                       router.push(`/${locale}/admin/attributes/${row.id}/edit`),
                     );
@@ -202,22 +210,20 @@ export function AdminAttributesPage({
                   ) : (
                     <Pencil className="h-4 w-4" />
                   )}
-                  <span className="sr-only">{t("edit")}</span>
-                </Button>
-                <Button
+                </IconButton>
+                <IconButton
+                  label={t("duplicate")}
                   variant="ghost"
                   size="icon"
                   disabled={isDuplicating && duplicatingId === row.id}
                   onClick={() => handleDuplicate(row.id)}
-                  title={t("duplicate")}
                 >
                   {isDuplicating && duplicatingId === row.id ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Copy className="h-4 w-4" />
                   )}
-                  <span className="sr-only">{t("duplicate")}</span>
-                </Button>
+                </IconButton>
                 <ActionButton
                   open={deleteOpenId === row.id}
                   onOpenChange={(next) => setDeleteOpenId(next ? row.id : null)}
@@ -246,15 +252,14 @@ export function AdminAttributesPage({
                 >
                   {/* Resting control - the dialog's confirm button carries the
                       spinner. */}
-                  <Button variant="ghost" size="icon">
+                  <IconButton label={t("delete")} variant="ghost" size="icon">
                     <Trash2 className="h-4 w-4 text-destructive" />
-                    <span className="sr-only">{t("delete")}</span>
-                  </Button>
+                  </IconButton>
                 </ActionButton>
               </div>
             </div>
           ))}
-        </div>
+        </TableScroll>
       )}
     </div>
   );

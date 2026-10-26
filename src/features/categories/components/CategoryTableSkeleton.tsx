@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TableScroll } from "@/components/ui/table-scroll";
 
 /**
  * Category table layout + loading state. `AdminCategoriesPage.tsx` imports the
@@ -59,10 +60,7 @@ export function CategoryTableSkeleton({ rows = 8 }: { rows?: number }) {
         </div>
       </div>
 
-      <div
-        role="table"
-        className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]"
-      >
+      <TableScroll>
         <div
           role="row"
           className="grid items-center gap-3 border-b p-3 bg-background sticky top-0 z-10 min-w-fit"
@@ -77,7 +75,7 @@ export function CategoryTableSkeleton({ rows = 8 }: { rows?: number }) {
         {Array.from({ length: rows }, (_, i) => (
           <CategorySkeletonRow key={i} depth={i % 3 === 0 ? 0 : 1} />
         ))}
-      </div>
+      </TableScroll>
     </div>
   );
 }

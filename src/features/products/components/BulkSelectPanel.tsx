@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ActionButton } from "@/components/ActionButton";
+import { TableScroll } from "@/components/ui/table-scroll";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { bulkUpdateProductStatus, bulkDeleteProducts } from "@/features/products/actions/products";
@@ -227,13 +228,10 @@ export function BulkSelectPanel() {
           </div>
         )}
 
-        {/* Rows + header in a single scroll zone. Keeping the header INSIDE
-            the overflow container (with `sticky top-0`) is what makes the
-            column edges line up: when rows overflow vertically the scrollbar
-            takes ~15px on the right, so a header rendered *outside* the
-            scroll would be ~15px wider than the rows and the right-most
-            column (Status) would visibly drift relative to the cells. */}
-        <div className="flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
+        {/* Rows + header in a single scroll zone, the header `sticky top-0`
+            inside it, so a sideways scroll moves the header and the cells
+            together. The panel above already draws the border. */}
+        <TableScroll bordered={false}>
           <div
             role="row"
             className="sticky top-0 z-10 grid items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground bg-background min-w-fit"
@@ -338,7 +336,7 @@ export function BulkSelectPanel() {
               )}
             </>
           )}
-        </div>
+        </TableScroll>
       </div>
 
       {allItems.length > 0 && (

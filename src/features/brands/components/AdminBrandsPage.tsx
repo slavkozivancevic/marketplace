@@ -7,16 +7,18 @@ import { BrandLogo } from "@/features/brands/components/BrandLogo";
 import { Copy, Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
-import { cn } from "@/lib/utils";
 import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 import { SearchInput } from "@/components/search/SearchInput";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ActionButton";
 import { deleteBrandAction, duplicateBrandAction } from "../actions/brands";
 import type { BrandListItem } from "../db/brands";
+import { setRouteShape } from "@/lib/navigation/routeShape";
+import { brandShapeKey, type BrandFormShape } from "./BrandFormSkeleton";
 import { getBrandDescription, getBrandName, getBrandSlug } from "../utils/translations";
 import { BRAND_COLS } from "./BrandTableSkeleton";
+import { TableScroll } from "@/components/ui/table-scroll";
+import { IconButton } from "@/components/IconButton";
 
 // Column layout (logo | name | slug | description | products | actions) is
 // owned by the skeleton module so the two can never drift.
@@ -105,7 +107,8 @@ function BrandTableRow({
       <div role="cell" className="text-right tabular-nums text-sm">{brand._count.products}</div>
       <div role="cell" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-end gap-1">
-          <Button
+          <IconButton
+            label={t("common.edit")}
             variant="ghost"
             size="icon"
             disabled={isEditing}
@@ -114,20 +117,18 @@ function BrandTableRow({
             {isEditing
               ? <Loader2 className="h-4 w-4 animate-spin" />
               : <Pencil className="h-4 w-4" />}
-            <span className="sr-only">Edit</span>
-          </Button>
-          <Button
+          </IconButton>
+          <IconButton
+            label={t("brands.duplicate")}
             variant="ghost"
             size="icon"
             disabled={isDuplicating}
             onClick={() => onDuplicate(brand.id)}
-            title={t("brands.duplicate")}
           >
             {isDuplicating
               ? <Loader2 className="h-4 w-4 animate-spin" />
               : <Copy className="h-4 w-4" />}
-            <span className="sr-only">{t("brands.duplicate")}</span>
-          </Button>
+          </IconButton>
           <ActionButton
             open={deleteOpen}
             onOpenChange={onDeleteOpenChange}
@@ -145,10 +146,9 @@ function BrandTableRow({
           >
             {/* Resting control - the dialog's confirm button carries the
                 spinner. */}
-            <Button variant="ghost" size="icon">
+            <IconButton label={t("common.delete")} variant="ghost" size="icon">
               <Trash2 className="h-4 w-4 text-destructive" />
-              <span className="sr-only">Delete</span>
-            </Button>
+            </IconButton>
           </ActionButton>
         </div>
       </div>
@@ -220,8 +220,20 @@ export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
     });
   };
 
+  // Hands the brand's descriptions to the edit skeleton: each textarea is as
+  // tall as its text, so the skeleton draws the same ones.
+  const handOverShape = (targetId: string, sourceId: string) => {
+    const brand = brands.find((b) => b.id === sourceId);
+    if (!brand) return;
+    const shape: BrandFormShape = {
+      descriptions: Object.fromEntries(brand.translations.map((tr) => [tr.locale, tr.description])),
+    };
+    setRouteShape(brandShapeKey(targetId), shape);
+  };
+
   const handleEdit = (id: string) => {
     setEditingId(id);
+    handOverShape(id, id);
     startNavigate(() => router.push(`/${locale}/admin/brands/${id}/edit`));
   };
 
@@ -241,7 +253,11 @@ export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
         message: t("brands.duplicated"),
         action: {
           label: t("brands.editCopy"),
-          onClick: () => router.push(`/${locale}/admin/brands/${copyId}/edit`),
+          // The copy carries the source's descriptions.
+          onClick: () => {
+            handOverShape(copyId, id);
+            router.push(`/${locale}/admin/brands/${copyId}/edit`);
+          },
         },
       });
       router.refresh();
@@ -265,15 +281,10 @@ export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
           </AlertDescription>
         </Alert>
       ) : (
-        <div
-          role="table"
-          className={cn(
-            "rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]",
-            // Lock the whole table while any row's action is in flight, so
-            // the user can't start a second action on a different row.
-            (isPending || isNavigating || isDuplicating) &&
-              "opacity-60 pointer-events-none transition-opacity duration-150",
-          )}
+        <TableScroll
+          // Lock the whole table while any row's action is in flight, so
+          // the user can't start a second action on a different row.
+          locked={isPending || isNavigating || isDuplicating}
         >
           <BrandTableHeader />
           {filtered.map(({ brand, displayName, displaySlug, displayDescription }) => (
@@ -293,7 +304,7 @@ export function AdminBrandsPage({ brands }: { brands: BrandListItem[] }) {
               onDeleteOpenChange={(open) => setDeleteOpenId(open ? brand.id : null)}
             />
           ))}
-        </div>
+        </TableScroll>
       )}
     </div>
   );

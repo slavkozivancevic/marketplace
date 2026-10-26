@@ -274,14 +274,21 @@ export function HeroBackground() {
       />
 
       {/* Brand glows. `.hero-glow` is a `--brand-accent` radial, so it resolves
-          per theme instead of needing a light/dark pair. */}
+          per theme instead of needing a light/dark pair. The radial only
+          reaches transparent at the box's own edge (plus a 40px blur), and the
+          section clips with `overflow-clip`, so a glow box that crosses the
+          section's bottom is cut while still lit - a hard band across the page
+          under the hero, in every theme. The lower one is therefore anchored
+          to the bottom with room for its blur and never taller than the
+          section allows. (The upper one crosses only the top edge, which sits
+          under the header's border.) */}
       <div
         aria-hidden
         className="hero-glow -top-40 -left-32 h-112 w-md opacity-70"
       />
       <div
         aria-hidden
-        className="hero-glow top-1/3 -right-24 h-128 w-lg opacity-50"
+        className="hero-glow bottom-10 -right-24 h-[min(32rem,calc(100%-5rem))] w-lg opacity-50"
       />
     </>
   );

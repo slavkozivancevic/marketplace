@@ -4,7 +4,7 @@ import { useTheme } from "@/providers/theme/ThemeProvider";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Sun, Moon, Sparkles, Monitor, Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/IconButton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,9 +53,11 @@ export function ThemeSwitcher() {
 
   if (!mounted) {
     return (
-      <Button variant="outline" size="icon">
+      // Same name as the real trigger below, so nothing changes for a screen
+      // reader (or a hovering mouse) when the switcher mounts.
+      <IconButton label={t("toggle")} variant="outline">
         <Sun className="h-4 w-4" />
-      </Button>
+      </IconButton>
     );
   }
 
@@ -65,14 +67,14 @@ export function ThemeSwitcher() {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button
+        <IconButton
+          label={t("toggle")}
           variant="outline"
           size="icon"
           className="relative overflow-hidden group"
         >
           <Icon className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
-          <span className="sr-only">Toggle theme</span>
-        </Button>
+        </IconButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48" onCloseAutoFocus={(e) => e.preventDefault()}>
         <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">

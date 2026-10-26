@@ -3,6 +3,7 @@ import { resolveCart, type CartItemRef, type ResolvedCartLine } from "@/features
 import { cartSubtotalIn } from "@/features/cart/db/resolveCart";
 import { moneyIn, parseMoney, requireMoney, type MoneySet } from "@/lib/money";
 import type { MoneyContext } from "@/features/currency/db/activeCurrency";
+import type { MarketViewer } from "@/features/pricing/engine/market";
 import type { Currency } from "@/lib/currency-config";
 
 /** Cart line reference - prices are always read from the DB, never the client. */
@@ -58,8 +59,9 @@ export type OrgShippingLine = {
 export async function cartShippingLines(
   items: ShippingCartItem[],
   ctx: MoneyContext,
+  viewer: MarketViewer,
 ): Promise<OrgShippingLine[]> {
-  const { lines } = await resolveCart(items);
+  const { lines } = await resolveCart(items, viewer);
   return shippingLinesForResolved(lines, ctx);
 }
 

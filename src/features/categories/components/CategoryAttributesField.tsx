@@ -17,11 +17,13 @@ import {
 } from "@/components/ui/select";
 import type { CategoryInput } from "../schema/categories";
 import { getCategoryName } from "../utils/translations";
+import { inheritedAttributes } from "../utils/inheritedAttributes";
 import { getAttributeLabel } from "@/features/attributes/utils/translations";
 import { ChangedHint } from "@/components/forms/ChangedHint";
 import { useChangedHintEnabled } from "@/components/forms/FieldChangedHint";
 import { useBoolFormat } from "@/lib/forms/changedFormatters";
 import type { AttributeLibraryItem } from "@/features/attributes/db/attributes";
+import { IconButton } from "@/components/IconButton";
 
 type ParentOption = {
   id: string;
@@ -81,25 +83,14 @@ export function CategoryAttributesField({
 
   // Walk the parent chain and union every ancestor's directly-assigned
   // attributes - those are inherited and shown read-only.
-  const inherited = useMemo(() => {
-    const seen = new Set<string>();
-    const result: { attribute: AttributeLibraryItem; from: string }[] = [];
-    let current = parentId ? parentById.get(parentId) : undefined;
-    const guard = new Set<string>();
-    while (current && !guard.has(current.id)) {
-      guard.add(current.id);
-      const ancestorName = getCategoryName(current, locale);
-      for (const attrId of categoryAttributeMap[current.id] ?? []) {
-        const attribute = libraryById.get(attrId);
-        if (attribute && !seen.has(attrId)) {
-          seen.add(attrId);
-          result.push({ attribute, from: ancestorName });
-        }
-      }
-      current = current.parentId ? parentById.get(current.parentId) : undefined;
-    }
-    return result;
-  }, [parentId, parentById, categoryAttributeMap, libraryById, locale]);
+  const inherited = useMemo(
+    () =>
+      inheritedAttributes(parentId, parentById, categoryAttributeMap, libraryById).map((i) => ({
+        attribute: i.attribute,
+        from: getCategoryName(i.from, locale),
+      })),
+    [parentId, parentById, categoryAttributeMap, libraryById, locale],
+  );
 
   const inheritedIds = useMemo(
     () => new Set(inherited.map((i) => i.attribute.id)),
@@ -360,7 +351,8 @@ export function CategoryAttributesField({
                   {t("filterable")}
                 </label>
 
-                <Button
+                <IconButton
+                  label={t("removeAttribute")}
                   type="button"
                   variant="ghost"
                   size="icon"
@@ -368,8 +360,7 @@ export function CategoryAttributesField({
                   className="shrink-0"
                 >
                   <Trash2 className="h-4 w-4 text-destructive" />
-                  <span className="sr-only">{t("removeAttribute")}</span>
-                </Button>
+                </IconButton>
                 </div>
                 {changedEnabled && !saved && (
                   <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500">

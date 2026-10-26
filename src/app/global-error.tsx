@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { captureError } from "@/lib/logger";
 import { asLocale, type Locale } from "@/i18n/config";
+import { ScrollbarScript } from "@/providers/scrollbars/ScrollbarScript";
 
 /**
  * Strings are inlined rather than read from messages/<locale>.json because this
@@ -74,6 +75,7 @@ export default function GlobalError({
           color: "#09090b",
         }}
       >
+        <ScrollbarScript />
         <div style={{ textAlign: "center", padding: "32px", maxWidth: "420px" }}>
           <h1 style={{ fontSize: "20px", fontWeight: 700, margin: "0 0 8px" }}>
             {copy.title}

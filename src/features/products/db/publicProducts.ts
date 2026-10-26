@@ -1,5 +1,13 @@
 import { cacheTag } from "next/cache";
-import { parseMoney, serializeMoneyFields } from "@/lib/money";
+import { parseMoney } from "@/lib/money";
+import { ensurePricesCurrent } from "@/features/pricing/db/roll";
+import {
+  marketRulesInclude,
+  marketRulesOf,
+  publicMoneyFields,
+  schedulePricing,
+  withoutEffective,
+} from "@/features/pricing/db/projection";
 import { CacheTags } from "@/lib/cache/tags";
 import { prisma } from "@/core/db/prisma";
 import { Prisma } from "@/generated/prisma/client";
@@ -52,6 +60,8 @@ export const listItemInclude = {
   // could not tell "nobody tracks this" from "every variant is sold out".
   _count: { select: { variants: true } },
   variants: { where: { stock: { gt: 0 } }, take: 1, select: { id: true } },
+  // Market rules ride along viewer-neutral; the card applies the viewer's market.
+  ...marketRulesInclude,
 } satisfies Prisma.ProductInclude;
 
 type ListItemRow = Prisma.ProductGetPayload<{ include: typeof listItemInclude }>;
@@ -83,10 +93,14 @@ export function tagSellerTerms(rows: readonly { organizationId: string }[]) {
  * is never rendered by converting the USD mirror.
  */
 export function serializeListItem(p: ListItemRow): SerializedProductListItem {
-  const { organization, _count, variants, ...rest } = p;
+  const { organization, _count, variants, priceRules, marketRuleClocks, ...rest } = p;
   return {
-    ...rest,
-    ...serializeMoneyFields(p),
+    ...withoutEffective(rest),
+    // The price shown right now, under the names every card already reads.
+    ...publicMoneyFields(p),
+    // What the viewer's market does to it - applied per viewer, not here.
+    marketRules: marketRulesOf({ priceRules, marketRuleClocks }),
+    schedule: schedulePricing(p),
     // Resolved here, once, so every card surface (grid, wishlist, carousels)
     // answers the same way - and so the probes above never leak into the
     // payload as something a component might re-derive differently.
@@ -121,6 +135,11 @@ export type PublicProductWhereParams = {
   categoryId?: string[];
   tagId?: string[];
   attributeFilters?: AttributeFilter[];
+  /**
+   * Products the viewer's market takes the sale away from - see
+   * `marketSaleExclusions`. Read only together with `onSale: true`.
+   */
+  saleExcludedIds?: string[];
 };
 
 /** Builds the Prisma where clause for a single attribute facet selection. */
@@ -243,10 +262,13 @@ export function buildPublicProductWhere(
     }
   }
 
+  // Price filters read the EFFECTIVE price - the one the card shows right now,
+  // with any active price rule applied - so a filtered list never disagrees
+  // with the prices printed on it.
   if (p.minPrice != null || p.maxPrice != null) {
-    where.price = {};
-    if (p.minPrice != null) where.price.gte = p.minPrice;
-    if (p.maxPrice != null) where.price.lte = p.maxPrice;
+    where.effectivePrice = {};
+    if (p.minPrice != null) where.effectivePrice.gte = p.minPrice;
+    if (p.maxPrice != null) where.effectivePrice.lte = p.maxPrice;
   }
 
   // "On sale" has to mean what the card draws: a struck-through price and a
@@ -254,8 +276,14 @@ export function buildPublicProductWhere(
   // Merely HAVING an old price is not a discount - an old price that is lower
   // than today's is a price rise someone forgot to clear, and filtering on
   // `not: null` put such a product in the sale listing with no discount on it.
-  // The field reference keeps the comparison in SQL.
-  if (p.onSale === true) where.compareAtPrice = { gt: prisma.product.fields.price };
+  // The field reference keeps the comparison in SQL. Effective columns, so a
+  // scheduled promo is on sale exactly while its strike-through is shown.
+  // The columns are viewer-neutral; `saleExcludedIds` removes what the
+  // viewer's market shows without a strike-through.
+  if (p.onSale === true) {
+    where.effectiveCompareAtPrice = { gt: prisma.product.fields.effectivePrice };
+    if (p.saleExcludedIds?.length) where.id = { notIn: p.saleExcludedIds };
+  }
   if (p.bestseller === true) where.isBestseller = true;
   if (p.isDigital != null) where.isDigital = p.isDigital;
   // "At least N months" - products with no warranty recorded are excluded
@@ -309,6 +337,7 @@ export async function getPublicProductsPage({
   categoryId,
   tagId,
   attributeFilters,
+  saleExcludedIds,
 }: {
   take: number;
   cursor?: string;
@@ -328,6 +357,7 @@ export async function getPublicProductsPage({
   categoryId?: string[];
   tagId?: string[];
   attributeFilters?: AttributeFilter[];
+  saleExcludedIds?: string[];
 }): Promise<{ items: SerializedProductListItem[]; nextCursor?: string }> {
   const where = buildPublicProductWhere({
     search,
@@ -344,10 +374,17 @@ export async function getPublicProductsPage({
     categoryId,
     tagId,
     attributeFilters,
+    saleExcludedIds,
   });
 
+  // Bring any price whose window just opened or closed up to date before the
+  // query reads it. One indexed probe when nothing is due.
+  await ensurePricesCurrent();
+
+  // "Sort by price" sorts by what the buyer sees, the effective price.
+  const sortColumn = sortBy === "price" ? "effectivePrice" : sortBy;
   const orderBy: Prisma.ProductOrderByWithRelationInput[] = [
-    { [sortBy]: sortOrder },
+    { [sortColumn]: sortOrder },
     { id: "asc" },
   ];
 

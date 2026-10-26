@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Check, Share2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
+import { IconButton } from "@/components/IconButton";
 
 /**
  * Share this page.
@@ -81,12 +81,11 @@ export function ShareButton({
   };
 
   return (
-    <Button
+    <IconButton
+      label={t("shareProduct")}
       type="button"
       variant="ghost"
       size="icon"
-      aria-label={t("shareProduct")}
-      title={t("shareProduct")}
       onClick={onShare}
       className={cn("shrink-0", className)}
     >
@@ -95,6 +94,6 @@ export function ShareButton({
       ) : (
         <Share2 className="h-5 w-5" />
       )}
-    </Button>
+    </IconButton>
   );
 }

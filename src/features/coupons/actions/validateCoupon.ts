@@ -6,6 +6,7 @@ import { prisma } from "@/core/db/prisma";
 import { validateCoupon, type CartItemRef } from "../db/coupons";
 import { cartSubtotalIn, resolveCart } from "@/features/cart/db/resolveCart";
 import { getMoneyContext } from "@/features/currency/db/activeCurrency";
+import { getViewerMarket } from "@/features/priceMarkets/db/viewer";
 import { formatPrice } from "@/lib/currency";
 
 export type ValidateCouponResult =
@@ -36,7 +37,7 @@ export async function validateCouponAction(
 
   // Both totals come from one resolution, so the minimum is judged against the
   // exact same cart the buyer is looking at - in their own currency.
-  const { lines, subtotalUsd } = await resolveCart(items);
+  const { lines, subtotalUsd } = await resolveCart(items, await getViewerMarket());
   const subtotal = cartSubtotalIn(lines, currency, rates);
 
   const res = await validateCoupon(code, subtotalUsd, user?.id, { currency, rates, subtotal });

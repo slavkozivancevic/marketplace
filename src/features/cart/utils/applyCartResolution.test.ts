@@ -123,6 +123,43 @@ describe("applyCartResolution", () => {
     expect(a?.compareAtPriceMoney).toEqual(usd(1000));
   });
 
+  /**
+   * Scheduled pricing: the item went into the cart at 17:59 and the promo
+   * started at 18:00. The buyer must be told before paying the new price.
+   */
+  it("announces a price that moved, with the price it had before", () => {
+    const onRepriced = vi.fn();
+    applyCartResolution({ prices: [priceOf("a", 800)], unavailable: [] }, vi.fn(), onRepriced);
+
+    expect(onRepriced).toHaveBeenCalledTimes(1);
+    const [{ item, before }] = onRepriced.mock.calls[0];
+    expect(item.productId).toBe("a");
+    expect(item.priceMoney.amounts.usd).toBe(800);
+    expect(before.amounts.usd).toBe(1000);
+  });
+
+  it("announces a re-price once even when two callers sync the same cart", () => {
+    const fromDrawer = vi.fn();
+    const fromCheckout = vi.fn();
+    const res = { prices: [priceOf("a", 800)], unavailable: [] };
+
+    applyCartResolution(res, vi.fn(), fromDrawer);
+    applyCartResolution(res, vi.fn(), fromCheckout);
+
+    expect(fromDrawer).toHaveBeenCalledTimes(1);
+    expect(fromCheckout).not.toHaveBeenCalled();
+  });
+
+  it("does not call a compare-at change alone a re-price", () => {
+    const onRepriced = vi.fn();
+    applyCartResolution(
+      { prices: [priceOf("a", 1000, usd(1500))], unavailable: [] },
+      vi.fn(),
+      onRepriced,
+    );
+    expect(onRepriced).not.toHaveBeenCalled();
+  });
+
   it("leaves a cart with nothing unavailable completely alone", () => {
     const before = useCartStore.getState().items;
     const onRemoved = vi.fn();

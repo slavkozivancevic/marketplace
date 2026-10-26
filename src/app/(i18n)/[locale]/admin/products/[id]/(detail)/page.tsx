@@ -19,7 +19,9 @@ import { Breadcrumbs, type BreadcrumbItem } from "@/components/seo/Breadcrumbs";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ProductDetails } from "@/features/products/components/ProductDetails";
-import { SkeletonProductCard } from "@/components/ui/skeleton";
+import { ProductDetailsSkeleton } from "@/features/products/components/ProductDetailsSkeleton";
+import { PriceRulesLink } from "@/features/pricing/components/PriceRulesLink";
+import { getPricingListShape } from "@/features/pricing/components/PriceRulesScreens";
 import { SerializedProductWithRelations } from "@/types/types";
 
 interface ProductPageProps {
@@ -60,7 +62,7 @@ async function ProductDetailsLoading({ id }: { id: string }) {
         <Breadcrumbs items={breadcrumbItems} seo={false} />
         <PageHeader
           title={t("admin.productDetails")}
-          description={t("common.loadingDetails")}
+          description={t("admin.productDetailsDesc")}
         >
           <Button asChild variant="outline">
             <Link href="/admin/products">{t("admin.backToProducts")}</Link>
@@ -68,13 +70,16 @@ async function ProductDetailsLoading({ id }: { id: string }) {
           <Button asChild variant="outline">
             <Link href={{ pathname: "/admin/products/[id]/history", params: { id } }}>{t("admin.history")}</Link>
           </Button>
+          <Button asChild variant="outline">
+            <Link href={{ pathname: "/admin/products/[id]/pricing", params: { id } }}>{t("priceRules.title")}</Link>
+          </Button>
           <Button asChild>
             <Link href={{ pathname: "/admin/products/[id]/edit", params: { id } }}>{t("common.edit")}</Link>
           </Button>
         </PageHeader>
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
-        <SkeletonProductCard />
+        <ProductDetailsSkeleton />
       </div>
     </>
   );
@@ -140,6 +145,13 @@ async function ProductDetailsContent({ id }: { id: string }) {
           <Button asChild variant="outline">
             <Link href={{ pathname: "/admin/products/[id]/history", params: { id } }}>{t("admin.history")}</Link>
           </Button>
+          <PriceRulesLink
+            href={{ pathname: "/admin/products/[id]/pricing", params: { id } }}
+            productId={id}
+            shape={await getPricingListShape(id)}
+          >
+            {t("priceRules.title")}
+          </PriceRulesLink>
           <Button asChild>
             <Link href={{ pathname: "/admin/products/[id]/edit", params: { id } }}>{t("common.edit")}</Link>
           </Button>

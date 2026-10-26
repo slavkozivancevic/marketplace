@@ -1,4 +1,11 @@
-import { serializeMoneyFields } from "@/lib/money";
+import {
+  marketRulesInclude,
+  marketRulesOf,
+  publicMoneyFields,
+  publicVariantMoneyFields,
+  schedulePricing,
+  withoutEffective,
+} from "@/features/pricing/db/projection";
 import { Prisma } from "@/generated/prisma/client";
 import { SUPPORTED_LOCALES } from "@/i18n/config";
 import { getLabel } from "@/features/attributes/utils/translations";
@@ -56,6 +63,8 @@ export const publicProductInclude = {
   },
   brand: { select: { id: true, logoUrl: true, logoUrlDark: true, logoBackdrop: true, logoBackdropDark: true, translations: true } },
   tags: { include: { tag: { select: { id: true, translations: true } } } },
+  // Viewer-neutral; the product page applies the viewer's market.
+  ...marketRulesInclude,
 } satisfies Prisma.ProductInclude;
 
 type RawVariant = PublicProductRaw["variants"][number];
@@ -129,16 +138,22 @@ export function buildCompatVariantOptionValues(
 export function serializePublicProduct(
   product: PublicProductRaw,
 ): SerializedPublicProduct {
+  // Storefront payload: the price shown and charged right now (dynamic pricing
+  // folded in), under the names the product page and cart already read.
+  const { priceRules, marketRuleClocks, ...productRest } = product;
   return {
-    ...product,
-    ...serializeMoneyFields(product),
+    ...withoutEffective(productRest),
+    ...publicMoneyFields(product),
+    marketRules: marketRulesOf({ priceRules, marketRuleClocks }),
+    schedule: schedulePricing(product),
     options: buildCompatOptions(product.variants),
     variants: product.variants.map((v) => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { attributeValues, ...rest } = v;
       return {
-        ...rest,
-        ...serializeMoneyFields(v),
+        ...withoutEffective(rest),
+        ...publicVariantMoneyFields(v, product),
+        schedule: schedulePricing(v),
         optionValues: buildCompatVariantOptionValues(v),
       };
     }),

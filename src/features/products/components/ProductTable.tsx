@@ -8,7 +8,6 @@ import { Copy, ImageOff, Loader2, Pencil, Trash2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ActionButton";
 import { toast } from "@/components/ui/sonner";
 import { TruncatedTooltip } from "@/components/TruncatedTooltip";
@@ -26,6 +25,7 @@ import { getBrandName } from "@/features/brands/utils/translations";
 // real header/row and the loading placeholder read the SAME builder, so adding
 // a column here can't leave the skeleton behind.
 import { buildProductTableCols } from "./ProductTableSkeleton";
+import { IconButton } from "@/components/IconButton";
 
 function getStatusVariant(status: string) {
   switch (status) {
@@ -264,7 +264,8 @@ export function ProductTableRow({
           }}
         >
           <div className="flex items-center justify-end gap-1">
-            <Button
+            <IconButton
+              label={tCommon("edit")}
               variant="ghost"
               size="icon"
               disabled={isNavigating}
@@ -273,20 +274,18 @@ export function ProductTableRow({
               {isNavigating
                 ? <Loader2 className="h-4 w-4 animate-spin" />
                 : <Pencil className="h-4 w-4" />}
-              <span className="sr-only">{tCommon("edit")}</span>
-            </Button>
-            <Button
+            </IconButton>
+            <IconButton
+              label={t("duplicate")}
               variant="ghost"
               size="icon"
               disabled={isDuplicating}
               onClick={handleDuplicate}
-              title={t("duplicate")}
             >
               {isDuplicating
                 ? <Loader2 className="h-4 w-4 animate-spin" />
                 : <Copy className="h-4 w-4" />}
-              <span className="sr-only">{t("duplicate")}</span>
-            </Button>
+            </IconButton>
             <ActionButton
               open={deleteOpen}
               onOpenChange={setDeleteOpen}
@@ -299,10 +298,9 @@ export function ProductTableRow({
             >
               {/* Resting control - the dialog's confirm button carries the
                   spinner. */}
-              <Button variant="ghost" size="icon">
+              <IconButton label={tCommon("delete")} variant="ghost" size="icon">
                 <Trash2 className="h-4 w-4 text-destructive" />
-                <span className="sr-only">{tCommon("delete")}</span>
-              </Button>
+              </IconButton>
             </ActionButton>
           </div>
         </div>

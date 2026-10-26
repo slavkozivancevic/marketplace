@@ -19,6 +19,7 @@ import { prisma } from "@/core/db/prisma";
 import type Stripe from "stripe";
 import { formatPrice } from "@/lib/currency";
 import type { Currency } from "@/lib/currency-config";
+import { shippingCountryLabel } from "@/lib/i18n/countries";
 
 interface CheckoutSuccessPageProps {
   searchParams: Promise<{ session_id?: string; order_id?: string }>;
@@ -199,7 +200,7 @@ export default async function CheckoutSuccessPage({
                     .filter(Boolean)
                     .join(", ")}
                 </p>
-                {order.shippingCountry && <p>{order.shippingCountry}</p>}
+                {order.shippingCountry && <p>{shippingCountryLabel(order.shippingCountry, locale)}</p>}
               </CardContent>
             </Card>
           )}
@@ -441,7 +442,7 @@ export default async function CheckoutSuccessPage({
                   .filter(Boolean)
                   .join(", ")}
               </p>
-              {order.shippingCountry && <p>{order.shippingCountry}</p>}
+              {order.shippingCountry && <p>{shippingCountryLabel(order.shippingCountry, locale)}</p>}
             </CardContent>
           </Card>
         )}

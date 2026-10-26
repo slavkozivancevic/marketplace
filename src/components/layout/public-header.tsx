@@ -1,6 +1,7 @@
 "use client";
 
 import { Link } from "@/i18n/navigation";
+import { HydrationMark } from "@/lib/navigation/hydrationGate";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@clerk/nextjs";
@@ -15,7 +16,7 @@ import { useDismissable } from "@/hooks/useDismissable";
 import { BrandHomeLink } from "./brand-home-link";
 import { CategoriesMegaMenu } from "@/features/categories/components/CategoriesMegaMenu";
 import type { CategoryTreeItem } from "@/features/categories/db/categories";
-import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/IconButton";
 import { cn } from "@/lib/utils";
 
 interface PublicHeaderProps {
@@ -103,6 +104,8 @@ export function PublicHeader({
             : "border-border/50"
         )}
       >
+        {/* Layout chrome hydrated - see HistoryHydrationGate. */}
+        <HydrationMark />
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center gap-4">
             {/* Logo - flex-1 left rail keeps the center nav screen-centered */}
@@ -193,10 +196,10 @@ export function PublicHeader({
                 <HeaderAuth mode="modal" showDashboardLink={false} signedIn={signedIn} />
               </div>
               {/* Mobile menu button */}
-              <Button
+              <IconButton
+                label={t(mobileOpen ? "common.closeMenu" : "common.openMenu")}
                 ref={triggerRef}
                 variant="outline"
-                size="icon"
                 className="xl:hidden"
                 aria-expanded={mobileOpen}
                 onClick={() => setMobileOpen(!mobileOpen)}
@@ -206,7 +209,7 @@ export function PublicHeader({
                 ) : (
                   <Menu className="h-4 w-4" />
                 )}
-              </Button>
+              </IconButton>
               {/* Avatar-only below xl, always the rightmost element, so it's
                   obvious at a glance who's signed in even on the narrowest
                   widths; the full controls take over at xl - never both at

@@ -2,6 +2,11 @@ import type { TransactionClient } from "@/core/db/prisma";
 import { randomUUID } from "crypto";
 import { tenantPrisma } from "@/core/db/tenantPrisma";
 import { revalidateProductCache, revalidateProductHistoryCache } from "./cache";
+import { updateTag } from "next/cache";
+import { CacheTags } from "@/lib/cache/tags";
+import { recordAudit } from "@/features/audit/db/audit";
+import { deleteRulesOfVariants } from "@/features/pricing/db/priceRules";
+import { regenerateProductWindows } from "@/features/pricing/db/windows";
 import type { BulkFilter, BulkUpdateResolved } from "../types/bulk";
 import { BULK_CATEGORY_MUTATION_LIMIT } from "../types/bulk";
 import {
@@ -344,7 +349,16 @@ async function syncVariants(
     resolved.map((r) => r.existingId).filter((id): id is string => id !== null),
   );
   const toDelete = existing.filter((v) => !retainedIds.has(v.id));
+  // Price rules on a variant that is going away are deleted EXPLICITLY first.
+  // The FK is Restrict on purpose: variants are matched by SKU / options, so a
+  // SKU edit also lands here, and a cascade would drop those rules unseen. The
+  // caller audits each one.
+  let removedPriceRules: Awaited<ReturnType<typeof deleteRulesOfVariants>> = [];
   if (toDelete.length > 0) {
+    removedPriceRules = await deleteRulesOfVariants(
+      tx,
+      toDelete.map((v) => v.id),
+    );
     await tx.productVariant.deleteMany({
       where: { productId, id: { in: toDelete.map((v) => v.id) } },
     });
@@ -435,6 +449,8 @@ async function syncVariants(
       await tx.productVariantMedia.createMany({ data: rows });
     }
   }
+
+  return removedPriceRules;
 }
 
 /**
@@ -1253,6 +1269,9 @@ export function productRepository(
         attributes?: ProductAttributeInput[];
       }>,
     ): Promise<ProductWithRelations> {
+      // Price rules deleted because their variant went away - audited after
+      // the commit, one row each.
+      let removedPriceRules: Awaited<ReturnType<typeof deleteRulesOfVariants>> = [];
       const product = await db.prisma.$transaction(async (tx) => {
         if (!version || version < 1) {
           throw new VersionRequiredError();
@@ -1373,7 +1392,12 @@ export function productRepository(
         }
 
         if (variants !== undefined) {
-          await syncVariants(tx, id, variants, mediaIdByKey);
+          removedPriceRules = await syncVariants(tx, id, variants, mediaIdByKey);
+          // The variant set changed: a product-level rule must now also cover
+          // any variant that was just added, so its windows are rebuilt.
+          if ((await tx.priceRule.count({ where: { productId: id } })) > 0) {
+            await regenerateProductWindows(tx, id);
+          }
         }
 
         if (categoryIds !== undefined) {
@@ -1442,6 +1466,17 @@ export function productRepository(
 
       revalidateProductCache(ctx.organizationId, id);
       revalidateProductHistoryCache(ctx.organizationId, id);
+      if (removedPriceRules.length > 0) {
+        updateTag(CacheTags.priceRules.byProduct(ctx.organizationId, id));
+        for (const rule of removedPriceRules) {
+          await recordAudit({
+            action: "priceRule.deleted",
+            entityType: "PriceRule",
+            entityId: rule.id,
+            diff: { productId: id, variantId: rule.variantId, name: rule.name, reason: "variantRemoved" },
+          });
+        }
+      }
 
       return product;
     },

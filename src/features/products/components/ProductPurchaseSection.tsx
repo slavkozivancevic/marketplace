@@ -11,6 +11,8 @@ import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
 import { MessageSellerButton } from "@/features/chat/components/MessageSellerButton";
 import { cn } from "@/lib/utils";
 import { SerializedPublicProduct } from "@/types/types";
+import type { ViewerPricedProduct } from "@/features/priceMarkets/utils/viewerPrices";
+import { MarketPriceNote } from "@/features/priceMarkets/components/MarketPriceNote";
 import { useMoney } from "@/lib/useMoney";
 import { formatPrice } from "@/lib/currency";
 import { getBrandName } from "@/features/brands/utils/translations";
@@ -23,7 +25,8 @@ import {
 } from "@/features/organizations/components/SellerPromises";
 
 interface ProductPurchaseSectionProps {
-  product: SerializedPublicProduct;
+  /** Already priced for the viewer's market - see `useMarketProduct`. */
+  product: ViewerPricedProduct<SerializedPublicProduct>;
   activeVariantId: string | null;
   onActiveVariantChange: (variantId: string | null) => void;
   isOwnProduct: boolean;
@@ -114,6 +117,7 @@ export function ProductPurchaseSection({
           ) : (
             priceRow
           )}
+          <MarketPriceNote rule={priceSource.marketRule} className="-mt-2" />
           {showPriceRange && (
             <p className="text-sm text-muted-foreground">
               {t("variantPriceRange", {

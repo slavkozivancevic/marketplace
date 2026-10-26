@@ -205,7 +205,16 @@ the warm Router Cache keeps stale edits. Reference: `products/new`.
 
 **Tables.** Numeric cells right-aligned with `tabular-nums`. Status centered.
 Action icon rows right-aligned with `pr-2.5`. The header must live inside the
-overflow container.
+overflow container. That container is always `TableScroll`
+(`src/components/ui/table-scroll.tsx`), for the live table and its skeleton
+alike - never a hand-written `overflow-auto` div; `table-scroll.test.ts` fails
+on a raw `role="table"` or an unwrapped `<table>`. `height` picks `fill` (page
+table), `capped` (preview, max 24rem) or `auto` (inline, sideways only);
+`nativeTable` for a real `<table>`; `bordered={false}` inside a bordered panel. Its scrollbars are Radix overlays that take no width:
+a native Windows scrollbar either leaves an empty strip inside the right border
+(`scrollbar-gutter: stable`) or narrows every column when rows start to
+overflow. A virtualizer's `parentRef` goes on `TableScroll`'s `ref`, which is
+the viewport that actually scrolls.
 
 **"Add X" button.** Page header action is always
 `<Button asChild><Link>{t("addX")}</Link></Button>` - no size prop, no icon,
@@ -231,10 +240,42 @@ row unmounts and takes the dialog with it, and where the record survives the
 caller closes it on the settled frame (`useWhenSettled`). A FAILED action
 therefore leaves the dialog open, with the reason in a toast beside it.
 
+**Icon-only buttons.** Always `<IconButton label={...}>`
+(`src/components/IconButton.tsx`), never `<Button size="icon">`. The label is
+the accessible name AND the tooltip - one string, so they cannot drift; no
+native `title`, no separate sr-only span. Desktop shows it on hover and on
+keyboard focus; touch shows it on a long press (~500ms) that does not run the
+action, a short tap still runs it. ESLint (`no-restricted-syntax`) enforces it.
+Agreed exceptions, each with an `eslint-disable` naming the reason: the close X
+of dialogs, sheets and drawers, quantity +/-, calendar month arrows - the
+symbol is the label, and they keep an sr-only name.
+
 **Layout.** The shell never scrolls horizontally: `overflow-clip` on shell and
 main, and `min-w-0` alongside it (clip is not a scroll container, so it does not
 get automatic min-size 0). Page blur belongs to dialog/sheet overlays only,
 never to `data-scroll-locked`.
+
+**Scrollbars.** One look everywhere, from one source:
+`src/lib/scrollbars/scrollbarStyle.ts` holds the CSS for every native scrollbar
+(page shells, sidebars, dialogs, textareas, Clerk) and the platform detection.
+Every document includes it - both root layouts and `global-error.tsx` via
+`<ScrollbarScript />`, the proxy's static 404 (`notFoundResponse`) as a string;
+a new document without it fails CI. No scrollbar rule goes in `globals.css`.
+`ScrollArea` (`src/components/ui/scroll-area.tsx`) draws the same thumb as an
+overlay from the same `--scrollbar-thumb*` tokens. Use
+`ScrollArea` wherever the scrollbar's width would show - next to a border or a
+sticky header, or above a grid whose columns would jump (product grids, the
+public listing shell and its `loading.tsx`); tables get it through `TableScroll`.
+Its `ref` is the viewport that scrolls. Never `scrollbar-gutter`: it reserves an
+empty strip whenever nothing scrolls. Never set `scrollbar-width` or
+`scrollbar-color` on a component: Chromium then ignores the `::-webkit-scrollbar`
+rules for that element and draws the Windows arrow scrollbar. The webkit rules
+apply only under `html[data-scrollbars="classic"]`, measured before first paint
+by `ScrollbarScript` (both root layouts), so macOS and mobile keep their native
+overlay - and there `ScrollArea` hides its own bars and hands its viewport back
+to the system scrollbar, so a device never mixes two kinds. Both kinds grow the
+thumb 6px -> 8px under the pointer inside a fixed 10px lane; keep them in step.
+`scrollbars.test.ts` guards all of this.
 
 **Select.** `position="popper"` is the shared default. Do not re-fix width and
 overlap per call site.

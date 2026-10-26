@@ -3,7 +3,6 @@ import axios from "axios";
 import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
 
-import { cn } from "@/lib/utils";
 
 import { useInfiniteVirtualList } from "@/components/infinite/useInfiniteVirtualList";
 import { ProductTableHeader, ProductTableRow } from "./ProductTable";
@@ -14,6 +13,7 @@ import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
 import type { AdminProductFilters } from "@/lib/query/searchParams";
 import { useCurrencyStore, getCurrentRate } from "@/store/currency";
+import { TableScroll } from "@/components/ui/table-scroll";
 
 function buildFetcher(filters: AdminProductFilters) {
   return async ({
@@ -92,12 +92,12 @@ export function AdminProductsList({
     // Real (translated) header over skeleton rows - the header text is already
     // available client-side, so there's no reason to grey it out.
     return (
-      <div role="table" className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]">
+      <TableScroll>
         <ProductTableHeader showActions showCreatedBy />
         {Array.from({ length: 8 }).map((_, i) => (
           <ProductTableSkeletonRow key={i} showActions showCreatedBy />
         ))}
-      </div>
+      </TableScroll>
     );
   }
 
@@ -130,26 +130,18 @@ export function AdminProductsList({
   // Small dataset - render rows directly without virtualization.
   if (!query.hasNextPage) {
     return (
-      <div
-        role="table"
-        className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", tableLocked && "opacity-60 pointer-events-none transition-opacity duration-150")}
-        ref={parentRef}
-      >
+      <TableScroll ref={parentRef} locked={tableLocked}>
         <ProductTableHeader showActions showCreatedBy />
         {items.map((product) => (
           <ProductTableRow key={product.id} product={product} showActions showCreatedBy onBusyChange={handleBusyChange} />
         ))}
-      </div>
+      </TableScroll>
     );
   }
 
   // Large dataset - virtualized scroll container.
   return (
-    <div
-      role="table"
-      className={cn("rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]", tableLocked && "opacity-60 pointer-events-none transition-opacity duration-150")}
-      ref={parentRef}
-    >
+    <TableScroll ref={parentRef} locked={tableLocked}>
       <ProductTableHeader showActions showCreatedBy />
       <div
         style={{
@@ -197,6 +189,6 @@ export function AdminProductsList({
           );
         })}
       </div>
-    </div>
+    </TableScroll>
   );
 }

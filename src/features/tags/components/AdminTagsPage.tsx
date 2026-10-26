@@ -6,16 +6,16 @@ import { useRouter } from "next/navigation";
 import { Copy, Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
-import { cn } from "@/lib/utils";
 import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 import { SearchInput } from "@/components/search/SearchInput";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { ActionButton } from "@/components/ActionButton";
 import { deleteTagAction, duplicateTagAction } from "../actions/tags";
 import type { TagListItem } from "../db/tags";
 import { getTagName, getTagSlug } from "../utils/translations";
 import { TAG_COLS } from "./TagTableSkeleton";
+import { TableScroll } from "@/components/ui/table-scroll";
+import { IconButton } from "@/components/IconButton";
 
 // Column layout (name | slug | products | actions) is owned by the skeleton
 // module so the two can never drift.
@@ -86,7 +86,8 @@ function TagTableRow({
       <div role="cell" className="text-right tabular-nums text-sm">{tag._count.products}</div>
       <div role="cell" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-end gap-1">
-          <Button
+          <IconButton
+            label={t("common.edit")}
             variant="ghost"
             size="icon"
             disabled={isEditing}
@@ -95,20 +96,18 @@ function TagTableRow({
             {isEditing
               ? <Loader2 className="h-4 w-4 animate-spin" />
               : <Pencil className="h-4 w-4" />}
-            <span className="sr-only">Edit</span>
-          </Button>
-          <Button
+          </IconButton>
+          <IconButton
+            label={t("tags.duplicate")}
             variant="ghost"
             size="icon"
             disabled={isDuplicating}
             onClick={() => onDuplicate(tag.id)}
-            title={t("tags.duplicate")}
           >
             {isDuplicating
               ? <Loader2 className="h-4 w-4 animate-spin" />
               : <Copy className="h-4 w-4" />}
-            <span className="sr-only">{t("tags.duplicate")}</span>
-          </Button>
+          </IconButton>
           <ActionButton
             open={deleteOpen}
             onOpenChange={onDeleteOpenChange}
@@ -121,10 +120,9 @@ function TagTableRow({
           >
             {/* Resting control - the dialog's confirm button carries the
                 spinner. */}
-            <Button variant="ghost" size="icon">
+            <IconButton label={t("common.delete")} variant="ghost" size="icon">
               <Trash2 className="h-4 w-4 text-destructive" />
-              <span className="sr-only">Delete</span>
-            </Button>
+            </IconButton>
           </ActionButton>
         </div>
       </div>
@@ -242,14 +240,7 @@ export function AdminTagsPage({ tags }: { tags: TagListItem[] }) {
           </AlertDescription>
         </Alert>
       ) : (
-        <div
-          role="table"
-          className={cn(
-            "rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]",
-            (isPending || isNavigating || isDuplicating) &&
-              "opacity-60 pointer-events-none transition-opacity duration-150",
-          )}
-        >
+        <TableScroll locked={isPending || isNavigating || isDuplicating}>
           <TagTableHeader />
           {filtered.map(({ tag: tg, displayName, displaySlug }) => (
             <TagTableRow
@@ -267,7 +258,7 @@ export function AdminTagsPage({ tags }: { tags: TagListItem[] }) {
               onDeleteOpenChange={(open) => setDeleteOpenId(open ? tg.id : null)}
             />
           ))}
-        </div>
+        </TableScroll>
       )}
     </div>
   );

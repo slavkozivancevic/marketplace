@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TableScroll } from "@/components/ui/table-scroll";
 
 /**
  * Payout table layout + loading state.
@@ -38,10 +39,7 @@ export function OrgPayoutSkeletonRow() {
 /** Full payouts table placeholder. */
 export function OrgPayoutTableSkeleton({ rows = 8 }: { rows?: number }) {
   return (
-    <div
-      role="table"
-      className="rounded-lg border flex-1 min-h-0 overflow-auto [scrollbar-gutter:stable]"
-    >
+    <TableScroll>
       <div
         role="row"
         className={cn(
@@ -58,7 +56,7 @@ export function OrgPayoutTableSkeleton({ rows = 8 }: { rows?: number }) {
       {Array.from({ length: rows }, (_, i) => (
         <OrgPayoutSkeletonRow key={i} />
       ))}
-    </div>
+    </TableScroll>
   );
 }
 
