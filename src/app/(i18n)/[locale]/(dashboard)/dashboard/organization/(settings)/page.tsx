@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
+import { demoSafe } from "@/features/demo/maskEmail";
 import { getOrganizationById } from "@/features/organizations/db/organizations";
 import { getPendingInvitesByOrg } from "@/features/organizations/db/invites";
 import { CacheTags } from "@/lib/cache/tags";
@@ -33,10 +34,10 @@ export default async function OrganizationPage() {
   ];
   const ctx = await resolveRequestContext();
 
-  const [organization, invites] = await Promise.all([
-    fetchOrganization(ctx.organizationId),
-    fetchInvites(ctx.organizationId),
-  ]);
+  const [organization, invites] = demoSafe(
+    await Promise.all([fetchOrganization(ctx.organizationId), fetchInvites(ctx.organizationId)]),
+    ctx,
+  );
 
   if (!organization) notFound();
 

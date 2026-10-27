@@ -2,6 +2,7 @@ import { logger } from "@/lib/logger";
 import { NextResponse, type NextRequest } from "next/server";
 import { connection } from "next/server";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
+import { demoSafe } from "@/features/demo/maskEmail";
 import { requirePermission } from "@/lib/auth/permissions";
 import { getOrgOrdersPage } from "@/features/orders/db/orgOrders";
 import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
       sortBy,
       sortOrder,
     });
-    return NextResponse.json(result);
+    return NextResponse.json(demoSafe(result, ctx));
   } catch (error) {
     logger.error("[/api/dashboard/org-orders] failed", error);
     return NextResponse.json(

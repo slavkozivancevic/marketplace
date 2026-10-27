@@ -4,7 +4,7 @@ import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
 import { createTagSchema, updateTagSchema, CreateTagInput, UpdateTagInput } from "../schema/tags";
 import { createTag, updateTag, deleteTag, duplicateTag } from "../db/tags";
 import { handleActionError } from "@/features/common/errors/domainErrors";
-import { requireRole } from "@/lib/auth/requireRole";
+import { requireAdminWrite } from "@/lib/auth/requireRole";
 import { recordAudit } from "@/features/audit/db/audit";
 import { ActionErrorResult } from "@/types/types";
 
@@ -22,7 +22,7 @@ export async function createTagAction(
   redirectTo = "/admin/tags",
 ): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
 
     const parsed = createTagSchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
     if (!parsed.success) {
@@ -48,7 +48,7 @@ export async function updateTagAction(
   redirectTo = "/admin/tags",
 ): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
 
     const parsed = updateTagSchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
     if (!parsed.success) {
@@ -79,7 +79,7 @@ export async function deleteTagAction(
   id: string,
 ): Promise<{ ok: true } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const name = await deleteTag(id);
     await recordAudit({
       action: "tag.deleted",
@@ -97,7 +97,7 @@ export async function duplicateTagAction(
   id: string,
 ): Promise<{ error: false; id: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const copy = await duplicateTag(id);
     await recordAudit({
       action: "tag.duplicated",

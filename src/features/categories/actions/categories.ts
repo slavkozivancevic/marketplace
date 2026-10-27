@@ -9,7 +9,7 @@ import {
   duplicateCategory,
 } from "../db/categories";
 import { handleActionError } from "@/features/common/errors/domainErrors";
-import { requireRole } from "@/lib/auth/requireRole";
+import { requireAdminWrite } from "@/lib/auth/requireRole";
 import { recordAudit } from "@/features/audit/db/audit";
 import type { ActionErrorResult } from "@/types/types";
 
@@ -20,7 +20,7 @@ export async function createCategoryAction(
   unsafeData: CategoryInput,
 ): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
 
     const parsed = categorySchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
     if (!parsed.success) {
@@ -51,7 +51,7 @@ export async function updateCategoryAction(
   unsafeData: CategoryInput,
 ): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
 
     const parsed = categorySchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
     if (!parsed.success) {
@@ -86,7 +86,7 @@ export async function deleteCategoryAction(
   id: string,
 ): Promise<{ ok: true } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     // The name goes into the audit entry because the row itself is gone: an id
     // alone cannot tell you what was deleted, which is exactly the hole the
     // 2026-09-21 category delete fell into.
@@ -107,7 +107,7 @@ export async function duplicateCategoryAction(
   id: string,
 ): Promise<{ error: false; id: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const copy = await duplicateCategory(id);
     await recordAudit({
       action: "category.duplicated",

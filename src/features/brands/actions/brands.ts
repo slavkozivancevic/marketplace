@@ -4,7 +4,7 @@ import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
 import { createBrandSchema, updateBrandSchema, CreateBrandInput, UpdateBrandInput } from "../schema/brands";
 import { createBrand, updateBrand, deleteBrand, duplicateBrand } from "../db/brands";
 import { handleActionError } from "@/features/common/errors/domainErrors";
-import { requireRole } from "@/lib/auth/requireRole";
+import { requireAdminWrite } from "@/lib/auth/requireRole";
 import { recordAudit } from "@/features/audit/db/audit";
 import { ActionErrorResult } from "@/types/types";
 
@@ -17,7 +17,7 @@ export async function createBrandAction(
   redirectTo = "/admin/brands",
 ): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
 
     const parsed = createBrandSchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
     if (!parsed.success) {
@@ -47,7 +47,7 @@ export async function updateBrandAction(
   redirectTo = "/admin/brands",
 ): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
 
     const parsed = updateBrandSchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
     if (!parsed.success) {
@@ -80,7 +80,7 @@ export async function deleteBrandAction(
   id: string,
 ): Promise<{ ok: true } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const name = await deleteBrand(id);
     await recordAudit({
       action: "brand.deleted",
@@ -98,7 +98,7 @@ export async function duplicateBrandAction(
   id: string,
 ): Promise<{ error: false; id: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const copy = await duplicateBrand(id);
     await recordAudit({
       action: "brand.duplicated",

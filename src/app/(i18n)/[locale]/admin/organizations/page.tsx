@@ -8,12 +8,14 @@ import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { getPathname } from "@/i18n/navigation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AdminOrganizationsPage } from "@/features/organizations/components/AdminOrganizationsPage";
+import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
+import { demoSafe } from "@/features/demo/maskEmail";
 
 export default async function AdminOrganizationsRoute() {
   const t = await getTranslations();
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();
-  const organizations = await fetchOrganizations();
+  const [organizations, ctx] = await Promise.all([fetchOrganizations(), resolveRequestContext()]);
   const breadcrumbItems = [
     { name: tCrumbs("admin"), href: getPathname({ href: "/admin", locale }) },
     { name: tCrumbs("adminOrganizations"), href: getPathname({ href: "/admin/organizations", locale }) },
@@ -38,7 +40,7 @@ export default async function AdminOrganizationsRoute() {
           </Alert>
         ) : (
           <AdminOrganizationsPage
-            organizations={JSON.parse(JSON.stringify(organizations))}
+            organizations={demoSafe(JSON.parse(JSON.stringify(organizations)), ctx)}
           />
         )}
       </div>

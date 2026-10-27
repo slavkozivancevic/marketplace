@@ -9,7 +9,7 @@ import {
   duplicateAttribute,
 } from "../db/attributes";
 import { handleActionError } from "@/features/common/errors/domainErrors";
-import { requireRole } from "@/lib/auth/requireRole";
+import { requireAdminWrite } from "@/lib/auth/requireRole";
 import { recordAudit } from "@/features/audit/db/audit";
 import type { ActionErrorResult } from "@/types/types";
 
@@ -20,7 +20,7 @@ export async function createAttributeAction(
   unsafeData: AttributeInput,
 ): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const parsed = attributeSchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
     if (!parsed.success) {
       return {
@@ -41,7 +41,7 @@ export async function updateAttributeAction(
   unsafeData: AttributeInput,
 ): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const parsed = attributeSchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
     if (!parsed.success) {
       return {
@@ -66,7 +66,7 @@ export async function deleteAttributeAction(
   id: string,
 ): Promise<{ ok: true } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const key = await deleteAttribute(id);
     await recordAudit({
       action: "attribute.deleted",
@@ -84,7 +84,7 @@ export async function duplicateAttributeAction(
   id: string,
 ): Promise<{ error: false; id: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const copy = await duplicateAttribute(id);
     await recordAudit({
       action: "attribute.duplicated",

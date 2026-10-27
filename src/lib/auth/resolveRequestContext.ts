@@ -3,6 +3,7 @@ import { safeAuth } from "./safeAuth";
 import { validateAuthSync } from "./validateAuthSync";
 import { prisma } from "@/core/db/prisma";
 import { RequestContext } from "../../types/types";
+import { isDemoReadOnlyEmail } from "@/features/demo/demoAccounts";
 import {
   MembershipNotFoundError,
   UnauthenticatedError,
@@ -43,6 +44,7 @@ export const resolveRequestContext = cache(
             user: {
               select: {
                 role: true,
+                email: true,
                 // The DB is the source of truth for the active org. We read it
                 // here to detect a just-switched session whose JWT still names
                 // the previous org (the claim lags a token refresh).
@@ -91,6 +93,7 @@ export const resolveRequestContext = cache(
         user: {
           select: {
             role: true,
+            email: true,
           },
         },
       },
@@ -107,6 +110,7 @@ export const resolveRequestContext = cache(
       organizationId: activeOrgId,
       membershipRole: freshMembership.role,
       organizationVerified: freshMembership.organization.verified,
+      isDemoReadOnly: isDemoReadOnlyEmail(freshMembership.user.email),
     };
   }
 
@@ -128,7 +132,7 @@ export const resolveRequestContext = cache(
       select: {
         role: true,
         organization: { select: { verified: true } },
-        user: { select: { role: true } },
+        user: { select: { role: true, email: true } },
       },
     });
 
@@ -140,6 +144,7 @@ export const resolveRequestContext = cache(
         organizationId: dbActiveOrgId,
         membershipRole: dbMembership.role,
         organizationVerified: dbMembership.organization.verified,
+        isDemoReadOnly: isDemoReadOnlyEmail(dbMembership.user.email),
       };
     }
   }
@@ -151,6 +156,7 @@ export const resolveRequestContext = cache(
     organizationId: activeOrgId!,
     membershipRole: membership.role,
     organizationVerified: membership.organization.verified,
+    isDemoReadOnly: isDemoReadOnlyEmail(membership.user.email),
   };
   }
 );

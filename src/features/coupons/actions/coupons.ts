@@ -12,7 +12,7 @@ import {
   getCouponById,
 } from "../db/coupons";
 import { handleActionError, ForbiddenError } from "@/features/common/errors/domainErrors";
-import { requireRole } from "@/lib/auth/requireRole";
+import { requireAdminWrite } from "@/lib/auth/requireRole";
 import { recordAudit } from "@/features/audit/db/audit";
 import { moneyUsdCents, parseMoney, type MoneySet } from "@/lib/money";
 import { buildMoneySet, preserveDerived } from "@/lib/money-input";
@@ -82,7 +82,7 @@ export async function createCouponAction(
   unsafe: CouponInput,
 ): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const parsed = couponSchema.safeParse(unsafe, { error: await getServerZodErrorMap() });
     if (!parsed.success) {
       return { error: true, message: parsed.error.issues.map((i) => i.message).join(", ") };
@@ -105,7 +105,7 @@ export async function updateCouponAction(
   unsafe: CouponInput,
 ): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const parsed = couponSchema.safeParse(unsafe, { error: await getServerZodErrorMap() });
     if (!parsed.success) {
       return { error: true, message: parsed.error.issues.map((i) => i.message).join(", ") };
@@ -128,7 +128,7 @@ export async function deleteCouponAction(
   id: string,
 ): Promise<{ ok: true } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     await deleteCoupon(id);
     await recordAudit({ action: "coupon.deleted", entityType: "Coupon", entityId: id });
     revalidateCoupons();
@@ -142,7 +142,7 @@ export async function duplicateCouponAction(
   id: string,
 ): Promise<{ ok: true; id: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const copy = await duplicateCoupon(id);
     await recordAudit({
       // `.duplicated`, not `.created`: every other entity distinguishes the

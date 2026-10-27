@@ -14,7 +14,7 @@ import {
   duplicateTrustPoint,
 } from "../db/trustPoints";
 import { handleActionError } from "@/features/common/errors/domainErrors";
-import { requireRole } from "@/lib/auth/requireRole";
+import { requireAdminWrite } from "@/lib/auth/requireRole";
 import { recordAudit } from "@/features/audit/db/audit";
 import { ActionErrorResult } from "@/types/types";
 
@@ -28,7 +28,7 @@ export async function createTrustPointAction(
   redirectTo = "/admin/trust-points",
 ): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
 
     const parsed = createTrustPointSchema.safeParse(unsafeData, {
       error: await getServerZodErrorMap(),
@@ -59,7 +59,7 @@ export async function updateTrustPointAction(
   redirectTo = "/admin/trust-points",
 ): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
 
     const parsed = updateTrustPointSchema.safeParse(unsafeData, {
       error: await getServerZodErrorMap(),
@@ -95,7 +95,7 @@ export async function duplicateTrustPointAction(
   id: string,
 ): Promise<{ error: false; id: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const copy = await duplicateTrustPoint(id);
     await recordAudit({
       action: "trust_point.duplicated",
@@ -118,7 +118,7 @@ export async function deleteTrustPointAction(
   id: string,
 ): Promise<{ ok: true } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const name = await deleteTrustPoint(id);
     await recordAudit({
       action: "trust_point.deleted",

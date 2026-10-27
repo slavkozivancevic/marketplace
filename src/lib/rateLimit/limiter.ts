@@ -89,6 +89,9 @@ export const RATE_LIMITS = {
   interaction: { limit: 150, windowMs: 60_000 },
   // Per user: writing reviews is deliberate, low volume.
   review: { limit: 8, windowMs: 60_000 },
+  // Per IP: one-click demo sign-in. Each hit is two Clerk API calls; a person
+  // trying the three roles needs a handful, a script hammering it gets cut off.
+  demo: { limit: 10, windowMs: 60_000 },
 } as const;
 
 export type RateLimitPolicy = keyof typeof RATE_LIMITS;

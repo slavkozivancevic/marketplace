@@ -44,6 +44,21 @@ export class ForbiddenError extends Error {
   }
 }
 
+/**
+ * A view-only demo account tried to write. Its own class, not a ForbiddenError:
+ * the account is allowed to SEE the action, and the message says why nothing
+ * was saved rather than "no permission". See `src/features/demo/demoAccounts.ts`.
+ */
+export class DemoReadOnlyError extends Error {
+  readonly i18n: ErrorI18n;
+  constructor(arg: string | ErrorI18n = "Demo account is view-only") {
+    const { i18n, message } = normalizeI18n(arg, "demoReadOnly", "Demo account is view-only");
+    super(message);
+    this.i18n = i18n;
+    this.name = "DemoReadOnlyError";
+  }
+}
+
 export class OrganizationNotVerifiedError extends Error {
   readonly i18n: ErrorI18n;
   constructor(arg: string | ErrorI18n = "Organization is not verified") {

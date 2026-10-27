@@ -9,12 +9,17 @@ import { updateUserRole } from "../db/users";
 import { ActionErrorResult } from "@/types/types";
 import { publishUserRoleChanged } from "@/services/notifications";
 import { recordAudit } from "@/features/audit/db/audit";
+import { requireAdminWrite } from "@/lib/auth/requireRole";
 
 export async function updateUserRoleAction(
   userId: string,
   input: UpdateUserRoleInput,
 ): Promise<void | ActionErrorResult> {
   try {
+    // Platform admins only. This action had no gate at all: any signed-in
+    // user could call it with their own id and make themselves ADMIN.
+    await requireAdminWrite();
+
     const parsed = updateUserRoleSchema.safeParse(input, { error: await getServerZodErrorMap() });
 
     if (!parsed.success) {

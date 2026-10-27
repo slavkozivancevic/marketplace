@@ -5,6 +5,7 @@ import { LayoutList } from "lucide-react";
 import { connection } from "next/server";
 
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
+import { demoSafe } from "@/features/demo/maskEmail";
 import { requirePermission } from "@/lib/auth/permissions";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
@@ -56,7 +57,7 @@ export default async function AdminProductsRoute() {
         </PageHeader>
       </div>
       <div className="flex-1 flex flex-col min-h-0 px-6 pb-6">
-        <AdminProductsPage brands={brands} members={members} />
+        <AdminProductsPage brands={brands} members={demoSafe(members, ctx)} />
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 
 import { productRepository } from "@/features/products/db/products";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
+import { demoSafe } from "@/features/demo/maskEmail";
 import { requirePermission } from "@/lib/auth/permissions";
 import { CacheTags } from "@/lib/cache/tags";
 import {
@@ -34,7 +35,7 @@ export default async function AdminProductHistoryPage({
   const ctx = await resolveRequestContext();
   requirePermission(ctx, "product:read");
 
-  const result = await fetchProductHistory(ctx.organizationId, ctx.userId, id);
+  const result = demoSafe(await fetchProductHistory(ctx.organizationId, ctx.userId, id), ctx);
 
   if (!result) return notFound();
 

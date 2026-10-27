@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/auth/requireRole";
+import { requireAdminWrite } from "@/lib/auth/requireRole";
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import { recordAudit } from "@/features/audit/db/audit";
 import { settleCodBalance, payOutCodCredit } from "../db/payouts";
@@ -18,7 +18,7 @@ export async function settleCodBalanceAction(
   amount: number,
 ): Promise<{ ok: true; settled: number } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const settled = await settleCodBalance({ organizationId, currency, amount });
     await recordAudit({
       action: "cod_balance.settled",
@@ -43,7 +43,7 @@ export async function payOutCodCreditAction(
   amount: number,
 ): Promise<{ ok: true; paid: number } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const paid = await payOutCodCredit({ organizationId, currency, amount });
     await recordAudit({
       action: "cod_balance.credit_paid",

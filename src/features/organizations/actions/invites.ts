@@ -12,6 +12,7 @@ import {
   UnauthenticatedError,
 } from "@/features/common/errors/domainErrors";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
+import { assertWritable } from "@/lib/auth/permissions";
 import { prisma } from "@/core/db/prisma";
 import { syncClerkUserMetadata } from "@/services/clerk";
 import { revalidateUserCache } from "@/features/users/db/cache";
@@ -42,6 +43,7 @@ export async function sendInviteAction(
     }
 
     const ctx = await resolveRequestContext();
+    assertWritable(ctx);
 
     if (
       ctx.membershipRole !== MembershipRole.OWNER &&
@@ -95,6 +97,7 @@ export async function cancelInviteAction(
 ): Promise<void | ActionErrorResult> {
   try {
     const ctx = await resolveRequestContext();
+    assertWritable(ctx);
 
     if (
       ctx.membershipRole !== MembershipRole.OWNER &&
