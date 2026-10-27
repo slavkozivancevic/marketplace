@@ -10,6 +10,7 @@ import { stripe } from "@/services/stripe";
 import { env } from "@/env/server";
 import { ActionErrorResult } from "@/types/types";
 import { handleActionError } from "@/features/common/errors/domainErrors";
+import { isDemoReadOnlyEmail } from "@/features/demo/demoAccounts";
 import { enforceRateLimit, getClientIp } from "@/lib/rateLimit/guard";
 import { getCurrencyRate } from "@/features/currency/db/currencyRates";
 import { moneyIn } from "@/lib/money";
@@ -92,6 +93,9 @@ async function runCheckoutSession(
 
     if (!user) {
       return { error: true, message: t("userNotFound") };
+    }
+    if (isDemoReadOnlyEmail(user.email)) {
+      return { error: true, message: t("demoReadOnly") };
     }
 
     if (items.length === 0) {

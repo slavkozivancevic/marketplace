@@ -2186,7 +2186,8 @@
     "exchangeRateUnavailable": "The {currency} exchange rate is unavailable right now, so the price could not be saved. Please try again in a moment.",
     "priceMarketDefault": "The default market cannot be deleted.",
     "priceMarketInUse": "{count, plural, one {# price rule still targets} other {# price rules still target}} this market. Delete them first.",
-    "priceMarketCountryTaken": "Already in another market: {countries}."
+    "priceMarketCountryTaken": "Already in another market: {countries}.",
+    "demoReadOnly": "This demo account is view-only - nothing was saved."
   },
   "adminCodBalances": {
     "title": "COD Balances",
@@ -2393,5 +2394,18 @@
     "duplicate": "Duplicate",
     "duplicated": "Market duplicated, without countries - add its own",
     "editCopy": "Edit copy"
+  },
+  "demo": {
+    "title": "Try the live demo",
+    "intro": "One click, no password. The seller and the admin can open everything but save nothing.",
+    "buyer": "Buyer",
+    "seller": "Seller",
+    "admin": "Admin",
+    "buyerHint": "Shop and pay with test card 4242 4242 4242 4242",
+    "sellerHint": "Products, price rules and orders - view only",
+    "adminHint": "The whole platform - view only",
+    "badge": "Demo",
+    "badgeBuyer": "Demo buyer - pay with test card 4242 4242 4242 4242",
+    "badgeReadOnly": "Demo account - view only, changes are not saved"
   }
 }

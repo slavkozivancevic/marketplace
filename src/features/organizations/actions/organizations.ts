@@ -8,8 +8,9 @@ import {
   handleActionError,
   ForbiddenError,
 } from "@/features/common/errors/domainErrors";
-import { requireRole } from "@/lib/auth/requireRole";
+import { requireAdminWrite } from "@/lib/auth/requireRole";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
+import { assertWritable } from "@/lib/auth/permissions";
 import { syncClerkUserMetadata } from "@/services/clerk";
 import {
   setOrganizationVerified,
@@ -58,7 +59,7 @@ export async function setOrganizationVerifiedAction(
       };
     }
 
-    await requireRole("ADMIN");
+    await requireAdminWrite();
 
     await setOrganizationVerified(organizationId, parsed.data.verified);
     await recordAudit({
@@ -104,6 +105,7 @@ export async function updateOrganizationNameAction(
     }
 
     const ctx = await resolveRequestContext();
+    assertWritable(ctx);
 
     if (ctx.membershipRole !== "OWNER" && ctx.membershipRole !== "ADMIN") {
       throw new ForbiddenError({ key: "onlyOwnersAndAdminsChangeSettings" });
@@ -131,6 +133,7 @@ export async function updateOrganizationShippingAction(
     }
 
     const ctx = await resolveRequestContext();
+    assertWritable(ctx);
     if (ctx.membershipRole !== "OWNER" && ctx.membershipRole !== "ADMIN") {
       throw new ForbiddenError({ key: "onlyOwnersAndAdminsChangeSettings" });
     }
@@ -187,6 +190,7 @@ export async function updateOrganizationPolicyAction(
     }
 
     const ctx = await resolveRequestContext();
+    assertWritable(ctx);
     if (ctx.membershipRole !== "OWNER" && ctx.membershipRole !== "ADMIN") {
       throw new ForbiddenError({ key: "onlyOwnersAndAdminsChangeSettings" });
     }
@@ -217,6 +221,7 @@ export async function removeMemberAction(
 ): Promise<void | ActionErrorResult> {
   try {
     const ctx = await resolveRequestContext();
+    assertWritable(ctx);
 
     if (ctx.membershipRole !== "OWNER" && ctx.membershipRole !== "ADMIN") {
       throw new ForbiddenError({ key: "onlyOwnersAndAdminsRemoveMembers" });
@@ -302,6 +307,7 @@ export async function updateMemberRoleAction(
     }
 
     const ctx = await resolveRequestContext();
+    assertWritable(ctx);
 
     if (ctx.membershipRole !== "OWNER" && ctx.membershipRole !== "ADMIN") {
       throw new ForbiddenError({ key: "onlyOwnersAndAdminsChangeRoles" });

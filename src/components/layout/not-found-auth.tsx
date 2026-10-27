@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { SignedIn, SignedOut, useClerk, useUser } from "@clerk/nextjs";
 import { Link } from "@/i18n/navigation";
@@ -17,6 +17,7 @@ import { HeaderDivider } from "./header-divider";
 import { cn } from "@/lib/utils";
 import { FallbackImg } from "@/components/FallbackImg";
 import { settleOnLoad } from "@/lib/imageSettle";
+import { useWhenHidden } from "@/hooks/useWhenHidden";
 
 /**
  * Auth controls for the 404 page. Mirrors HeaderAuth visually but never
@@ -101,6 +102,10 @@ function UserMenu() {
   const imageUrl = user?.imageUrl;
   const [settledSrc, setSettledSrc] = useState<string | null>(null);
   const loading = !!imageUrl && settledSrc !== imageUrl;
+  // The header renders this twice, one copy per breakpoint (see the hook).
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  useWhenHidden(triggerRef, () => setOpen(false));
 
   function handleSignOut() {
     // Pass a callback to signOut: Clerk runs IT after clearing the session
@@ -114,9 +119,10 @@ function UserMenu() {
   }
 
   return (
-    <DropdownMenu modal={false}>
+    <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <button
+          ref={triggerRef}
           type="button"
           aria-label="Account"
           className="group relative flex size-8 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

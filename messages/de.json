@@ -2186,7 +2186,8 @@
     "exchangeRateUnavailable": "Der Wechselkurs für {currency} ist derzeit nicht verfügbar, daher konnte der Preis nicht gespeichert werden. Bitte versuchen Sie es gleich erneut.",
     "priceMarketDefault": "Der Standardmarkt kann nicht gelöscht werden.",
     "priceMarketInUse": "{count, plural, one {# Preisregel zielt} other {# Preisregeln zielen}} noch auf diesen Markt. Löschen Sie sie zuerst.",
-    "priceMarketCountryTaken": "Bereits in einem anderen Markt: {countries}."
+    "priceMarketCountryTaken": "Bereits in einem anderen Markt: {countries}.",
+    "demoReadOnly": "Dieses Demokonto ist nur zur Ansicht - es wurde nichts gespeichert."
   },
   "adminCodBalances": {
     "title": "Nachnahme-Salden",
@@ -2393,5 +2394,18 @@
     "duplicate": "Duplizieren",
     "duplicated": "Markt dupliziert, ohne Länder - fügen Sie eigene hinzu",
     "editCopy": "Kopie bearbeiten"
+  },
+  "demo": {
+    "title": "Live-Demo ausprobieren",
+    "intro": "Ein Klick, kein Passwort. Verkäufer und Admin können alles öffnen, aber nichts speichern.",
+    "buyer": "Käufer",
+    "seller": "Verkäufer",
+    "admin": "Admin",
+    "buyerHint": "Einkaufen und mit der Testkarte 4242 4242 4242 4242 bezahlen",
+    "sellerHint": "Produkte, Preisregeln und Bestellungen - nur Ansicht",
+    "adminHint": "Die gesamte Plattform - nur Ansicht",
+    "badge": "Demo",
+    "badgeBuyer": "Demo-Käufer - mit der Testkarte 4242 4242 4242 4242 bezahlen",
+    "badgeReadOnly": "Demokonto - nur Ansicht, Änderungen werden nicht gespeichert"
   }
 }

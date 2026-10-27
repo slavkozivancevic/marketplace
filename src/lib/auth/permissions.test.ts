@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { MembershipRole, UserRole } from "@/generated/prisma/client";
-import { requirePermission, canManageOrgPayouts } from "./permissions";
+import { requirePermission, canManageOrgPayouts, assertWritable } from "./permissions";
 import {
+  DemoReadOnlyError,
   ForbiddenError,
   OrganizationNotVerifiedError,
 } from "@/features/common/errors/domainErrors";
@@ -15,6 +16,7 @@ function makeCtx(overrides: Partial<RequestContext> = {}): RequestContext {
     organizationId: "org_1",
     membershipRole: MembershipRole.OWNER,
     organizationVerified: true,
+    isDemoReadOnly: false,
     ...overrides,
   };
 }
@@ -87,5 +89,25 @@ describe("requirePermission", () => {
         "product:create",
       ),
     ).not.toThrow();
+  });
+});
+
+describe("view-only demo accounts", () => {
+  it("refuses every write, before the platform-admin bypass", () => {
+    const demoAdmin = makeCtx({ userRole: UserRole.ADMIN, isDemoReadOnly: true });
+    for (const permission of ["product:create", "product:update", "product:delete", "order:manage", "payout:manage"] as const) {
+      expect(() => requirePermission(demoAdmin, permission)).toThrow(DemoReadOnlyError);
+    }
+  });
+
+  it("still lets them read", () => {
+    const demoSeller = makeCtx({ membershipRole: MembershipRole.ADMIN, isDemoReadOnly: true });
+    expect(() => requirePermission(demoSeller, "product:read")).not.toThrow();
+    expect(() => requirePermission(demoSeller, "order:read")).not.toThrow();
+  });
+
+  it("assertWritable passes everyone else", () => {
+    expect(() => assertWritable(makeCtx())).not.toThrow();
+    expect(() => assertWritable(makeCtx({ isDemoReadOnly: true }))).toThrow(DemoReadOnlyError);
   });
 });

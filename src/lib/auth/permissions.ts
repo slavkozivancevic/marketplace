@@ -1,6 +1,7 @@
 import { MembershipRole, UserRole } from "@/generated/prisma/client";
 import { Permission, RequestContext } from "../../types/types";
 import {
+  DemoReadOnlyError,
   ForbiddenError,
   OrganizationNotVerifiedError,
 } from "@/features/common/errors/domainErrors";
@@ -28,7 +29,22 @@ function isWritePermission(permission: Permission) {
   return permission !== "product:read" && permission !== "order:read";
 }
 
+/**
+ * Refuses a write from a view-only demo account (see
+ * src/features/demo/demoAccounts.ts). Called before anything with an outside
+ * effect - a Stripe refund, an S3 presign, an SNS event - so a refused write
+ * leaves nothing half done. `requirePermission` and `requireAdminWrite` call it
+ * for every write; actions gated by a hand-written membership check call it
+ * themselves.
+ */
+export function assertWritable(ctx: Pick<RequestContext, "isDemoReadOnly">) {
+  if (ctx.isDemoReadOnly) throw new DemoReadOnlyError();
+}
+
 export function requirePermission(ctx: RequestContext, permission: Permission) {
+  // First, before the platform-admin bypass: the demo admin IS an admin.
+  if (isWritePermission(permission)) assertWritable(ctx);
+
   // Platform admins operate the marketplace itself. They bypass BOTH the
   // membership-role check and the seller verification gate: verification is a
   // merchant KYC requirement that doesn't apply to the platform operator, and

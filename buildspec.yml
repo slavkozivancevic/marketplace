@@ -12,6 +12,9 @@ env:
     # Deploy builds only have secrets + resource links, not the full local env,
     # so skip the zod env validation at build time (runtime still has each var).
     SKIP_ENV_VALIDATION: "1"
+    # The MEDIUM build host has 7 GB; Node's default heap is far below that,
+    # and the Next.js build's TypeScript pass is what runs out first.
+    NODE_OPTIONS: "--max-old-space-size=6144"
   # STAGE is set by the pipeline stage (staging/production).
 
 phases:

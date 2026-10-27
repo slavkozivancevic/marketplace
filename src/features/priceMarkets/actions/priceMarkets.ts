@@ -2,7 +2,7 @@
 
 import { getServerZodErrorMap } from "@/i18n/serverZodErrorMap";
 import { handleActionError } from "@/features/common/errors/domainErrors";
-import { requireRole } from "@/lib/auth/requireRole";
+import { requireAdminWrite } from "@/lib/auth/requireRole";
 import { recordAudit } from "@/features/audit/db/audit";
 import type { ActionErrorResult } from "@/types/types";
 import { priceMarketSchema, type PriceMarketInput } from "../schema/priceMarkets";
@@ -23,7 +23,7 @@ export async function createPriceMarketAction(
   redirectTo = "/admin/price-markets",
 ): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const parsed = priceMarketSchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
     if (!parsed.success) {
       return { error: true, message: parsed.error.issues.map((i) => i.message).join(", ") };
@@ -47,7 +47,7 @@ export async function updatePriceMarketAction(
   redirectTo = "/admin/price-markets",
 ): Promise<{ ok: true; redirectTo: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const parsed = priceMarketSchema.safeParse(unsafeData, { error: await getServerZodErrorMap() });
     if (!parsed.success) {
       return { error: true, message: parsed.error.issues.map((i) => i.message).join(", ") };
@@ -75,7 +75,7 @@ export async function duplicatePriceMarketAction(
   id: string,
 ): Promise<{ error: false; id: string } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const copy = await duplicatePriceMarket(id);
     await recordAudit({
       action: "price_market.duplicated",
@@ -92,7 +92,7 @@ export async function duplicatePriceMarketAction(
 /** Returns instead of redirecting: the only caller is the list it would point at. */
 export async function deletePriceMarketAction(id: string): Promise<{ ok: true } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const name = await deletePriceMarket(id);
     await recordAudit({
       action: "price_market.deleted",

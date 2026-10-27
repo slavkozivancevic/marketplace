@@ -5,6 +5,7 @@ import { RetryImage } from "@/components/RetryImage";
 import { getTranslations, getLocale } from "next-intl/server";
 import { MapPin, Mail, Truck, CreditCard, RotateCcw, Info } from "lucide-react";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
+import { demoSafe } from "@/features/demo/maskEmail";
 import { requirePermission } from "@/lib/auth/permissions";
 import { getOrgOrderById } from "@/features/orders/db/orgOrders";
 import { PageHeader } from "@/components/PageHeader";
@@ -60,7 +61,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
   // Scoped to the active org: after an org switch this order belongs to the
   // previous org and won't be found here, so fall back to the dashboard rather
   // than a dead-end 404.
-  const order = await getOrgOrderById(id, ctx.organizationId);
+  const order = demoSafe(await getOrgOrderById(id, ctx.organizationId), ctx);
   if (!order) redirect(`/${locale}/dashboard`);
 
   const rawReturns = await getOrgOrderReturns(order.id, ctx.organizationId);

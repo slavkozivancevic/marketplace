@@ -2186,7 +2186,8 @@
     "exchangeRateUnavailable": "Kurs za {currency} trenutno nije dostupan, pa cena nije sačuvana. Pokušajte ponovo za koji trenutak.",
     "priceMarketDefault": "Podrazumevano tržište ne može da se obriše.",
     "priceMarketInUse": "{count, plural, one {# pravilo cene još cilja} few {# pravila cena još ciljaju} other {# pravila cena još cilja}} ovo tržište. Prvo ih obrišite.",
-    "priceMarketCountryTaken": "Već u drugom tržištu: {countries}."
+    "priceMarketCountryTaken": "Već u drugom tržištu: {countries}.",
+    "demoReadOnly": "Demo nalog je samo za pregled - izmene nisu sačuvane."
   },
   "adminCodBalances": {
     "title": "COD dugovi",
@@ -2393,5 +2394,18 @@
     "duplicate": "Dupliraj",
     "duplicated": "Tržište je duplirano, bez zemalja - dodajte mu sopstvene",
     "editCopy": "Izmeni kopiju"
+  },
+  "demo": {
+    "title": "Isprobajte demo",
+    "intro": "Jedan klik, bez lozinke. Prodavac i admin mogu sve da otvore, ali ništa ne čuvaju.",
+    "buyer": "Kupac",
+    "seller": "Prodavac",
+    "admin": "Admin",
+    "buyerHint": "Kupujte i platite test karticom 4242 4242 4242 4242",
+    "sellerHint": "Proizvodi, pravila cena i narudžbine - samo pregled",
+    "adminHint": "Cela platforma - samo pregled",
+    "badge": "Demo",
+    "badgeBuyer": "Demo kupac - platite test karticom 4242 4242 4242 4242",
+    "badgeReadOnly": "Demo nalog - samo pregled, izmene se ne čuvaju"
   }
 }

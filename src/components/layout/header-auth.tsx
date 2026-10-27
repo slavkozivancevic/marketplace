@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ComponentProps } from "react";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { Link } from "@/i18n/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import {
@@ -14,6 +14,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { HeaderDivider } from "./header-divider";
 import { cn } from "@/lib/utils";
+import { useWhenHidden } from "@/hooks/useWhenHidden";
+import { DemoAvatarBadge } from "@/features/demo/components/DemoAvatarBadge";
 
 interface HeaderAuthProps {
   mode?: "modal" | "redirect";
@@ -113,6 +115,9 @@ const userButtonAppearance: ComponentProps<typeof UserButton>["appearance"] = {
       },
     },
     avatarBox: { width: "2rem", height: "2rem" },
+    // Clerk floats the menu 8px below the trigger and exposes no offset prop;
+    // pull it back so it sits flush, like the preferences menu beside it.
+    userButtonPopoverCard: { marginTop: "-8px" },
   },
 };
 
@@ -149,6 +154,12 @@ export function HeaderAuth({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
+
+  // Clerk owns the menu's open state, so the only way to close it when a
+  // resize hides this copy of the header is to remount the button.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [userButtonKey, setUserButtonKey] = useState(0);
+  useWhenHidden(rootRef, () => setUserButtonKey((k) => k + 1));
 
   const signedOutUI = (
     <>
@@ -195,12 +206,17 @@ export function HeaderAuth({
       {dashboardLink}
       {/* Sign-out target is set globally on `<ClerkProvider>` (the
           per-component `afterSignOutUrl` was deprecated). */}
-      <div className={cn(avatarSlot, "flex items-center justify-center")}>
+      <div className={cn(avatarSlot, "relative flex items-center justify-center")}>
         {/* `fallback` holds the slot while clerk-js mounts the button - see
             `avatarSkeleton`. Clerk hides its own host element (display:none)
             for exactly as long as the fallback shows, so the two never
             overlap and the swap costs no layout. */}
-        <UserButton appearance={userButtonAppearance} fallback={avatarSkeleton} />
+        <UserButton
+          key={userButtonKey}
+          appearance={userButtonAppearance}
+          fallback={avatarSkeleton}
+        />
+        <DemoAvatarBadge />
       </div>
     </>
   );
@@ -245,6 +261,7 @@ export function HeaderAuth({
   // the ratio is the right way round and they read as one cluster.
   return (
     <div
+      ref={rootRef}
       className={cn(
         "flex items-center gap-2",
         panel && "w-full max-w-lg",

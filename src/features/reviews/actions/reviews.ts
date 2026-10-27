@@ -13,14 +13,16 @@ import {
 } from "../schema/reviews";
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import {
+  DemoReadOnlyError,
   ForbiddenError,
   NotFoundError,
   UnauthenticatedError,
 } from "@/features/common/errors/domainErrors";
+import { isDemoReadOnlyEmail } from "@/features/demo/demoAccounts";
 import { ActionErrorResult } from "@/types/types";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/core/db/prisma";
-import { requireRole } from "@/lib/auth/requireRole";
+import { requireAdminWrite } from "@/lib/auth/requireRole";
 import { recordAudit } from "@/features/audit/db/audit";
 import { enforceRateLimit } from "@/lib/rateLimit/guard";
 import { moderateReview as runAiModeration } from "@/services/aiModeration";
@@ -42,10 +44,13 @@ async function resolveUserId(): Promise<string> {
 
   const user = await prisma.user.findUnique({
     where: { clerkUserId },
-    select: { id: true },
+    select: { id: true, email: true },
   });
 
   if (!user) throw new UnauthenticatedError();
+  // Every caller writes a review, which is public: the view-only demo
+  // accounts may not.
+  if (isDemoReadOnlyEmail(user.email)) throw new DemoReadOnlyError();
   return user.id;
 }
 
@@ -211,7 +216,7 @@ export async function moderateReviewAction(
   unsafe: ModerateReviewInput,
 ): Promise<{ ok: true } | ActionErrorResult> {
   try {
-    await requireRole("ADMIN");
+    await requireAdminWrite();
     const parsed = moderateReviewSchema.safeParse(unsafe, { error: await getServerZodErrorMap() });
     if (!parsed.success) {
       return { error: true, message: parsed.error.issues.map((i) => i.message).join(", ") };

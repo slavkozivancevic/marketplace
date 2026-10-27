@@ -2186,7 +2186,8 @@
     "exchangeRateUnavailable": "El tipo de cambio de {currency} no está disponible en este momento, por lo que no se pudo guardar el precio. Inténtalo de nuevo en un momento.",
     "priceMarketDefault": "El mercado predeterminado no se puede eliminar.",
     "priceMarketInUse": "{count, plural, one {# regla de precio todavía apunta} other {# reglas de precio todavía apuntan}} a este mercado. Elimínalas primero.",
-    "priceMarketCountryTaken": "Ya está en otro mercado: {countries}."
+    "priceMarketCountryTaken": "Ya está en otro mercado: {countries}.",
+    "demoReadOnly": "Esta cuenta demo es solo de lectura: no se guardó nada."
   },
   "adminCodBalances": {
     "title": "Saldos COD",
@@ -2393,5 +2394,18 @@
     "duplicate": "Duplicar",
     "duplicated": "Mercado duplicado, sin países: añádele los suyos",
     "editCopy": "Editar copia"
+  },
+  "demo": {
+    "title": "Prueba la demo en vivo",
+    "intro": "Un clic, sin contraseña. El vendedor y el administrador pueden abrirlo todo, pero no guardan nada.",
+    "buyer": "Comprador",
+    "seller": "Vendedor",
+    "admin": "Administrador",
+    "buyerHint": "Compra y paga con la tarjeta de prueba 4242 4242 4242 4242",
+    "sellerHint": "Productos, reglas de precio y pedidos: solo lectura",
+    "adminHint": "Toda la plataforma: solo lectura",
+    "badge": "Demo",
+    "badgeBuyer": "Comprador demo: paga con la tarjeta de prueba 4242 4242 4242 4242",
+    "badgeReadOnly": "Cuenta demo: solo lectura, los cambios no se guardan"
   }
 }

@@ -78,6 +78,7 @@ async function seller(options: { verified?: boolean; role?: "OWNER" | "ADMIN" | 
     organizationId: org.id,
     membershipRole: options.role ?? "OWNER",
     organizationVerified: options.verified ?? true,
+    isDemoReadOnly: false,
   };
   return { org, user };
 }

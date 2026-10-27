@@ -11,6 +11,7 @@ import { resolveCart, type CartItemRef } from "@/features/cart/db/resolveCart";
 import { getViewerMarket } from "@/features/priceMarkets/db/viewer";
 import { publishCodOrderPlaced } from "@/services/notifications";
 import { handleActionError } from "@/features/common/errors/domainErrors";
+import { isDemoReadOnlyEmail } from "@/features/demo/demoAccounts";
 import { enforceRateLimit, getClientIp } from "@/lib/rateLimit/guard";
 import { getCurrencyRate } from "@/features/currency/db/currencyRates";
 import { moneyIn } from "@/lib/money";
@@ -95,10 +96,11 @@ async function runCodCheckout(
 
     const user = await prisma.user.findUnique({
       where: { clerkUserId },
-      select: { id: true },
+      select: { id: true, email: true },
     });
 
     if (!user) return { error: true, message: t("userNotFound") };
+    if (isDemoReadOnlyEmail(user.email)) return { error: true, message: t("demoReadOnly") };
     if (items.length === 0) return { error: true, message: t("cartEmpty") };
     // The form only offers ISO codes; a request that skips the form does not
     // get to put free text on the label a courier reads.

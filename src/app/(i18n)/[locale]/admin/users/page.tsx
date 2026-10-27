@@ -5,12 +5,14 @@ import { getPathname } from "@/i18n/navigation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AdminUsersPage } from "@/features/users/components/AdminUsersPage";
 import { getAllUsers } from "@/features/users/db/users";
+import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
+import { demoSafe } from "@/features/demo/maskEmail";
 
 export default async function AdminUsersRoute() {
   const t = await getTranslations();
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();
-  const users = await getAllUsers();
+  const [users, ctx] = await Promise.all([getAllUsers(), resolveRequestContext()]);
   const breadcrumbItems = [
     { name: tCrumbs("admin"), href: getPathname({ href: "/admin", locale }) },
     { name: tCrumbs("adminUsers"), href: getPathname({ href: "/admin/users", locale }) },
@@ -34,7 +36,7 @@ export default async function AdminUsersRoute() {
             </AlertDescription>
           </Alert>
         ) : (
-          <AdminUsersPage users={JSON.parse(JSON.stringify(users))} />
+          <AdminUsersPage users={demoSafe(JSON.parse(JSON.stringify(users)), ctx)} />
         )}
       </div>
     </div>

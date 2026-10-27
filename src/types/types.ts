@@ -14,6 +14,9 @@ export type RequestContext = {
   membershipRole: MembershipRole;
 
   organizationVerified: boolean;
+
+  /** A public demo account that may look at everything and change nothing. */
+  isDemoReadOnly: boolean;
 };
 
 export type Permission =

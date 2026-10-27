@@ -14,6 +14,8 @@ import { MyProductsPage } from "@/features/products/components/MyProductsPage";
 import { getAllBrands } from "@/features/brands/db/brands";
 import { pickActiveMembership } from "@/features/organizations/db/activeOrg";
 import { CacheTags } from "@/lib/cache/tags";
+import { demoSafe } from "@/features/demo/maskEmail";
+import { isDemoReadOnlyEmail } from "@/features/demo/demoAccounts";
 
 async function fetchBrands() {
   "use cache";
@@ -41,6 +43,7 @@ export default async function MyProductsRoute() {
         where: { clerkUserId: userId },
         select: {
           role: true,
+          email: true,
           activeOrgId: true,
           memberships: {
             select: {
@@ -108,7 +111,11 @@ export default async function MyProductsRoute() {
             <AlertDescription>{t("myProducts.verifyPendingBanner")}</AlertDescription>
           </Alert>
         )}
-        <MyProductsPage canWrite={canWrite} brands={brands} members={members} />
+        <MyProductsPage
+          canWrite={canWrite}
+          brands={brands}
+          members={demoSafe(members, { isDemoReadOnly: isDemoReadOnlyEmail(user.email) })}
+        />
       </div>
     </div>
   );

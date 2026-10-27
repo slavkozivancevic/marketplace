@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { getAuditLogsPage } from "@/features/audit/db/queries";
 import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
+import { demoSafe } from "@/features/demo/maskEmail";
 
 /** Cursor-paginated audit trail. ADMIN only (mirrors the /admin/audit page gate). */
 export async function GET(req: NextRequest) {
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest) {
       dateFrom,
       dateTo,
     });
-    return NextResponse.json(result);
+    return NextResponse.json(demoSafe(result, ctx));
   } catch (error) {
     logger.error("[/api/admin/audit] failed", error);
     return NextResponse.json({ error: "Failed to load audit log" }, { status: 500 });

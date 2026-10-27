@@ -4,7 +4,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { useRouter as useNextRouter, useParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { useTheme } from "@/providers/theme/ThemeProvider";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { useWhenHidden } from "@/hooks/useWhenHidden";
 import { setCurrency } from "@/actions/setCurrency";
 import { useSetViewerCountry, useViewerMarket } from "@/providers/MarketProvider";
 import { CountrySelect } from "@/features/products/components/CountrySelect";
@@ -81,6 +82,10 @@ export function PreferencesPopover() {
   // (storefront) locale swap the menu would otherwise linger open and Radix
   // re-anchors it against the new tree - it ends up clipped behind the header.
   const [open, setOpen] = useState(false);
+  // Headers render this twice and hide one copy per breakpoint; a resize
+  // across it would leave the menu anchored to nothing (see the hook).
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  useWhenHidden(triggerRef, () => setOpen(false));
 
   const { currency, setCurrency: setStoreCurrency } = useCurrencyStore();
   const { country: viewerCountry } = useViewerMarket();
@@ -194,12 +199,18 @@ export function PreferencesPopover() {
   return (
     <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <IconButton label={tHeader("preferences")} variant="outline" size="icon">
+        <IconButton
+          ref={triggerRef}
+          label={tHeader("preferences")}
+          variant="outline"
+          size="icon"
+        >
           <SlidersHorizontal className="h-4 w-4" />
         </IconButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
+        sideOffset={0}
         className="w-52 p-3"
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
