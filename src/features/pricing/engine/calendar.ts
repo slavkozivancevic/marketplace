@@ -45,6 +45,35 @@ export function buildCalendar(
   });
 }
 
+/** A run of consecutive days priced by the same rules (none = normal price). */
+export type CalendarPeriod = { from: string; to: string; ruleIds: string[] };
+
+/**
+ * A calendar row as the seller reads it: consecutive days with the same rules
+ * merged into one period, so "27 Nov - 30 Nov: Black Friday" can be written
+ * out in words under the grid.
+ */
+export function calendarPeriods(days: readonly CalendarDay[]): CalendarPeriod[] {
+  const out: CalendarPeriod[] = [];
+  for (const day of days) {
+    const last = out.at(-1);
+    if (last && last.ruleIds.join("|") === day.ruleIds.join("|")) {
+      last.to = day.date;
+    } else {
+      out.push({ from: day.date, to: day.date, ruleIds: day.ruleIds });
+    }
+  }
+  return out;
+}
+
+/** True when two rows price every day the same way - one row can stand for both. */
+export function sameSchedule(a: CalendarRow, b: CalendarRow): boolean {
+  return (
+    a.days.length === b.days.length &&
+    a.days.every((d, i) => d.ruleIds.join("|") === b.days[i].ruleIds.join("|"))
+  );
+}
+
 /** Two rules whose occurrences overlap, and which one the overlap hides. */
 export type RuleOverlap = { winnerId: string; hiddenId: string };
 

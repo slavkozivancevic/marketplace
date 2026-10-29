@@ -1,9 +1,20 @@
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { CalendarRow, RuleOverlap } from "../engine/calendar";
+import {
+  BASE_SWATCH,
+  CAL,
+  calendarPeriods,
+  dayOfMonth,
+  displayRows,
+  isWeekend,
+  longDate,
+  monthName,
+  periodRange,
+} from "./calendarDisplay";
 
 /**
  * A fixed palette, so a rule keeps its colour across rows and reloads. The
@@ -22,10 +33,11 @@ const SWATCHES = [
 ];
 
 /**
- * The next N days, one row per target (the product, then each variant), one
- * cell per day coloured by the rule(s) that set the price. Built from the same
- * windows the shop prices from. The grid scrolls inside its own box - the page
- * shell never scrolls sideways.
+ * The next N days as the seller reads them: a grid (months over day numbers,
+ * today first, one row per target that is priced differently) and, under it,
+ * the same schedule in words - "Today - 9 Nov: Autumn sale". Built from the
+ * same windows the shop prices from. The grid scrolls inside its own box; the
+ * page shell never scrolls sideways.
  */
 export function PriceCalendar({
   rows,
@@ -43,8 +55,15 @@ export function PriceCalendar({
   rowLabels: Record<string, string>;
 }) {
   const t = useTranslations("priceRules.calendar");
+  const locale = useLocale();
   const swatch = (id: string) => SWATCHES[ruleOrder.indexOf(id) % SWATCHES.length];
   const days = rows[0]?.days ?? [];
+  const firstDay = days[0]?.date ?? "";
+  const lastDay = days.at(-1)?.date ?? "";
+  const display = displayRows(rows, rowLabels, t("allVariants"));
+  const describe = (ruleIds: string[]) =>
+    ruleIds.length ? ruleIds.map((id) => ruleNames[id] ?? "").join(" + ") : t("base");
+  const rangeCopy = { today: t("today"), everyDay: t("everyDay"), from: (date: string) => t("from", { date }) };
 
   return (
     <section className="space-y-3">
@@ -64,45 +83,100 @@ export function PriceCalendar({
           border. The viewport is `h-auto` because the strip has no height of
           its own to fill. */}
       <ScrollArea className="rounded-lg border" viewportClassName="h-auto">
-        <div className="min-w-fit p-3 space-y-1.5">
-          <div className="flex items-end gap-px pl-40 text-[10px] text-muted-foreground tabular-nums">
-            {days.map((d) => (
-              <div key={d.date} className="w-4 text-center">
-                {d.date.endsWith("-01") || d === days[0] ? d.date.slice(8) : ""}
+        <div className="min-w-fit p-3">
+          {/* Month names, each over the first of its days. */}
+          <div className={cn("flex", CAL.gap, CAL.headLine)} aria-hidden>
+            <div className={CAL.label} />
+            {days.map((d, i) => (
+              <div key={d.date} className="relative w-5 shrink-0">
+                {(i === 0 || dayOfMonth(d.date) === 1) && (
+                  <span className="absolute left-0 top-0 whitespace-nowrap text-[11px] font-semibold leading-4">
+                    {monthName(d.date, locale)}
+                  </span>
+                )}
               </div>
             ))}
           </div>
-          {rows.map((row) => (
-            <div key={row.variantId ?? ""} className="flex items-center gap-px">
-              <div className="w-40 shrink-0 truncate pr-2 text-xs">{rowLabels[row.variantId ?? ""]}</div>
-              {row.days.map((d) => (
-                <div
-                  key={d.date}
-                  title={`${d.date}: ${d.ruleIds.length ? d.ruleIds.map((id) => ruleNames[id]).join(", ") : t("base")}`}
-                  className={cn(
-                    "h-4 w-4 rounded-[3px]",
-                    d.ruleIds.length === 0 ? "bg-muted" : swatch(d.ruleIds[0]),
-                    d.ruleIds.length > 1 && "ring-1 ring-foreground/60",
-                  )}
-                />
-              ))}
-            </div>
-          ))}
+          {/* Day numbers; weekends shaded, today in bold. */}
+          <div className={cn("mt-0.5 flex", CAL.gap, CAL.headLine)} aria-hidden>
+            <div className={cn(CAL.label, "text-[11px] leading-4 text-muted-foreground")}>{t("today")} →</div>
+            {days.map((d, i) => (
+              <div
+                key={d.date}
+                className={cn(
+                  "w-5 shrink-0 rounded-sm text-center text-[10px] leading-4 tabular-nums",
+                  isWeekend(d.date) ? "bg-muted text-foreground/80" : "text-muted-foreground",
+                  i === 0 && "font-bold text-foreground",
+                )}
+              >
+                {dayOfMonth(d.date)}
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-2 space-y-1">
+            {display.map(({ key, label, row }) => (
+              <div key={key} className={cn("flex items-center", CAL.gap)}>
+                <div className={cn(CAL.label, "truncate pr-3 text-xs font-medium")} title={label}>
+                  {label}
+                </div>
+                {row.days.map((d) => (
+                  <div
+                    key={d.date}
+                    title={`${longDate(d.date, locale)}: ${describe(d.ruleIds)}`}
+                    className={cn(
+                      CAL.cell,
+                      d.ruleIds.length === 0 ? BASE_SWATCH : swatch(d.ruleIds[0]),
+                      d.ruleIds.length > 1 && "ring-2 ring-inset ring-foreground/50",
+                    )}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       </ScrollArea>
 
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <li className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-[3px] bg-muted" />
+          <span className={cn("size-3 rounded-[3px]", BASE_SWATCH)} />
           {t("base")}
         </li>
         {ruleOrder.map((id) => (
           <li key={id} className="flex items-center gap-1.5">
-            <span className={cn("h-3 w-3 rounded-[3px]", swatch(id))} />
+            <span className={cn("size-3 rounded-[3px]", swatch(id))} />
             {ruleNames[id]}
           </li>
         ))}
       </ul>
+
+      {/* The same schedule in words - what the grid means, without decoding it. */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold">{t("schedule")}</h3>
+        {display.map(({ key, label, row }) => (
+          <div key={key} className="space-y-1">
+            {display.length > 1 && <p className="text-xs font-medium text-muted-foreground">{label}</p>}
+            <ul className="divide-y rounded-lg border text-sm">
+              {calendarPeriods(row.days).map((p) => (
+                <li key={p.from} className="flex items-center gap-3 px-3 py-2">
+                  <span className="w-36 shrink-0 tabular-nums text-muted-foreground">
+                    {periodRange(p, firstDay, lastDay, locale, rangeCopy)}
+                  </span>
+                  <span
+                    className={cn(
+                      "size-3 shrink-0 rounded-[3px]",
+                      p.ruleIds.length === 0 ? BASE_SWATCH : swatch(p.ruleIds[0]),
+                    )}
+                  />
+                  <span className={cn("truncate", p.ruleIds.length === 0 && "text-muted-foreground")}>
+                    {describe(p.ruleIds)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

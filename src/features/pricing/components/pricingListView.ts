@@ -5,6 +5,7 @@ import { getPriceMarketName } from "@/features/priceMarkets/utils/markets";
 import { PRICE_RULES_PER_PRODUCT_MAX } from "../schema/priceRules";
 import { buildCalendar, findOverlaps, ruleStatus, type CalendarRow, type RuleOverlap } from "../engine/calendar";
 import { zonedParts } from "../engine/timezone";
+import { getVariantLabel } from "@/features/attributes/utils/translations";
 import type { PricingPageData } from "../db/pricingPage";
 import type { RuleRow } from "./PriceRulesTable";
 
@@ -51,7 +52,9 @@ export async function buildPricingListView(data: PricingPageData, locale: string
     marketNames: Object.fromEntries(markets.markets.map((m) => [m.id, getPriceMarketName(m, locale)])),
     rowLabels: {
       "": t("wholeProduct"),
-      ...Object.fromEntries(data.variants.map((v) => [v.id, t("variant", { sku: v.sku })])),
+      ...Object.fromEntries(
+        data.variants.map((v) => [v.id, getVariantLabel(v, locale) ?? t("variant", { sku: v.sku })]),
+      ),
     },
     calendarRows: buildCalendar(targets, data.rules, today, CALENDAR_DAYS, CALENDAR_TZ),
     overlaps: findOverlaps(data.rules, now, new Date(now.getTime() + CALENDAR_DAYS * 86_400_000)),

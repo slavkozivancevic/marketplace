@@ -2283,7 +2283,12 @@
     "calendar": {
       "title": "Nächste {days} Tage",
       "base": "Normaler Preis",
-      "overlap": "„{hidden}“ überschneidet sich mit „{winner}“ und gilt nicht, solange beide gleichzeitig laufen."
+      "overlap": "„{hidden}“ überschneidet sich mit „{winner}“ und gilt nicht, solange beide gleichzeitig laufen.",
+      "allVariants": "Alle Varianten",
+      "today": "Heute",
+      "everyDay": "Jeden Tag",
+      "from": "Ab {date}",
+      "schedule": "Zeitplan"
     },
     "form": {
       "name": "Name",
