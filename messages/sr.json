@@ -2283,7 +2283,12 @@
     "calendar": {
       "title": "Narednih {days} dana",
       "base": "Redovna cena",
-      "overlap": "„{hidden}“ se preklapa sa „{winner}“ i ne važi kad god traju u isto vreme."
+      "overlap": "„{hidden}“ se preklapa sa „{winner}“ i ne važi kad god traju u isto vreme.",
+      "allVariants": "Sve varijante",
+      "today": "Danas",
+      "everyDay": "Svaki dan",
+      "from": "Od {date}",
+      "schedule": "Raspored"
     },
     "form": {
       "name": "Naziv",

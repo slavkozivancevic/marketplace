@@ -2283,7 +2283,12 @@
     "calendar": {
       "title": "Próximos {days} días",
       "base": "Precio normal",
-      "overlap": "«{hidden}» se solapa con «{winner}» y no se aplica mientras ambas coincidan."
+      "overlap": "«{hidden}» se solapa con «{winner}» y no se aplica mientras ambas coincidan.",
+      "allVariants": "Todas las variantes",
+      "today": "Hoy",
+      "everyDay": "Todos los días",
+      "from": "Desde {date}",
+      "schedule": "Programación"
     },
     "form": {
       "name": "Nombre",

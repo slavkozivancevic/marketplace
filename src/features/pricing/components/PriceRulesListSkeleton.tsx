@@ -18,6 +18,7 @@ import { VerificationRequiredNotice } from "@/components/VerificationRequiredNot
 import { readRouteShape } from "@/lib/navigation/routeShape";
 import { PRICE_RULES_PER_PRODUCT_MAX } from "../schema/priceRules";
 import { PRICE_RULES_GRID } from "./priceRulesGrid";
+import { CAL, calendarPeriods, displayRows } from "./calendarDisplay";
 import { useRuleCellText } from "./useRuleCellText";
 import type { PricingListView } from "./pricingListView";
 import type { PricingScope } from "./PriceRulesScreens";
@@ -159,13 +160,7 @@ function HandedOverBody({ shape }: { shape: PricingListShape }) {
               {tCal("overlap", { hidden: view.ruleNames[o.hiddenId] ?? "", winner: view.ruleNames[o.winnerId] ?? "" })}
             </SkeletonAlert>
           ))}
-          <CalendarStrip labels={view.calendarRows.map((row) => view.rowLabels[row.variantId ?? ""] ?? "")} />
-          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-            <LegendItem>{tCal("base")}</LegendItem>
-            {view.scheduleRuleIds.map((id) => (
-              <LegendItem key={id}>{view.ruleNames[id]}</LegendItem>
-            ))}
-          </ul>
+          <ViewCalendar view={view} />
         </section>
       )}
     </>
@@ -210,6 +205,7 @@ function DefaultBody() {
         <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
           <LegendItem>{tCal("base")}</LegendItem>
         </ul>
+        <ScheduleSkeleton groups={[{ label: null, periods: 2 }]} />
       </section>
     </>
   );
@@ -262,22 +258,85 @@ function SkeletonAlert({ icon, children }: { icon: React.ReactNode; children: Re
  * overlay bar, which takes no height), the day-number line (`text-[10px]`, a
  * 15px line) and one row of 16px day cells per target, labelled in `text-xs`.
  */
+/**
+ * The calendar the list is about to draw, from the handed-over view: the same
+ * rows (identical ones merged into "All variants"), legend and number of
+ * schedule lines as `PriceCalendar`, so nothing moves when it lands.
+ */
+function ViewCalendar({ view }: { view: PricingListView }) {
+  const tCal = useTranslations("priceRules.calendar");
+  const display = displayRows(view.calendarRows, view.rowLabels, tCal("allVariants"));
+  return (
+    <>
+      <CalendarStrip labels={display.map((d) => d.label)} />
+      <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+        <LegendItem>{tCal("base")}</LegendItem>
+        {view.scheduleRuleIds.map((id) => (
+          <LegendItem key={id}>{view.ruleNames[id]}</LegendItem>
+        ))}
+      </ul>
+      <ScheduleSkeleton
+        groups={display.map((d) => ({
+          label: display.length > 1 ? d.label : null,
+          periods: calendarPeriods(d.row.days).length,
+        }))}
+      />
+    </>
+  );
+}
+
+/** `PriceCalendar`'s grid: two header lines (month, day), then one row per label. */
 function CalendarStrip({ labels }: { labels: string[] }) {
   return (
     <div className="overflow-hidden rounded-lg border">
-      <div className="min-w-fit p-3 space-y-1.5">
-        <div className="h-3.75 pl-40" />
-        {labels.map((label, i) => (
-          <div key={i} className="flex items-center gap-px">
-            <div className="w-40 shrink-0 truncate pr-2 text-xs">
-              <SkeletonCopy>{label}</SkeletonCopy>
+      <div className="min-w-fit p-3">
+        <div className={CAL.headLine} />
+        <div className={cn("mt-0.5", CAL.headLine)} />
+        <div className="mt-2 space-y-1">
+          {labels.map((label, i) => (
+            <div key={i} className={cn("flex items-center", CAL.gap)}>
+              <div className={cn(CAL.label, "truncate pr-3 text-xs font-medium")}>
+                <SkeletonCopy>{label}</SkeletonCopy>
+              </div>
+              {Array.from({ length: DAYS }, (_, d) => (
+                <Skeleton key={d} className={CAL.cell} />
+              ))}
             </div>
-            {Array.from({ length: DAYS }, (_, d) => (
-              <Skeleton key={d} className="h-4 w-4 shrink-0 rounded-[3px]" />
-            ))}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
+    </div>
+  );
+}
+
+/** `PriceCalendar`'s "Schedule" list: same heading, groups and line height. */
+function ScheduleSkeleton({ groups }: { groups: { label: string | null; periods: number }[] }) {
+  const tCal = useTranslations("priceRules.calendar");
+  return (
+    <div className="space-y-2">
+      <h3 className="text-sm font-semibold">
+        <SkeletonCopy>{tCal("schedule")}</SkeletonCopy>
+      </h3>
+      {groups.map((g, gi) => (
+        <div key={gi} className="space-y-1">
+          {g.label !== null && (
+            <p className="text-xs font-medium">
+              <SkeletonCopy>{g.label}</SkeletonCopy>
+            </p>
+          )}
+          <ul className="divide-y rounded-lg border text-sm">
+            {Array.from({ length: g.periods }, (_, i) => (
+              <li key={i} className="flex items-center gap-3 px-3 py-2">
+                <span className="flex h-5 w-36 shrink-0 items-center">
+                  <Skeleton className="h-3.5 w-24" />
+                </span>
+                <Skeleton className="size-3 shrink-0 rounded-[3px]" />
+                <Skeleton className="h-3.5 w-32" />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
     </div>
   );
 }

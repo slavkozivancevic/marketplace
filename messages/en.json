@@ -2283,7 +2283,12 @@
     "calendar": {
       "title": "Next {days} days",
       "base": "Normal price",
-      "overlap": "\"{hidden}\" overlaps \"{winner}\" and is hidden wherever they run at the same time."
+      "overlap": "\"{hidden}\" overlaps \"{winner}\" and is hidden wherever they run at the same time.",
+      "allVariants": "All variants",
+      "today": "Today",
+      "everyDay": "Every day",
+      "from": "From {date}",
+      "schedule": "Schedule"
     },
     "form": {
       "name": "Name",

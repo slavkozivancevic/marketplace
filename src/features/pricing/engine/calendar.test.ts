@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildCalendar, findOverlaps, ruleStatus } from "./calendar";
+import { buildCalendar, calendarPeriods, findOverlaps, ruleStatus, sameSchedule } from "./calendar";
 import { zonedToUtc } from "./timezone";
 import { BASE, rule } from "./testRules";
 
@@ -79,5 +79,39 @@ describe("ruleStatus", () => {
       "upcoming",
     );
     expect(ruleStatus(rule(), now)).toBe("live");
+  });
+});
+
+describe("calendarPeriods", () => {
+  const day = (date: string, ...ruleIds: string[]) => ({ date, ruleIds });
+
+  it("merges consecutive days with the same rules into one period", () => {
+    expect(
+      calendarPeriods([day("2026-11-25"), day("2026-11-26"), day("2026-11-27", "bf"), day("2026-11-28", "bf"), day("2026-11-29")]),
+    ).toEqual([
+      { from: "2026-11-25", to: "2026-11-26", ruleIds: [] },
+      { from: "2026-11-27", to: "2026-11-28", ruleIds: ["bf"] },
+      { from: "2026-11-29", to: "2026-11-29", ruleIds: [] },
+    ]);
+  });
+
+  it("starts a new period when a second rule joins on the same day", () => {
+    expect(calendarPeriods([day("2026-11-01", "a"), day("2026-11-02", "a", "b")]).map((p) => p.ruleIds)).toEqual([["a"], ["a", "b"]]);
+  });
+
+  it("has nothing to say about no days", () => {
+    expect(calendarPeriods([])).toEqual([]);
+  });
+});
+
+describe("sameSchedule", () => {
+  const row = (variantId: string | null, ...ids: string[][]) => ({ variantId, days: ids.map((ruleIds, i) => ({ date: `2026-11-0${i + 1}`, ruleIds })) });
+
+  it("is true for rows that price every day alike, whatever the target", () => {
+    expect(sameSchedule(row(null, [], ["a"]), row("v1", [], ["a"]))).toBe(true);
+  });
+
+  it("is false as soon as one day differs", () => {
+    expect(sameSchedule(row(null, [], ["a"]), row("v1", ["b"], ["a"]))).toBe(false);
   });
 });

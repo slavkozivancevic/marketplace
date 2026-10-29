@@ -7,12 +7,15 @@ import { NotFoundError } from "@/features/common/errors/domainErrors";
 import { toEngineRule } from "./rules";
 import type { EngineRule } from "../schema/priceRules";
 
+/** A variant's option labels, for `getVariantLabel` ("Yellow", "42 / White"). */
+type VariantOptionRows = { option: { translations: { locale: string; label: string }[] } }[];
+
 export type PricingPageData = {
   productId: string;
   organizationId: string;
   translations: { locale: string; title: string }[];
   baseMoney: MoneySet;
-  variants: { id: string; sku: string; baseMoney: MoneySet }[];
+  variants: { id: string; sku: string; baseMoney: MoneySet; attributeValues: VariantOptionRows }[];
   rules: (EngineRule & { amountMoney: MoneySet | null })[];
 };
 
@@ -36,7 +39,16 @@ export async function getPricingPageData(
       organizationId: true,
       priceMoney: true,
       translations: { select: { locale: true, title: true } },
-      variants: { select: { id: true, sku: true, priceMoney: true }, orderBy: { order: "asc" } },
+      variants: {
+        select: {
+          id: true,
+          sku: true,
+          priceMoney: true,
+          // So the calendar can name a row "Yellow" instead of its SKU.
+          attributeValues: { select: { option: { select: { translations: { select: { locale: true, label: true } } } } } },
+        },
+        orderBy: { order: "asc" },
+      },
       priceRules: { orderBy: [{ priority: "desc" }, { createdAt: "desc" }] },
     },
   });
@@ -51,6 +63,7 @@ export async function getPricingPageData(
       id: v.id,
       sku: v.sku,
       baseMoney: requireMoney(v.priceMoney, `ProductVariant ${v.id}`),
+      attributeValues: v.attributeValues,
     })),
     rules: product.priceRules.map((r) => ({ ...toEngineRule(r), amountMoney: parseMoney(r.amountMoney) })),
   };
