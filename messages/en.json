@@ -121,18 +121,17 @@
     "crafted": "Crafted with precision for enterprise commerce.",
     "copyright": "© {year} MarketVerse. All rights reserved.",
     "platform": "Platform",
-    "company": "Company",
+    "project": "Project",
     "legal": "Legal",
     "products": "Products",
     "categories": "Categories",
     "brands": "Brands",
     "pricing": "Pricing",
-    "about": "About",
-    "blog": "Blog",
-    "careers": "Careers",
     "privacy": "Privacy",
     "terms": "Terms",
-    "cookies": "Cookies"
+    "cookies": "Cookies",
+    "showcase": "Showcase",
+    "sourceCode": "Source code"
   },
   "language": {
     "label": "Language",
@@ -729,7 +728,7 @@
     },
     "reviews": {
       "title": "Review Moderation",
-      "description": "Approve or reject customer reviews. New reviews are auto-moderated by AI; uncertain ones land here for you.",
+      "description": "Approve or reject customer reviews. When AI moderation is enabled, clear-cut reviews are decided automatically and only the uncertain ones wait here.",
       "searchPlaceholder": "Comment or author…",
       "allStatuses": "All statuses",
       "colProduct": "Product",

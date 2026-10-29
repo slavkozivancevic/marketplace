@@ -121,18 +121,17 @@
     "crafted": "Mit Präzision für Enterprise-Commerce entwickelt.",
     "copyright": "© {year} MarketVerse. Alle Rechte vorbehalten.",
     "platform": "Plattform",
-    "company": "Unternehmen",
+    "project": "Projekt",
     "legal": "Rechtliches",
     "products": "Produkte",
     "categories": "Kategorien",
     "brands": "Marken",
     "pricing": "Preise",
-    "about": "Über uns",
-    "blog": "Blog",
-    "careers": "Karriere",
     "privacy": "Datenschutz",
     "terms": "AGB",
-    "cookies": "Cookies"
+    "cookies": "Cookies",
+    "showcase": "Projektübersicht",
+    "sourceCode": "Quellcode"
   },
   "language": {
     "label": "Sprache",
@@ -729,7 +728,7 @@
     },
     "reviews": {
       "title": "Bewertungsmoderation",
-      "description": "Kundenbewertungen genehmigen oder ablehnen. Neue Bewertungen werden per KI moderiert; unsichere landen hier.",
+      "description": "Kundenbewertungen genehmigen oder ablehnen. Ist die KI-Moderation aktiviert, werden eindeutige Fälle automatisch entschieden und nur die unsicheren warten hier.",
       "searchPlaceholder": "Kommentar oder Autor…",
       "allStatuses": "Alle Status",
       "colProduct": "Produkt",

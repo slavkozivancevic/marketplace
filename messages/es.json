@@ -121,18 +121,17 @@
     "crafted": "Creado con precisión para el comercio empresarial.",
     "copyright": "© {year} MarketVerse. Todos los derechos reservados.",
     "platform": "Plataforma",
-    "company": "Empresa",
+    "project": "Proyecto",
     "legal": "Legal",
     "products": "Productos",
     "categories": "Categorías",
     "brands": "Marcas",
     "pricing": "Precios",
-    "about": "Acerca de",
-    "blog": "Blog",
-    "careers": "Carreras",
     "privacy": "Privacidad",
     "terms": "Términos",
-    "cookies": "Cookies"
+    "cookies": "Cookies",
+    "showcase": "Presentación",
+    "sourceCode": "Código fuente"
   },
   "language": {
     "label": "Idioma",
@@ -729,7 +728,7 @@
     },
     "reviews": {
       "title": "Moderación de reseñas",
-      "description": "Aprueba o rechaza reseñas de clientes. Las nuevas reseñas se moderan con IA; las dudosas llegan aquí.",
+      "description": "Aprueba o rechaza las reseñas de clientes. Con la moderación por IA activada, los casos claros se deciden solos y aquí solo esperan los dudosos.",
       "searchPlaceholder": "Comentario o autor…",
       "allStatuses": "Todos los estados",
       "colProduct": "Producto",
