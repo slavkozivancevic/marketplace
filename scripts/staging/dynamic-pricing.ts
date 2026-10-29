@@ -141,7 +141,9 @@ const RULES: Seed[] = [
     priority: 10,
     startsAt: "2026-11-27T00:00:00+01:00",
     endsAt: "2026-12-01T00:00:00+01:00",
-    products: ["noise-cancel-earbuds", "wireless-headphones", "4k-smart-tv-55", "oled-tv-65", "ultrabook-pro-14", "galaxy-phone-s"],
+    // leather-backpack also runs "Jesenja akcija": two windows on one product
+    // give the seller's calendar something to show.
+    products: ["noise-cancel-earbuds", "wireless-headphones", "4k-smart-tv-55", "oled-tv-65", "ultrabook-pro-14", "galaxy-phone-s", "leather-backpack"],
   },
   {
     kind: "SCHEDULE",

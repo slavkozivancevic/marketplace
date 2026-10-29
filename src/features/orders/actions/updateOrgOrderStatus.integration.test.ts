@@ -51,7 +51,7 @@ const { publishCodOrderCancelled } = await import("@/services/notifications");
 
 const SHIPPING = {
   name: "Test Buyer",
-  line1: "Zemunska 15",
+  line1: "Ulica Primera 12",
   line2: null,
   city: "Belgrade",
   state: null,

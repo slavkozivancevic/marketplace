@@ -121,18 +121,17 @@
     "crafted": "Napravljeno s pažnjom za ozbiljnu trgovinu.",
     "copyright": "© {year} MarketVerse. Sva prava zadržana.",
     "platform": "Platforma",
-    "company": "Kompanija",
+    "project": "Projekat",
     "legal": "Pravno",
     "products": "Proizvodi",
     "categories": "Kategorije",
     "brands": "Brendovi",
     "pricing": "Cene",
-    "about": "O nama",
-    "blog": "Blog",
-    "careers": "Karijera",
     "privacy": "Privatnost",
     "terms": "Uslovi",
-    "cookies": "Kolačići"
+    "cookies": "Kolačići",
+    "showcase": "Prikaz projekta",
+    "sourceCode": "Izvorni kod"
   },
   "language": {
     "label": "Jezik",
@@ -729,7 +728,7 @@
     },
     "reviews": {
       "title": "Moderacija recenzija",
-      "description": "Odobrite ili odbijte recenzije kupaca. Nove recenzije automatski moderira AI; nesigurne stižu ovde.",
+      "description": "Odobrite ili odbijte recenzije kupaca. Kada je AI moderacija uključena, jasni slučajevi se odlučuju automatski, a ovde čekaju samo nesigurni.",
       "searchPlaceholder": "Komentar ili autor…",
       "allStatuses": "Svi statusi",
       "colProduct": "Proizvod",

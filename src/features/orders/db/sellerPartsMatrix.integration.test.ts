@@ -50,11 +50,11 @@ const { createShipment, markShipmentDelivered } = await import(
 
 const SHIPPING = {
   name: "Test Buyer",
-  line1: "Zemunska 15",
+  line1: "Ulica Primera 12",
   line2: null,
-  city: "Dobanovci",
+  city: "Demograd",
   state: null,
-  postalCode: "11272",
+  postalCode: "00000",
   country: "RS",
 };
 

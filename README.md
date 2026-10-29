@@ -1,6 +1,46 @@
-# Marketplace Platform
+# MarketVerse
 
-A production-grade, multi-tenant e-commerce platform built as four tightly-integrated services, each in its own repository with an independent release cadence. The core storefront is a full-stack Next.js application; real-time chat, conversation search, and transactional notifications are deployed as independent serverless microservices on AWS, communicating over an event-driven backbone (SNS → SQS → Lambda).
+A multi-tenant e-commerce marketplace built as four services, each in its own repository: a full-stack **Next.js 16** storefront, seller dashboard and admin panel, plus three **AWS serverless** microservices for real-time chat, conversation search and transactional email, talking over an event-driven **SNS → SQS → Lambda** backbone. Four languages, three currencies, Stripe and cash-on-delivery checkout, per-country dynamic pricing, and a real CI/CD pipeline - all of it running at **zero monthly cost**.
+
+**Live:** [marketverseapp.com](https://marketverseapp.com) · **Showcase:** [slavkozivancevic.github.io/marketplace-showcase](https://slavkozivancevic.github.io/marketplace-showcase/)
+
+## Try it - one click, no sign-up
+
+| Account | What you can do |
+|---|---|
+| [**Buyer**](https://marketverseapp.com/api/demo/sign-in?as=buyer) | Browse, filter, wishlist, chat with a seller, check out by card (Stripe test card `4242 4242 4242 4242`, any future date, any CVC) or cash on delivery |
+| [**Seller**](https://marketverseapp.com/api/demo/sign-in?as=seller) | The seller dashboard of a 94-product shop: products, variants, price rules and their calendar, received orders, payouts - **view only** |
+| [**Admin**](https://marketverseapp.com/api/demo/sign-in?as=admin) | The whole platform: catalog taxonomy, price markets, organizations, users, coupons, COD balances, review moderation, audit log - **view only** |
+
+Each link mints a one-time Clerk sign-in token, so there is no password to type or change. The seller and the admin can open every screen and form; any save is refused on the server with a "view-only" message, and other people's email addresses are masked before they leave the server. Add `&locale=sr` (or `de`, `es`) to a link to land in another language.
+
+> **The first request after a quiet spell takes a few seconds.** The database is Neon serverless Postgres and scales to zero when idle - a deliberate part of the zero-cost design, not a slow app. Everything after the wake-up is fast.
+
+| | |
+|---|---|
+| ![Seller price rules with the 60-day calendar](https://slavkozivancevic.github.io/marketplace-showcase/screenshots/09a-pricing.png) | ![Price for the buyer's country on the listing](https://slavkozivancevic.github.io/marketplace-showcase/screenshots/09c-price-by-country.png) |
+| Seller price rules - schedule and market rules, 60-day calendar | The listing prices a product for the buyer's country |
+| ![Cart page with free-delivery progress and trust strip](https://slavkozivancevic.github.io/marketplace-showcase/screenshots/10b-cart.png) | ![Admin price markets](https://slavkozivancevic.github.io/marketplace-showcase/screenshots/09b-price-markets.png) |
+| Cart - per-seller delivery promise, free-delivery progress, trust strip | Admin - countries grouped into price markets |
+
+## Highlights
+
+- **Money done carefully.** Every price is stored as one exact amount per currency (USD / EUR / RSD): what the seller typed is kept, the other currencies are derived once and frozen, so prices never drift with the exchange rate. Orders split into one **sub-order per seller**, and refunds close the books exactly - an append-only ledger records every charge, refund, payout and fee.
+- **Dynamic pricing with EU Omnibus rules.** Sellers schedule price changes (one-off, daily, weekly, monthly, in the seller's time zone) and set prices per **market** or per **country**. Schedule rules are materialized into price windows ahead of time and roll on the first read after a boundary - no per-minute cron. A strike-through "was" price is shown only when the lowest price of the previous 30 days can be proven for *that* buyer's market.
+- **Real-time chat** over API Gateway WebSockets: typing indicators, online presence, read receipts, attachments, and an outbox that keeps a message sent offline and delivers it exactly once on reconnect.
+- **Correct by construction.** Real HTTP 404s despite Next.js partial prerendering (decided in the proxy), deletes that would silently cascade are refused with an explanation, every cache read has a matching invalidation, every org-scoped query key carries the tenant.
+- **Operated like production.** Request-scoped structured logging, CloudWatch metrics and alarms, a Grafana Cloud dashboard, database wake-ups told apart from slow queries.
+- **Shipped by a pipeline.** GitHub Actions CI (lint, typecheck, ~600 unit and ~280 integration tests, Playwright E2E) gates every merge; CodePipeline + CodeBuild deploy to Lambda + CloudFront; release-please cuts versions.
+
+## Zero-cost by design
+
+The platform will never have paying traffic, so every piece is chosen to cost nothing while idle and to stay correct anyway:
+
+- **Neon** serverless Postgres scales to zero; **Lambda + CloudFront**, **DynamoDB on-demand**, **SQS/SNS** and **SES** bill per use and sit inside their free tiers.
+- **No Redis, no NAT gateway, no always-on container.** Rate limiting is an in-process fixed window (`src/lib/rateLimit/limiter.ts`) behind one swappable function; the Next.js cache lives in S3 + DynamoDB through OpenNext; chat state is DynamoDB.
+- **Crons run weekly or monthly, never every minute** - a per-minute job would keep the database awake. Correctness never depends on them: prices flip on the first read after a window boundary, and the monthly job only extends the horizon.
+- **CodeBuild on a MEDIUM host** (half the per-minute rate of LARGE, about the same build time), log retention of two weeks, eight CloudWatch alarms inside the free ten.
+- **AI review moderation** (Anthropic Claude Haiku) is built and env-gated, and switched off on the demo stage: reviews are moderated by hand.
 
 ---
 
@@ -8,16 +48,28 @@ A production-grade, multi-tenant e-commerce platform built as four tightly-integ
 
 | Service | Description | Stack |
 |---|---|---|
-| **marketplace** | Full-stack storefront & seller dashboard | Next.js 16, React 19, PostgreSQL, Redis |
-| **marketplace-messaging** | Real-time chat with WebSocket, reactions & file attachments | AWS Lambda, API Gateway WebSocket, DynamoDB |
+| **marketplace** | Storefront, seller dashboard, admin panel, checkout | Next.js 16, React 19, Prisma 7, PostgreSQL (Neon) |
+| **marketplace-messaging** | Real-time chat: WebSocket, typing, presence, read receipts, reactions, attachments, idempotent sends | AWS Lambda, API Gateway WebSocket + HTTP, DynamoDB, S3 |
 | **marketplace-conversation-search** | Conversation search index, event-driven via SNS/SQS | AWS Lambda, DynamoDB, SNS, SQS |
-| **marketplace-notifications** | Transactional email (orders, COD, shipping, delivery, payouts, returns, review moderation, invites, roles) + weekly review-digest & currency-rate crons | AWS Lambda, SES, DynamoDB, SNS/SQS, EventBridge |
+| **marketplace-notifications** | Transactional email (orders, COD, shipping, delivery, payouts, returns, review moderation, invites, roles) + five scheduled jobs (FX rates, bestsellers, review digest, COD balance digest, price-window horizon) | AWS Lambda, SES, DynamoDB, SNS/SQS, EventBridge |
 
 ---
 
 ## marketplace - Core Platform
 
-Multi-tenant e-commerce storefront. Organizations (sellers) manage products with variants, media (images **and videos**), a controlled **attribute/facet** system, categories, brands, tags, and atomically-guarded stock; customers browse, search, wishlist, review, and check out via Stripe or Cash-on-Delivery (COD). Post-checkout it covers the full commerce lifecycle - **seller payouts via Stripe Connect**, **shipment tracking**, **returns/RMA with partial refunds**, a **payment-transaction ledger**, and **PDF invoices**. Growth & trust features include **platform-funded coupons**, **per-org shipping rules**, **AI-moderated reviews**, personalized **"recently viewed" / "frequently bought together"** strips, an append-only **audit log**, and a full admin panel. Pricing is multi-currency (EUR/RSD with weekly-refreshed FX rates) and the whole app is localized across **English, Serbian, German, and Spanish** with locale-prefixed, slug-translated URLs.
+Multi-tenant e-commerce storefront. Organizations (sellers) manage products with variants, media (images **and videos**), a controlled **attribute/facet** system, categories, brands, tags, and atomically-guarded stock; customers browse, search, wishlist, review, and check out via Stripe or Cash-on-Delivery (COD). Post-checkout it covers the full commerce lifecycle - **seller payouts via Stripe Connect**, **shipment tracking**, **returns/RMA with partial refunds**, a **payment-transaction ledger**, and **PDF invoices**. Growth & trust features include **platform-funded coupons**, **per-seller shipping rules and delivery/return promises**, a **trust strip** and a **bestseller badge**, **reviews with moderation** (optionally AI-assisted), personalized **"recently viewed" / "frequently bought together"** strips, an append-only **audit log**, and a full admin panel. Prices are stored per currency (USD / EUR / RSD, FX rates refreshed weekly), can be **scheduled and set per market or country**, and the whole app is localized across **English, Serbian, German, and Spanish** with locale-prefixed, slug-translated URLs.
+
+### Feature tour
+
+- **Dynamic pricing** (`src/features/pricing`, `src/features/priceMarkets`) - product- or variant-level rules: `SCHEDULE` (one-off or daily / weekly / monthly in the seller's IANA time zone, DST-safe) and `REGION` (a whole market or one country). Adjustments are a percentage, an amount off, or a fixed price, each per currency. Schedule rules are compiled into non-overlapping `PriceWindow` rows 90 days ahead with precedence resolved at generation time; the effective price is denormalized on the product and rolled on the first read after `effectiveUntil`. Market rules apply per viewer at read time. A `PricePoint` ledger keeps every price a target has had, so the Omnibus "lowest price of the last 30 days" reference is exact, and per-market / per-country change clocks decide when that reference can be shown. The "On sale" filter and facet count exclude products that lose their strike-through for the current viewer.
+- **Price markets** - admins group countries into markets (one per country, a default "rest of world"); the viewer's country comes from CloudFront and can be overridden from the preferences menu, instantly, without a server round trip.
+- **Sub-orders per seller** - every order is split into `OrderSellerPart`s at creation; a seller ships, cancels or settles cash on delivery only for their own part, with money snapshotted per part, and **COD balances** track the commission each seller owes the platform (or is owed back when a platform-funded coupon ran deeper than the commission).
+- **Storefront promises** - each seller's delivery lead time and return window are shown before purchase and enforced after it; a cart page with free-delivery progress; an admin-managed trust strip; every remote image retries instead of breaking.
+- **Safe deletes** - a delete that would cascade or null out dependents is refused by the db layer (`assertNotInUse`), and the admin dialog explains why before the click.
+- **Observability** - request-scoped structured logs, CloudWatch metric filters and alarms (webhook and checkout failures, 5xx, app errors, p95 latency, queries per request, Lambda errors and throttles), a Grafana Cloud dashboard with read-only access, and Neon wake-ups reported separately from genuinely slow queries.
+- **Real 404s** - under `cacheComponents` a page cannot set its own status, so `proxy.ts` answers unknown routes, unservable URL shapes and missing slugs with a real 404 before rendering.
+- **Public demo accounts** - see [Try it](#try-it---one-click-no-sign-up); `src/features/demo`.
+- **UI consistency** - one scrollbar look on every platform from a single source, `IconButton` whose label is both tooltip and accessible name (long press on touch), hover effects with a touch equivalent, loading skeletons for every data-heavy route.
 
 ### Tech Stack
 
@@ -27,14 +79,14 @@ Multi-tenant e-commerce storefront. Organizations (sellers) manage products with
 - **Auth:** **Clerk** (`@clerk/nextjs` v6) with Svix-verified webhooks for real-time user sync
 - **Payments:** Stripe Checkout + webhook-driven order fulfillment, plus **Cash-on-Delivery (COD)** with seller-driven fulfillment / cancellation flows. Order state is modeled on **two orthogonal axes** (`PaymentStatus` × `FulfillmentStatus`) with a derived display status. Every money movement is recorded in a **`PaymentTransaction` ledger** (CHARGE / REFUND / PAYOUT / FEE)
 - **Seller payouts:** **Stripe Connect** (Express) - per-org `ConnectedAccount`, onboarding flow, `application_fee` / transfer split, payout status surfaced in the dashboard; delivery charge goes to the seller in full (no platform fee)
-- **AI:** **Anthropic Claude** (Haiku) for synchronous **review moderation** on submit/edit (3-way clean / reject / needs-review), env-gated with a manual-moderation fallback when no API key is present
+- **AI (optional):** **Anthropic Claude** (Haiku) for synchronous **review moderation** on submit/edit (3-way clean / reject / needs-review), env-gated: without an API key - as on the demo stage - every review waits for manual moderation
 - **PDF:** **`@react-pdf/renderer`** server-side invoice generation (sequential invoice numbers, product thumbnails) rendered to S3; `pdfjs-dist` for in-browser PDF attachment preview in chat
 - **i18n:** **next-intl v4** with **locale-prefixed URLs** (`localePrefix: "always"`, e.g. `/en/products`, `/sr/proizvodi`) and **localized pathnames** (the URL segments themselves are translated), default locale from the `NEXT_LOCALE` cookie, four locales (`en`, `sr`, `de`, `es`), per-entity translation tables, **`SlugHistory` 308-redirects** for changed slugs, and a per-locale `searchText` blob (Postgres `pg_trgm` GIN index) for cross-language full-text search
-- **Currencies:** Multi-currency display (EUR / RSD) backed by a `CurrencyRate` table refreshed weekly by the notifications service (see below)
+- **Currencies:** USD / EUR / RSD. Every stored price is a **MoneySet** - the exact amount per currency, with the authored one kept as typed and the others derived once and frozen - plus a USD-cent mirror column for SQL filters and sorting. Display currency comes from a cookie; the `CurrencyRate` table is refreshed weekly by the notifications service (see below)
 - **Storage:** AWS S3 with presigned upload URLs (browser → S3 direct), `sharp` for server-side image processing, and bucket-level **lifecycle rules** that sweep abandoned uploads tagged `lifecycle=pending` after 24h
 - **Email:** AWS SES - invoked exclusively by the **marketplace-notifications** service; the marketplace itself publishes events to SNS and never calls SES directly
 - **Outbound events:** AWS **SNS** publishes domain events (`order.completed`, `order.refunded`, `order.cod_*`, `order.shipped`, `order.delivered`, `payout.released`, `return.*`, `review.moderated`, `invite.sent`, `member.role_changed`, `user.role_changed`) consumed by the notifications service
-- **Cache / Queues:** Redis via `ioredis`
+- **Caching:** Next.js `use cache` + `cacheTag` with explicit invalidation (`updateTag` in Server Actions, `revalidateTag(..., { expire: 0 })` in Route Handlers), stored by OpenNext in S3 + DynamoDB. No Redis: rate limiting is an in-process fixed window behind one swappable function
 - **UI:** **Tailwind CSS 4** (native CSS cascade layers, polished light/dark themes), Radix UI primitives, **shadcn/ui** component library, `lucide-react`, `next-themes`
 - **Carousel:** Embla Carousel with autoplay - one shared `<ProductCard>` powers the products grid, wishlist, and the PDP strips (related, **frequently bought together**, **recently viewed**)
 - **Drag & Drop:** `@dnd-kit` (image ordering, variant management)
@@ -81,7 +133,7 @@ Defined in [prisma/schema.prisma](prisma/schema.prisma):
 **Identity & tenancy**
 
 - **User** - synced from Clerk (`clerkUserId`), with `UserRole` (`USER` / `ADMIN` / `SELLER`), `activeOrgId`, and a preferred `locale`.
-- **Organization / Membership / Invite** - multi-tenant sellers. Members have a `MembershipRole` (`OWNER` / `ADMIN` / `MEMBER`) that gates every seller action. Orgs carry per-org **shipping rules** (`shippingFlatRate`, `shippingFreeThreshold`). Invites are token-based with expiry and `InviteStatus`.
+- **Organization / Membership / Invite** - multi-tenant sellers. Members have a `MembershipRole` (`OWNER` / `ADMIN` / `MEMBER`) that gates every seller action. Orgs carry per-org **shipping rules** (`shippingFlatRate`, `shippingFreeThreshold`) and **promises** (delivery lead time, return window), and must be **verified** before they can create or edit products. Invites are token-based, bound to the invited email, with `InviteStatus` (`PENDING` / `ACCEPTED` / `DECLINED` / `REVOKED`).
 - **ConnectedAccount** - per-org **Stripe Connect** account (`chargesEnabled` / `payoutsEnabled` / `detailsSubmitted`) backing seller payouts.
 
 **Catalog**
@@ -99,13 +151,16 @@ Defined in [prisma/schema.prisma](prisma/schema.prisma):
 
 - **Order / OrderItem** - linked to a Stripe session **or** flagged COD (`PaymentMethod`). State lives on two orthogonal axes - `PaymentStatus` (`UNPAID` / `PAID` / `PARTIALLY_REFUNDED` / `REFUNDED`) and `FulfillmentStatus` (`UNFULFILLED` → `DELIVERED`) - with a derived `OrderStatus`. Snapshots a **shipping address**, the applied **coupon** (`couponCode`), and **shipping totals** (`shippingTotal`, per-seller `shippingByOrg`) at checkout.
 - **PaymentTransaction** - append-only **ledger** (`CHARGE` / `REFUND` / `PAYOUT` / `FEE`) per order, optionally per seller org - the audit trail behind refunds, payouts, and COD.
-- **Shipment** - per-order, per-org tracking (`carrier`, `trackingNumber`, `shippedAt`, `deliveredAt`).
+- **OrderSellerPart** - the sub-order of one seller inside an order, created with the order: tracking (`carrier`, `trackingNumber`), `shippedAt` / `deliveredAt` / `cancelledAt` / `codSettledAt`, a derived status, and a money snapshot (`itemsSubtotal`, `shippingAmount`, `discountShare`). A seller only ever acts on their own part.
 - **Return / ReturnItem** - buyer-initiated RMA with a `ReturnStatus` state machine (`REQUESTED` → `APPROVED` → `SHIPPED` → `REFUNDED`, or `REJECTED`) and partial refunds.
 - **Invoice** - one per order, sequential `number`, PDF stored on S3 (`pdfKey`).
 - **Coupon** - platform-funded discount (`CouponType` `PERCENT` / `FIXED`, min-order, usage cap, expiry); the seller still receives full net while the platform absorbs the discount from its fee.
 
 **Platform**
 
+- **PriceRule / PriceWindow / PricePoint** - dynamic pricing: a seller rule (schedule or market/country, percent / amount off / fixed price per currency), its materialized non-overlapping windows (90 days ahead), and the ledger of every effective price a target has had (the Omnibus 30-day reference).
+- **PriceMarket / PriceMarketCountry / PriceCountryMove** - countries grouped into markets (a country belongs to at most one, unmapped ones fall into the default market) and when each country last changed market.
+- **TrustPoint** - the platform-wide trust strip, translated per locale.
 - **InteractionEvent** - FK-less append-only log (`InteractionType` `VIEW` / `ADD_TO_CART` / `PURCHASE`, keyed by `userId` or anonymous `sessionId`) powering "recently viewed"; "frequently bought together" is derived from authoritative `OrderItem` co-occurrence.
 - **AuditLog** - append-only record of admin/seller mutations (actor, action, entity, JSON `diff`), surfaced read-only at `/admin/audit`.
 - **CurrencyRate** - single-row-per-currency rate table (relative to USD), upserted weekly by the notifications cron.
@@ -116,7 +171,6 @@ Defined in [prisma/schema.prisma](prisma/schema.prisma):
 
 - Node.js 22+ (CI pins 22; the GitHub Actions themselves run on the Node 24 runtime)
 - Docker (for the bundled PostgreSQL) or an existing PostgreSQL 17 instance
-- A Redis instance
 - Clerk, Stripe, and AWS (S3 + SES) accounts
 
 ### Getting Started
@@ -245,7 +299,7 @@ External services hit the following routes - expose them via a tunnel (e.g. `ngr
 - `(public)` - storefront: home, product listing/detail, cart, checkout
 - `(auth)` - Clerk sign-in / sign-up
 - `(dashboard)` - authenticated seller dashboard
-- `admin/` - admin panel: organizations, products, users, **coupons**, **review moderation**, and the **audit log**
+- `admin/` - admin panel: products, brands, categories, attributes, tags, **trust points**, **price markets**, organizations, users, **coupons**, **COD balances**, **review moderation**, and the **audit log**
 - `invite/` - accept organization invites
 - `api/uploads` - presigned S3 upload endpoints
 - `api/admin`, `api/clerk`, `api/webhooks` - internal and integration endpoints
@@ -253,6 +307,8 @@ External services hit the following routes - expose them via a tunnel (e.g. `ngr
 - `api/internal/currency-rates` - internal endpoint upserted by the notifications weekly cron with fresh USD→{EUR,RSD} rates
 - `api/internal/review-digest` - internal endpoint the notifications weekly cron reads to assemble the pending-review digest
 - `api/interactions/*` - personalized "recently viewed" feed + view/add-to-cart event recording
+- `api/internal/recompute-bestsellers`, `api/internal/cod-balance-digest`, `api/internal/extend-price-windows` - targets of the notifications service crons (bestseller badge, weekly COD balance digest, monthly price-window horizon)
+- `api/demo/sign-in?as=buyer|seller|admin` - one-click sign-in for the public demo accounts
 
 ### Deployment & CI/CD (AWS)
 
@@ -286,6 +342,7 @@ the strategy and [infra/](infra/) for the pipeline IaC.
 - **CD (AWS-native):** **CodePipeline → CodeBuild** (runs `buildspec.yml` →
   `sst deploy` on Linux) with the GitHub source wired through **CodeConnections**.
   Flow: `Source (main) → DeployStaging → manual approval → DeployProduction`.
+  The build host is CodeBuild **MEDIUM**: LARGE built no faster in practice and bills twice the rate.
 - **PR previews (opt-in):** label a PR `preview` and `preview.yml` deploys an
   ephemeral `pr-<n>` stage, torn down when the PR closes. It assumes a scoped AWS
   role via **GitHub OIDC** (no static keys); the OIDC provider + roles are
@@ -365,6 +422,9 @@ Browser
 - **Fan-out via GSI2** - to deliver a message to a recipient, the Lambda queries `GSI2` to find all of that user's active connections and pushes to each one in parallel via `ApiGatewayManagementApi`. Stale connections are caught and pruned on the fly.
 - **SSM runtime secret resolution** - rather than baking secrets into Lambda environment variables (visible in the AWS console), all sensitive values are fetched from SSM Parameter Store on cold start and cached in-memory for the lifetime of the execution environment.
 - **Cross-service decoupling via SNS** - the search service's SNS topic ARN is not hardcoded; it is published to SSM on deploy and read at runtime, so the two services can be deployed and torn down independently.
+- **Idempotent sends with an outbox** - the client gives every message an id, keeps it in an outbox until the server acknowledges it over the socket, and resends after a reconnect; the server stores each id once. A message typed offline is delivered exactly once when the connection comes back.
+- **Presence, typing and read receipts from the socket itself** - online / last-seen is derived from live connection records, typing indicators are ephemeral WebSocket frames that never touch the table, read receipts come from server-side read markers, and a ping route lets the client probe a half-open connection.
+- **One socket per tab** - the chat drawer and the full-page inbox at `/messages` share a single connection, so a message is never delivered, counted or played twice.
 
 ### Project Structure
 
@@ -518,13 +578,14 @@ Lambda: processEvent
         ├── Invite emails (with accept-link)
         └── Role-change notifications (member-in-org + site-wide user role)
 
-EventBridge Cron - every Mon 06:00 UTC
-  │
-  ▼
-Lambda: refreshCurrencyRates
-  ├── Fetch USD-base rates from fawazahmed0/exchange-api (free, CDN-hosted)
-  ├── Pick EUR + RSD
-  └── POST marketplace /api/internal/currency-rates → upserts CurrencyRate table
+EventBridge crons (UTC)
+  ├── Mon 05:00  BestsellerRecompute    → POST /api/internal/recompute-bestsellers
+  ├── Mon 06:00  CurrencyRateRefresh    → fetch USD-base rates (fawazahmed0/exchange-api),
+  │                                       POST /api/internal/currency-rates
+  ├── Mon 07:00  ReviewModerationDigest → email admins when reviews are pending
+  ├── Mon 08:00  CodBalanceDigest       → email admins what sellers owe / are owed for COD
+  └── 1st 09:00  PriceWindowHorizon     → POST /api/internal/extend-price-windows
+                                          (extend recurring rules, prune old windows)
 ```
 
 ### Tech Stack
@@ -534,7 +595,7 @@ Lambda: refreshCurrencyRates
 - **Message broker:** **AWS SNS → SQS** with a Dead-Letter Queue after 3 failed retries; SQS configured for **partial-batch responses** so only the failing record is re-queued, not the whole batch
 - **Database:** **AWS DynamoDB** - single-table idempotency / audit log. `PK = NOTIF#{eventId}`, `SK = SENT`, with a `TTL` attribute auto-purging records after 30 days. Conditional `PutItem` (`attribute_not_exists(PK)`) guarantees exactly-once email delivery even under SQS at-least-once semantics.
 - **Email:** **AWS SES** - `SendEmail` / `SendRawEmail`; HTML templates rendered in-process per locale
-- **Scheduler:** **EventBridge CronV2** - weekly currency-rate refresh and a weekly review-moderation digest to admins
+- **Scheduler:** **EventBridge CronV2** - four weekly jobs (bestseller recompute, currency-rate refresh, review-moderation digest, COD balance digest) and one monthly (price-window horizon); none runs more often, so the database can sleep
 - **Secrets / Service discovery:** AWS SSM Parameter Store (SecureString) - `SES_FROM_EMAIL`, `MARKETPLACE_API_URL`, `MARKETPLACE_API_KEY`, `APP_URL`; the service also publishes its **SNS topic ARN** to SSM (`/marketplace-notifications/{stage}/SNS_TOPIC_ARN`) so the marketplace can discover it at runtime without a hardcoded ARN.
 - **Auth back to marketplace:** internal `x-api-key` header (the key lives in SSM)
 
@@ -560,7 +621,7 @@ Lambda: refreshCurrencyRates
 | `member.role_changed` | Owner promotes/demotes a member | Affected member |
 | `user.role_changed` | Admin changes a site-wide user role (`USER`/`SELLER`/`ADMIN`) | Affected user |
 
-All events carry an `eventId` (used for idempotency) and a `locale` so emails are rendered in the recipient's language. Two crons run alongside the consumer: the **weekly currency-rate refresh** and a **weekly review-moderation digest** to admins (sent only when reviews are pending).
+All events carry an `eventId` (used for idempotency) and a `locale` so emails are rendered in the recipient's language. Five scheduled jobs run alongside the consumer - see the architecture above. Money in every email is formatted in the recipient's locale, and a shipping country is printed as its name in that language.
 
 ### Key Engineering Decisions
 
@@ -631,7 +692,7 @@ npm run deploy:prod    # production stage
 │  • Clerk auth      │  │  • DynamoDB (STD)    │  │  • DynamoDB             │
 │  • Stripe + COD    │  │  • S3 attachments    │  │  • SNS/SQS consumer     │
 │  • next-intl x4    │  │  • SNS publish       │◄─┤  • DLQ                  │
-│  • Redis cache     │  │  • SSM secrets       │  │  • SSM secrets          │
+│  • Neon (pooled)   │  │  • SSM secrets       │  │  • SSM secrets          │
 │  • AWS S3 / SNS    │  └──────────────────────┘  └─────────────────────────┘
 │  • /api/internal/* │                  │                       ▲
 └──────┬─────────────┘                  │  SNS → SQS            │
@@ -648,7 +709,7 @@ npm run deploy:prod    # production stage
 │  • SSM secrets                          │──► GET  /api/internal/order-details
 └─────────────────────────────────────────┘
 
-  PostgreSQL 17  ·  Redis  ·  Clerk  ·  Stripe  ·  AWS S3  ·  AWS SES  ·  AWS SNS/SQS
+  PostgreSQL 17 (Neon)  ·  Clerk  ·  Stripe  ·  AWS S3  ·  AWS SES  ·  AWS SNS/SQS
 ```
 
 ### Cross-Cutting Concerns

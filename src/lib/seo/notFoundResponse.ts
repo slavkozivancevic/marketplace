@@ -4,6 +4,7 @@ import { localizedSegment } from "@/lib/seo/storefrontPaths";
 import { HERO_IMAGE_URL } from "@/components/layout/hero-image";
 import { APP_VERSION } from "@/lib/version";
 import { SCROLLBAR_BOOTSTRAP_HTML } from "@/lib/scrollbars/scrollbarStyle";
+import { PROJECT_LINKS } from "@/lib/projectLinks";
 
 /**
  * A real HTTP 404 served from the proxy (middleware) for entity-detail URLs
@@ -40,10 +41,9 @@ type Copy = {
     tagline: string; // longer marketing line in the footer brand column
     platform: string;
     pricing: string;
-    company: string;
-    about: string;
-    blog: string;
-    careers: string;
+    project: string;
+    showcase: string;
+    sourceCode: string;
     legal: string;
     privacy: string;
     terms: string;
@@ -67,10 +67,9 @@ const COPY: Record<string, Copy> = {
       tagline: "The enterprise-grade commerce platform built for modern sellers and buyers.",
       platform: "Platform",
       pricing: "Pricing",
-      company: "Company",
-      about: "About",
-      blog: "Blog",
-      careers: "Careers",
+      project: "Project",
+      showcase: "Showcase",
+      sourceCode: "Source code",
       legal: "Legal",
       privacy: "Privacy",
       terms: "Terms",
@@ -92,10 +91,9 @@ const COPY: Record<string, Copy> = {
       tagline: "Enterprise platforma za modernu trgovinu, za prodavce i kupce.",
       platform: "Platforma",
       pricing: "Cene",
-      company: "Kompanija",
-      about: "O nama",
-      blog: "Blog",
-      careers: "Karijera",
+      project: "Projekat",
+      showcase: "Prikaz projekta",
+      sourceCode: "Izvorni kod",
       legal: "Pravno",
       privacy: "Privatnost",
       terms: "Uslovi",
@@ -117,10 +115,9 @@ const COPY: Record<string, Copy> = {
       tagline: "Die Enterprise-Commerce-Plattform für moderne Verkäufer und Käufer.",
       platform: "Plattform",
       pricing: "Preise",
-      company: "Unternehmen",
-      about: "Über uns",
-      blog: "Blog",
-      careers: "Karriere",
+      project: "Projekt",
+      showcase: "Projektübersicht",
+      sourceCode: "Quellcode",
       legal: "Rechtliches",
       privacy: "Datenschutz",
       terms: "AGB",
@@ -142,10 +139,9 @@ const COPY: Record<string, Copy> = {
       tagline: "La plataforma de comercio empresarial creada para vendedores y compradores modernos.",
       platform: "Plataforma",
       pricing: "Precios",
-      company: "Empresa",
-      about: "Acerca de",
-      blog: "Blog",
-      careers: "Carreras",
+      project: "Proyecto",
+      showcase: "Presentación",
+      sourceCode: "Código fuente",
       legal: "Legal",
       privacy: "Privacidad",
       terms: "Términos",
@@ -545,11 +541,10 @@ export function notFoundResponse(locale: string, theme?: string): NextResponse {
           </ul>
         </div>
         <div class="ftr-col">
-          <h3>${escapeHtml(t.footer.company)}</h3>
+          <h3>${escapeHtml(t.footer.project)}</h3>
           <ul>
-            <li><a href="${home}">${escapeHtml(t.footer.about)}</a></li>
-            <li><a href="${home}">${escapeHtml(t.footer.blog)}</a></li>
-            <li><a href="${home}">${escapeHtml(t.footer.careers)}</a></li>
+            <li><a href="${PROJECT_LINKS.showcase}" target="_blank" rel="noopener">${escapeHtml(t.footer.showcase)}</a></li>
+            <li><a href="${PROJECT_LINKS.sourceCode}" target="_blank" rel="noopener">${escapeHtml(t.footer.sourceCode)}</a></li>
           </ul>
         </div>
         <div class="ftr-col">
