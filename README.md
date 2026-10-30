@@ -8,7 +8,7 @@ A multi-tenant e-commerce marketplace built as four services, each in its own re
 
 | Account | What you can do |
 |---|---|
-| [**Buyer**](https://marketverseapp.com/api/demo/sign-in?as=buyer) | Browse, filter, wishlist, chat with a seller, check out by card (Stripe test card `4242 4242 4242 4242`, any future date, any CVC) or cash on delivery |
+| [**Buyer**](https://marketverseapp.com/api/demo/sign-in?as=buyer) | A fresh account of your own - nobody else sees your cart, orders or chat, and it is gone after a day. Browse, filter, wishlist, chat with a seller, check out by card (Stripe test card `4242 4242 4242 4242`, any future date, any CVC) or cash on delivery |
 | [**Seller**](https://marketverseapp.com/api/demo/sign-in?as=seller) | The seller dashboard of a 94-product shop: products, variants, price rules and their calendar, received orders, payouts - **view only** |
 | [**Admin**](https://marketverseapp.com/api/demo/sign-in?as=admin) | The whole platform: catalog taxonomy, price markets, organizations, users, coupons, COD balances, review moderation, audit log - **view only** |
 
