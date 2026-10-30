@@ -53,14 +53,53 @@ export function isDemoRole(value: unknown): value is DemoRole {
   return typeof value === "string" && (DEMO_ROLES as string[]).includes(value);
 }
 
+/**
+ * Every visitor who picks "Buyer" gets an account of their own (see
+ * demoBuyers.ts), so nobody sees someone else's cart, orders or chat. Each one
+ * is a further plus-alias of the buyer's address - order emails still land in
+ * the owner's mailbox - tagged with a short code that also ends its name
+ * ("Demo Buyer 4f2a9c"), so the owner can tell visitors apart in the inbox.
+ */
+const [BUYER_LOCAL, BUYER_DOMAIN] = DEMO_ACCOUNTS.buyer.email.split("@");
+const VISITOR_BUYER_EMAIL = new RegExp(
+  `^${BUYER_LOCAL.replace(/[.+]/g, "\\$&")}-([a-z0-9]{6})@${BUYER_DOMAIN.replace(/\./g, "\\.")}$`,
+);
+
+/** A fresh visitor buyer: its address and the code it shares with its name. */
+export function newDemoBuyerIdentity(): { email: string; code: string } {
+  const code = crypto.randomUUID().replace(/-/g, "").slice(0, 6);
+  return { email: `${BUYER_LOCAL}-${code}@${BUYER_DOMAIN}`, code };
+}
+
+/** Whether an email belongs to a per-visitor buyer (not the old shared one). */
+export function isVisitorBuyerEmail(email: string | null | undefined): boolean {
+  return !!email && VISITOR_BUYER_EMAIL.test(email.trim().toLowerCase());
+}
+
+/** Clerk's user-search text that narrows its users to visitor buyers (confirm each with isVisitorBuyerEmail). */
+export const VISITOR_BUYER_EMAIL_QUERY = `${BUYER_LOCAL}-`;
+
 /** Which demo account an email belongs to, or null for everyone else. */
 export function demoRoleOfEmail(email: string | null | undefined): DemoRole | null {
   if (!email) return null;
   const normalized = email.trim().toLowerCase();
+  if (isVisitorBuyerEmail(normalized)) return "buyer";
   return DEMO_ROLES.find((role) => DEMO_ACCOUNTS[role].email === normalized) ?? null;
 }
 
 export function isDemoReadOnlyEmail(email: string | null | undefined): boolean {
   const role = demoRoleOfEmail(email);
   return role !== null && DEMO_ACCOUNTS[role].readOnly;
+}
+
+/**
+ * The email to store when Clerk reports a user's primary address. A demo
+ * account keeps its own forever: read-only is decided by that stored email,
+ * and Clerk's profile screen lets any visitor add an address (or connect a
+ * Google account) and make it primary - which, synced, would turn the demo
+ * admin into a real one. The DB is the anchor because nothing a visitor does in
+ * Clerk can write it; the demo sign-in route puts Clerk back in line.
+ */
+export function syncedEmail(stored: string | null | undefined, incoming: string): string {
+  return stored && demoRoleOfEmail(stored) ? stored : incoming;
 }

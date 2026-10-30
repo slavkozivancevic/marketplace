@@ -2402,6 +2402,7 @@
   "demo": {
     "title": "Prueba la demo en vivo",
     "intro": "Un clic, sin contraseña. El vendedor y el administrador pueden abrirlo todo, pero no guardan nada.",
+    "linkExpired": "Este enlace de demo ha caducado. Elige una cuenta abajo para volver a intentarlo.",
     "buyer": "Comprador",
     "seller": "Vendedor",
     "admin": "Administrador",

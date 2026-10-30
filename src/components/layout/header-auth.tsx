@@ -10,12 +10,14 @@ import {
   SignUpButton,
   UserButton,
   useAuth,
+  useUser,
 } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { HeaderDivider } from "./header-divider";
 import { cn } from "@/lib/utils";
 import { useWhenHidden } from "@/hooks/useWhenHidden";
 import { DemoAvatarBadge } from "@/features/demo/components/DemoAvatarBadge";
+import { demoRoleOfEmail } from "@/features/demo/demoAccounts";
 
 interface HeaderAuthProps {
   mode?: "modal" | "redirect";
@@ -121,6 +123,38 @@ const userButtonAppearance: ComponentProps<typeof UserButton>["appearance"] = {
   },
 };
 
+const hidden = { display: "none" };
+
+/**
+ * A public demo account (see demoAccounts.ts) is shared by every visitor, so
+ * its menu and profile keep only what is safe to share: no address under the
+ * name, and none of the controls that change the account for the next visitor
+ * - emails, connected accounts, name and avatar, and the Security page, whose
+ * device list shows other visitors' IP addresses and cities. Cosmetic only:
+ * the stored email that decides read-only cannot change (syncedEmail), and the
+ * demo sign-in route undoes anything done through Clerk's API anyway.
+ */
+const demoUserButtonAppearance: ComponentProps<typeof UserButton>["appearance"] = {
+  elements: {
+    ...userButtonAppearance.elements,
+    userPreviewSecondaryIdentifier: hidden,
+  },
+};
+const demoUserProfileProps: ComponentProps<typeof UserButton>["userProfileProps"] = {
+  appearance: {
+    elements: {
+      profileSectionPrimaryButton__profile: hidden,
+      profileSection__emailAddresses: hidden,
+      profileSection__connectedAccounts: hidden,
+      navbarButton__security: hidden,
+      // On a phone the page list is a drawer behind the "Account" title; with
+      // Profile its only entry, the title stays and the drawer goes.
+      navbarMobileMenuButtonIcon: hidden,
+      navbarMobileMenuButton: { pointerEvents: "none" },
+    },
+  },
+};
+
 /**
  * Renders Clerk's auth UI in the header.
  *
@@ -149,6 +183,8 @@ export function HeaderAuth({
   const localeHome = `/${locale}`;
 
   const { isLoaded } = useAuth();
+  const { user } = useUser();
+  const isDemo = demoRoleOfEmail(user?.primaryEmailAddress?.emailAddress) !== null;
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -213,7 +249,8 @@ export function HeaderAuth({
             overlap and the swap costs no layout. */}
         <UserButton
           key={userButtonKey}
-          appearance={userButtonAppearance}
+          appearance={isDemo ? demoUserButtonAppearance : userButtonAppearance}
+          userProfileProps={isDemo ? demoUserProfileProps : undefined}
           fallback={avatarSkeleton}
         />
         <DemoAvatarBadge />
