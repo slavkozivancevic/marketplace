@@ -2402,6 +2402,7 @@
   "demo": {
     "title": "Live-Demo ausprobieren",
     "intro": "Ein Klick, kein Passwort. Verkäufer und Admin können alles öffnen, aber nichts speichern.",
+    "linkExpired": "Dieser Demo-Link ist abgelaufen. Wählen Sie unten ein Konto, um es erneut zu versuchen.",
     "buyer": "Käufer",
     "seller": "Verkäufer",
     "admin": "Admin",

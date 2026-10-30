@@ -2402,6 +2402,7 @@
   "demo": {
     "title": "Isprobajte demo",
     "intro": "Jedan klik, bez lozinke. Prodavac i admin mogu sve da otvore, ali ništa ne čuvaju.",
+    "linkExpired": "Ovaj demo link je istekao. Izaberite nalog ispod da pokušate ponovo.",
     "buyer": "Kupac",
     "seller": "Prodavac",
     "admin": "Admin",

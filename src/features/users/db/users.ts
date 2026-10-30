@@ -9,6 +9,7 @@ import { CacheTags } from "@/lib/cache/tags";
 import { UserRole } from "../schema/users";
 import { logger } from "@/lib/logger";
 import { recordAudit, SYSTEM_ACTOR } from "@/features/audit/db/audit";
+import { syncedEmail } from "@/features/demo/demoAccounts";
 import { publishOwnerAutoPromoted, publishMemberRemoved } from "@/services/notifications";
 
 /* ================= READ ================= */
@@ -59,10 +60,20 @@ export async function createOrUpdateUserFromClerk(params: {
   role: UserRole;
 }) {
   const user = await prisma.$transaction(async (tx) => {
+    // One sync per Clerk user at a time. Two can arrive together - the demo
+    // buyer route writes its user while Clerk's user.created webhook does the
+    // same - and both would see no membership yet and each create a personal
+    // organization. The second now waits and finds the first one's.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${params.clerkUserId}))`;
+    const stored = await tx.user.findUnique({
+      where: { clerkUserId: params.clerkUserId },
+      select: { email: true },
+    });
     const dbUser = await tx.user.upsert({
       where: { clerkUserId: params.clerkUserId },
       update: {
-        email: params.email,
+        // A demo account's email never follows Clerk - see syncedEmail.
+        email: syncedEmail(stored?.email, params.email),
         name: params.name,
         imageUrl: params.imageUrl,
         role: params.role,

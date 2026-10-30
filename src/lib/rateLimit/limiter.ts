@@ -92,6 +92,10 @@ export const RATE_LIMITS = {
   // Per IP: one-click demo sign-in. Each hit is two Clerk API calls; a person
   // trying the three roles needs a handful, a script hammering it gets cut off.
   demo: { limit: 10, windowMs: 60_000 },
+  // Per IP: a new demo buyer is a new Clerk user, and the shared development
+  // instance holds 100 in all. A visitor needs one (a second click in the same
+  // browser reuses it); a handful an hour covers a few people behind one NAT.
+  demoBuyer: { limit: 5, windowMs: 60 * 60_000 },
 } as const;
 
 export type RateLimitPolicy = keyof typeof RATE_LIMITS;

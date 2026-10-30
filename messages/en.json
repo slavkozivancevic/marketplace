@@ -2402,6 +2402,7 @@
   "demo": {
     "title": "Try the live demo",
     "intro": "One click, no password. The seller and the admin can open everything but save nothing.",
+    "linkExpired": "This demo link has expired. Pick an account below to try again.",
     "buyer": "Buyer",
     "seller": "Seller",
     "admin": "Admin",

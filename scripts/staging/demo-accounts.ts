@@ -24,9 +24,16 @@
  *
  * Secrets come from `sst secret list` and are never printed. Idempotent.
  *
+ * The buyer is no longer one shared account: the demo sign-in route makes a
+ * fresh one per visitor (src/features/demo/demoBuyers.ts). So --apply keeps
+ * only the seller and the admin, and --retire-shared-buyer removes the old
+ * shared buyer once - from Clerk, and from the database the way the app's
+ * deleteUser does it (its orders stay, under "Deleted User").
+ *
  * Usage (from the repo root):
  *   npx tsx --conditions=react-server scripts/staging/demo-accounts.ts --stage staging --dump
  *   npx tsx --conditions=react-server scripts/staging/demo-accounts.ts --stage staging --apply
+ *   npx tsx --conditions=react-server scripts/staging/demo-accounts.ts --stage staging --retire-shared-buyer
  */
 import { execFileSync } from "node:child_process";
 import { createClerkClient, type User as ClerkUser } from "@clerk/backend";
@@ -34,6 +41,8 @@ import { resolveStageDatabaseUrl } from "../lib/stageDatabaseUrl.mjs";
 import { DEMO_ACCOUNTS, DEMO_ROLES, type DemoRole } from "../../src/features/demo/demoAccounts";
 
 const PROTON_ORG_ID = "16e0e989-6988-4117-99e4-9490bfb7e0e2"; // Slavko Zivancevic's Proton Organization
+// The accounts this script keeps. The buyer is made per visitor now.
+const SHARED_ROLES: DemoRole[] = ["seller", "admin"];
 const DB_ROLE: Record<DemoRole, "USER" | "SELLER" | "ADMIN"> = {
   buyer: "USER",
   seller: "SELLER",
@@ -43,8 +52,9 @@ const DB_ROLE: Record<DemoRole, "USER" | "SELLER" | "ADMIN"> = {
 const stageIdx = process.argv.indexOf("--stage");
 const stage = stageIdx >= 0 ? process.argv[stageIdx + 1] : undefined;
 const apply = process.argv.includes("--apply");
-if (!stage || (!apply && !process.argv.includes("--dump"))) {
-  console.error("Usage: demo-accounts.ts --stage <stage> --dump | --apply");
+const retireSharedBuyer = process.argv.includes("--retire-shared-buyer");
+if (!stage || (!apply && !retireSharedBuyer && !process.argv.includes("--dump"))) {
+  console.error("Usage: demo-accounts.ts --stage <stage> --dump | --apply | --retire-shared-buyer");
   process.exit(1);
 }
 
@@ -85,6 +95,7 @@ async function report() {
       ? await prisma.user.findUnique({
           where: { clerkUserId: cu.id },
           select: {
+            email: true,
             role: true,
             activeOrgId: true,
             memberships: { select: { role: true, organization: { select: { name: true, verified: true } } } },
@@ -93,11 +104,78 @@ async function report() {
       : null;
     console.log(`\n${role} <${account.email}>`);
     console.log(`  clerk: ${cu ? `${cu.id} ${cu.firstName} ${cu.lastName} metadata=${JSON.stringify(cu.publicMetadata)}` : "missing"}`);
-    console.log(`  db:    ${db ? `role=${db.role} activeOrg=${db.activeOrgId}` : "missing"}`);
+    if (cu) {
+      // Anything but the alias here was added from Clerk's profile screen by a
+      // visitor; the demo sign-in route removes it (repairDemoAccount).
+      const primary = cu.emailAddresses.find((e) => e.id === cu.primaryEmailAddressId);
+      console.log(`  emails: ${cu.emailAddresses.map((e) => `${e.emailAddress}${e === primary ? " (primary)" : ""}`).join(", ")}`);
+      console.log(`  external accounts: ${cu.externalAccounts.map((x) => `${x.provider} ${x.emailAddress}`).join(", ") || "none"}`);
+      console.log(`  mfa=${cu.twoFactorEnabled} password=${cu.passwordEnabled} image=${cu.hasImage}`);
+    }
+    console.log(`  db:    ${db ? `email=${db.email} role=${db.role} activeOrg=${db.activeOrgId}` : "missing"}`);
     for (const m of db?.memberships ?? []) {
       console.log(`         ${m.role} in "${m.organization.name}"${m.organization.verified ? " (verified)" : ""}`);
     }
   }
+}
+
+/**
+ * The old shared buyer, gone for good: the Clerk user first (nobody can sign in
+ * as it any more), then our row - the same steps as deleteUser in
+ * src/features/users/db/users.ts for a sole owner, minus its cache
+ * invalidation, which throws outside Next. Its personal organization goes too
+ * when nothing hangs off it; its orders as a buyer stay.
+ */
+async function retireTheSharedBuyer() {
+  const email = DEMO_ACCOUNTS.buyer.email;
+  const cu = await clerkUserByEmail(email);
+  const row = await prisma.user.findFirst({
+    where: { OR: [{ email }, ...(cu ? [{ clerkUserId: cu.id }] : [])], deletedAt: null },
+    include: { memberships: true },
+  });
+  if (cu) {
+    await clerk.users.deleteUser(cu.id);
+    console.log(`shared buyer: Clerk user ${cu.id} deleted`);
+  } else {
+    console.log("shared buyer: no Clerk user (already deleted)");
+  }
+  if (!row) {
+    console.log("shared buyer: no live database row (already retired)");
+    return;
+  }
+  await prisma.$transaction(async (tx) => {
+    for (const m of row.memberships) {
+      const others = await tx.membership.count({ where: { orgId: m.orgId, userId: { not: row.id } } });
+      const [products, parts, returns, connected] = await Promise.all([
+        tx.product.count({ where: { organizationId: m.orgId } }),
+        tx.orderSellerPart.count({ where: { organizationId: m.orgId } }),
+        tx.return.count({ where: { organizationId: m.orgId } }),
+        tx.connectedAccount.findUnique({ where: { organizationId: m.orgId } }),
+      ]);
+      await tx.membership.delete({ where: { userId_orgId: { userId: row.id, orgId: m.orgId } } });
+      if (m.role === "OWNER" && others === 0 && products === 0 && parts === 0 && returns === 0 && !connected) {
+        await tx.organization.delete({ where: { id: m.orgId } });
+        console.log(`shared buyer: empty organization ${m.orgId} deleted`);
+      }
+    }
+    await tx.user.update({
+      where: { id: row.id },
+      data: {
+        deletedAt: new Date(),
+        email: `deleted-${row.id}@deleted.local`,
+        name: "Deleted User",
+        imageUrl: null,
+        activeOrgId: null,
+      },
+    });
+  });
+  console.log(`shared buyer: database row ${row.id} retired`);
+}
+
+if (retireSharedBuyer) {
+  await retireTheSharedBuyer();
+  await prisma.$disconnect();
+  process.exit(0);
 }
 
 if (!apply) {
@@ -106,7 +184,7 @@ if (!apply) {
   process.exit(0);
 }
 
-for (const role of DEMO_ROLES) {
+for (const role of SHARED_ROLES) {
   const account = DEMO_ACCOUNTS[role];
   const dbRole = DB_ROLE[role];
   const name = `${account.firstName} ${account.lastName}`;
