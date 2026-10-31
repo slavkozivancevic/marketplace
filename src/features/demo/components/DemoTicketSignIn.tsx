@@ -38,13 +38,19 @@ export function DemoTicketSignIn({ onFailed }: { onFailed: () => void }) {
 
   useEffect(() => {
     if (!isLoaded || !signIn) return;
+    const params = new URLSearchParams(window.location.search);
+    const ticket = params.get("__clerk_ticket");
+    if (!ticket || redeeming === ticket) {
+      // Signed in by our own redemption: setActive flips isSignedIn and runs
+      // this effect again before the landing page loads. Signing out here
+      // would end the session just created - on staging the page then landed
+      // signed out.
+      return;
+    }
     if (isSignedIn) {
       void signOut({ redirectUrl: window.location.href });
       return;
     }
-    const params = new URLSearchParams(window.location.search);
-    const ticket = params.get("__clerk_ticket");
-    if (!ticket || redeeming === ticket) return;
     redeeming = ticket;
     const target = sameOriginTarget(params.get("redirect_url"));
 
