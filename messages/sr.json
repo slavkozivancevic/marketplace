@@ -1716,6 +1716,7 @@
     "leaveDescription": "Imate nesačuvane izmene. Ako napustite ovu stranicu, biće izgubljene.",
     "stay": "Ostani",
     "leave": "Napusti",
+    "leaving": "Napuštanje...",
     "requiredHint": "Polja označena sa * su obavezna."
   },
   "common": {

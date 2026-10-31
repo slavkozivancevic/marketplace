@@ -1716,6 +1716,7 @@
     "leaveDescription": "Tienes cambios sin guardar. Si sales de esta página se perderán.",
     "stay": "Quedarse",
     "leave": "Salir",
+    "leaving": "Saliendo...",
     "requiredHint": "Los campos marcados con * son obligatorios."
   },
   "common": {

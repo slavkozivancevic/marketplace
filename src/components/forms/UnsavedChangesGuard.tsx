@@ -1,19 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useUnsavedGuardStore } from "@/lib/forms/unsavedGuard";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/ActionButton";
 
 /**
  * Renders the unsaved-changes confirmation dialog and intercepts in-app
@@ -24,6 +15,14 @@ import {
  * Interception is limited to same-origin left-clicks on plain internal links
  * and only kicks in when something is actually dirty, so normal browsing is
  * untouched.
+ *
+ * "Leave" runs the queued navigation inside a transition and the dialog stays
+ * up, its button spinning on "Leaving...", until the next page is on screen -
+ * the dialog goes away together with the page it guarded. It used to vanish on
+ * the click and leave the user staring at the form they had just chosen to
+ * abandon while the next page loaded. A locale switch, which covers the screen
+ * with its own loader, finishes its transition at once and closes it straight
+ * away.
  */
 export function UnsavedChangesGuard() {
   const t = useTranslations("form");
@@ -32,6 +31,7 @@ export function UnsavedChangesGuard() {
   const guard = useUnsavedGuardStore((s) => s.guard);
   const confirmLeave = useUnsavedGuardStore((s) => s.confirmLeave);
   const stay = useUnsavedGuardStore((s) => s.stay);
+  const [isLeaving, startLeaving] = useTransition();
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -88,22 +88,19 @@ export function UnsavedChangesGuard() {
   }, [guard, router]);
 
   return (
-    <AlertDialog
-      open={pending != null}
+    <ConfirmDialog
+      open={pending != null || isLeaving}
       onOpenChange={(open) => {
         if (!open) stay();
       }}
-    >
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{t("leaveTitle")}</AlertDialogTitle>
-          <AlertDialogDescription>{t("leaveDescription")}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={stay}>{t("stay")}</AlertDialogCancel>
-          <AlertDialogAction onClick={confirmLeave}>{t("leave")}</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      title={t("leaveTitle")}
+      description={t("leaveDescription")}
+      cancelText={t("stay")}
+      confirmText={t("leave")}
+      loadingText={t("leaving")}
+      confirmVariant="default"
+      isLoading={isLeaving}
+      onConfirm={() => startLeaving(() => confirmLeave())}
+    />
   );
 }

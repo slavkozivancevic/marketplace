@@ -1716,6 +1716,7 @@
     "leaveDescription": "Sie haben ungespeicherte Änderungen. Wenn Sie diese Seite verlassen, gehen sie verloren.",
     "stay": "Bleiben",
     "leave": "Verlassen",
+    "leaving": "Wird verlassen...",
     "requiredHint": "Mit * gekennzeichnete Felder sind erforderlich."
   },
   "common": {

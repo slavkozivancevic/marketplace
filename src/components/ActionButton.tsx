@@ -16,7 +16,7 @@ import {
 import { useTranslations } from "next-intl";
 import { type ButtonProps } from "@/components/ui/button";
 
-interface ActionButtonProps {
+interface ConfirmDialogProps {
   /** Whether the dialog is open. Owned by the caller - see the note below. */
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -65,8 +65,12 @@ interface ActionButtonProps {
    * control: no spinner, no gerund label. The action runs from the dialog, so
    * that is where the pending state belongs.
    */
-  children: React.ReactElement<{ disabled?: boolean }>;
+  children?: React.ReactElement<{ disabled?: boolean }>;
 }
+
+type ActionButtonProps = ConfirmDialogProps & {
+  children: React.ReactElement<{ disabled?: boolean }>;
+};
 
 /**
  * A control that asks for confirmation before it runs. The only confirmation
@@ -92,7 +96,18 @@ interface ActionButtonProps {
  * An earlier version closed itself on any falling edge of `isLoading` and threw
  * the user back to the list on failure, with a toast as the only trace.
  */
-export function ActionButton({
+export function ActionButton(props: ActionButtonProps) {
+  return <ConfirmDialog {...props} />;
+}
+
+/**
+ * The same confirmation, opened from code rather than by a trigger - the
+ * unsaved-changes guard asks it when a link is clicked over a dirty form. Every
+ * rule above holds: `open` is the caller's, `isLoading` locks it open and puts
+ * the spinner and gerund on the confirm button, and it closes when the caller's
+ * result is on screen (for a navigation: when the next page is).
+ */
+export function ConfirmDialog({
   open,
   onOpenChange,
   title,
@@ -106,7 +121,7 @@ export function ActionButton({
   isLoading,
   onConfirm,
   children,
-}: ActionButtonProps) {
+}: ConfirmDialogProps) {
   const tCommon = useTranslations("common");
 
   // Latched by the confirm click, released when the dialog is gone.
@@ -143,11 +158,13 @@ export function ActionButton({
         that must disable the trigger for a reason of its own (another action on
         the same row) still passes its own `disabled`; the two are OR-ed.
       */}
-      <AlertDialogTrigger asChild>
-        {React.cloneElement(children, {
-          disabled: isLoading || children.props.disabled,
-        })}
-      </AlertDialogTrigger>
+      {children && (
+        <AlertDialogTrigger asChild>
+          {React.cloneElement(children, {
+            disabled: isLoading || children.props.disabled,
+          })}
+        </AlertDialogTrigger>
+      )}
       {/*
         One width for every confirmation, and no prop to pick it with. These
         dialogs carry two or three sentences - a blocked reason names a count

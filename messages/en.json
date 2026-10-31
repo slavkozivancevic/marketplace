@@ -1716,6 +1716,7 @@
     "leaveDescription": "You have unsaved changes. If you leave this page they will be lost.",
     "stay": "Stay",
     "leave": "Leave",
+    "leaving": "Leaving...",
     "requiredHint": "Fields marked with * are required."
   },
   "common": {
