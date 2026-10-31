@@ -3,6 +3,7 @@ import { isConversationOnScreen, useChatStore } from "./chatStore";
 
 const reset = () =>
   useChatStore.setState({
+    ownerId: null,
     isOpen: false,
     selectedConvId: null,
     pageMounted: false,
@@ -75,5 +76,32 @@ describe("chat page vs drawer", () => {
     const s = useChatStore.getState();
     expect(s.isOpen).toBe(false);
     expect(s.selectedConvId).toBeNull();
+  });
+});
+
+describe("unread counts belong to one user", () => {
+  beforeEach(reset);
+
+  it("drops another account's counts when a new one signs in on the same browser", () => {
+    const st = useChatStore.getState();
+    st.claimFor("user_a");
+    st.incrementUnread("c1");
+    st.incrementUnread("c2");
+    st.recordSeen("c1", "2026-10-31T10:00:00.000Z");
+    expect(useChatStore.getState().unreadCount).toBe(2);
+
+    useChatStore.getState().claimFor("user_b");
+    const s = useChatStore.getState();
+    expect(s.ownerId).toBe("user_b");
+    expect(s.unreadCount).toBe(0);
+    expect(s.convUnread).toEqual({});
+    expect(s.lastSeenAt).toEqual({});
+  });
+
+  it("keeps the counts when the same user comes back", () => {
+    useChatStore.getState().claimFor("user_a");
+    useChatStore.getState().incrementUnread("c1");
+    useChatStore.getState().claimFor("user_a");
+    expect(useChatStore.getState().unreadCount).toBe(1);
   });
 });
