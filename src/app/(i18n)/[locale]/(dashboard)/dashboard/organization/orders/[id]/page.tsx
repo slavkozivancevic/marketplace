@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { getViewerTimeZone } from "@/lib/i18n/viewerTimeZone";
 import { connection } from "next/server";
 import { Link, getPathname } from "@/i18n/navigation";
 import { RetryImage } from "@/components/RetryImage";
@@ -42,6 +43,8 @@ export default async function OrgOrderDetailPage({ params }: Props) {
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();
   const dl = dateLocale(locale);
+  // Lambda runs in UTC; format in the viewer's zone (see lib/i18n/timeZone).
+  const timeZone = await getViewerTimeZone();
   const { id } = await params;
 
   let ctx;
@@ -194,6 +197,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
           title={`${t("orderDetail")} ${shortId}`}
           description={t("placedOn", {
             date: new Date(order.createdAt).toLocaleDateString(dl, {
+              timeZone,
               year: "numeric",
               month: "long",
               day: "numeric",
@@ -261,6 +265,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                 <span>{t("date")}</span>
                 <span>
                   {new Date(order.createdAt).toLocaleString(dl, {
+                    timeZone,
                     year: "numeric",
                     month: "short",
                     day: "numeric",
@@ -362,6 +367,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                         </div>
                         <span className="text-xs text-muted-foreground">
                           {new Date(tx.createdAt).toLocaleString(dl, {
+                            timeZone,
                             year: "numeric",
                             month: "short",
                             day: "numeric",

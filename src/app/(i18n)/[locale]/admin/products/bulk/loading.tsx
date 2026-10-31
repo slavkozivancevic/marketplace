@@ -31,7 +31,9 @@ export default async function BulkProductsLoadingPage() {
         </PageHeader>
       </div>
 
-      <div className="flex-1 flex flex-col min-h-0 px-6 pb-6">
+      {/* `gap-2`: the real <Tabs> root is `flex flex-col gap-2`, so the panel
+          sits 8px + its own `mt-3` under the tab list. */}
+      <div className="flex-1 flex flex-col min-h-0 gap-2 px-6 pb-6">
         <div className="shrink-0 flex w-full flex-wrap items-center gap-1 rounded-lg bg-muted p-0.75">
           {Array.from({ length: 4 }, (_, i) => (
             <Skeleton key={i} className="h-7.75 flex-1 rounded-md" />
@@ -39,29 +41,61 @@ export default async function BulkProductsLoadingPage() {
         </div>
 
         <div className="flex-1 min-h-0 mt-3 overflow-y-auto rounded-lg border bg-card p-6">
+          {/* Measured against the loaded panel: each text line sits in its
+              real line box (h-5 for text-sm, h-4 for text-xs), and the three
+              sections are split by <Separator>s, as in the real panel. */}
           <div className="flex flex-col gap-6 max-w-3xl">
             {/* Conditions: heading, empty-state hint, "Add condition". */}
             <div className="flex flex-col gap-3">
-              <Skeleton className="h-3.5 w-56" />
-              <Skeleton className="h-3.5 w-96 max-w-full" />
+              <div className="flex h-5 items-center">
+                <Skeleton className="h-3.5 w-80 max-w-full" />
+              </div>
+              <div className="flex h-5 items-center">
+                <Skeleton className="h-3.5 w-96 max-w-full" />
+              </div>
               {/* variant="outline" size="sm" w-fit -> h-7. */}
-              <Skeleton className="h-7 w-40 rounded-lg" />
+              <Skeleton className="h-7 w-33 rounded-lg" />
             </div>
 
-            {/* Action: heading, then a `text-xs` label over a `min-w-60`
-                select. */}
+            <div className="h-px w-full bg-border" />
+
+            {/* Action: heading, then the action select and the status select
+                its default action brings, each a `text-xs` label over it. */}
             <div className="flex flex-col gap-3">
-              <Skeleton className="h-3.5 w-28" />
-              <div className="flex flex-col gap-1.5">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-8 w-60 rounded-lg" />
+              <div className="flex h-5 items-center">
+                <Skeleton className="h-3.5 w-36" />
+              </div>
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex h-4 items-center">
+                    <Skeleton className="h-3 w-14" />
+                  </div>
+                  <Skeleton className="h-8 w-60 rounded-lg" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex h-4 items-center">
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                  <Skeleton className="h-8 w-44 rounded-lg" />
+                </div>
               </div>
             </div>
 
-            {/* Preview & execute: heading over a `size="sm"` button. */}
+            <div className="h-px w-full bg-border" />
+
+            {/* Preview & execute: heading, the preview button with its hint,
+                then the `text-xs` note under them. */}
             <div className="flex flex-col gap-3">
-              <Skeleton className="h-3.5 w-36" />
-              <Skeleton className="h-7 w-32 rounded-lg" />
+              <div className="flex h-5 items-center">
+                <Skeleton className="h-3.5 w-44" />
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Skeleton className="h-7 w-60 rounded-lg" />
+                <Skeleton className="h-3.5 w-44" />
+              </div>
+              <div className="flex h-4 items-center">
+                <Skeleton className="h-3 w-[28rem] max-w-full" />
+              </div>
             </div>
           </div>
         </div>

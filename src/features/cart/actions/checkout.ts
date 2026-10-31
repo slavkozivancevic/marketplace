@@ -10,7 +10,9 @@ import { stripe } from "@/services/stripe";
 import { env } from "@/env/server";
 import { ActionErrorResult } from "@/types/types";
 import { handleActionError } from "@/features/common/errors/domainErrors";
-import { isDemoReadOnlyEmail } from "@/features/demo/demoAccounts";
+import { demoRoleOfEmail, isDemoReadOnlyEmail } from "@/features/demo/demoAccounts";
+
+const isDemoAccountEmail = (email: string) => demoRoleOfEmail(email) !== null;
 import { enforceRateLimit, getClientIp } from "@/lib/rateLimit/guard";
 import { getCurrencyRate } from "@/features/currency/db/currencyRates";
 import { moneyIn } from "@/lib/money";
@@ -316,7 +318,11 @@ async function runCheckoutSession(
       // buyer never picked.
       adaptive_pricing: { enabled: false },
       line_items: lineItems,
-      customer_email: user.email,
+      // A demo buyer's address is an alias of the owner's own mailbox, and
+      // Stripe would show it prefilled to whoever is trying the demo. Left
+      // blank, the visitor types any address; nothing here reads it back
+      // (order emails go to the account's address).
+      ...(!isDemoAccountEmail(user.email) && { customer_email: user.email }),
       ...(discounts && { discounts }),
       ...(shippingTotal > 0 && {
         shipping_options: [

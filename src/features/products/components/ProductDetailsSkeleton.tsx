@@ -13,8 +13,9 @@ import { Skeleton, SkeletonButton, SkeletonCopy } from "@/components/ui/skeleton
  *
  * Which rows <ProductDetails> renders depends on the product (brand,
  * categories, compare-at price, specifications, SEO, variants...). This draws
- * the common shape: a published product with a slug, tags, a one-line
- * description, several images and no variants. Admin and dashboard share it;
+ * the common shape: a published product with a slug, a short description, a
+ * brand, two categories, a two-line description, several images and no
+ * variants. Admin and dashboard share it;
  * `showActions` follows the page (the dashboard hides the status buttons from
  * members who cannot write, and its skeleton cannot know who is looking).
  */
@@ -42,14 +43,25 @@ export function ProductDetailsSkeleton({ showActions = true }: { showActions?: b
         <CardContent className="space-y-2">
           <Row label={t("titleLabel")} chars={14} />
           <Row label={`${tf("slug")}:`} chars={14} mono />
+          <Row label={`${tf("shortDesc")}:`} chars={30} />
+          {/* Brand: label, the 20px logo, the name. */}
+          <div className="flex items-center gap-2">
+            <strong>
+              <SkeletonCopy>{t("brandLabel")}</SkeletonCopy>
+            </strong>
+            <Skeleton className="size-5 rounded" />
+            <SkeletonCopy>{blank(6)}</SkeletonCopy>
+          </div>
           <div className="flex items-center gap-2 flex-wrap">
             <strong>
-              <SkeletonCopy>{t("tagsLabel")}</SkeletonCopy>
+              <SkeletonCopy>{t("categoriesLabel")}</SkeletonCopy>
             </strong>
-            <SkeletonBadge variant="secondary" chars={16} />
-            <SkeletonBadge variant="secondary" chars={10} />
+            <SkeletonBadge variant="secondary" chars={14} />
+            <SkeletonBadge variant="secondary" chars={8} />
           </div>
-          <Row label={t("descLabel")} chars={26} />
+          {/* The full description: a long value that wraps like the real one
+              (two lines on a desktop). */}
+          <Row label={t("descLabel")} chars={190} prose />
           <div>
             <strong>
               <SkeletonCopy>{t("statusLabel")}</SkeletonCopy>
@@ -137,8 +149,28 @@ function blank(chars: number) {
   return " ".repeat(chars * 2);
 }
 
+/**
+ * A blank run that WRAPS like prose: word-sized groups of non-breaking spaces
+ * joined by ordinary ones. `blank` never breaks, so a long value drawn with it
+ * stays on one line where the real text takes two.
+ */
+function blankProse(chars: number) {
+  return Array.from({ length: Math.ceil(chars / 6) }, () => " ".repeat(10)).join(" ");
+}
+
 /** <ProductDetails>'s Row: a bold label, a space, the value. */
-function Row({ label, chars, mono = false }: { label: string; chars: number; mono?: boolean }) {
+function Row({
+  label,
+  chars,
+  mono = false,
+  prose = false,
+}: {
+  label: string;
+  chars: number;
+  mono?: boolean;
+  /** A long value that wraps, like the full description. */
+  prose?: boolean;
+}) {
   return (
     <div>
       <strong>
@@ -149,7 +181,7 @@ function Row({ label, chars, mono = false }: { label: string; chars: number; mon
           <SkeletonCopy>{blank(chars)}</SkeletonCopy>
         </code>
       ) : (
-        <SkeletonCopy>{blank(chars)}</SkeletonCopy>
+        <SkeletonCopy>{prose ? blankProse(chars) : blank(chars)}</SkeletonCopy>
       )}
     </div>
   );

@@ -213,6 +213,7 @@ export function SkeletonPageHeader({
   titleWidth = "w-56",
   descriptionWidth = "w-80",
   withDescription = true,
+  descriptionLinesOnPhone = 1,
   actions,
 }: {
   /**
@@ -233,6 +234,12 @@ export function SkeletonPageHeader({
    * Pass `false` where the real page usually has none.
    */
   withDescription?: boolean;
+  /**
+   * A long description wraps to two lines below `sm` (the real one is
+   * `line-clamp-2` there). Pass `2` where the real description is usually
+   * longer than a phone's line, or the page drops 20px on a phone.
+   */
+  descriptionLinesOnPhone?: 1 | 2;
   actions?: ReactNode;
 }) {
   return (
@@ -249,8 +256,16 @@ export function SkeletonPageHeader({
           {description ? (
             <p className="text-sm text-muted-foreground line-clamp-2 sm:line-clamp-none">{description}</p>
           ) : withDescription && (
-            <div className="flex h-5 items-center">
-              <Skeleton className={cn("h-3.5", descriptionWidth)} />
+            // One element, like the one <p>: two lines of it add no gap between them.
+            <div>
+              <div className="flex h-5 items-center">
+                <Skeleton className={cn("h-3.5", descriptionWidth)} />
+              </div>
+              {descriptionLinesOnPhone === 2 && (
+                <div className="flex h-5 items-center sm:hidden">
+                  <Skeleton className="h-3.5 w-2/3" />
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -702,12 +717,13 @@ export function SkeletonFilterSidebar({
 } = {}) {
   return (
     <aside className="hidden lg:flex flex-col w-56 shrink-0 border-r">
-      {/* Header box: `pr-6 pt-1 pb-2`. Its row is 24px tall, not 20px - the
-          "Clear all" ghost button (`h-auto py-1 text-xs`) is taller than the
+      {/* Header box: `pr-6 pt-1 pb-2`. Its row is 26px tall, not 20px - the
+          "Clear all" ghost button (`h-auto py-1 text-xs`: a 16px line, 8px of
+          padding and its 1px border top and bottom) is taller than the
           `text-sm` "Filters" label next to it, and it stays mounted (just
-          `invisible`) when no filter is active. */}
+          `invisible`) when no filter is active. Measured: 47px box. */}
       <div className="shrink-0 pr-6 pt-1 pb-2">
-        <div className="flex h-6 items-center justify-between">
+        <div className="flex h-6.5 items-center justify-between">
           <Skeleton className="h-3.5 w-12" />
         </div>
         {/* <Separator className="mt-2" /> - h-px, 8px above (NOT mt-3). */}
@@ -780,12 +796,60 @@ export function SkeletonFilterSidebar({
  * rounded-md`. The search field is `flex-1 min-w-40 max-w-sm`, not a fixed
  * `max-w-xs`.
  */
+/**
+ * <SortSelect>'s trigger with its label drawn transparent: the same box as the
+ * real <SelectTrigger> (border, `pl-2.5 pr-2`, the 14px sort icon, the label,
+ * the 16px chevron, `gap-1.5`), so it is exactly as wide as the loaded control
+ * in every locale. Pass the label the page starts with.
+ */
+export function SkeletonSortTrigger({ label, className }: { label: string; className?: string }) {
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        "flex h-8 w-fit min-w-0 items-center gap-1.5 rounded-lg border border-transparent bg-muted py-2 pr-2 pl-2.5 text-sm whitespace-nowrap animate-pulse",
+        className,
+      )}
+    >
+      <span className="size-3.5 shrink-0" />
+      <span className="truncate text-transparent select-none">{label}</span>
+      <span className="size-4 shrink-0" />
+    </div>
+  );
+}
+
 export function SkeletonSearchToolbar({
   /** Set false on toolbars rendered without filter groups (no mobile sheet). */
   withMobileFilter = true,
+  variant = "department",
+  sortLabel,
 }: {
   withMobileFilter?: boolean;
+  /**
+   * `department` mirrors the storefront's <DepartmentSearchBar>; `list` mirrors
+   * the dashboard and admin lists' <SearchToolbar>, which is laid out
+   * differently: `gap-3`, a `max-w-sm` search, and the filter button and sort
+   * grouped in their own `gap-2` row.
+   */
+  variant?: "department" | "list";
+  /** The sort label the page starts with; the sort placeholder then takes its exact width. */
+  sortLabel?: string;
 } = {}) {
+  if (variant === "list") {
+    return (
+      <div className="flex flex-wrap items-center gap-3">
+        <Skeleton className="h-8 flex-1 min-w-40 max-w-sm rounded-lg" />
+        <div className="flex items-center gap-2">
+          {withMobileFilter && <Skeleton className="lg:hidden h-8 w-9 rounded-lg sm:w-20" />}
+          {sortLabel ? (
+            <SkeletonSortTrigger label={sortLabel} className="max-w-28 sm:max-w-none" />
+          ) : (
+            <Skeleton className="h-8 w-28 rounded-lg sm:w-64" />
+          )}
+        </div>
+      </div>
+    );
+  }
   /*
     Mirrors row 1 of <DepartmentSearchBar>, measured rather than guessed:
     `flex flex-wrap items-stretch gap-2`, with the search box, the mobile
@@ -915,10 +979,13 @@ export function SkeletonFormRow({
               over (`slugManuallyEdited` starts false), so a loaded form shows
               the input alone, full width. */}
           <Skeleton className="h-8 w-full rounded-lg" />
-          {/* FormDescription's 19.2px line; on an edit the availability
+          {/* FormDescription's line: `text-[0.8rem]` sets only the size, so the
+              line height is text-sm's 20/14 ratio inherited - 12.8px * 1.4286
+              = 18.29px, measured (the old 19.2px assumed 1.5 and made the row a
+              pixel taller than the real one). On an edit the availability
               indicator (a text-xs span with a 12px icon) checks the saved value
               beside it. A create's value is empty, and an empty one shows none. */}
-          <div className="flex h-[19.2px] items-center justify-between">
+          <div className="flex h-[calc(0.8rem*1.25/0.875)] items-center justify-between">
             <Skeleton className="h-3 w-40" />
             {mode === "edit" && <Skeleton className="h-3 w-20" />}
           </div>
@@ -1341,9 +1408,14 @@ export function SkeletonProductForm({
 
       {/* Footer (ProductForm: `shrink-0 pt-4 pb-6 border-t`). Create ends in a
           `min-w-36` submit; update ends in a non-sticky <FormSaveBar>, which on
-          a freshly loaded form is the quiet "all changes saved" line. */}
+          a freshly loaded form is the quiet "all changes saved" line. The
+          create row is `flex flex-wrap items-center gap-3` in the real form:
+          without a flex parent the inline-flex button sits on a text line and
+          the descender gap under it made the footer 7px taller. */}
       <div className="shrink-0 pt-4 pb-6 border-t">
-        <SkeletonFormFooter mode={mode} submitWidth="w-36" />
+        <div className="flex flex-wrap items-center gap-3">
+          <SkeletonFormFooter mode={mode} submitWidth="w-36" />
+        </div>
       </div>
     </div>
   );

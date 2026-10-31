@@ -29,10 +29,16 @@ import {
  */
 export function FilterListPageSkeleton({
   groups,
+  sortLabel,
   children,
 }: {
   /** Filter groups in page order - see <SkeletonFilterSidebar>. */
   groups: (number | "range")[];
+  /**
+   * The sort label the page opens with ("Date added: Newest first"), so the
+   * sort placeholder is exactly as wide as the loaded control.
+   */
+  sortLabel?: string;
   /** The table (or grid) placeholder for this page. */
   children: ReactNode;
 }) {
@@ -40,7 +46,8 @@ export function FilterListPageSkeleton({
     <div className="flex gap-6 flex-1 min-h-0">
       <SkeletonFilterSidebar groups={groups} />
       <div className="flex-1 min-w-0 flex flex-col gap-4 min-h-0">
-        <SkeletonSearchToolbar />
+        {/* These pages use <SearchToolbar>, not the storefront's bar. */}
+        <SkeletonSearchToolbar variant="list" sortLabel={sortLabel} />
         <SkeletonActiveFiltersSpacer />
         {children}
       </div>
