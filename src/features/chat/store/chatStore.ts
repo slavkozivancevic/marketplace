@@ -14,6 +14,13 @@ export const TYPING_TTL_MS = 9000;
 export const TYPING_HEARTBEAT_MS = 4000;
 
 interface ChatStore {
+  /**
+   * Whose counts these are: the Clerk user id they were collected for. They
+   * live in localStorage, which outlives a sign-out, so without an owner the
+   * next account to sign in on this browser inherited the last one's unread
+   * badge - over an inbox that, for it, is empty.
+   */
+  ownerId: string | null;
   isOpen: boolean;
   selectedConvId: string | null;
   /** Total unread across all conversations - drives the header badge. */
@@ -59,6 +66,8 @@ interface ChatStore {
    */
   pageMounted: boolean;
   setConnected: (connected: boolean) => void;
+  /** Makes `userId` the owner, dropping another user's counts. No-op for the same user. */
+  claimFor: (userId: string) => void;
   openInbox: () => void;
   openConversation: (conversationId: string) => void;
   close: () => void;
@@ -141,6 +150,7 @@ function clearConv(s: ChatStore, id: string): Partial<ChatStore> {
 export const useChatStore = create<ChatStore>()(
   persist(
     (set) => ({
+      ownerId: null,
       isOpen: false,
       selectedConvId: null,
       unreadCount: 0,
@@ -152,6 +162,20 @@ export const useChatStore = create<ChatStore>()(
 
       setConnected: (connected) =>
         set((s) => (s.connected === connected ? s : { connected })),
+
+      claimFor: (userId) =>
+        set((s) =>
+          s.ownerId === userId
+            ? s
+            : {
+                ownerId: userId,
+                unreadCount: 0,
+                convUnread: {},
+                lastSeenAt: {},
+                isOpen: false,
+                selectedConvId: null,
+              }
+        ),
 
       // Opening the inbox shows per-conv badges but doesn't clear them yet.
       // On the page the drawer must not cover it, and the selection belongs
@@ -283,6 +307,7 @@ export const useChatStore = create<ChatStore>()(
       // socket state, not something to rehydrate. `pageMounted` describes what
       // is mounted, which a reload resets.
       partialize: (s) => ({
+        ownerId: s.ownerId,
         unreadCount: s.unreadCount,
         convUnread: s.convUnread,
         lastSeenAt: s.lastSeenAt,

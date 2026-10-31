@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { SignedIn } from "@clerk/nextjs";
+import { SignedIn, useAuth } from "@clerk/nextjs";
 import { useChatStore } from "../store/chatStore";
 import { useChatToken } from "../hooks/useChatToken";
 import { useChatSocket } from "../hooks/useChatSocket";
@@ -80,6 +80,15 @@ function ChatRuntimeEngine({ onRuntime }: { onRuntime: (r: ChatRuntime | null) =
   // Socket lives here so it stays connected whichever surface is open, or none
   const socket = useChatSocket(tokenData?.token, currentUserId);
   const bootstrapUnread = useChatStore((s) => s.bootstrapUnread);
+
+  // The persisted counts belong to whoever collected them; a different
+  // account signing in on this browser starts from zero. Layout effect: it
+  // lands before the header badge paints with the previous owner's number.
+  const { userId: clerkUserId } = useAuth();
+  const claimFor = useChatStore((s) => s.claimFor);
+  useLayoutEffect(() => {
+    if (clerkUserId) claimFor(clerkUserId);
+  }, [clerkUserId, claimFor]);
 
   // `useChatSocket` builds fresh functions on every render, and this component
   // renders on every socket frame. Publishing those directly would re-render
