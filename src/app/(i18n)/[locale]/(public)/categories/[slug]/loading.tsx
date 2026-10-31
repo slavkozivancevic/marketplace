@@ -8,6 +8,7 @@ import {
   SkeletonPageHeader,
   SkeletonProductGrid,
   SkeletonSearchToolbar,
+  SkeletonActiveFiltersSpacer,
 } from "@/components/ui/skeleton";
 
 // Category name is dynamic (per slug); the header mirrors the real page's
@@ -17,15 +18,11 @@ export default function CategoryLoading() {
     <div className="flex-1 flex flex-col min-h-0">
       <div className="shrink-0 px-6 pt-2 pb-3 sticky-header-bg">
         <SkeletonBreadcrumbs segments={3} />
-        {/* No description bar: a category's description is optional admin
-            copy, and `<PageHeader>` renders nothing at all when it is missing.
-            Surveyed across all nine departments in this catalogue, none has
-            one, and drawing it made the header 156px against the real 134px -
-            the whole grid lifted 22px the moment the page arrived. Put it back
-            if descriptions become standard content. */}
+        {/* The description line is the category's description. */}
         <SkeletonPageHeader
           titleWidth="w-56"
-          withDescription={false}
+          descriptionWidth="w-[32rem] max-w-full"
+          descriptionLinesOnPhone={2}
           actions={<SkeletonButton className="w-28" />}
         />
         {/* Subcategory chips. Measured on the real page: each chip is 30px
@@ -39,16 +36,25 @@ export default function CategoryLoading() {
             no params). Departments are what the menu, the directory and the
             home carousel all link to, so the row is there far more often than
             not; omitting it pushed the whole grid down by 38px on exactly
-            those pages. */}
+            those pages.
+
+            On a phone most departments wrap their chips to two rows; the last
+            chip is hidden there so the spread wraps to two rows as well. */}
         <div className="flex flex-wrap gap-2 mt-2">
-          {["w-24", "w-40", "w-32", "w-20", "w-20", "w-28"].map((w, i) => (
-            <Skeleton key={i} className={cn("h-7.5 rounded-full", w)} />
+          {["w-24", "w-40", "w-32", "w-20", "w-20", "w-28"].map((w, i, all) => (
+            <Skeleton
+              key={i}
+              className={cn("h-7.5 rounded-full", w, i === all.length - 1 && "hidden sm:block")}
+            />
           ))}
         </div>
       </div>
       <div className="flex flex-col flex-1 min-h-0 gap-4">
-        <div className="shrink-0 px-6">
+        {/* PublicProductsPage: toolbar + the collapsed active-filter row in a
+            flex-col gap-2 - the empty row still takes its 8px gap. */}
+        <div className="shrink-0 px-6 flex flex-col gap-2">
           <SkeletonSearchToolbar />
+          <SkeletonActiveFiltersSpacer />
         </div>
         <ScrollArea layout="column" className="flex-1 min-h-0">
           <div className="flex gap-6 flex-1 px-6">

@@ -12,6 +12,7 @@ import { ClerkGate } from "@/components/layout/app-loader";
 import { FlashHost } from "@/components/layout/flash-host";
 import { LocalePathsHost } from "@/i18n/LocalePathsContext";
 import { LocaleSync } from "@/components/layout/locale-sync";
+import { TimeZoneSync } from "@/components/layout/time-zone-sync";
 import { NavigationGenerationTracker } from "@/components/layout/navigation-generation-tracker";
 import { ThemeProvider } from "@/providers/theme/ThemeProvider";
 import { PullToRefresh } from "@/components/layout/pull-to-refresh";
@@ -125,6 +126,7 @@ export function InnerProviders({ children }: { children: React.ReactNode }) {
             the drawer, so the page can reach the socket. */}
         <ChatRuntimeProvider>
           <LocaleSync />
+          <TimeZoneSync />
           <NavigationGenerationTracker />
           {/* Mobile/touch pull-to-refresh. Sits above the page so its indicator
               floats over the sticky header, like the platform gesture does. */}

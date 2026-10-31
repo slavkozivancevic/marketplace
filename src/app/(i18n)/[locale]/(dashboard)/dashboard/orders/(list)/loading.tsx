@@ -22,7 +22,7 @@ export default async function OrdersLoading() {
         <PageHeader title={t("orders.title")} description={t("orders.history")} />
       </div>
       <div className="flex-1 flex flex-col min-h-0 px-6 pb-6">
-        <FilterListPageSkeleton groups={[7]}>
+        <FilterListPageSkeleton groups={[7]} sortLabel={`${t("orders.date")}: ${t("search.newestFirst")}`}>
           <OrderTableSkeleton />
         </FilterListPageSkeleton>
       </div>

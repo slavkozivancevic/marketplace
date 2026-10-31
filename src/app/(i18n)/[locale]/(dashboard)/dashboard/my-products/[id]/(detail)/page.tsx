@@ -20,6 +20,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs, type BreadcrumbItem } from "@/components/seo/Breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { SkeletonButton } from "@/components/ui/skeleton";
 import { ProductDetailsSkeleton } from "@/features/products/components/ProductDetailsSkeleton";
 import { PriceRulesLink } from "@/features/pricing/components/PriceRulesLink";
 import { getPricingListShape } from "@/features/pricing/components/PriceRulesScreens";
@@ -73,16 +74,19 @@ async function MyProductLoading({ id }: { id: string }) {
             <Link href="/dashboard/my-products">{t("myProducts.backTo")}</Link>
           </Button>
           {/* Shown to every member on the loaded page, so it is here too -
-              its absence made the header jump. Edit stays out: permission-gated. */}
+              its absence made the header jump. Edit and the status actions are
+              OWNER/ADMIN only, but those are who open this page, so they are
+              placeheld as well. */}
           <Button asChild variant="outline">
             <Link href={{ pathname: "/dashboard/my-products/[id]/pricing", params: { id } }}>
               {t("priceRules.title")}
             </Link>
           </Button>
+          <SkeletonButton label={t("common.edit")} />
         </PageHeader>
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
-        <ProductDetailsSkeleton showActions={false} />
+        <ProductDetailsSkeleton />
       </div>
     </>
   );

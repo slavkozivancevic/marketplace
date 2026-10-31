@@ -8,10 +8,11 @@ import { ProductDetailsSkeleton } from "@/features/products/components/ProductDe
 /**
  * See ../../../../../admin/products/[id]/(detail)/loading.tsx - the page has its own
  * <Suspense> fallback, but this is what the router shows before the payload
- * arrives. The Edit action is omitted rather than placeheld: it only renders
- * for OWNER/ADMIN members, so a placeholder would promise a button that may
- * never appear. Price rules DO get a placeholder: every member sees that button
+ * arrives. Price rules get a placeholder: every member sees that button
  * (read-only for a viewer), and without one the header jumped when it arrived.
+ * Edit and the status actions only render for OWNER/ADMIN members - but those
+ * are who open this page (the demo seller is one), so they are placeheld too;
+ * a read-only member is the rare case that sees them go.
  */
 export default async function MyProductLoadingPage() {
   const t = await getTranslations();
@@ -27,10 +28,11 @@ export default async function MyProductLoadingPage() {
             <Link href="/dashboard/my-products">{t("myProducts.backTo")}</Link>
           </Button>
           <SkeletonButton label={t("priceRules.title")} />
+          <SkeletonButton label={t("common.edit")} />
         </PageHeader>
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
-        <ProductDetailsSkeleton showActions={false} />
+        <ProductDetailsSkeleton />
       </div>
     </div>
   );

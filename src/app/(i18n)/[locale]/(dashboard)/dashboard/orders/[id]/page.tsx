@@ -1,5 +1,6 @@
 import { safeAuth } from "@/lib/auth/safeAuth";
 import { notFound } from "next/navigation";
+import { getViewerTimeZone } from "@/lib/i18n/viewerTimeZone";
 import { connection } from "next/server";
 import { Link, getPathname } from "@/i18n/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
@@ -38,6 +39,8 @@ export default async function OrderDetailPage({
   const tCrumbs = await getTranslations("breadcrumbs");
   const locale = await getLocale();
   const dl = dateLocale(locale);
+  // Lambda runs in UTC; format in the viewer's zone (see lib/i18n/timeZone).
+  const timeZone = await getViewerTimeZone();
   const { id } = await params;
   const { userId: clerkUserId } = await safeAuth();
   if (!clerkUserId) notFound();
@@ -187,6 +190,7 @@ export default async function OrderDetailPage({
           title={`${t("orders.details")} ${shortId}`}
           description={t("orders.placedOn", {
             date: new Date(order.createdAt).toLocaleDateString(dl, {
+              timeZone,
               year: "numeric",
               month: "long",
               day: "numeric",
@@ -252,6 +256,7 @@ export default async function OrderDetailPage({
               <span>{t("orders.date")}</span>
               <span>
                 {new Date(order.createdAt).toLocaleString(dl, {
+                  timeZone,
                   year: "numeric",
                   month: "short",
                   day: "numeric",
@@ -296,6 +301,7 @@ export default async function OrderDetailPage({
                       <p>
                         {t("shipments.cancelledOn", {
                           date: new Date(part.cancelledAt).toLocaleDateString(dl, {
+                            timeZone,
                             year: "numeric",
                             month: "short",
                             day: "numeric",
@@ -309,6 +315,7 @@ export default async function OrderDetailPage({
                       <p>
                         {t("shipments.shippedOn", {
                           date: new Date(part.shippedAt).toLocaleDateString(dl, {
+                            timeZone,
                             year: "numeric",
                             month: "short",
                             day: "numeric",
@@ -319,6 +326,7 @@ export default async function OrderDetailPage({
                         <p>
                           {t("shipments.deliveredOn", {
                             date: new Date(part.deliveredAt).toLocaleDateString(dl, {
+                              timeZone,
                               year: "numeric",
                               month: "short",
                               day: "numeric",

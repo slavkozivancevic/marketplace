@@ -9,6 +9,7 @@ import { OrgOrderTableSkeleton } from "@/features/orders/components/OrderTableSk
 export default async function OrgOrdersLoading() {
   const t = await getTranslations("orgOrders");
   const tCrumbs = await getTranslations("breadcrumbs");
+  const tSearch = await getTranslations("search");
   const locale = await getLocale();
   const breadcrumbItems = [
     { name: tCrumbs("dashboard"), href: getPathname({ href: "/dashboard", locale }) },
@@ -22,7 +23,7 @@ export default async function OrgOrdersLoading() {
         <PageHeader title={t("pageTitle")} description={t("pageDescription")} />
       </div>
       <div className="flex-1 flex flex-col min-h-0 px-6 pb-6">
-        <FilterListPageSkeleton groups={[7]}>
+        <FilterListPageSkeleton groups={[7]} sortLabel={`${t("date")}: ${tSearch("newestFirst")}`}>
           <OrgOrderTableSkeleton />
         </FilterListPageSkeleton>
       </div>

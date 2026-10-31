@@ -24,6 +24,7 @@ import { OrgPayoutTableSkeleton } from "@/features/payments/components/OrgPayout
 export default async function OrgPayoutsLoading() {
   const t = await getTranslations("payouts");
   const tCrumbs = await getTranslations("breadcrumbs");
+  const tSearch = await getTranslations("search");
   const locale = await getLocale();
   const breadcrumbItems = [
     { name: tCrumbs("dashboard"), href: getPathname({ href: "/dashboard", locale }) },
@@ -56,7 +57,7 @@ export default async function OrgPayoutsLoading() {
           </div>
         </div>
 
-        <FilterListPageSkeleton groups={[3, 3]}>
+        <FilterListPageSkeleton groups={[3, 3]} sortLabel={`${t("date")}: ${tSearch("newestFirst")}`}>
           <OrgPayoutTableSkeleton />
         </FilterListPageSkeleton>
       </div>
