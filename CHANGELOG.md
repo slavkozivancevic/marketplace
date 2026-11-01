@@ -1,5 +1,53 @@
 # Changelog
 
+## [0.3.0](https://github.com/slavkozivancevic/marketplace/compare/v0.2.0...v0.3.0) (2026-11-01)
+
+
+### Features
+
+* **chat:** full-page inbox at /messages, one socket for drawer and page ([#23](https://github.com/slavkozivancevic/marketplace/issues/23)) ([74e92ef](https://github.com/slavkozivancevic/marketplace/commit/74e92efae53036fd17997f8113c15488cf59a8c0))
+* **chat:** show when the other side is typing, without moving the page under you ([#19](https://github.com/slavkozivancevic/marketplace/issues/19)) ([d487d5e](https://github.com/slavkozivancevic/marketplace/commit/d487d5e09fd3ff9351ab844d3373314dee001852))
+* demo sign-in returns where you were, WhatsApp-style chat actions, no image counter on cards ([#36](https://github.com/slavkozivancevic/marketplace/issues/36)) ([dbfbff7](https://github.com/slavkozivancevic/marketplace/commit/dbfbff7be43f2b8d92a2521b4914b51b33efab66))
+* **demo:** one-click public demo accounts, view-only seller and admin, cheaper build ([#25](https://github.com/slavkozivancevic/marketplace/issues/25)) ([3263342](https://github.com/slavkozivancevic/marketplace/commit/3263342de4515541f9c94dee94780dd9c13ce1a8))
+* **infra:** grant Grafana Cloud read-only CloudWatch access ([#7](https://github.com/slavkozivancevic/marketplace/issues/7)) ([47a83a2](https://github.com/slavkozivancevic/marketplace/commit/47a83a2db816eee7fe04789827ff8feb072ebf2f))
+* **money:** store one exact amount per currency and stop prices drifting ([#14](https://github.com/slavkozivancevic/marketplace/issues/14)) ([739bdea](https://github.com/slavkozivancevic/marketplace/commit/739bdea31c5e54de8675bbc5ae2d7a4594365cd6))
+* **observability:** request-scoped logging, CloudWatch metrics and alarms ([#6](https://github.com/slavkozivancevic/marketplace/issues/6)) ([60fdaf6](https://github.com/slavkozivancevic/marketplace/commit/60fdaf6b01d6d1a3a08312c4e558fe97db556266))
+* **orders:** one sub-order per seller, and refunds that close the books exactly ([#16](https://github.com/slavkozivancevic/marketplace/issues/16)) ([59b4935](https://github.com/slavkozivancevic/marketplace/commit/59b4935812f28fe48f73fa8b2ca8f01fa93f593a))
+* **pricing:** a price calendar you can read without a legend ([#27](https://github.com/slavkozivancevic/marketplace/issues/27)) ([0538bac](https://github.com/slavkozivancevic/marketplace/commit/0538bac348fbb6ad97f95f012cf5a8dd9640349a))
+* **pricing:** scheduled and per-country price rules with Omnibus-safe strike-through, plus one scrollbar everywhere ([#24](https://github.com/slavkozivancevic/marketplace/issues/24)) ([7a72a80](https://github.com/slavkozivancevic/marketplace/commit/7a72a806adcc442ad7671a43826ce28ef7c30dd0))
+* product warranty and origin, full loading-skeleton coverage ([#12](https://github.com/slavkozivancevic/marketplace/issues/12)) ([1f67617](https://github.com/slavkozivancevic/marketplace/commit/1f676176ab02d96b5a8cde6cec2049073d17b951))
+* **storefront:** seller delivery and return promises, cart page, trust points, resilient images ([#22](https://github.com/slavkozivancevic/marketplace/issues/22)) ([dba5550](https://github.com/slavkozivancevic/marketplace/commit/dba5550134bb0c804bf021905f13e440703961b3))
+* **ui:** real products on the landing page, hover that works on touch, presence in chat ([#20](https://github.com/slavkozivancevic/marketplace/issues/20)) ([2aef194](https://github.com/slavkozivancevic/marketplace/commit/2aef194fb435b58d5554ad2c243920bab4427895))
+
+
+### Bug Fixes
+
+* **admin:** refuse deletes that lose data, unify confirmation dialogs ([#18](https://github.com/slavkozivancevic/marketplace/issues/18)) ([3724419](https://github.com/slavkozivancevic/marketplace/commit/3724419326f803f79be73f0f5baa0b884e8735ff))
+* **chat:** a conversation you deleted comes back to your inbox with the next message ([#37](https://github.com/slavkozivancevic/marketplace/issues/37)) ([d0a5f43](https://github.com/slavkozivancevic/marketplace/commit/d0a5f43bb93c2bf4b71e3feb3928bc381682715e))
+* **chat:** unread badge belongs to the account that collected it ([#32](https://github.com/slavkozivancevic/marketplace/issues/32)) ([e668e28](https://github.com/slavkozivancevic/marketplace/commit/e668e28efddebcec8f7d53c03e83eb9507a0ea4c))
+* demo seller and admin only look, chat and demo hardening, image counter in every gallery ([#35](https://github.com/slavkozivancevic/marketplace/issues/35)) ([9400adb](https://github.com/slavkozivancevic/marketplace/commit/9400adb6ac48946a6e6ae3fc06172e1b34c8a78c))
+* **demo:** a buyer per visitor, a locked demo admin, and a sign-in without the flicker ([#28](https://github.com/slavkozivancevic/marketplace/issues/28)) ([#28](https://github.com/slavkozivancevic/marketplace/issues/28)) ([cccbbe3](https://github.com/slavkozivancevic/marketplace/commit/cccbbe3c77e6fd77647eafa718257e69bc8c45ba))
+* **demo:** a demo link no longer signs the visitor straight back out ([#30](https://github.com/slavkozivancevic/marketplace/issues/30)) ([f48b49e](https://github.com/slavkozivancevic/marketplace/commit/f48b49e250efea6da5a4a65408f755d3925b9a75))
+* **forms:** the leave-without-saving dialog stays until the next page is on screen ([#33](https://github.com/slavkozivancevic/marketplace/issues/33)) ([62fd2f5](https://github.com/slavkozivancevic/marketplace/commit/62fd2f57dcee0156cffc785962ee2cfb6b3cf1ed))
+* harden cold-start and unmatched-path handling ([#9](https://github.com/slavkozivancevic/marketplace/issues/9)) ([2cf4fc4](https://github.com/slavkozivancevic/marketplace/commit/2cf4fc4c95a531c58788bdfbb32a28d77d9ecf3c))
+* **header:** auth cluster grouping and mobile panel dismissal ([#13](https://github.com/slavkozivancevic/marketplace/issues/13)) ([aea1250](https://github.com/slavkozivancevic/marketplace/commit/aea12507a6cca9b51febedf628e02bdfeca4cef7))
+* **observability:** separate database wake-ups from slow queries ([#8](https://github.com/slavkozivancevic/marketplace/issues/8)) ([459459c](https://github.com/slavkozivancevic/marketplace/commit/459459c6b189dad7f16e4aee4db45dff8270251c))
+* **orders:** a COD part collected before a return still counted as unpaid ([#17](https://github.com/slavkozivancevic/marketplace/issues/17)) ([033f9c5](https://github.com/slavkozivancevic/marketplace/commit/033f9c5c9d60e210d51cdfad0bd871d6e06c4ee3))
+* **orders:** stop losing coupon and payout work, and quiet the staging alarms ([#15](https://github.com/slavkozivancevic/marketplace/issues/15)) ([5e2667a](https://github.com/slavkozivancevic/marketplace/commit/5e2667aea5e7b56ac7b19285e5ce19efe8e980ba))
+* **seo:** return 404 for unknown routes outside the storefront ([#11](https://github.com/slavkozivancevic/marketplace/issues/11)) ([a79bb3b](https://github.com/slavkozivancevic/marketplace/commit/a79bb3bcea5611b09ae7eedff22e75b07e4e8357))
+* **seo:** return a real 404 for unservable storefront URLs ([#10](https://github.com/slavkozivancevic/marketplace/issues/10)) ([229690d](https://github.com/slavkozivancevic/marketplace/commit/229690dfc09eaf6ca7d567e9475fb93fae03851a))
+* skeletons that match their pages to the pixel, order times in the viewer's zone ([#31](https://github.com/slavkozivancevic/marketplace/issues/31)) ([c6b5ad2](https://github.com/slavkozivancevic/marketplace/commit/c6b5ad22c5d13558d95595bf5185e7c5d0e79086))
+* **ui:** fit the brand strip to the room it actually has, and hold the avatar's place while Clerk mounts ([#21](https://github.com/slavkozivancevic/marketplace/issues/21)) ([0bf5246](https://github.com/slavkozivancevic/marketplace/commit/0bf5246a3e70d457b68d20c280f1f7e41236e281))
+
+
+### Build & Maintenance
+
+* **actions:** bump all actions to node24 runtimes ([#3](https://github.com/slavkozivancevic/marketplace/issues/3)) ([840da23](https://github.com/slavkozivancevic/marketplace/commit/840da23780498b66f81a1b2d9caa6d6108a0a405))
+* live demo, zero-cost design and recent features in the README ([#26](https://github.com/slavkozivancevic/marketplace/issues/26)) ([3367f54](https://github.com/slavkozivancevic/marketplace/commit/3367f541fd62e4032b87edd74741636ec3f34a9a))
+* **observability:** report soft navigations that never finish ([#34](https://github.com/slavkozivancevic/marketplace/issues/34)) ([1a3ef3b](https://github.com/slavkozivancevic/marketplace/commit/1a3ef3b9448226b8d39c521d61587a204de8e93e))
+* **release:** author Release PRs with a PAT so their checks run ([#5](https://github.com/slavkozivancevic/marketplace/issues/5)) ([8f9dda7](https://github.com/slavkozivancevic/marketplace/commit/8f9dda7d790978db94f786f72e19f9a11ad223da))
+* the demo buyer is a fresh account per visitor ([#29](https://github.com/slavkozivancevic/marketplace/issues/29)) ([f83c77b](https://github.com/slavkozivancevic/marketplace/commit/f83c77b11f21c73c231e4b6fe627a94418300dcc))
+
 ## [0.2.0](https://github.com/slavkozivancevic/marketplace/compare/v0.1.0...v0.2.0) (2026-08-22)
 
 
