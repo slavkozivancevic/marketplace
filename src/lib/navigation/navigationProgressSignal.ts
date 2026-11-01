@@ -8,12 +8,13 @@
  * then, not on the original click. A standalone module (rather than an import
  * between NavigationProgress and the guard store) avoids a circular import.
  */
-let listener: (() => void) | null = null;
+let listener: ((target?: string) => void) | null = null;
 
-export function onNavigationStart(fn: (() => void) | null) {
+export function onNavigationStart(fn: ((target?: string) => void) | null) {
   listener = fn;
 }
 
-export function emitNavigationStart() {
-  listener?.();
+/** `target` (path + search + hash) lets the stuck-navigation diagnostics watch it. */
+export function emitNavigationStart(target?: string) {
+  listener?.(target);
 }

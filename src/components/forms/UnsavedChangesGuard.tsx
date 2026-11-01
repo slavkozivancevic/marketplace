@@ -78,7 +78,7 @@ export function UnsavedChangesGuard() {
       }
 
       const target = url.pathname + url.search + url.hash;
-      if (!guard(() => router.push(target))) {
+      if (!guard(() => router.push(target), target)) {
         e.preventDefault();
       }
     };
