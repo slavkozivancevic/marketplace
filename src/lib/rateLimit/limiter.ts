@@ -96,6 +96,9 @@ export const RATE_LIMITS = {
   // instance holds 100 in all. A visitor needs one (a second click in the same
   // browser reuses it); a handful an hour covers a few people behind one NAT.
   demoBuyer: { limit: 5, windowMs: 60 * 60_000 },
+  // Per IP: browser reports of a navigation that never finished. One per stuck
+  // navigation at most; a handful a minute is plenty, more is a script.
+  diagnostics: { limit: 6, windowMs: 60_000 },
 } as const;
 
 export type RateLimitPolicy = keyof typeof RATE_LIMITS;

@@ -15,6 +15,8 @@ interface UnsavedGuardStore {
   dirtyForms: Set<string>;
   /** Pending navigation, queued while the confirm dialog is open. */
   pending: (() => void) | null;
+  /** Where the pending navigation goes, when it is a page in this app. */
+  pendingTarget: string | null;
   markDirty: (id: string, dirty: boolean) => void;
   hasUnsaved: () => boolean;
   /**
@@ -22,7 +24,7 @@ interface UnsavedGuardStore {
    * no unsaved changes - the caller should navigate. When there ARE unsaved
    * changes it stores `proceed` and returns false; the dialog then resolves it.
    */
-  guard: (proceed: () => void) => boolean;
+  guard: (proceed: () => void, target?: string) => boolean;
   /** User chose to leave: drop dirty state and run the pending navigation. */
   confirmLeave: () => void;
   /** User chose to stay: discard the pending navigation. */
@@ -32,6 +34,7 @@ interface UnsavedGuardStore {
 export const useUnsavedGuardStore = create<UnsavedGuardStore>((set, get) => ({
   dirtyForms: new Set(),
   pending: null,
+  pendingTarget: null,
   markDirty: (id, dirty) =>
     set((state) => {
       const next = new Set(state.dirtyForms);
@@ -40,20 +43,20 @@ export const useUnsavedGuardStore = create<UnsavedGuardStore>((set, get) => ({
       return { dirtyForms: next };
     }),
   hasUnsaved: () => get().dirtyForms.size > 0,
-  guard: (proceed) => {
+  guard: (proceed, target) => {
     if (get().dirtyForms.size === 0) return true;
-    set({ pending: proceed });
+    set({ pending: proceed, pendingTarget: target ?? null });
     return false;
   },
   confirmLeave: () => {
-    const { pending } = get();
+    const { pending, pendingTarget } = get();
     // Clear dirty state first so the queued navigation isn't re-blocked.
-    set({ dirtyForms: new Set(), pending: null });
+    set({ dirtyForms: new Set(), pending: null, pendingTarget: null });
     // The original click was suppressed while the dialog was up, so
     // NavigationProgress never started - kick it off now that the
     // navigation is actually about to run.
-    emitNavigationStart();
+    emitNavigationStart(pendingTarget ?? undefined);
     pending?.();
   },
-  stay: () => set({ pending: null }),
+  stay: () => set({ pending: null, pendingTarget: null }),
 }));

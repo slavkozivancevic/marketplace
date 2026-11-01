@@ -4,6 +4,11 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useUnsavedGuardStore } from "@/lib/forms/unsavedGuard";
 import { onNavigationStart } from "@/lib/navigation/navigationProgressSignal";
+import {
+  clearNavigationWatch,
+  startNavDiagnostics,
+  watchNavigation,
+} from "@/lib/navigation/navDiagnostics";
 
 /**
  * Global top progress bar - the universal "something is happening" affordance
@@ -34,6 +39,11 @@ import { onNavigationStart } from "@/lib/navigation/navigationProgressSignal";
  *   - SAFETY: if a start never resolves (full reload, aborted nav), a timeout
  *     retracts the bar so it can never get stuck.
  *
+ * DIAGNOSTICS: every navigation it starts, and any moment the address bar
+ * runs ahead of the router (Back/Forward), is watched by `navDiagnostics`,
+ * which reports one that is still not on screen after 10s. Observation only -
+ * see that module.
+ *
  * Only pathname-changing navigations are tracked, which keeps start/finish
  * symmetric and ignores query-only updates (filters/sort via nuqs), so the bar
  * never trickles forever on a same-page state change.
@@ -56,6 +66,8 @@ export function NavigationProgress() {
   const runningRef = useRef(false);
   const timersRef = useRef<number[]>([]);
   const trickleRef = useRef<number | null>(null);
+  // The router's pathname, for the diagnostics' "is it on screen" checks.
+  const pathnameRef = useRef(pathname);
   // Where the last pointer press landed, to tell a click from a drag.
   const pressRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -82,7 +94,11 @@ export function NavigationProgress() {
     );
   };
 
-  const start = () => {
+  const start = (target?: string) => {
+    if (target) {
+      const there = new URL(target, window.location.href).pathname;
+      watchNavigation(target, "progress", () => pathnameRef.current === there);
+    }
     if (runningRef.current) return;
     runningRef.current = true;
     clearTimers();
@@ -150,7 +166,7 @@ export function NavigationProgress() {
       // leaving" case.
       if (useUnsavedGuardStore.getState().hasUnsaved()) return;
 
-      start();
+      start(url.pathname + url.search + url.hash);
     };
 
     document.addEventListener("pointerdown", onPointerDown, { capture: true });
@@ -174,9 +190,31 @@ export function NavigationProgress() {
   // A pathname change means the navigation resolved. Skips the initial mount
   // because no navigation is running then (finish() no-ops when idle).
   useEffect(() => {
+    pathnameRef.current = pathname;
+    clearNavigationWatch();
     finish();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
+
+  // Diagnostics: record Next's requests from the first frame, and watch the
+  // address bar running ahead of the router - Back/Forward moves the URL at
+  // once, and the router follows. Checked every 2s; a gap that is still open
+  // 10s after it was first seen is reported.
+  useEffect(() => {
+    startNavDiagnostics();
+    let watching: string | null = null;
+    const id = window.setInterval(() => {
+      const here = window.location.pathname;
+      if (here === pathnameRef.current) {
+        watching = null;
+        return;
+      }
+      if (watching === here) return;
+      watching = here;
+      watchNavigation(here + window.location.search, "url-ahead-of-router", () => pathnameRef.current === here);
+    }, 2000);
+    return () => window.clearInterval(id);
+  }, []);
 
   if (state === "idle") return null;
 
