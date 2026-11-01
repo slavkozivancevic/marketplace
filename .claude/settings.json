@@ -75,7 +75,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/guard-forbidden-commands.mjs",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-forbidden-commands.mjs\"",
             "timeout": 10,
             "statusMessage": "Checking command guardrails"
           }
@@ -88,13 +88,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/enforce-crlf.mjs",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce-crlf.mjs\"",
             "timeout": 10,
             "statusMessage": "Normalising line endings"
           },
           {
             "type": "command",
-            "command": "node .claude/hooks/locale-drift-check.mjs",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/locale-drift-check.mjs\"",
             "timeout": 20,
             "statusMessage": "Checking locale keys"
           }
@@ -106,7 +106,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/session-context.mjs",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-context.mjs\"",
             "timeout": 10
           }
         ]

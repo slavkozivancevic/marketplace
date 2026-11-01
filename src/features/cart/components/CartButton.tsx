@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { IconButton } from "@/components/IconButton";
 import { usePathname } from "@/i18n/navigation";
 import { useCartStore } from "../store/cartStore";
+import { useDemoReadOnly } from "@/features/demo/useDemoReadOnly";
 
 export function CartButton() {
   const t = useTranslations("cart");
@@ -24,6 +25,9 @@ export function CartButton() {
   // A `<span>`, not a button, so there is no tab stop and no click either.
   // Checkout keeps the live button - the drawer is a real shortcut there.
   const onPage = usePathname() === "/cart";
+  // The demo seller and admin have no cart; a count left in this browser by
+  // an earlier buyer would promise one. The drawer explains.
+  const demoReadOnly = useDemoReadOnly();
 
   return (
     <div className="relative">
@@ -38,7 +42,7 @@ export function CartButton() {
           <ShoppingCart className="h-4 w-4" />
         </IconButton>
       )}
-      {count > 0 && (
+      {count > 0 && !demoReadOnly && (
         <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground pointer-events-none">
           {count > 99 ? "99+" : count}
         </span>

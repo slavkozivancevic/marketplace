@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Heart } from "lucide-react";
 import { Footer } from "@/components/layout/footer";
 import { ProductCard } from "@/features/products/components/ProductCard";
+import { DemoBuyerOnlyPanel } from "@/features/demo/components/DemoBuyerOnlyNotice";
+import { isDemoReadOnlyEmail } from "@/features/demo/demoAccounts";
 
 export default async function WishlistPage() {
   // Opt into runtime rendering before next-intl reads the current time for
@@ -25,10 +27,13 @@ export default async function WishlistPage() {
 
   const user = await prisma.user.findUnique({
     where: { clerkUserId },
-    select: { id: true },
+    select: { id: true, email: true },
   });
 
   if (!user) redirect(`/${locale}/sign-in`);
+  // The demo seller and admin keep no wishlist: whatever hearts their shared
+  // account holds were set by someone else.
+  const demoReadOnly = isDemoReadOnlyEmail(user.email);
 
   const tCrumbs = await getTranslations("breadcrumbs");
   const breadcrumbItems = [
@@ -39,7 +44,7 @@ export default async function WishlistPage() {
     },
   ];
 
-  const products = await getWishlistProducts(user.id);
+  const products = demoReadOnly ? [] : await getWishlistProducts(user.id);
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
@@ -67,7 +72,9 @@ export default async function WishlistPage() {
 
       <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
         <div className="flex-1 px-6 pb-6">
-          {products.length === 0 ? (
+          {demoReadOnly ? (
+            <DemoBuyerOnlyPanel className="py-24" />
+          ) : products.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
               <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted">
                 <Heart className="h-10 w-10 text-muted-foreground" />

@@ -20,6 +20,8 @@ import { CartSummary } from "./CartSummary";
 import { FreeShippingProgress } from "./FreeShippingProgress";
 import { SellerLeadTimes } from "./SellerLeadTimes";
 import { useMoney } from "@/lib/useMoney";
+import { DemoBuyerOnlyGate } from "@/features/demo/components/DemoBuyerOnlyNotice";
+import { useDemoReadOnly } from "@/features/demo/useDemoReadOnly";
 
 export function CartDrawer() {
   const t = useTranslations("cart");
@@ -37,7 +39,10 @@ export function CartDrawer() {
   // Live prices and per-seller delivery, refreshed whenever the drawer is open
   // and the cart changes. Gated on `isOpen` so a closed drawer is not resolving
   // the cart behind every page in the app.
-  const shipping = useCartShipping(isOpen);
+  // The demo seller and admin get the drawer with a notice in it, so there is
+  // no cart of theirs to resolve - and none to count in the title.
+  const demoReadOnly = useDemoReadOnly();
+  const shipping = useCartShipping(isOpen && !demoReadOnly);
 
   useEffect(() => {
     if (pathname === "/checkout" || pathname === "/cart") {
@@ -88,7 +93,7 @@ export function CartDrawer() {
       >
         <SheetHeader className="shrink-0 border-b px-4 py-3 flex-row items-center gap-2">
           <SheetTitle className="text-sm font-semibold">
-            {t("title", { count: totalItems })}
+            {t("title", { count: demoReadOnly ? 0 : totalItems })}
           </SheetTitle>
           <SheetClose asChild className="ml-auto">
             {/* Close X of a drawer header: an agreed exception to IconButton
@@ -100,80 +105,82 @@ export function CartDrawer() {
             </Button>
           </SheetClose>
         </SheetHeader>
-        <div className="flex flex-col flex-1 overflow-hidden p-6 gap-0">
-          {items.length === 0 ? (
-            // Same empty state the /cart page renders, down to the way out: a
-            // drawer that only says "empty" is a dead end.
-            //
-            // It closes itself on click rather than leaning on the pathname
-            // effect above, which only fires for /checkout and /cart - and
-            // would not fire at all for someone already standing on the
-            // product list, where the href changes nothing.
-            <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-              <ShoppingCart className="h-12 w-12 text-muted-foreground opacity-30" />
-              <div className="space-y-1">
-                <p className="font-medium">{t("empty")}</p>
-                <p className="text-sm text-muted-foreground">{t("emptyHint")}</p>
-              </div>
-              <Button asChild>
-                <Link href="/products" onClick={closeCart}>
-                  {t("continueShopping")}
-                </Link>
-              </Button>
-            </div>
-          ) : (
-            <>
-              <div className="flex-1 overflow-y-auto -mx-6 px-6">
-                <SellerLeadTimes lines={shipping.lines} className="mb-4" />
-                {items.map((item, index) => (
-                  <div key={`${item.productId}-${item.variantId}`}>
-                    {index > 0 && <Separator className="my-4" />}
-                    <CartLineRow
-                      item={item}
-                      editable
-                      onQuantityChange={(q) =>
-                        updateQuantity(item.productId, item.variantId, q)
-                      }
-                      onRemove={() => removeItem(item.productId, item.variantId)}
-                    />
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-4 pt-4 border-t mt-4 select-none">
-                <FreeShippingProgress lines={shipping.lines} />
-                {/* No coupon here: the code is entered at checkout, and a
-                    discount shown in the drawer that checkout had yet to accept
-                    would be a number the buyer has not earned. */}
-                <CartSummary
-                  subtotal={subtotal}
-                  shippingTotal={shipping.total}
-                  shippingLines={shipping.lines}
-                />
-                <div className="space-y-2">
-                  <Button
-                    className="w-full"
-                    size="lg"
-                    onClick={handleCheckout}
-                    disabled={checkingOut}
-                  >
-                    {checkingOut ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {t("checkout")}
-                      </>
-                    ) : (
-                      t("checkout")
-                    )}
-                  </Button>
-                  <Button asChild variant="outline" className="w-full" size="lg">
-                    <Link href="/cart">{t("viewCart")}</Link>
-                  </Button>
+        <DemoBuyerOnlyGate>
+          <div className="flex flex-col flex-1 overflow-hidden p-6 gap-0">
+            {items.length === 0 ? (
+              // Same empty state the /cart page renders, down to the way out: a
+              // drawer that only says "empty" is a dead end.
+              //
+              // It closes itself on click rather than leaning on the pathname
+              // effect above, which only fires for /checkout and /cart - and
+              // would not fire at all for someone already standing on the
+              // product list, where the href changes nothing.
+              <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+                <ShoppingCart className="h-12 w-12 text-muted-foreground opacity-30" />
+                <div className="space-y-1">
+                  <p className="font-medium">{t("empty")}</p>
+                  <p className="text-sm text-muted-foreground">{t("emptyHint")}</p>
                 </div>
+                <Button asChild>
+                  <Link href="/products" onClick={closeCart}>
+                    {t("continueShopping")}
+                  </Link>
+                </Button>
               </div>
-            </>
-          )}
-        </div>
+            ) : (
+              <>
+                <div className="flex-1 overflow-y-auto -mx-6 px-6">
+                  <SellerLeadTimes lines={shipping.lines} className="mb-4" />
+                  {items.map((item, index) => (
+                    <div key={`${item.productId}-${item.variantId}`}>
+                      {index > 0 && <Separator className="my-4" />}
+                      <CartLineRow
+                        item={item}
+                        editable
+                        onQuantityChange={(q) =>
+                          updateQuantity(item.productId, item.variantId, q)
+                        }
+                        onRemove={() => removeItem(item.productId, item.variantId)}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-4 pt-4 border-t mt-4 select-none">
+                  <FreeShippingProgress lines={shipping.lines} />
+                  {/* No coupon here: the code is entered at checkout, and a
+                      discount shown in the drawer that checkout had yet to accept
+                      would be a number the buyer has not earned. */}
+                  <CartSummary
+                    subtotal={subtotal}
+                    shippingTotal={shipping.total}
+                    shippingLines={shipping.lines}
+                  />
+                  <div className="space-y-2">
+                    <Button
+                      className="w-full"
+                      size="lg"
+                      onClick={handleCheckout}
+                      disabled={checkingOut}
+                    >
+                      {checkingOut ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {t("checkout")}
+                        </>
+                      ) : (
+                        t("checkout")
+                      )}
+                    </Button>
+                    <Button asChild variant="outline" className="w-full" size="lg">
+                      <Link href="/cart">{t("viewCart")}</Link>
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </DemoBuyerOnlyGate>
       </SheetContent>
     </Sheet>
   );

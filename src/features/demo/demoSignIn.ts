@@ -31,3 +31,17 @@ export function demoTicketUrl(appUrl: string, role: DemoRole, locale: Locale, ti
   url.searchParams.set("redirect_url", new URL(demoLandingPath(role, locale), appUrl).toString());
   return url;
 }
+
+/** The query parameter that tells the sign-in page a demo sign-in was refused for now. */
+export const DEMO_BUSY_PARAM = "demo_busy";
+
+/**
+ * Where a rate-limited demo click lands: the sign-in page, which says how long
+ * to wait, rather than the bare 429 body a route handler would otherwise show
+ * a person who just clicked a link.
+ */
+export function demoBusyUrl(appUrl: string, locale: Locale, retryAfterSec: number): URL {
+  const url = new URL(`/${locale}/sign-in`, appUrl);
+  url.searchParams.set(DEMO_BUSY_PARAM, String(Math.max(1, Math.ceil(retryAfterSec))));
+  return url;
+}

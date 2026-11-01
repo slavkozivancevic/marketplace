@@ -15,7 +15,7 @@ import {
   pickDemoBuyersToRetire,
 } from "./demoBuyerPolicy";
 import { demoSafe, maskEmail, maskEmails } from "./maskEmail";
-import { demoLandingPath, demoTicketUrl } from "./demoSignIn";
+import { DEMO_BUSY_PARAM, demoBusyUrl, demoLandingPath, demoTicketUrl } from "./demoSignIn";
 import { repairDemoAccount, type DemoRepairClerk } from "./repairDemoAccount";
 
 describe("demo accounts", () => {
@@ -82,6 +82,13 @@ describe("maskEmail", () => {
 });
 
 describe("demo sign-in URLs", () => {
+  it("sends a rate-limited click back to sign-in with whole seconds to wait", () => {
+    const url = demoBusyUrl("https://marketverseapp.com", "sr", 61.2);
+    expect(url.pathname).toBe("/sr/sign-in");
+    expect(url.searchParams.get(DEMO_BUSY_PARAM)).toBe("62");
+    expect(demoBusyUrl("https://marketverseapp.com", "en", 0).searchParams.get(DEMO_BUSY_PARAM)).toBe("1");
+  });
+
   it("lands each role on its own localized home", () => {
     expect(demoLandingPath("buyer", "sr")).toBe("/sr/proizvodi");
     expect(demoLandingPath("seller", "en")).toBe("/en/dashboard");

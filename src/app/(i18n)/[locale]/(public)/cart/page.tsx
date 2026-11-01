@@ -3,6 +3,7 @@ import { getPathname } from "@/i18n/navigation";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { CartPage } from "@/features/cart/components/CartPage";
 import { TrustStrip } from "@/features/trustPoints/components/TrustStrip";
+import { DemoBuyerOnlyGate } from "@/features/demo/components/DemoBuyerOnlyNotice";
 
 export async function generateMetadata() {
   const t = await getTranslations("cart");
@@ -29,7 +30,10 @@ export default async function CartRoute() {
         <Breadcrumbs items={breadcrumbItems} seo={false} />
       </div>
       <div className="flex-1 overflow-y-auto min-h-0">
-        <CartPage />
+        {/* The demo seller and admin have no cart - see demoAccounts.ts. */}
+        <DemoBuyerOnlyGate className="py-16">
+          <CartPage />
+        </DemoBuyerOnlyGate>
         {/* Reassurance where it is actually needed - the step before paying.
             Server-rendered under the client cart, so it costs the cart nothing
             and disappears entirely when no point is active. */}

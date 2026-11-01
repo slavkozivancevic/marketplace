@@ -167,6 +167,7 @@
     "metaDescription": "Shop independent sellers in one cart. Prices in USD, EUR or RSD, four languages, Stripe checkout and cash on delivery."
   },
   "products": {
+    "mediaCounter": "{current} of {total}",
     "title": "Products",
     "browse": "Browse our available products.",
     "metaDescription": "Browse our full catalog of products from sellers worldwide. Multi-currency pricing, fast shipping, and a curated selection across every department.",
@@ -2402,16 +2403,19 @@
   },
   "demo": {
     "title": "Try the live demo",
-    "intro": "One click, no password. The seller and the admin can open everything but save nothing.",
+    "intro": "One click, no password. Only the buyer shops, keeps a wishlist and messages sellers. The seller and the admin show their side of the platform and can only look.",
     "linkExpired": "This demo link has expired. Pick an account below to try again.",
+    "busy": "Too many demo sign-ins from your network just now. Please try again in {minutes, plural, one {# minute} other {# minutes}}.",
     "buyer": "Buyer",
     "seller": "Seller",
     "admin": "Admin",
-    "buyerHint": "Shop and pay with test card 4242 4242 4242 4242",
-    "sellerHint": "Products, price rules and orders - view only",
-    "adminHint": "The whole platform - view only",
+    "buyerHint": "Cart, checkout with test card 4242\u00a04242\u00a04242\u00a04242, orders, wishlist, chat with sellers",
+    "sellerHint": "Products, price rules, orders, payouts - view only, no shopping or chat",
+    "adminHint": "The whole platform: catalog, users, orders, audit log - view only, no shopping or chat",
     "badge": "Demo",
     "badgeBuyer": "Demo buyer - pay with test card 4242 4242 4242 4242",
-    "badgeReadOnly": "Demo account - view only, changes are not saved"
+    "badgeReadOnly": "Demo account - view only. Shopping and chat are for the demo buyer.",
+    "buyerOnly": "Shopping, the wishlist and messages are for the demo buyer. This demo account can only look.",
+    "signInAsBuyer": "Sign in as buyer"
   }
 }

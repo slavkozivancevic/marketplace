@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import axios from "axios";
 import { useChatStore } from "../store/chatStore";
+import { useDemoReadOnly } from "@/features/demo/useDemoReadOnly";
 
 interface Props {
   productId: string;
@@ -25,6 +26,8 @@ export function MessageSellerButton({ productId, className, isOwnProduct = false
   const t = useTranslations("chat");
   const openConversation = useChatStore((s) => s.openConversation);
   const [loading, setLoading] = useState(false);
+  // Chat is the demo buyer's; the caller explains it beside the button.
+  const demoReadOnly = useDemoReadOnly();
 
   // Don't render for guests - they see a sign-in redirect on click
   // (or you can hide entirely: if (!isSignedIn) return null)
@@ -78,7 +81,7 @@ export function MessageSellerButton({ productId, className, isOwnProduct = false
       variant="outline"
       className={className}
       onClick={() => void handleClick()}
-      disabled={loading}
+      disabled={loading || demoReadOnly}
     >
       {loading ? (
         <Loader2 className="size-4 animate-spin" />

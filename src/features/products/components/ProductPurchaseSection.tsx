@@ -9,6 +9,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AddToCart } from "@/features/cart/components/AddToCart";
 import { WishlistButton } from "@/features/wishlist/components/WishlistButton";
 import { MessageSellerButton } from "@/features/chat/components/MessageSellerButton";
+import { DemoBuyerOnlyNotice } from "@/features/demo/components/DemoBuyerOnlyNotice";
+import { useDemoReadOnly } from "@/features/demo/useDemoReadOnly";
 import { cn } from "@/lib/utils";
 import { SerializedPublicProduct } from "@/types/types";
 import type { ViewerPricedProduct } from "@/features/priceMarkets/utils/viewerPrices";
@@ -46,6 +48,7 @@ export function ProductPurchaseSection({
 }: ProductPurchaseSectionProps) {
   const t = useTranslations("products");
   const locale = useLocale();
+  const demoReadOnly = useDemoReadOnly();
   // Every amount below is the one stored for the active currency, resolved
   // once here. Nothing on this path touches an exchange rate.
   const { amount: moneyAmount, currency } = useMoney();
@@ -177,6 +180,9 @@ export function ProductPurchaseSection({
             className="w-full"
             isOwnProduct={isOwnProduct}
           />
+          {/* Both buttons above lock themselves for the demo seller and
+              admin; one notice under them says why and offers the buyer. */}
+          {demoReadOnly && <DemoBuyerOnlyNotice />}
         </CardContent>
       </Card>
 

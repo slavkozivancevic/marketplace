@@ -102,15 +102,35 @@ type Watch = { target: string; startedAt: number; reason: string; timer: number 
 let watch: Watch | null = null;
 const reported = new Set<string>();
 
-function buildId(): string | null {
-  const flight = (window as unknown as { __next_f?: unknown[][] }).__next_f;
-  if (!Array.isArray(flight)) return null;
-  for (const chunk of flight) {
-    const text = typeof chunk?.[1] === "string" ? chunk[1] : "";
+/**
+ * The build that rendered this document, from the `"b"` field of its first
+ * RSC row. Next drains `self.__next_f` while hydrating, so by the time a
+ * navigation is reported stuck the array is empty - which is why this used to
+ * come back null on every report. The inline `<script>` tags that pushed the
+ * rows stay in the DOM, so they are read too; there the row is a JS string
+ * literal, with its quotes escaped (`\"b\":\"<id>\"`).
+ */
+export function buildIdFrom(flightRows: string[], inlineScripts: string[]): string | null {
+  for (const text of flightRows) {
     const m = text.match(/"b":"([^"]+)"/);
     if (m) return m[1];
   }
+  for (const text of inlineScripts) {
+    const m = text.match(/\\"b\\":\\"([^"\\]+)\\"/);
+    if (m) return m[1];
+  }
   return null;
+}
+
+function buildId(): string | null {
+  const flight = (window as unknown as { __next_f?: unknown[][] }).__next_f;
+  const rows = Array.isArray(flight)
+    ? flight.map((chunk) => (typeof chunk?.[1] === "string" ? chunk[1] : ""))
+    : [];
+  const inline = [...document.scripts]
+    .filter((s) => !s.src && s.textContent?.includes("__next_f"))
+    .map((s) => s.textContent ?? "");
+  return buildIdFrom(rows, inline);
 }
 
 function report(w: Watch) {

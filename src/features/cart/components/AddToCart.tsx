@@ -24,6 +24,7 @@ import {
 import { buildCartVariantOptions, buildLocalizedText } from "@/features/cart/utils/variantOptions";
 import { getProductTitle } from "@/features/products/utils/translations";
 import { recordInteractionClient } from "@/features/interactions/recordClient";
+import { useDemoReadOnly } from "@/features/demo/useDemoReadOnly";
 
 interface AddToCartProps {
   product: SerializedPublicProduct;
@@ -43,6 +44,9 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
   // Stored per-currency amounts; nothing here converts.
   const { amount: moneyAmount, currency } = useMoney();
   const hasOptions = product.options.length > 0;
+  // The demo seller and admin may pick a variant and see its price, but the
+  // cart is the buyer's; the caller shows why next to the disabled button.
+  const demoReadOnly = useDemoReadOnly();
 
   const localizedOption = (option: typeof product.options[number]) => ({
     name: getOptionName(option, locale),
@@ -571,7 +575,7 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
 
       {!hideButton && (
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          {!isOutOfStock && allOptionsSelected && (
+          {!isOutOfStock && allOptionsSelected && !demoReadOnly && (
             <QuantityStepper
               value={qty}
               onChange={setQuantity}
@@ -583,7 +587,7 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
             className="w-full sm:flex-1 sm:w-auto min-w-0 relative"
             size="lg"
             onClick={handleAdd}
-            disabled={isOutOfStock}
+            disabled={isOutOfStock || demoReadOnly}
           >
             <ShoppingCart className="mr-2 h-4 w-4" />
             {!allOptionsSelected

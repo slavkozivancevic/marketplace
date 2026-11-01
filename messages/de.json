@@ -167,6 +167,7 @@
     "metaDescription": "Kaufen Sie bei unabhängigen Verkäufern in einem Warenkorb. Preise in USD, EUR oder RSD, vier Sprachen, Stripe-Zahlung und Nachnahme."
   },
   "products": {
+    "mediaCounter": "{current} von {total}",
     "title": "Produkte",
     "browse": "Durchsuchen Sie unsere verfügbaren Produkte.",
     "metaDescription": "Durchsuchen Sie unseren vollständigen Katalog mit Produkten von Händlern weltweit. Multiwährungspreise, schneller Versand und ein kuratiertes Sortiment in jeder Abteilung.",
@@ -2402,16 +2403,19 @@
   },
   "demo": {
     "title": "Live-Demo ausprobieren",
-    "intro": "Ein Klick, kein Passwort. Verkäufer und Admin können alles öffnen, aber nichts speichern.",
+    "intro": "Ein Klick, kein Passwort. Nur der Käufer kauft ein, führt eine Wunschliste und schreibt Verkäufern. Verkäufer und Admin zeigen ihre Seite der Plattform und können nur ansehen.",
     "linkExpired": "Dieser Demo-Link ist abgelaufen. Wählen Sie unten ein Konto, um es erneut zu versuchen.",
+    "busy": "Gerade zu viele Demo-Anmeldungen aus Ihrem Netzwerk. Bitte versuchen Sie es in {minutes, plural, one {# Minute} other {# Minuten}} erneut.",
     "buyer": "Käufer",
     "seller": "Verkäufer",
     "admin": "Admin",
-    "buyerHint": "Einkaufen und mit der Testkarte 4242 4242 4242 4242 bezahlen",
-    "sellerHint": "Produkte, Preisregeln und Bestellungen - nur Ansicht",
-    "adminHint": "Die gesamte Plattform - nur Ansicht",
+    "buyerHint": "Warenkorb, Bezahlung mit der Testkarte 4242\u00a04242\u00a04242\u00a04242, Bestellungen, Wunschliste, Chat mit Verkäufern",
+    "sellerHint": "Produkte, Preisregeln, Bestellungen, Auszahlungen - nur Ansicht, kein Einkauf und kein Chat",
+    "adminHint": "Die gesamte Plattform: Katalog, Benutzer, Bestellungen, Audit-Protokoll - nur Ansicht, kein Einkauf und kein Chat",
     "badge": "Demo",
     "badgeBuyer": "Demo-Käufer - mit der Testkarte 4242 4242 4242 4242 bezahlen",
-    "badgeReadOnly": "Demokonto - nur Ansicht, Änderungen werden nicht gespeichert"
+    "badgeReadOnly": "Demokonto - nur Ansicht. Einkauf und Chat gibt es beim Demo-Käufer.",
+    "buyerOnly": "Einkauf, Wunschliste und Nachrichten gibt es beim Demo-Käufer. Dieses Demokonto kann nur ansehen.",
+    "signInAsBuyer": "Als Käufer anmelden"
   }
 }

@@ -7,6 +7,7 @@ import { useLocale } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import { useIsWishlisted, useWishlistToggle } from "../hooks/useWishlist";
+import { useDemoReadOnly } from "@/features/demo/useDemoReadOnly";
 
 interface WishlistButtonProps {
   productId: string;
@@ -41,6 +42,7 @@ export function WishlistButton({
     setMounted(true);
   }, []);
   const isWishlisted = mounted && wishlisted;
+  const demoReadOnly = useDemoReadOnly();
 
   function handleClick(e: React.MouseEvent) {
     e.preventDefault();
@@ -62,6 +64,11 @@ export function WishlistButton({
       },
     });
   }
+
+  // The demo seller and admin share one account, so a heart they set would be
+  // waiting for the next visitor. Hidden rather than disabled: a product card
+  // has no room to say why, and the product page says it under its buttons.
+  if (demoReadOnly) return null;
 
   return (
     <button

@@ -19,6 +19,8 @@ import { InboxPanel } from "./InboxPanel";
 import { MessageThread } from "./MessageThread";
 import { BackToInboxButton, ThreadHeader } from "./ThreadHeader";
 import { IconButton } from "@/components/IconButton";
+import { DemoBuyerOnlyPanel } from "@/features/demo/components/DemoBuyerOnlyNotice";
+import { useDemoReadOnly } from "@/features/demo/useDemoReadOnly";
 
 /**
  * Trigger button rendered in the header - visible only when signed in.
@@ -119,11 +121,13 @@ function ChatDrawerTriggerInner() {
   const closeInbox = useChatStore((s) => s.close);
   const unreadCount = useChatStore((s) => s.unreadCount);
   const onPage = useOnMessagesPage();
+  // A count from an account that used this browser before; this one has no chat.
+  const demoReadOnly = useDemoReadOnly();
 
   const content = (
     <>
       <MessageCircle className="size-4" />
-      {unreadCount > 0 && (
+      {unreadCount > 0 && !demoReadOnly && (
         <span className="absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground pointer-events-none leading-none">
           {unreadCount > 9 ? "9+" : unreadCount}
         </span>
@@ -148,9 +152,12 @@ export function ChatDrawerRoot() {
   const runtime = useChatRuntime();
   const isOpen = useChatStore((s) => s.isOpen);
   const close = useChatStore((s) => s.close);
+  // The demo seller and admin get no runtime (see ChatRuntimeGate) but still
+  // a drawer, which says why there is no chat instead of not opening at all.
+  const demoReadOnly = useDemoReadOnly();
   // No runtime means signed out (or not mounted yet) - same gate the old
   // `mounted` + `<SignedIn>` pair held, now owned by the provider.
-  if (!runtime) return null;
+  if (!runtime && !demoReadOnly) return null;
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => { if (!open) close(); }} modal={false}>
@@ -163,9 +170,30 @@ export function ChatDrawerRoot() {
           if ((e.target as HTMLElement).closest("[data-chat-trigger]")) e.preventDefault();
         }}
       >
-        <ChatDrawerInner runtime={runtime} />
+        {runtime ? <ChatDrawerInner runtime={runtime} /> : <ChatDrawerLocked />}
       </SheetContent>
     </Sheet>
+  );
+}
+
+/** The drawer of an account with no chat: its frame, and the reason. */
+function ChatDrawerLocked() {
+  const t = useTranslations("chat");
+  const close = useChatStore((s) => s.close);
+  return (
+    <>
+      <SheetHeader className="shrink-0 border-b px-4 py-3 flex-row items-center gap-2">
+        <SheetTitle className="text-sm font-semibold truncate">{t("messages")}</SheetTitle>
+        {/* Close X of a drawer header: an agreed exception to IconButton
+            (CLAUDE.md, "Icon-only buttons") - the symbol is the label. */}
+        {/* eslint-disable-next-line no-restricted-syntax */}
+        <Button variant="ghost" size="icon-sm" className="ml-auto" onClick={close}>
+          <X className="size-4" />
+          <span className="sr-only">{t("close")}</span>
+        </Button>
+      </SheetHeader>
+      <DemoBuyerOnlyPanel />
+    </>
   );
 }
 

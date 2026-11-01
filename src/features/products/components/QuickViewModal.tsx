@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { X, ImageOff, ExternalLink, ShoppingCart, Award } from "lucide-react";
 import { RetryImage } from "@/components/RetryImage";
+import { MediaCounter } from "@/components/product/MediaCounter";
 
 import { useLocale } from "next-intl";
 import {
@@ -53,6 +54,8 @@ import {
   SellerPromises,
   type SellerPolicy,
 } from "@/features/organizations/components/SellerPromises";
+import { DemoBuyerOnlyNotice } from "@/features/demo/components/DemoBuyerOnlyNotice";
+import { useDemoReadOnly } from "@/features/demo/useDemoReadOnly";
 
 type QuickViewProduct = SerializedPublicProduct & {
   ratingBreakdown: Record<number, number>;
@@ -83,6 +86,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
   // Stored per-currency amounts, resolved once. No rate on this path.
   const { amount: moneyAmount, currency } = useMoney();
   const { addItem, openCart, items } = useCartStore();
+  const demoReadOnly = useDemoReadOnly();
 
   // Set for the one close that hands the screen over to the cart drawer, so
   // the dialog's focus restore does not pull focus back out of it. See
@@ -426,6 +430,11 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                       <CarouselNext className="right-2 h-7 w-7 active:translate-y-[calc(-50%+1px)] disabled:pointer-events-auto disabled:cursor-default" />
                     </>
                   )}
+                  <MediaCounter
+                    index={currentSlide}
+                    total={media.length}
+                    overVideo={media[currentSlide]?.mediaType === "VIDEO"}
+                  />
                 </Carousel>
               </div>
             ) : (
@@ -613,6 +622,9 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                     selectMode
                     hideButton
                   />
+                  {/* The footer button stays, disabled, for the demo seller
+                      and admin; this says why, above the fold of the body. */}
+                  {demoReadOnly && <DemoBuyerOnlyNotice className="mt-3" />}
                   {/* Key facts, not a second product page: the first few rows
                       of the same specification list the product page renders,
                       in the same order, with a link out for the rest. A modal
@@ -651,7 +663,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                 <>
                   {/* Quantity on its own row - sharing a row with the button
                       squeezes the label out of the dialog on narrow widths. */}
-                  {!isOutOfStock && isAllSelected && (
+                  {!isOutOfStock && isAllSelected && !demoReadOnly && (
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-muted-foreground">
                         {tCart("quantity")}
@@ -683,7 +695,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                   <Button
                     className="w-full min-h-8 h-auto py-1 flex-wrap gap-y-0.5 text-xs sm:text-sm relative min-w-0"
                     onClick={handleAdd}
-                    disabled={isOutOfStock || !isAllSelected}
+                    disabled={isOutOfStock || !isAllSelected || demoReadOnly}
                   >
                     <ShoppingCart className="h-3.5 w-3.5" />
                     <span className="min-w-0 whitespace-normal">

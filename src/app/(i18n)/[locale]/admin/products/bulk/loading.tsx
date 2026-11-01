@@ -94,7 +94,7 @@ export default async function BulkProductsLoadingPage() {
                 <Skeleton className="h-3.5 w-44" />
               </div>
               <div className="flex h-4 items-center">
-                <Skeleton className="h-3 w-[28rem] max-w-full" />
+                <Skeleton className="h-3 w-md max-w-full" />
               </div>
             </div>
           </div>

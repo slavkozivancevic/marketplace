@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { prisma } from "@/core/db/prisma";
+import { getChatToken, refuseDemoChat } from "@/features/chat/server/chatToken";
 import { env } from "@/env/server";
 import axios from "axios";
 
@@ -20,6 +21,8 @@ export async function POST(request: NextRequest) {
   }
 
   const ctx = await resolveRequestContext();
+  const refused = refuseDemoChat(ctx);
+  if (refused) return refused;
   const buyerId = ctx.userId;
 
   let body: { productId?: string };
@@ -92,18 +95,20 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // 3. Issue a chat token for the buyer
-    const { data: tokenData } = await axios.post<{ token: string }>(
-      `${env.CHAT_HTTP_API_URL}/auth/token`,
-      { userId: buyerId },
-      { headers: { "x-api-key": env.CHAT_INTERNAL_API_KEY } }
-    );
-
-    // 4. Create or return existing conversation
+    // 3. Create or return existing conversation. Server-to-server: this route
+    // is where the marketplace decides who may write to whom, so the messaging
+    // service accepts a new conversation only with the internal key. The
+    // Bearer token rides along for a messaging deploy that predates that rule.
+    const token = await getChatToken(ctx);
     const { data: conversation } = await axios.post<{ conversationId: string; existed: boolean }>(
       `${env.CHAT_HTTP_API_URL}/conversations`,
       { participants: [buyerId, sellerUserId] },
-      { headers: { Authorization: `Bearer ${tokenData.token}` } }
+      {
+        headers: {
+          "x-api-key": env.CHAT_INTERNAL_API_KEY,
+          Authorization: `Bearer ${token}`,
+        },
+      }
     );
 
     return NextResponse.json({

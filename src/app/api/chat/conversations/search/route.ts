@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
+import { refuseDemoChat } from "@/features/chat/server/chatToken";
 import { env } from "@/env/server";
 import axios from "axios";
 
@@ -18,6 +19,8 @@ export async function GET(request: NextRequest) {
   if (!q) return NextResponse.json({ error: "q is required" }, { status: 400 });
 
   const ctx = await resolveRequestContext();
+  const refused = refuseDemoChat(ctx);
+  if (refused) return refused;
 
   try {
     const { data } = await axios.get<{ results: SearchResult[] }>(

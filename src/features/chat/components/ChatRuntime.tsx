@@ -16,6 +16,7 @@ import { useChatSocket } from "../hooks/useChatSocket";
 import { useTypingExpiry } from "../hooks/useTypingExpiry";
 import { useConversations } from "../hooks/useConversations";
 import { unlockAudioContext } from "../utils/chatSounds";
+import { useDemoReadOnly } from "@/features/demo/useDemoReadOnly";
 
 type SendMessage = ReturnType<typeof useChatSocket>["sendMessage"];
 type SendTyping = ReturnType<typeof useChatSocket>["sendTyping"];
@@ -62,11 +63,14 @@ export function ChatRuntimeProvider({ children }: { children: React.ReactNode })
  */
 function ChatRuntimeGate({ onRuntime }: { onRuntime: (r: ChatRuntime | null) => void }) {
   const [mounted, setMounted] = useState(false);
+  // No engine for the demo seller and admin: the server refuses them a chat
+  // token, and asking anyway would only put a 403 in the console.
+  const demoReadOnly = useDemoReadOnly();
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
-  if (!mounted) return null;
+  if (!mounted || demoReadOnly) return null;
   return (
     <SignedIn>
       <ChatRuntimeEngine onRuntime={onRuntime} />

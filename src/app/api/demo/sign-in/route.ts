@@ -6,7 +6,7 @@ import { logger } from "@/lib/logger";
 import { getClientIp, rateLimitResponse } from "@/lib/rateLimit/guard";
 import { DEMO_ACCOUNTS, isDemoRole, isVisitorBuyerEmail } from "@/features/demo/demoAccounts";
 import { createDemoBuyer, retireDemoBuyers } from "@/features/demo/demoBuyers";
-import { demoLandingPath, demoTicketUrl } from "@/features/demo/demoSignIn";
+import { demoBusyUrl, demoLandingPath, demoTicketUrl } from "@/features/demo/demoSignIn";
 import { repairDemoAccount } from "@/features/demo/repairDemoAccount";
 import { prisma } from "@/core/db/prisma";
 
@@ -33,12 +33,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: true, message: "Unknown demo account" }, { status: 400 });
   }
 
-  const limited = await rateLimitResponse("demo", await getClientIp());
-  if (limited) return limited;
-
   const locale = asLocale(
     req.nextUrl.searchParams.get("locale") ?? req.cookies.get("NEXT_LOCALE")?.value,
   );
+  // A person clicked a link: a refusal goes back to the sign-in page, which
+  // says how long to wait, instead of a bare 429 body.
+  const busy = (limited: NextResponse) =>
+    NextResponse.redirect(
+      demoBusyUrl(env.APP_URL, locale, Number(limited.headers.get("Retry-After") ?? 60)),
+    );
+
+  const limited = await rateLimitResponse("demo", await getClientIp());
+  if (limited) return busy(limited);
   const clerk = await clerkClient();
   let userId: string | undefined;
 
@@ -57,7 +63,7 @@ export async function GET(req: NextRequest) {
     }
 
     const tooMany = await rateLimitResponse("demoBuyer", await getClientIp());
-    if (tooMany) return tooMany;
+    if (tooMany) return busy(tooMany);
     await retireDemoBuyers().catch((err: unknown) =>
       logger.error("[demo] retiring visitor buyers failed", err),
     );
