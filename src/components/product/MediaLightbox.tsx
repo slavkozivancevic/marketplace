@@ -282,27 +282,16 @@ export function MediaLightbox({
                     hand-copied re-implementation. */}
                 <CarouselPrevious className="left-3 size-11 active:translate-y-[calc(-50%+1px)] disabled:pointer-events-auto disabled:cursor-default [&_svg]:size-6" />
                 <CarouselNext className="right-3 size-11 active:translate-y-[calc(-50%+1px)] disabled:pointer-events-auto disabled:cursor-default [&_svg]:size-6" />
-
-                <div className="absolute bottom-3 left-0 right-0 z-10 flex justify-center gap-1.5">
-                  {media.map((item, i) => (
-                    <button
-                      key={item.id}
-                      onClick={() => api?.scrollTo(i)}
-                      className={cn(
-                        "w-2 h-2 rounded-full transition-all cursor-pointer",
-                        i === index ? "bg-white" : "bg-white/40",
-                      )}
-                    />
-                  ))}
-                </div>
               </>
             )}
-            {/* Above the dots: they show where you are, this says it. */}
+            {/* The one position marker here - it replaced the dots: "3 of 8"
+                reads at a glance where a row of dots has to be counted, and
+                two markers for one fact is one too many. */}
             <MediaCounter
               index={index}
               total={count}
               overVideo={media[index]?.mediaType === "VIDEO"}
-              className={cn("text-sm", media[index]?.mediaType === "VIDEO" ? "top-3" : "bottom-8")}
+              className={cn("text-sm", media[index]?.mediaType === "VIDEO" ? "top-3" : "bottom-3")}
             />
           </Carousel>
         </div>

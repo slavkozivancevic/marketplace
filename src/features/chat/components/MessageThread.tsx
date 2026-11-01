@@ -24,6 +24,8 @@ import {
   Play,
   Video,
   Smile,
+  Ban,
+  Pencil,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
@@ -42,6 +44,9 @@ import { useOutboxStore } from "../store/outboxStore";
 import type { OutboxFailure, OutboxStatus } from "../utils/outbox";
 import { IconButton } from "@/components/IconButton";
 import { MessageThreadSkeleton } from "./MessagesPageSkeleton";
+import { SelectableMessage } from "./SelectableMessage";
+import { useChatRuntime } from "./ChatRuntime";
+import { useSelectionStore } from "../store/selectionStore";
 
 /**
  * A message in the thread, whether or not the server has confirmed it.
@@ -985,12 +990,56 @@ export function MessageThread({
   const [pickerOpenFor, setPickerOpenFor] = useState<string | null>(null);
   const { reactions, toggle: toggleReaction } = useReactions(conversationId);
 
+  // Picking a message and editing one (as on WhatsApp) - see MessageActionBar.
+  const runtime = useChatRuntime();
+  const hasSelection = useSelectionStore((s) => s.selected !== null);
+  const selectMessage = useSelectionStore((s) => s.selectMessage);
+  const clearSelection = useSelectionStore((s) => s.clear);
+  const editing = useSelectionStore((s) =>
+    s.editing && s.editing.conversationId === conversationId ? s.editing : null,
+  );
+  const setEditText = useSelectionStore((s) => s.setEditText);
+  const stopEdit = useSelectionStore((s) => s.stopEdit);
+  const editingMessage = editing ? messages.find((m) => m.messageId === editing.messageId) : undefined;
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+
+  // A selection or an edit belongs to the conversation it was made in.
+  useEffect(() => {
+    return () => {
+      clearSelection();
+      stopEdit();
+    };
+  }, [conversationId, clearSelection, stopEdit]);
+
+  // Edit mode puts the cursor at the end of the text it loaded.
+  useEffect(() => {
+    if (!editing) return;
+    const box = composerRef.current;
+    if (!box) return;
+    box.focus();
+    box.setSelectionRange(box.value.length, box.value.length);
+    // Only when an edit starts, not on every keystroke of it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing?.messageId]);
+
+  /** Saves the edit; an empty or unchanged text just leaves edit mode. */
+  const saveEdit = () => {
+    if (!editing) return;
+    const next = applyEmojiShortcodes(editing.text.trim());
+    if (editingMessage && next && next !== editingMessage.text && runtime) {
+      runtime.editMessage(conversationId!, editingMessage, next);
+    }
+    stopEdit();
+  };
+
   // Close reaction picker on outside click
   useEffect(() => {
     if (!pickerOpenFor) return;
     const handler = (e: MouseEvent) => {
       const target = e.target as Element;
-      if (!target.closest("[data-reaction-picker]")) setPickerOpenFor(null);
+      // The picked row too: a held press opens the bar, and the mouse event
+      // the phone fires after it lands on that same row.
+      if (!target.closest("[data-reaction-picker], [data-picked]")) setPickerOpenFor(null);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -1034,7 +1083,7 @@ export function MessageThread({
       // this, leaving a conversation you had scrolled up in and coming back to
       // it would land you at the bottom with a badge still counting against
       // the marker you left behind.
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- the switch is the event; there is nowhere else to observe it
+      // The switch is the event; there is nowhere else to observe it.
       setDetached(null);
     }
     if (pinnedToBottom.current) jumpToBottom();
@@ -1316,9 +1365,15 @@ export function MessageThread({
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (editing && e.key === "Escape") {
+      e.preventDefault();
+      stopEdit();
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      void handleSend();
+      if (editing) saveEdit();
+      else void handleSend();
     }
   };
 
@@ -1346,6 +1401,9 @@ export function MessageThread({
         <div
           ref={scrollRef}
           onScroll={handleScroll}
+          onClick={(e) => {
+            if (hasSelection && !(e.target as Element).closest("[data-keep-selection]")) clearSelection();
+          }}
           className={cn(
             "h-full overflow-y-auto overflow-x-hidden p-4 flex flex-col gap-2 chat-message-bg",
             bottomInset && "max-lg:pb-20",
@@ -1409,7 +1467,11 @@ export function MessageThread({
                     <div className="flex-1 border-t border-border" />
                   </div>
                 )}
-                <div
+                <SelectableMessage
+                  conversationId={conversationId!}
+                  messageId={msg.messageId}
+                  disabled={isPending}
+                  onPress={() => !msg.deletedAt && setPickerOpenFor(msg.messageId)}
                   className={cn(
                     "flex gap-2 items-end group/msg",
                     isMine && "flex-row-reverse",
@@ -1439,7 +1501,17 @@ export function MessageThread({
                     {/* Message bubble + reaction trigger */}
                     <div className={cn("flex items-end gap-1.5", isMine && "flex-row-reverse")}>
                       <div className="flex flex-col">
-                        {!msg.attachments?.length && isEmojiOnly(msg.text ?? "") ? (
+                        {msg.deletedAt ? (
+                          <div
+                            className={cn(
+                              "px-3 py-2 rounded-2xl text-sm leading-snug italic flex items-center gap-1.5 border border-dashed text-muted-foreground",
+                              isMine ? "rounded-br-sm" : "rounded-bl-sm",
+                            )}
+                          >
+                            <Ban className="size-3.5 shrink-0" />
+                            {isMine ? t("youDeletedThisMessage") : t("thisMessageWasDeleted")}
+                          </div>
+                        ) : !msg.attachments?.length && isEmojiOnly(msg.text ?? "") ? (
                           <p className="text-4xl leading-none py-0.5 select-text">
                             {msg.text}
                           </p>
@@ -1465,7 +1537,7 @@ export function MessageThread({
                         )}
 
                         {/* Reaction badges */}
-                        {hasAnyReaction && (
+                        {hasAnyReaction && !msg.deletedAt && (
                           <div className={cn("flex flex-wrap gap-1 mt-1", isMine && "justify-end")}>
                             {Object.entries(msgReactions).map(([emoji, userIds]) => {
                               const iReacted = userIds.includes(currentUserId);
@@ -1491,7 +1563,7 @@ export function MessageThread({
                       </div>
 
                       {/* Reaction trigger button - visible on hover */}
-                      {!isPending && (
+                      {!isPending && !msg.deletedAt && (
                         <div className="relative mb-0.5" data-reaction-picker>
                           <button
                             type="button"
@@ -1551,6 +1623,7 @@ export function MessageThread({
                                     onClick={() => {
                                       toggleReaction(msg.messageId, emoji, msg.text ?? "", currentUserId);
                                       setPickerOpenFor(null);
+                                      clearSelection();
                                     }}
                                     className={cn(
                                       "text-base w-7 h-7 flex items-center justify-center rounded-full transition-all cursor-pointer hover:scale-125",
@@ -1564,6 +1637,22 @@ export function MessageThread({
                             </div>
                           )}
                         </div>
+                      )}
+
+                      {/* The visible way to pick a message with a mouse
+                          (WhatsApp Web); right-click works too. Absent on
+                          touch, where the held press picks it. */}
+                      {!isPending && (
+                        <IconButton
+                          label={t("messageOptions")}
+                          variant="ghost"
+                          size="icon-sm"
+                          data-keep-selection
+                          onClick={() => selectMessage(conversationId!, msg.messageId)}
+                          className="mb-0.5 size-6 opacity-0 group-hover/msg:opacity-100 focus-visible:opacity-100 pointer-coarse:hidden"
+                        >
+                          <ChevronDown className="size-3.5 text-muted-foreground" />
+                        </IconButton>
                       )}
                     </div>
 
@@ -1599,6 +1688,9 @@ export function MessageThread({
                             would have repeated the same sentence once per
                             queued message. The clock beside it already says
                             this one is unconfirmed; the header says why. */}
+                        {msg.editedAt && !msg.deletedAt && (
+                          <span className="text-[10px] text-muted-foreground italic">{t("edited")}</span>
+                        )}
                         <span className="text-[10px] text-muted-foreground">
                           {formatChatTime(new Date(msg.createdAt))}
                         </span>
@@ -1613,7 +1705,7 @@ export function MessageThread({
                       </div>
                     )}
                   </div>
-                </div>
+                </SelectableMessage>
               </div>
             );
           })}
@@ -1693,6 +1785,21 @@ export function MessageThread({
           <p className="px-3 pt-2 text-xs text-destructive">{uploadErrorHere}</p>
         )}
 
+        {editing && (
+          // Edit mode, as on WhatsApp: the message being changed above the
+          // box, and a way out. Enter saves, Escape leaves.
+          <div className="flex items-center gap-2 border-l-2 border-primary mx-3 mt-2 pl-2 pr-1 py-1 bg-muted/50 rounded-r">
+            <Pencil className="size-3.5 shrink-0 text-primary" />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-primary">{t("editingMessage")}</p>
+              <p className="text-xs text-muted-foreground truncate">{editingMessage?.text}</p>
+            </div>
+            <IconButton label={t("cancelEdit")} variant="ghost" size="icon-sm" onClick={stopEdit}>
+              <X className="size-4" />
+            </IconButton>
+          </div>
+        )}
+
         <div className="p-3 flex items-end gap-2">
           <input
             ref={fileInputRef}
@@ -1711,14 +1818,16 @@ export function MessageThread({
             size="icon"
             className="shrink-0 text-muted-foreground"
             onClick={() => fileInputRef.current?.click()}
-            disabled={pendingAttachments.length >= MAX_FILES}
+            // An edit changes text only; files cannot be swapped into a message.
+            disabled={!!editing || pendingAttachments.length >= MAX_FILES}
           >
             <Paperclip className="size-4" />
           </IconButton>
 
           <Textarea
-            value={text}
-            onChange={handleTextChange}
+            ref={composerRef}
+            value={editing ? editing.text : text}
+            onChange={editing ? (e) => setEditText(e.target.value) : handleTextChange}
             onKeyDown={handleKeyDown}
             name="message"
             placeholder={t("messagePlaceholder")}
@@ -1728,10 +1837,10 @@ export function MessageThread({
           />
 
           <IconButton
-            label={t("send")}
+            label={editing ? t("saveEdit") : t("send")}
             size="icon"
-            onClick={() => handleSend()}
-            disabled={!canSend}
+            onClick={() => (editing ? saveEdit() : handleSend())}
+            disabled={editing ? !editing.text.trim() : !canSend}
             className="shrink-0"
           >
             {hasUploading ? (

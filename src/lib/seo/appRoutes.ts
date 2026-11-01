@@ -53,9 +53,37 @@ function templateToRegex(template: string): RegExp {
   return new RegExp(`^${source || "/"}/?$`);
 }
 
-const ROUTE_PATTERNS: RegExp[] = Array.from(
-  new Set(Object.keys(PATHNAMES).flatMap((key) => localizedTemplates(key))),
-).map(templateToRegex);
+/** Every route key with the patterns of its templates in all locales. */
+const ROUTES: { key: string; patterns: RegExp[] }[] = Object.keys(PATHNAMES).map((key) => ({
+  key,
+  patterns: Array.from(new Set(localizedTemplates(key))).map(templateToRegex),
+}));
+
+const ROUTE_PATTERNS: RegExp[] = ROUTES.flatMap((route) => route.patterns);
+
+/** The locale-free part of a prefixed path, or null when it carries no locale. */
+function withoutLocale(pathname: string): string | null {
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts.length === 0 || !isLocale(parts[0])) return null;
+  return `/${parts.slice(1).join("/")}`;
+}
+
+/**
+ * The `routing.pathnames` key that serves a localized path - `/sr/korpa` ->
+ * `/cart`, `/en/products/ranac` -> `/products/[slug]` - or null for a path
+ * with no locale prefix or no route. Lets code that receives a URL (a redirect
+ * target, say) decide by route instead of by the segment spelled in one locale.
+ * When several keys match (`/admin/products/new` and `/admin/products/[id]`),
+ * the one with fewer dynamic segments wins, whatever the table order.
+ */
+export function routeKeyOf(pathname: string): string | null {
+  const rest = withoutLocale(pathname);
+  if (rest === null) return null;
+  const matches = ROUTES.filter((route) => route.patterns.some((p) => p.test(rest)));
+  if (matches.length === 0) return null;
+  const dynamicSegments = (key: string) => (key.match(/\[/g) ?? []).length;
+  return matches.sort((a, b) => dynamicSegments(a.key) - dynamicSegments(b.key))[0].key;
+}
 
 /**
  * True when the URL carries a real locale prefix but the rest of it matches no
@@ -65,10 +93,7 @@ const ROUTE_PATTERNS: RegExp[] = Array.from(
  * locale, and 404ing here would pre-empt it.
  */
 export function isUnknownLocalePath(pathname: string): boolean {
-  const parts = pathname.split("/").filter(Boolean);
-  if (parts.length === 0) return false;
-  if (!isLocale(parts[0])) return false;
-
-  const rest = `/${parts.slice(1).join("/")}`;
+  const rest = withoutLocale(pathname);
+  if (rest === null) return false;
   return !ROUTE_PATTERNS.some((pattern) => pattern.test(rest));
 }

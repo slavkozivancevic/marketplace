@@ -15,7 +15,14 @@ import {
   pickDemoBuyersToRetire,
 } from "./demoBuyerPolicy";
 import { demoSafe, maskEmail, maskEmails } from "./maskEmail";
-import { DEMO_BUSY_PARAM, demoBusyUrl, demoLandingPath, demoTicketUrl } from "./demoSignIn";
+import {
+  DEMO_BUSY_PARAM,
+  demoBusyUrl,
+  demoLandingPath,
+  demoReturnPath,
+  demoTicketUrl,
+} from "./demoSignIn";
+import { demoSignInHref } from "./demoSignInHref";
 import { repairDemoAccount, type DemoRepairClerk } from "./repairDemoAccount";
 
 describe("demo accounts", () => {
@@ -100,6 +107,81 @@ describe("demo sign-in URLs", () => {
     expect(url.origin + url.pathname).toBe("https://marketverseapp.com/es/sign-in");
     expect(url.searchParams.get("__clerk_ticket")).toBe("tok_123");
     expect(url.searchParams.get("redirect_url")).toBe("https://marketverseapp.com/es/productos");
+  });
+
+  it("sends the ticket back to a checked return path when there is one", () => {
+    const url = demoTicketUrl("https://marketverseapp.com", "buyer", "sr", "tok_1", "/sr/placanje");
+    expect(url.searchParams.get("redirect_url")).toBe("https://marketverseapp.com/sr/placanje");
+  });
+
+  it("keeps where a rate-limited visitor was headed, but only a path of this site", () => {
+    const busy = (next: string) =>
+      demoBusyUrl("https://marketverseapp.com", "en", 30, next).searchParams.get("redirect_url");
+    expect(busy("/en/checkout")).toBe("/en/checkout");
+    expect(busy("https://evil.com/en/checkout")).toBeNull();
+    expect(busy("/en/sign-in")).toBeNull();
+  });
+});
+
+describe("demoReturnPath", () => {
+  it("returns each role to the page it came from when the role can use it", () => {
+    // The case that started it: checkout interrupted by sign-in.
+    expect(demoReturnPath("buyer", "en", "/en/checkout")).toBe("/en/checkout");
+    expect(demoReturnPath("buyer", "sr", "/sr/korpa")).toBe("/sr/korpa");
+    expect(demoReturnPath("buyer", "de", "/de/produkte/ein-rucksack")).toBe("/de/produkte/ein-rucksack");
+    expect(demoReturnPath("seller", "en", "/en/dashboard/my-products")).toBe("/en/dashboard/my-products");
+    expect(demoReturnPath("admin", "en", "/en/admin/users")).toBe("/en/admin/users");
+    // Catalog pages are for everyone.
+    expect(demoReturnPath("admin", "sr", "/sr/proizvodi/ranac")).toBe("/sr/proizvodi/ranac");
+  });
+
+  it("keeps the query string", () => {
+    expect(demoReturnPath("buyer", "en", "/en/products?sort=price")).toBe("/en/products?sort=price");
+  });
+
+  it("sends a role to its home from a page it cannot use", () => {
+    expect(demoReturnPath("admin", "en", "/en/checkout")).toBe("/en/admin");
+    expect(demoReturnPath("seller", "sr", "/sr/korpa")).toBe("/sr/dashboard");
+    expect(demoReturnPath("seller", "en", "/en/admin/users")).toBe("/en/dashboard");
+    expect(demoReturnPath("buyer", "en", "/en/admin")).toBe("/en/products");
+    expect(demoReturnPath("buyer", "en", "/en/dashboard/organization/payouts")).toBe("/en/products");
+  });
+
+  it("never returns to sign-in, sign-up or someone's invite", () => {
+    expect(demoReturnPath("buyer", "en", "/en/sign-in")).toBe("/en/products");
+    expect(demoReturnPath("buyer", "en", "/en/sign-up")).toBe("/en/products");
+    expect(demoReturnPath("admin", "en", "/en/invite/abc")).toBe("/en/admin");
+  });
+
+  // `next` is a query parameter anyone can write: it must never become an
+  // open redirect, and nothing that is not a route of this app gets through.
+  it("refuses anything but a known path of this site", () => {
+    for (const next of [
+      "https://evil.com/en/checkout",
+      "//evil.com/en/checkout",
+      "/\\evil.com",
+      "javascript:alert(1)",
+      "en/checkout",
+      "/checkout",
+      "/en/no-such-page",
+      "",
+      null,
+      undefined,
+    ]) {
+      expect(demoReturnPath("buyer", "en", next), String(next)).toBe("/en/products");
+    }
+  });
+});
+
+describe("demoSignInHref", () => {
+  it("forwards only the path and query of where the visitor was", () => {
+    const href = (from?: string | null) =>
+      new URLSearchParams(demoSignInHref("buyer", "sr", from).split("?")[1]);
+    expect(href("https://marketverseapp.com/sr/placanje").get("next")).toBe("/sr/placanje");
+    expect(href("/sr/proizvodi/ranac?x=1").get("next")).toBe("/sr/proizvodi/ranac?x=1");
+    expect(href(null).get("next")).toBeNull();
+    expect(href(null).get("as")).toBe("buyer");
+    expect(href(null).get("locale")).toBe("sr");
   });
 });
 

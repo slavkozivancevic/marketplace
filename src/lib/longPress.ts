@@ -28,9 +28,13 @@ type Timers = { set: typeof setTimeout; clear: typeof clearTimeout };
  * before. `show` fires when the press is recognised and `hide` once the label
  * has been up for `LONG_PRESS_SHOW_MS`. Pure (timers injected) so it is
  * testable without a DOM.
+ *
+ * Without `hide` nothing closes by itself: the chat uses that to select a
+ * message or a conversation, which stays selected until the user clears it
+ * (as on WhatsApp) - same press, same thresholds, no timer racing the user.
  */
 export function createLongPress(
-  callbacks: { show: () => void; hide: () => void },
+  callbacks: { show: () => void; hide?: () => void },
   // Wrapped, not `{ set: setTimeout }`: called as `timers.set(...)` the
   // browser's setTimeout gets `timers` as `this` and throws "Illegal
   // invocation". The injected fakes in the tests never noticed.
@@ -62,10 +66,12 @@ export function createLongPress(
         pressTimer = null;
         fired = true;
         callbacks.show();
+        const hide = callbacks.hide;
+        if (!hide) return;
         if (hideTimer !== null) timers.clear(hideTimer);
         hideTimer = timers.set(() => {
           hideTimer = null;
-          callbacks.hide();
+          hide();
         }, LONG_PRESS_SHOW_MS);
       }, LONG_PRESS_MS);
     },

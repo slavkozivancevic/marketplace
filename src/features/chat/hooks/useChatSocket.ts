@@ -3,8 +3,11 @@ import { logger } from "@/lib/logger";
 
 import { useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
+import { toast } from "@/components/ui/sonner";
 import { env } from "@/env/client";
-import { WsIncomingEvent, ChatMessage, ChatAttachment, Conversation, PresenceMap } from "../types";
+import { WsIncomingEvent, ChatMessage, ChatAttachment, Conversation, PresenceMap, OpRejection } from "../types";
+import { withDelete, withEdit, withLastMessageChange } from "../utils/messageOps";
 import { isConversationOnScreen, useChatStore, TYPING_HEARTBEAT_MS } from "../store/chatStore";
 import { useOutboxStore } from "../store/outboxStore";
 import {
@@ -63,9 +66,40 @@ function attachmentMeta(attachments: { type: string; filename?: string }[]): {
   return { lastAttachmentType: "file", attachmentPreview: filename ?? "File" };
 }
 
+/** How long an edit or delete may wait for the server before it is rolled back. */
+const OP_TIMEOUT_MS = 15_000;
+
+type MessagesData = { messages: ChatMessage[]; cursor?: string };
+type ConversationsData = { conversations: Conversation[] };
+
+/** The chat message key for a refused edit or delete. */
+function rejectionKey(reason: OpRejection): "opExpired" | "opGone" | "opFailed" {
+  if (reason === "expired") return "opExpired";
+  if (reason === "gone") return "opGone";
+  return "opFailed";
+}
+
+/** The reactions cache without one message's entry - a deleted message carries none. */
+function withoutReactionsOf(old: ReactionsResponse | undefined, messageId: string): ReactionsResponse | undefined {
+  if (!old) return old;
+  const reactions = { ...old.reactions };
+  delete reactions[messageId];
+  return { reactions };
+}
+
 export function useChatSocket(token: string | undefined, currentUserId: string) {
   const queryClient = useQueryClient();
+  const t = useTranslations("chat");
+  // The socket effect reads the translator through this, so switching the
+  // language does not tear the connection down and open a new one.
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  });
   const wsRef = useRef<WebSocket | null>(null);
+  // opId -> how to undo an optimistic edit/delete the server has not answered
+  // yet. OP_ACK forgets it, OP_REJECTED or the timeout runs it.
+  const pendingOpsRef = useRef(new Map<string, { undo: () => void; timer: ReturnType<typeof setTimeout> }>());
   // conversationId → epoch ms of the last "start" frame we sent for it.
   // Throttles the heartbeat so a long message costs a handful of frames
   // instead of one per keystroke.
@@ -722,6 +756,67 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
           }
         }
 
+        if (data.type === "MESSAGE_EDITED") {
+          // Ours from another tab, or the other participant's.
+          const before = queryClient
+            .getQueryData<MessagesData>(["chat-messages", data.conversationId])
+            ?.messages.find((m) => m.messageId === data.messageId);
+          queryClient.setQueryData<MessagesData>(["chat-messages", data.conversationId], (old) =>
+            withEdit(old, data.messageId, data.text, data.editedAt),
+          );
+          if (before) {
+            queryClient.setQueryData<ConversationsData>(["chat-conversations"], (old) =>
+              withLastMessageChange(old, data.conversationId, before.createdAt, { text: data.text }),
+            );
+          } else {
+            void queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+          }
+        }
+
+        if (data.type === "MESSAGE_DELETED") {
+          const before = queryClient
+            .getQueryData<MessagesData>(["chat-messages", data.conversationId])
+            ?.messages.find((m) => m.messageId === data.messageId);
+          queryClient.setQueryData<MessagesData>(["chat-messages", data.conversationId], (old) =>
+            withDelete(old, data.messageId, data.scope, data.deletedAt ?? new Date().toISOString()),
+          );
+          if (data.scope === "everyone") {
+            queryClient.setQueryData<ReactionsResponse>(["chat-reactions", data.conversationId], (old) =>
+              withoutReactionsOf(old, data.messageId),
+            );
+          }
+          if (data.scope === "everyone" && before) {
+            queryClient.setQueryData<ConversationsData>(["chat-conversations"], (old) =>
+              withLastMessageChange(old, data.conversationId, before.createdAt, { deleted: true }),
+            );
+          } else {
+            // "For me" moves our preview to an earlier message the server
+            // picked; ask for it rather than guess.
+            void queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+          }
+        }
+
+        if (data.type === "OP_ACK") {
+          const op = pendingOpsRef.current.get(data.opId);
+          if (op) {
+            clearTimeout(op.timer);
+            pendingOpsRef.current.delete(data.opId);
+          }
+          if ((data as { scope?: string }).scope === "me") {
+            void queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+          }
+        }
+
+        if (data.type === "OP_REJECTED") {
+          const op = pendingOpsRef.current.get(data.opId);
+          if (op) {
+            clearTimeout(op.timer);
+            pendingOpsRef.current.delete(data.opId);
+            op.undo();
+          }
+          toast.error(tRef.current(rejectionKey(data.reason)));
+        }
+
         if (data.type === "CONVERSATION_DELETED") {
           // Remove from conversation list cache
           queryClient.setQueryData<{ conversations: Conversation[] }>(
@@ -896,5 +991,77 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
     }
   };
 
-  return { sendMessage, sendTyping, markRead };
+  /**
+   * Sends an edit or delete with the change already on screen. Not queued
+   * like a message: an action that may no longer be allowed a minute later is
+   * not worth retrying, so without a socket it says so instead. `apply` makes
+   * the optimistic change and returns its undo.
+   */
+  const runOp = (payload: Record<string, unknown>, apply: () => () => void): boolean => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      toast.error(t("notConnected"));
+      return false;
+    }
+    const opId = crypto.randomUUID();
+    const undo = apply();
+    const timer = setTimeout(() => {
+      if (pendingOpsRef.current.delete(opId)) {
+        undo();
+        toast.error(t("opFailed"));
+      }
+    }, OP_TIMEOUT_MS);
+    pendingOpsRef.current.set(opId, { undo, timer });
+    ws.send(JSON.stringify({ ...payload, opId }));
+    return true;
+  };
+
+  /** Captures the three caches an edit or delete touches; the result puts them back. */
+  const snapshot = (conversationId: string) => {
+    const messages = queryClient.getQueryData<MessagesData>(["chat-messages", conversationId]);
+    const conversations = queryClient.getQueryData<ConversationsData>(["chat-conversations"]);
+    const reactions = queryClient.getQueryData<ReactionsResponse>(["chat-reactions", conversationId]);
+    return () => {
+      queryClient.setQueryData(["chat-messages", conversationId], messages);
+      queryClient.setQueryData(["chat-conversations"], conversations);
+      queryClient.setQueryData(["chat-reactions", conversationId], reactions);
+    };
+  };
+
+  const editMessage = (conversationId: string, message: ChatMessage, text: string): boolean =>
+    runOp(
+      { action: "editMessage", conversationId, messageId: message.messageId, createdAt: message.createdAt, text },
+      () => {
+        const undo = snapshot(conversationId);
+        queryClient.setQueryData<MessagesData>(["chat-messages", conversationId], (old) =>
+          withEdit(old, message.messageId, text, new Date().toISOString()),
+        );
+        queryClient.setQueryData<ConversationsData>(["chat-conversations"], (old) =>
+          withLastMessageChange(old, conversationId, message.createdAt, { text }),
+        );
+        return undo;
+      },
+    );
+
+  const deleteMessage = (conversationId: string, message: ChatMessage, scope: "everyone" | "me"): boolean =>
+    runOp(
+      { action: "deleteMessage", conversationId, messageId: message.messageId, createdAt: message.createdAt, scope },
+      () => {
+        const undo = snapshot(conversationId);
+        queryClient.setQueryData<MessagesData>(["chat-messages", conversationId], (old) =>
+          withDelete(old, message.messageId, scope, new Date().toISOString()),
+        );
+        if (scope === "everyone") {
+          queryClient.setQueryData<ReactionsResponse>(["chat-reactions", conversationId], (old) =>
+            withoutReactionsOf(old, message.messageId),
+          );
+          queryClient.setQueryData<ConversationsData>(["chat-conversations"], (old) =>
+            withLastMessageChange(old, conversationId, message.createdAt, { deleted: true }),
+          );
+        }
+        return undo;
+      },
+    );
+
+  return { sendMessage, sendTyping, markRead, editMessage, deleteMessage };
 }

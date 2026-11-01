@@ -18,6 +18,7 @@ import { useIsWideLayout } from "../hooks/useIsWideLayout";
 import { useUrlConversationId } from "../hooks/useUrlConversationId";
 import { useChatRuntime, type ChatRuntime } from "./ChatRuntime";
 import { InboxPanel } from "./InboxPanel";
+import { InboxSelectionHeader } from "./InboxSelectionHeader";
 import { MessageThread } from "./MessageThread";
 import { MessagesPageSkeleton, NoConversationSelected } from "./MessagesPageSkeleton";
 import { BackToInboxButton, ThreadHeader } from "./ThreadHeader";
@@ -135,9 +136,12 @@ function MessagesPageInner({ runtime }: { runtime: ChatRuntime }) {
           selectedConvId ? "hidden lg:flex" : "flex",
         )}
       >
-        <div className={MESSAGES_HEADER_CLASS}>
-          <h1 className="text-base font-semibold">{t("messages")}</h1>
-        </div>
+        {/* A picked conversation swaps the header for its actions (WhatsApp). */}
+        <InboxSelectionHeader className={MESSAGES_HEADER_CLASS}>
+          <div className={MESSAGES_HEADER_CLASS}>
+            <h1 className="text-base font-semibold">{t("messages")}</h1>
+          </div>
+        </InboxSelectionHeader>
         <div className="flex-1 min-h-0">{inbox}</div>
       </section>
 

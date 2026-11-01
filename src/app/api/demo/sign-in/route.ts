@@ -6,7 +6,12 @@ import { logger } from "@/lib/logger";
 import { getClientIp, rateLimitResponse } from "@/lib/rateLimit/guard";
 import { DEMO_ACCOUNTS, isDemoRole, isVisitorBuyerEmail } from "@/features/demo/demoAccounts";
 import { createDemoBuyer, retireDemoBuyers } from "@/features/demo/demoBuyers";
-import { demoBusyUrl, demoLandingPath, demoTicketUrl } from "@/features/demo/demoSignIn";
+import {
+  DEMO_NEXT_PARAM,
+  demoBusyUrl,
+  demoReturnPath,
+  demoTicketUrl,
+} from "@/features/demo/demoSignIn";
 import { repairDemoAccount } from "@/features/demo/repairDemoAccount";
 import { prisma } from "@/core/db/prisma";
 
@@ -36,11 +41,15 @@ export async function GET(req: NextRequest) {
   const locale = asLocale(
     req.nextUrl.searchParams.get("locale") ?? req.cookies.get("NEXT_LOCALE")?.value,
   );
+  // Where the visitor was - the page sign-in interrupted, or the one a "sign in
+  // as buyer" notice sat on. Back there if this role can use it, else its home.
+  const next = req.nextUrl.searchParams.get(DEMO_NEXT_PARAM);
+  const returnPath = demoReturnPath(as, locale, next);
   // A person clicked a link: a refusal goes back to the sign-in page, which
   // says how long to wait, instead of a bare 429 body.
   const busy = (limited: NextResponse) =>
     NextResponse.redirect(
-      demoBusyUrl(env.APP_URL, locale, Number(limited.headers.get("Retry-After") ?? 60)),
+      demoBusyUrl(env.APP_URL, locale, Number(limited.headers.get("Retry-After") ?? 60), next),
     );
 
   const limited = await rateLimitResponse("demo", await getClientIp());
@@ -58,7 +67,7 @@ export async function GET(req: NextRequest) {
         select: { email: true, deletedAt: true },
       });
       if (current && !current.deletedAt && isVisitorBuyerEmail(current.email)) {
-        return NextResponse.redirect(new URL(demoLandingPath("buyer", locale), env.APP_URL));
+        return NextResponse.redirect(new URL(returnPath, env.APP_URL));
       }
     }
 
@@ -94,5 +103,5 @@ export async function GET(req: NextRequest) {
     userId,
     expiresInSeconds: 60,
   });
-  return NextResponse.redirect(demoTicketUrl(env.APP_URL, as, locale, token));
+  return NextResponse.redirect(demoTicketUrl(env.APP_URL, as, locale, token, returnPath));
 }

@@ -20,12 +20,17 @@ interface MediaCounterProps {
 }
 
 /**
- * "2 of 6" under a gallery's image, wherever images can be paged: the product
- * page, the quick view, the fullscreen lightbox and the product card's hover
- * cycle. One pill per gallery, pinned over the slides (not inside one), so it
- * stays put while the slides move. Same look as `ZoomHint`, which sits in the
- * bottom-left corner - this one is centred and never collides with it.
- * Nothing for a single image: "1 of 1" says nothing.
+ * "2 of 6" under a gallery that shows ALL of a product's media: the product
+ * page, the quick view and the fullscreen lightbox. One pill per gallery,
+ * pinned over the slides. In the lightbox it is the only position marker (it
+ * replaced the dots there); the inline galleries keep their thumbnails.
+ *
+ * Deliberately not on the product card: the listing loads at most five images
+ * per product (`take: 5` in publicProducts.ts) while a product may have up to
+ * ten (MAX_FILES), so a card would say "1 of 5" about a product that has ten.
+ * Its dots stay - they show what the card has without claiming a total.
+ *
+ * Same look as `ZoomHint`. Nothing for a single image: "1 of 1" says nothing.
  */
 export function MediaCounter({
   index,

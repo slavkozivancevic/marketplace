@@ -21,6 +21,8 @@ import { useDemoReadOnly } from "@/features/demo/useDemoReadOnly";
 type SendMessage = ReturnType<typeof useChatSocket>["sendMessage"];
 type SendTyping = ReturnType<typeof useChatSocket>["sendTyping"];
 type MarkRead = ReturnType<typeof useChatSocket>["markRead"];
+type EditMessage = ReturnType<typeof useChatSocket>["editMessage"];
+type DeleteMessage = ReturnType<typeof useChatSocket>["deleteMessage"];
 
 /**
  * What a chat surface needs to talk to the socket. Both surfaces - the drawer
@@ -33,6 +35,8 @@ export interface ChatRuntime {
   sendMessage: SendMessage;
   sendTyping: SendTyping;
   markRead: MarkRead;
+  editMessage: EditMessage;
+  deleteMessage: DeleteMessage;
 }
 
 const ChatRuntimeContext = createContext<ChatRuntime | null>(null);
@@ -108,6 +112,8 @@ function ChatRuntimeEngine({ onRuntime }: { onRuntime: (r: ChatRuntime | null) =
       sendMessage: (...args) => latest.current.sendMessage(...args),
       sendTyping: (...args) => latest.current.sendTyping(...args),
       markRead: (...args) => latest.current.markRead(...args),
+      editMessage: (...args) => latest.current.editMessage(...args),
+      deleteMessage: (...args) => latest.current.deleteMessage(...args),
     }),
     [currentUserId]
   );
