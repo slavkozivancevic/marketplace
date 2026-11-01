@@ -12,14 +12,15 @@ import { useOutboxStore } from "../store/outboxStore";
 import type { Conversation } from "../types";
 
 /**
- * Deletes a conversation and everything the client still holds for it.
+ * Deletes a conversation from this user's inbox - only theirs, as on WhatsApp;
+ * the other participant keeps it, and a new message brings it back with only
+ * what came after - and drops everything the client still holds for it.
  * Shared by the drawer and the page; the caller owns the dialog's `open`, so
  * a failed delete leaves it open (see ActionButton).
  */
 export function useDeleteConversation() {
   const t = useTranslations("chat");
   const queryClient = useQueryClient();
-  const setSelectedConvId = useChatStore((s) => s.setSelectedConvId);
   const clearDraft = useDraftStore((s) => s.clearDraft);
   const clearOutbox = useOutboxStore((s) => s.clearConversation);
   const [deleting, setDeleting] = useState(false);
@@ -43,7 +44,10 @@ export function useDeleteConversation() {
       // Same for anything still queued: the conversation it belonged to is
       // gone, so a retry would keep knocking at a door that no longer exists.
       clearOutbox(conversationId);
-      setSelectedConvId(null);
+      // Deleted from the inbox list, it may not be the open one - close the
+      // thread only if it is.
+      const chat = useChatStore.getState();
+      if (chat.selectedConvId === conversationId) chat.setSelectedConvId(null);
       return true;
     } catch (err) {
       logger.error("[deleteConversation]", err);

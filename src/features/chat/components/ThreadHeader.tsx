@@ -1,15 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, Trash2 } from "lucide-react";
-import { ActionButton } from "@/components/ActionButton";
+import { ArrowLeft } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useChatStore } from "../store/chatStore";
-import { useDeleteConversation } from "../hooks/useDeleteConversation";
+import { useSelectionStore } from "../store/selectionStore";
 import type { UserPresence } from "../types";
 import { PresenceLine } from "./PresenceLine";
+import { MessageActionBar } from "./MessageActionBar";
 import { IconButton } from "@/components/IconButton";
 
 interface Props {
@@ -26,7 +25,7 @@ interface Props {
   renderTitle: (content: React.ReactNode) => React.ReactNode;
   /** Before the name - the drawer's back arrow. */
   leading?: React.ReactNode;
-  /** After the delete control - the drawer's "open page" and close buttons. */
+  /** At the end - the drawer's "open page" and close buttons. */
   trailing?: React.ReactNode;
   className?: string;
 }
@@ -53,9 +52,13 @@ export function BackToInboxButton({
 }
 
 /**
- * Who you are talking to, whether they are around, and the delete control.
- * One header for the drawer and the page; each surface adds its own controls
- * through `leading` and `trailing`.
+ * Who you are talking to and whether they are around. One header for the
+ * drawer and the page; each surface adds its own controls through `leading`
+ * and `trailing`.
+ *
+ * While a message is picked it becomes that message's action bar, as on
+ * WhatsApp. Deleting the whole conversation no longer lives here: it is picked
+ * in the inbox list instead (see InboxSelectionHeader).
  */
 export function ThreadHeader({
   conversationId,
@@ -69,16 +72,23 @@ export function ThreadHeader({
   className,
 }: Props) {
   const t = useTranslations("chat");
-  const tCommon = useTranslations("common");
   const connected = useChatStore((s) => s.connected);
-  const { deleteConversation, deleting } = useDeleteConversation();
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const pickedMessageId = useSelectionStore((s) =>
+    s.selected?.kind === "message" && s.selected.conversationId === conversationId
+      ? s.selected.messageId
+      : null,
+  );
 
-  const handleDelete = async () => {
-    // A success unmounts this header with the thread, taking the dialog with
-    // it; a failure leaves the dialog open beside its toast.
-    if (await deleteConversation(conversationId)) setDeleteDialogOpen(false);
-  };
+  if (pickedMessageId) {
+    return (
+      <MessageActionBar
+        className={className}
+        conversationId={conversationId}
+        messageId={pickedMessageId}
+        renderTitle={renderTitle}
+      />
+    );
+  }
 
   return (
     <div className={className}>
@@ -97,26 +107,7 @@ export function ThreadHeader({
           disconnected={!connected}
         />
       </div>
-      <div className="ml-auto flex items-center gap-0.5 shrink-0">
-        <ActionButton
-          open={deleteDialogOpen}
-          onOpenChange={setDeleteDialogOpen}
-          title={t("deleteConversation")}
-          description={t("deleteConversationDesc")}
-          confirmText={t("delete")}
-          loadingText={t("deleting")}
-          cancelText={tCommon("cancel")}
-          isLoading={deleting}
-          onConfirm={() => void handleDelete()}
-        >
-          {/* Resting control - the dialog's confirm button carries the
-              spinner. */}
-          <IconButton label={t("deleteConversation")} variant="ghost" size="icon-sm">
-            <Trash2 className="size-4 text-muted-foreground" />
-          </IconButton>
-        </ActionButton>
-        {trailing}
-      </div>
+      <div className="ml-auto flex items-center gap-0.5 shrink-0">{trailing}</div>
     </div>
   );
 }

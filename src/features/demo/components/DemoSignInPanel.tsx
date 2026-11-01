@@ -1,9 +1,11 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { ShieldCheck, ShoppingBag, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DEMO_ROLES, type DemoRole } from "../demoAccounts";
+import { demoSignInHref } from "../demoSignInHref";
 
 const ICON: Record<DemoRole, typeof ShoppingBag> = {
   buyer: ShoppingBag,
@@ -15,10 +17,15 @@ const ICON: Record<DemoRole, typeof ShoppingBag> = {
  * One-click sign-in as each public demo account, under Clerk's sign-in card.
  * Plain links, not client navigation: the target is a route handler that
  * answers with a redirect to Clerk.
+ *
+ * Carries the page sign-in interrupted (Clerk's `redirect_url`, e.g. checkout)
+ * as `next`, so the visitor comes back to it - see demoReturnPath, which
+ * decides whether the chosen role can use that page.
  */
 export function DemoSignInPanel() {
   const t = useTranslations("demo");
   const locale = useLocale();
+  const redirectUrl = useSearchParams().get("redirect_url");
 
   return (
     <section
@@ -35,7 +42,7 @@ export function DemoSignInPanel() {
           return (
             <li key={role}>
               <Button asChild variant="outline" className="h-auto w-full justify-start gap-3 py-2.5">
-                <a href={`/api/demo/sign-in?as=${role}&locale=${locale}`}>
+                <a href={demoSignInHref(role, locale, redirectUrl)}>
                   <Icon className="size-4 shrink-0" aria-hidden />
                   <span className="flex min-w-0 flex-col items-start text-left">
                     <span className="font-medium">{t(role)}</span>

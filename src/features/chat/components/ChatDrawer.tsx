@@ -18,6 +18,8 @@ import { useChatRuntime, type ChatRuntime } from "./ChatRuntime";
 import { InboxPanel } from "./InboxPanel";
 import { MessageThread } from "./MessageThread";
 import { BackToInboxButton, ThreadHeader } from "./ThreadHeader";
+import { InboxSelectionHeader } from "./InboxSelectionHeader";
+import { useSelectionStore } from "../store/selectionStore";
 import { IconButton } from "@/components/IconButton";
 import { DemoBuyerOnlyPanel } from "@/features/demo/components/DemoBuyerOnlyNotice";
 import { useDemoReadOnly } from "@/features/demo/useDemoReadOnly";
@@ -169,6 +171,17 @@ export function ChatDrawerRoot() {
         onInteractOutside={(e) => {
           if ((e.target as HTMLElement).closest("[data-chat-trigger]")) e.preventDefault();
         }}
+        // Escape first undoes a picked message or conversation, or an edit in
+        // progress - the sheet sees the key before anything inside it does,
+        // and closing the whole drawer is not what the user asked for.
+        onEscapeKeyDown={(e) => {
+          const selection = useSelectionStore.getState();
+          if (selection.selected || selection.editing) {
+            e.preventDefault();
+            selection.clear();
+            selection.stopEdit();
+          }
+        }}
       >
         {runtime ? <ChatDrawerInner runtime={runtime} /> : <ChatDrawerLocked />}
       </SheetContent>
@@ -250,13 +263,21 @@ function ChatDrawerInner({ runtime }: { runtime: ChatRuntime }) {
           trailing={<>{toPage}{closeButton}</>}
         />
       ) : (
-        <SheetHeader className={headerClass}>
-          <SheetTitle className="text-sm font-semibold truncate">{t("messages")}</SheetTitle>
-          <div className="ml-auto flex items-center gap-0.5 shrink-0">
-            {toPage}
-            {closeButton}
-          </div>
-        </SheetHeader>
+        // A picked conversation swaps the header for its actions (WhatsApp).
+        <InboxSelectionHeader
+          className={`flex ${headerClass}`}
+          renderTitle={(content) => (
+            <SheetTitle className="text-sm font-semibold truncate">{content}</SheetTitle>
+          )}
+        >
+          <SheetHeader className={headerClass}>
+            <SheetTitle className="text-sm font-semibold truncate">{t("messages")}</SheetTitle>
+            <div className="ml-auto flex items-center gap-0.5 shrink-0">
+              {toPage}
+              {closeButton}
+            </div>
+          </SheetHeader>
+        </InboxSelectionHeader>
       )}
 
       <div className="flex-1 min-h-0 overflow-hidden">

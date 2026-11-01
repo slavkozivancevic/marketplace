@@ -20,6 +20,14 @@ export interface ChatMessage {
   createdAt: string;
   // SK in DynamoDB - needed for markRead
   sk?: string;
+  /** Set when the sender changed the text (within 15 minutes, as on WhatsApp). */
+  editedAt?: string;
+  /**
+   * Set when the sender deleted it for everyone: a tombstone, text and
+   * attachments empty, shown as "You deleted this message" / "This message was
+   * deleted". A message deleted "for me" never reaches this viewer at all.
+   */
+  deletedAt?: string;
 }
 
 export interface Conversation {
@@ -29,6 +37,8 @@ export interface Conversation {
   lastMessagePreview?: string;
   lastMessageSenderId?: string;
   lastAttachmentType?: string; // "image" | "pdf" | "video" | "file" | ""
+  /** The last message was deleted for everyone - the preview says so in the viewer's words. */
+  lastMessageDeleted?: boolean;
   /**
    * Server-side marker: the createdAt of the newest message this user has
    * read, not when they read it. Compared against `lastMessageAt` to decide
@@ -81,6 +91,9 @@ export type MessageRejection =
    */
   | "gone";
 
+/** Why an edit or delete was refused - MessageRejection plus the time limit. */
+export type OpRejection = "invalid" | "unauthorized" | "expired" | "gone";
+
 export type WsIncomingEvent =
   /**
    * The answer to a liveness probe. It carries nothing - the fact that it
@@ -104,4 +117,12 @@ export type WsIncomingEvent =
   | { type: "MESSAGE_READ"; conversationId: string; readerId: string; messageIds: string[]; readUpTo?: string; readAt: string }
   | { type: "REACTION_UPDATE"; conversationId: string; messageId: string; reactorId: string; emoji: string; messageText: string; reactions: ReactionMap }
   | { type: "TYPING"; conversationId: string; userId: string; isTyping: boolean }
+  /** Someone (possibly us, in another tab) edited a message. */
+  | { type: "MESSAGE_EDITED"; conversationId: string; messageId: string; text: string; editedAt: string }
+  /** "everyone": a tombstone for both sides. "me": our own other tab hid it. */
+  | { type: "MESSAGE_DELETED"; conversationId: string; messageId: string; scope: "everyone" | "me"; deletedAt?: string }
+  /** Our edit or delete landed; carries the same fields as the matching event. */
+  | { type: "OP_ACK"; opId: string }
+  /** Our edit or delete was refused: the optimistic change is rolled back. */
+  | { type: "OP_REJECTED"; opId: string; reason: OpRejection }
   | { type: "CONVERSATION_DELETED"; conversationId: string };

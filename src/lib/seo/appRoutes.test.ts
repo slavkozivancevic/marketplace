@@ -2,7 +2,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 import { routing } from "@/i18n/routing";
-import { isUnknownLocalePath } from "./appRoutes";
+import { isUnknownLocalePath, routeKeyOf } from "./appRoutes";
 
 describe("isUnknownLocalePath", () => {
   it("reports unknown locale-prefixed URLs, which the catch-all answered 200", () => {
@@ -79,6 +79,27 @@ describe("isUnknownLocalePath", () => {
  * table: a new route that is not registered in `routing.pathnames` fails here
  * instead of being 404'd in production.
  */
+describe("routeKeyOf", () => {
+  it("names the route behind a localized path, whatever the locale", () => {
+    expect(routeKeyOf("/en/cart")).toBe("/cart");
+    expect(routeKeyOf("/sr/korpa")).toBe("/cart");
+    expect(routeKeyOf("/de/kasse/erfolgreich")).toBe("/checkout/success");
+    expect(routeKeyOf("/es/productos/una-mochila")).toBe("/products/[slug]");
+    expect(routeKeyOf("/en")).toBe("/");
+  });
+
+  it("prefers the static route over a dynamic one that also matches", () => {
+    expect(routeKeyOf("/en/admin/products/new")).toBe("/admin/products/new");
+    expect(routeKeyOf("/en/admin/products/abc")).toBe("/admin/products/[id]");
+  });
+
+  it("is null without a locale prefix or a route", () => {
+    expect(routeKeyOf("/cart")).toBeNull();
+    expect(routeKeyOf("/en/no-such-page")).toBeNull();
+    expect(routeKeyOf("/")).toBeNull();
+  });
+});
+
 describe("routing.pathnames covers the app directory", () => {
   const localeRoot = join(process.cwd(), "src", "app", "(i18n)", "[locale]");
 

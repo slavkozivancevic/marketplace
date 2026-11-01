@@ -92,6 +92,34 @@ describe("createLongPress", () => {
   });
 });
 
+describe("createLongPress as a selection (no hide)", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  // The chat selects a message or a conversation this way: it stays selected
+  // until the user clears it, so nothing may close it on a timer.
+  it("selects on a held press and never closes by itself", () => {
+    const show = vi.fn();
+    const lp = createLongPress({ show });
+    lp.down("touch", 0, 0);
+    vi.advanceTimersByTime(LONG_PRESS_MS);
+    lp.end();
+    vi.advanceTimersByTime(LONG_PRESS_SHOW_MS * 10);
+    expect(show).toHaveBeenCalledTimes(1);
+    expect(lp.consumeClick()).toBe(true);
+  });
+
+  it("still lets a short tap and a scroll through", () => {
+    const show = vi.fn();
+    const lp = createLongPress({ show });
+    lp.down("touch", 0, 0);
+    lp.move(0, LONG_PRESS_SLOP_PX + 1);
+    vi.advanceTimersByTime(LONG_PRESS_MS);
+    expect(show).not.toHaveBeenCalled();
+    expect(lp.consumeClick()).toBe(false);
+  });
+});
+
 describe("createLongPress default timers", () => {
   it("calls setTimeout unbound, the way the browser requires", () => {
     // The browser throws "Illegal invocation" when setTimeout runs with a
