@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/carousel";
 import { MediaLightbox, type VideoHandoff } from "@/components/product/MediaLightbox";
 import { ZoomHint, useZoomHint } from "@/components/product/ZoomHint";
+import { MediaCounter } from "./MediaCounter";
 import { cn } from "@/lib/utils";
 import { settleOnLoad } from "@/lib/imageSettle";
 import { IMAGE_ZOOM_FACTOR, IMAGE_ZOOM_LENS_SIZE } from "@/constants/constants";
@@ -526,6 +527,11 @@ export function ProductImageCarousel({
               <CarouselNext className="right-2 active:translate-y-[calc(-50%+1px)] disabled:pointer-events-auto disabled:cursor-default" />
             </>
           )}
+          <MediaCounter
+            index={current}
+            total={media.length}
+            overVideo={media[current]?.mediaType === "VIDEO"}
+          />
         </Carousel>
 
         {media.length > 1 && (

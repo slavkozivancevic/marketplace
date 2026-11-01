@@ -8,21 +8,25 @@ import {
   handleActionError,
   UnauthenticatedError,
   NotFoundError,
+  DemoReadOnlyError,
 } from "@/features/common/errors/domainErrors";
+import { isDemoReadOnlyEmail } from "@/features/demo/demoAccounts";
 import { createReturn, transitionReturn, type ReturnItemSelection } from "../db/returns";
 import { ReturnStatus } from "@/generated/prisma/client";
 import type { ActionErrorResult } from "@/types/types";
 
 type Ok = { ok: true };
 
+/** Both callers are buyer writes, which the view-only demo accounts may not make. */
 async function requireUserId(): Promise<string> {
   const { userId: clerkUserId } = await auth();
   if (!clerkUserId) throw new UnauthenticatedError();
   const user = await prisma.user.findUnique({
     where: { clerkUserId },
-    select: { id: true },
+    select: { id: true, email: true },
   });
   if (!user) throw new NotFoundError("User not found");
+  if (isDemoReadOnlyEmail(user.email)) throw new DemoReadOnlyError();
   return user.id;
 }
 

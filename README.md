@@ -9,10 +9,10 @@ A multi-tenant e-commerce marketplace built as four services, each in its own re
 | Account | What you can do |
 |---|---|
 | [**Buyer**](https://marketverseapp.com/api/demo/sign-in?as=buyer) | A fresh account of your own - nobody else sees your cart, orders or chat, and it is gone after a day. Browse, filter, wishlist, chat with a seller, check out by card (Stripe test card `4242 4242 4242 4242`, any future date, any CVC) or cash on delivery |
-| [**Seller**](https://marketverseapp.com/api/demo/sign-in?as=seller) | The seller dashboard of a 94-product shop: products, variants, price rules and their calendar, received orders, payouts - **view only** |
-| [**Admin**](https://marketverseapp.com/api/demo/sign-in?as=admin) | The whole platform: catalog taxonomy, price markets, organizations, users, coupons, COD balances, review moderation, audit log - **view only** |
+| [**Seller**](https://marketverseapp.com/api/demo/sign-in?as=seller) | The seller dashboard of a 94-product shop: products, variants, price rules and their calendar, received orders, payouts - **view only**, no shopping or chat |
+| [**Admin**](https://marketverseapp.com/api/demo/sign-in?as=admin) | The whole platform: catalog taxonomy, price markets, organizations, users, coupons, COD balances, review moderation, audit log - **view only**, no shopping or chat |
 
-Each link mints a one-time Clerk sign-in token, so there is no password to type or change. The seller and the admin can open every screen and form; any save is refused on the server with a "view-only" message, and other people's email addresses are masked before they leave the server. Add `&locale=sr` (or `de`, `es`) to a link to land in another language.
+Each link mints a one-time Clerk sign-in token, so there is no password to type or change. The seller and the admin can open every screen and form; any save is refused on the server with a "view-only" message. They are one account shared by every visitor, so they also get none of the buyer's actions - no cart, wishlist, checkout or chat - and the page says so where the button would be, and other people's email addresses are masked before they leave the server. Add `&locale=sr` (or `de`, `es`) to a link to land in another language.
 
 > **The first request after a quiet spell takes a few seconds.** The database is Neon serverless Postgres and scales to zero when idle - a deliberate part of the zero-cost design, not a slow app. Everything after the wake-up is fast.
 

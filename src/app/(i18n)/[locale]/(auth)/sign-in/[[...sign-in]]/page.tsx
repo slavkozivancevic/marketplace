@@ -7,6 +7,7 @@ import { AppLoader } from "@/components/layout/app-loader";
 import { BootLoaderFallback } from "@/components/layout/boot-loader-fallback";
 import { DemoSignInPanel } from "@/features/demo/components/DemoSignInPanel";
 import { DemoTicketSignIn } from "@/features/demo/components/DemoTicketSignIn";
+import { DEMO_BUSY_PARAM } from "@/features/demo/demoSignIn";
 
 const SignIn = dynamic(
   () => import("@clerk/nextjs").then((mod) => mod.SignIn),
@@ -30,7 +31,10 @@ export default function Page() {
 function SignInContent() {
   const t = useTranslations("demo");
   // A demo link redeems a sign-in token here (see /api/demo/sign-in).
-  const hasTicket = useSearchParams().has("__clerk_ticket");
+  const searchParams = useSearchParams();
+  const hasTicket = searchParams.has("__clerk_ticket");
+  // A demo click the route refused for now (rate limit) - seconds to wait.
+  const busySeconds = Number(searchParams.get(DEMO_BUSY_PARAM)) || 0;
   const [expired, setExpired] = useState(false);
 
   const onFailed = useCallback(() => {
@@ -47,9 +51,9 @@ function SignInContent() {
 
   return (
     <div className="flex w-full flex-col items-center gap-6 px-4 py-8">
-      {expired && (
+      {(expired || busySeconds > 0) && (
         <p role="alert" className="w-full max-w-100 text-center text-sm text-muted-foreground">
-          {t("linkExpired")}
+          {expired ? t("linkExpired") : t("busy", { minutes: Math.ceil(busySeconds / 60) })}
         </p>
       )}
       <SignIn />

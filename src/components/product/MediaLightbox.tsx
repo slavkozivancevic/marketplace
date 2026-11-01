@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { settleOnLoad } from "@/lib/imageSettle";
 import type { MediaType } from "@/generated/prisma/client";
+import { MediaCounter } from "./MediaCounter";
 
 export interface LightboxMediaItem {
   /** Stable identity - used as React key and to remount on src swap. */
@@ -296,6 +297,13 @@ export function MediaLightbox({
                 </div>
               </>
             )}
+            {/* Above the dots: they show where you are, this says it. */}
+            <MediaCounter
+              index={index}
+              total={count}
+              overVideo={media[index]?.mediaType === "VIDEO"}
+              className={cn("text-sm", media[index]?.mediaType === "VIDEO" ? "top-3" : "bottom-8")}
+            />
           </Carousel>
         </div>
       </DialogContent>

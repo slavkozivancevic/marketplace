@@ -2,6 +2,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { getPathname } from "@/i18n/navigation";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { CheckoutPage } from "@/features/cart/components/CheckoutPage";
+import { DemoBuyerOnlyGate } from "@/features/demo/components/DemoBuyerOnlyNotice";
 
 export async function generateMetadata() {
   const t = await getTranslations("checkout");
@@ -21,7 +22,11 @@ export default async function CheckoutRoute() {
       <div className="shrink-0 px-6 pt-2 sticky-header-bg">
         <Breadcrumbs items={breadcrumbItems} seo={false} />
       </div>
-      <CheckoutPage />
+      {/* The server refuses the demo seller and admin a payment anyway; this
+          says so before they fill in an address. */}
+      <DemoBuyerOnlyGate>
+        <CheckoutPage />
+      </DemoBuyerOnlyGate>
     </div>
   );
 }

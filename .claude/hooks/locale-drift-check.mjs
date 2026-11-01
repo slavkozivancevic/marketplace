@@ -16,6 +16,7 @@
  */
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 function inform(text) {
   process.stdout.write(
@@ -36,7 +37,11 @@ try {
   // Cheap first check: bail out on the overwhelming majority of edits.
   if (!/messages[\\/][a-z]{2}\.json$/i.test(path)) process.exit(0);
 
-  const cwd = payload?.cwd || process.cwd();
+  // The repo root from this file's own location, not the payload's cwd: the
+  // session's working directory can be any subfolder (src/, messages/), and
+  // from there the script path below does not resolve - which used to read
+  // as "drift detected" with a module-not-found report.
+  const cwd = fileURLToPath(new URL("../..", import.meta.url));
   try {
     execFileSync("node", ["scripts/check-locale-keys.mjs"], {
       cwd,

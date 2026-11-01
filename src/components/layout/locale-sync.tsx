@@ -58,6 +58,14 @@ export function LocaleSync() {
           if (!cancelled) void attempt(retryIndex + 1);
         }, nextDelay);
       } catch (err) {
+        if (cancelled) return;
+        // A request cut off by the page moving on (or a dropped connection)
+        // is not a fault: nothing was marked synced, so the next mount tries
+        // again. Only a real failure is an error.
+        if (err instanceof TypeError) {
+          logger.warn("[locale-sync] interrupted, will sync on the next page", err);
+          return;
+        }
         logger.error("[locale-sync] failed", err);
       }
     };

@@ -167,6 +167,7 @@
     "metaDescription": "Kupujte kod nezavisnih prodavaca iz jedne korpe. Cene u dolarima, evrima ili dinarima, četiri jezika, Stripe plaćanje i pouzeće."
   },
   "products": {
+    "mediaCounter": "{current} od {total}",
     "title": "Proizvodi",
     "browse": "Pregledajte naše dostupne proizvode.",
     "metaDescription": "Pretražite naš kompletan katalog proizvoda prodavaca iz celog sveta. Cene u više valuta, brza isporuka i pažljivo biran asortiman kroz svako odeljenje.",
@@ -2402,16 +2403,19 @@
   },
   "demo": {
     "title": "Isprobajte demo",
-    "intro": "Jedan klik, bez lozinke. Prodavac i admin mogu sve da otvore, ali ništa ne čuvaju.",
+    "intro": "Jedan klik, bez lozinke. Samo kupac kupuje, čuva listu želja i piše prodavcima. Prodavac i admin pokazuju svoju stranu platforme i mogu samo da gledaju.",
     "linkExpired": "Ovaj demo link je istekao. Izaberite nalog ispod da pokušate ponovo.",
+    "busy": "Previše demo prijava sa Vaše mreže u kratkom roku. Pokušajte ponovo za {minutes, plural, one {# minut} few {# minuta} other {# minuta}}.",
     "buyer": "Kupac",
     "seller": "Prodavac",
     "admin": "Admin",
-    "buyerHint": "Kupujte i platite test karticom 4242 4242 4242 4242",
-    "sellerHint": "Proizvodi, pravila cena i narudžbine - samo pregled",
-    "adminHint": "Cela platforma - samo pregled",
+    "buyerHint": "Korpa, plaćanje test karticom 4242\u00a04242\u00a04242\u00a04242, narudžbine, lista želja, poruke prodavcima",
+    "sellerHint": "Proizvodi, pravila cena, narudžbine, isplate - samo pregled, bez kupovine i poruka",
+    "adminHint": "Cela platforma: katalog, korisnici, narudžbine, dnevnik izmena - samo pregled, bez kupovine i poruka",
     "badge": "Demo",
     "badgeBuyer": "Demo kupac - platite test karticom 4242 4242 4242 4242",
-    "badgeReadOnly": "Demo nalog - samo pregled, izmene se ne čuvaju"
+    "badgeReadOnly": "Demo nalog - samo pregled. Kupovina i poruke su za demo kupca.",
+    "buyerOnly": "Kupovina, lista želja i poruke su za demo kupca. Ovaj demo nalog može samo da gleda.",
+    "signInAsBuyer": "Prijavite se kao kupac"
   }
 }

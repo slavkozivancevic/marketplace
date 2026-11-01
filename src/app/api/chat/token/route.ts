@@ -1,8 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
-import { env } from "@/env/server";
-import axios from "axios";
+import { getChatToken, refuseDemoChat } from "@/features/chat/server/chatToken";
 
 /**
  * POST /api/chat/token
@@ -17,14 +16,12 @@ export async function POST() {
   }
 
   const ctx = await resolveRequestContext();
+  const refused = refuseDemoChat(ctx);
+  if (refused) return refused;
 
   try {
-    const { data } = await axios.post<{ token: string }>(
-      `${env.CHAT_HTTP_API_URL}/auth/token`,
-      { userId: ctx.userId },
-      { headers: { "x-api-key": env.CHAT_INTERNAL_API_KEY } }
-    );
-    return NextResponse.json({ token: data.token, userId: ctx.userId });
+    const token = await getChatToken(ctx);
+    return NextResponse.json({ token, userId: ctx.userId });
   } catch {
     return NextResponse.json({ error: "Failed to issue token" }, { status: 500 });
   }

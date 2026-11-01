@@ -167,6 +167,7 @@
     "metaDescription": "Compra a vendedores independientes en un solo carrito. Precios en USD, EUR o RSD, cuatro idiomas, pago con Stripe y contra reembolso."
   },
   "products": {
+    "mediaCounter": "{current} de {total}",
     "title": "Productos",
     "browse": "Explora nuestros productos disponibles.",
     "metaDescription": "Explora nuestro catálogo completo de productos de vendedores de todo el mundo. Precios multidivisa, envío rápido y una selección curada en cada departamento.",
@@ -2402,16 +2403,19 @@
   },
   "demo": {
     "title": "Prueba la demo en vivo",
-    "intro": "Un clic, sin contraseña. El vendedor y el administrador pueden abrirlo todo, pero no guardan nada.",
+    "intro": "Un clic, sin contraseña. Solo el comprador compra, guarda una lista de deseos y escribe a los vendedores. El vendedor y el administrador muestran su lado de la plataforma y solo pueden mirar.",
     "linkExpired": "Este enlace de demo ha caducado. Elige una cuenta abajo para volver a intentarlo.",
+    "busy": "Demasiados inicios de sesión de demo desde tu red. Vuelve a intentarlo en {minutes, plural, one {# minuto} other {# minutos}}.",
     "buyer": "Comprador",
     "seller": "Vendedor",
     "admin": "Administrador",
-    "buyerHint": "Compra y paga con la tarjeta de prueba 4242 4242 4242 4242",
-    "sellerHint": "Productos, reglas de precio y pedidos: solo lectura",
-    "adminHint": "Toda la plataforma: solo lectura",
+    "buyerHint": "Carrito, pago con la tarjeta de prueba 4242\u00a04242\u00a04242\u00a04242, pedidos, lista de deseos, chat con vendedores",
+    "sellerHint": "Productos, reglas de precio, pedidos, pagos: solo lectura, sin compras ni chat",
+    "adminHint": "Toda la plataforma: catálogo, usuarios, pedidos, registro de auditoría: solo lectura, sin compras ni chat",
     "badge": "Demo",
     "badgeBuyer": "Comprador demo: paga con la tarjeta de prueba 4242 4242 4242 4242",
-    "badgeReadOnly": "Cuenta demo: solo lectura, los cambios no se guardan"
+    "badgeReadOnly": "Cuenta demo: solo lectura. Las compras y el chat son del comprador demo.",
+    "buyerOnly": "Las compras, la lista de deseos y los mensajes son del comprador demo. Esta cuenta demo solo puede mirar.",
+    "signInAsBuyer": "Entrar como comprador"
   }
 }

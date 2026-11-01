@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useTouchHover } from "@/hooks/useTouchHover";
 import { isTouchInput } from "@/lib/touchInput";
 import { ImageUnavailable } from "@/components/ImageUnavailable";
+import { MediaCounter } from "./MediaCounter";
 import {
   IMAGE_MAX_REVIVALS,
   imageRetryDelay,
@@ -337,6 +338,19 @@ export function HoverImageCycler({
         className={cn(
           "theme-vignette",
           isHovered && "opacity-0 duration-700",
+        )}
+      />
+      {/* Above the dots, only while the cycle runs: a grid of cards each
+          saying "1 of 4" at rest would be noise, and the dots already say
+          there is more. Silent to screen readers - the cycle starts on its
+          own, and the card's link already names the product. */}
+      <MediaCounter
+        index={index}
+        total={images.length}
+        announce={false}
+        className={cn(
+          "bottom-5 transition-opacity duration-300",
+          isHovered ? "opacity-100" : "opacity-0",
         )}
       />
       {images.length > 1 && (

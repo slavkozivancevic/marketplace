@@ -8,10 +8,16 @@
  *
  * - the buyer is an ordinary account: cart, wishlist, Stripe test checkout,
  *   cash on delivery, reviews and chat all work, because trying a purchase is
- *   the point of the demo;
- * - the seller and the admin are view-only: every screen and form opens, but
- *   any write is refused with `DemoReadOnlyError` (see `assertWritable`), so
- *   nobody can deface the public catalog or refund someone's order.
+ *   the point of the demo. It may write because it is the visitor's own (one
+ *   per visitor, see `newDemoBuyerIdentity`), so nobody else sees what it did;
+ * - the seller and the admin are one account shared by every visitor, so they
+ *   only look: every screen and form opens, but any write is refused with
+ *   `DemoReadOnlyError` (see `assertWritable`), so nobody can deface the public
+ *   catalog or refund someone's order. That includes everything the buyer
+ *   does - cart, wishlist, checkout, returns, reviews and chat (no chat token
+ *   at all, see `chatToken.ts`) - because whatever they left behind would be
+ *   waiting for the next visitor. The UI locks those with
+ *   `DemoBuyerOnlyNotice`, which offers the buyer instead.
  *
  * The addresses are plus-aliases of the owner's MarketVerse mailbox, so order
  * emails sent to a demo account land somewhere real instead of bouncing (SES
