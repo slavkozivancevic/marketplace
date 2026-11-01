@@ -571,6 +571,14 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
                 e.status !== "delivered",
             );
 
+          // Not in the inbox cache: a brand-new conversation, or one we deleted
+          // for ourselves that this message has just brought back (the server
+          // put it back in our inbox). Ask for the list rather than invent a row.
+          const inInbox = queryClient
+            .getQueryData<{ conversations: Conversation[] }>(["chat-conversations"])
+            ?.conversations.some((c) => c.conversationId === msg.conversationId);
+          if (!inInbox) void queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+
           queryClient.setQueryData<{ conversations: Conversation[] }>(
             ["chat-conversations"],
             (old) => {
