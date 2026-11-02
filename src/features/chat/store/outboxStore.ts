@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ChatAttachment } from "../types";
+import type { ChatAttachment, ReplyQuote } from "../types";
 import type { OutboxEntry, OutboxFailure } from "../utils/outbox";
 
 interface OutboxStore {
@@ -19,6 +19,7 @@ interface OutboxStore {
     conversationId: string,
     text: string,
     attachments: ChatAttachment[],
+    replyTo?: ReplyQuote,
   ) => OutboxEntry;
   /** Hands an entry to the socket: counts the attempt and starts the ack clock. */
   markSending: (clientMsgId: string, now: number) => void;
@@ -97,12 +98,13 @@ export const useOutboxStore = create<OutboxStore>()(
           return { ownerId: userId, entries, parked };
         }),
 
-      enqueue: (conversationId, text, attachments) => {
+      enqueue: (conversationId, text, attachments, replyTo) => {
         const entry: OutboxEntry = {
           clientMsgId: crypto.randomUUID(),
           conversationId,
           text,
           attachments,
+          ...(replyTo ? { replyTo } : {}),
           createdAt: new Date().toISOString(),
           attempts: 0,
           status: "queued",

@@ -15,6 +15,7 @@ import { useChatToken } from "../hooks/useChatToken";
 import { useChatSocket } from "../hooks/useChatSocket";
 import { useTypingExpiry } from "../hooks/useTypingExpiry";
 import { useConversations } from "../hooks/useConversations";
+import { useClearMarkOnOpen } from "../hooks/useClearMarkOnOpen";
 import { unlockAudioContext } from "../utils/chatSounds";
 import { useDemoReadOnly } from "@/features/demo/useDemoReadOnly";
 
@@ -22,7 +23,7 @@ type SendMessage = ReturnType<typeof useChatSocket>["sendMessage"];
 type SendTyping = ReturnType<typeof useChatSocket>["sendTyping"];
 type MarkRead = ReturnType<typeof useChatSocket>["markRead"];
 type EditMessage = ReturnType<typeof useChatSocket>["editMessage"];
-type DeleteMessage = ReturnType<typeof useChatSocket>["deleteMessage"];
+type DeleteMessages = ReturnType<typeof useChatSocket>["deleteMessages"];
 
 /**
  * What a chat surface needs to talk to the socket. Both surfaces - the drawer
@@ -36,7 +37,7 @@ export interface ChatRuntime {
   sendTyping: SendTyping;
   markRead: MarkRead;
   editMessage: EditMessage;
-  deleteMessage: DeleteMessage;
+  deleteMessages: DeleteMessages;
 }
 
 const ChatRuntimeContext = createContext<ChatRuntime | null>(null);
@@ -113,7 +114,7 @@ function ChatRuntimeEngine({ onRuntime }: { onRuntime: (r: ChatRuntime | null) =
       sendTyping: (...args) => latest.current.sendTyping(...args),
       markRead: (...args) => latest.current.markRead(...args),
       editMessage: (...args) => latest.current.editMessage(...args),
-      deleteMessage: (...args) => latest.current.deleteMessage(...args),
+      deleteMessages: (...args) => latest.current.deleteMessages(...args),
     }),
     [currentUserId]
   );
@@ -152,6 +153,9 @@ function ChatRuntimeEngine({ onRuntime }: { onRuntime: (r: ChatRuntime | null) =
       }
     }
   }, [bootstrapConvs, currentUserId, bootstrapUnread]);
+
+  // Opening a conversation marked unread takes the dot away, from anywhere.
+  useClearMarkOnOpen(convsData?.conversations);
 
   // Unlock AudioContext on first user interaction so WebSocket-triggered sounds
   // can play even when no surface is open (no gesture at that moment).

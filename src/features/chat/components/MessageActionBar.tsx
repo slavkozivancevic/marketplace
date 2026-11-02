@@ -1,44 +1,49 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
-import { Copy, Pencil, Trash2, X } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { Copy, Pencil, Reply, Trash2, X } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
-import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/ActionButton";
 import { IconButton } from "@/components/IconButton";
 import { useMessages } from "../hooks/useMessages";
 import { useSelectionStore } from "../store/selectionStore";
+import type { UserProfile } from "../hooks/useUserProfiles";
 import { useChatRuntime } from "./ChatRuntime";
-import { messageActions } from "../utils/messageOps";
+import { formatCopy, selectionActions } from "../utils/messageOps";
+import { DeleteMessagesDialog } from "./DeleteMessagesDialog";
 
 /**
- * The thread header while a message is picked, as on WhatsApp: a way out,
- * then only what this message allows its viewer right now - copy, edit (own
- * text, 15 minutes), delete (for everyone: own, 60 hours; for me: always).
- * Reactions live on the message itself (the long press opens the emoji bar).
+ * The thread header in selection mode, as on WhatsApp: a way out, how many are
+ * picked, then only what the selection allows its viewer right now - for one
+ * message reply, copy, edit (own text, 15 minutes) and delete; for several
+ * copy and delete. Reactions live on the message itself (the long press opens
+ * the emoji bar over a single picked message).
  *
  * Edit and delete are on screen at once and roll back with a toast if the
  * server refuses (see useChatSocket), so the dialog never waits on it.
  */
 export function MessageActionBar({
   conversationId,
-  messageId,
+  messageIds,
+  profiles = {},
   className,
   renderTitle = (content) => <span className="text-sm font-semibold">{content}</span>,
 }: {
   conversationId: string;
-  messageId: string;
+  messageIds: string[];
+  /** For the names in a multi-message copy. */
+  profiles?: Record<string, UserProfile>;
   className?: string;
   /** The drawer wraps the count in its SheetTitle, which a sheet always needs. */
   renderTitle?: (content: React.ReactNode) => React.ReactNode;
 }) {
   const t = useTranslations("chat");
-  const tCommon = useTranslations("common");
+  const locale = useLocale();
   const runtime = useChatRuntime();
   const { data } = useMessages(conversationId);
   const clear = useSelectionStore((s) => s.clear);
   const startEdit = useSelectionStore((s) => s.startEdit);
+  const startReply = useSelectionStore((s) => s.startReply);
   const [deleteOpen, setDeleteOpen] = useState(false);
   // Re-read on each render rather than kept: a selection left open across the
   // 15-minute mark must stop offering "edit".
@@ -57,19 +62,23 @@ export function MessageActionBar({
     return () => window.removeEventListener("keydown", onKey);
   }, [clear, deleteOpen]);
 
-  const message = data?.messages.find((m) => m.messageId === messageId);
+  const picked = (data?.messages ?? []).filter((m) => messageIds.includes(m.messageId));
   // Gone from under the selection (deleted elsewhere, conversation dropped).
+  const lost = !!data && picked.length === 0;
   useEffect(() => {
-    if (data && !message) clear();
-  }, [data, message, clear]);
-  if (!message || !runtime) return null;
+    if (lost) clear();
+  }, [lost, clear]);
+  if (picked.length === 0 || !runtime) return null;
 
-  const allowed = messageActions(message, runtime.currentUserId, now);
+  const me = runtime.currentUserId;
+  const allowed = selectionActions(picked, me, now);
+  const single = picked.length === 1 ? picked[0] : null;
 
   const copy = async () => {
+    const text = formatCopy(picked, (id) => profiles[id]?.name ?? "", locale);
     try {
-      await navigator.clipboard.writeText(message.text);
-      toast.success(t("copied"));
+      await navigator.clipboard.writeText(text);
+      toast.success(t("copiedCount", { count: picked.filter((m) => !m.deletedAt && m.text.trim()).length }));
     } catch {
       toast.error(t("copyFailed"));
     }
@@ -79,7 +88,7 @@ export function MessageActionBar({
   const remove = (scope: "everyone" | "me") => {
     setDeleteOpen(false);
     clear();
-    runtime.deleteMessage(conversationId, message, scope);
+    runtime.deleteMessages(conversationId, picked, scope);
   };
 
   return (
@@ -87,46 +96,39 @@ export function MessageActionBar({
       <IconButton label={t("clearSelection")} variant="ghost" size="icon-sm" onClick={clear}>
         <X className="size-4" />
       </IconButton>
-      {renderTitle(t("selectedCount", { count: 1 }))}
+      {renderTitle(t("selectedCount", { count: picked.length }))}
       <div className="ml-auto flex items-center gap-0.5 shrink-0">
+        {allowed.reply && single && (
+          <IconButton label={t("reply")} variant="ghost" size="icon-sm" onClick={() => startReply(conversationId, single)}>
+            <Reply className="size-4" />
+          </IconButton>
+        )}
         {allowed.copy && (
           <IconButton label={t("copyMessage")} variant="ghost" size="icon-sm" onClick={() => void copy()}>
             <Copy className="size-4" />
           </IconButton>
         )}
-        {allowed.edit && (
+        {allowed.edit && single && (
           <IconButton
             label={t("editMessage")}
             variant="ghost"
             size="icon-sm"
-            onClick={() => startEdit(conversationId, messageId, message.text)}
+            onClick={() => startEdit(conversationId, single.messageId, single.text)}
           >
             <Pencil className="size-4" />
           </IconButton>
         )}
-        {allowed.deleteForMe && (
-          <ConfirmDialog
-            open={deleteOpen}
-            onOpenChange={setDeleteOpen}
-            title={t("deleteMessageTitle")}
-            description={allowed.deleteForEveryone ? t("deleteMessageDescOwn") : t("deleteMessageDescOther")}
-            confirmText={t("deleteForMe")}
-            cancelText={tCommon("cancel")}
-            isLoading={false}
-            onConfirm={() => remove("me")}
-            body={
-              allowed.deleteForEveryone ? (
-                <Button variant="destructive" className="w-full" onClick={() => remove("everyone")}>
-                  {t("deleteForEveryone")}
-                </Button>
-              ) : undefined
-            }
-          >
-            <IconButton label={t("deleteMessage")} variant="ghost" size="icon-sm">
-              <Trash2 className="size-4" />
-            </IconButton>
-          </ConfirmDialog>
-        )}
+        <DeleteMessagesDialog
+          count={picked.length}
+          forEveryone={allowed.deleteForEveryone}
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          onDelete={remove}
+        >
+          <IconButton label={t("deleteMessage")} variant="ghost" size="icon-sm">
+            <Trash2 className="size-4" />
+          </IconButton>
+        </DeleteMessagesDialog>
       </div>
     </div>
   );

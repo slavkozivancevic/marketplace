@@ -23,6 +23,8 @@ export async function GET(
   const upstreamParams = new URLSearchParams();
   if (searchParams.get("cursor")) upstreamParams.set("cursor", searchParams.get("cursor")!);
   if (searchParams.get("limit")) upstreamParams.set("limit", searchParams.get("limit")!);
+  // A jump to a quoted message: everything from it up to the cursor.
+  if (searchParams.get("from")) upstreamParams.set("from", searchParams.get("from")!);
 
   try {
     const { data } = await axios.get(

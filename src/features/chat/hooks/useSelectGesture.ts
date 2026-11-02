@@ -17,13 +17,23 @@ import { createLongPress, type LongPress } from "@/lib/longPress";
  * `onSelect(source)` says which: the thread opens the emoji bar only for
  * "press", because a phone has no hover trigger for it.
  *
+ * `onTap`, passed while the surface is in selection mode, takes over a plain
+ * tap or click: it picks or un-picks the row and the row's own click (open the
+ * conversation) never runs - as on WhatsApp, where a tap in selection mode
+ * never opens anything.
+ *
  * The press lives in a ref made in an effect, and every ref is read only from
  * an event handler - never during render.
  */
-export function useSelectGesture(onSelect: (source: "press" | "contextmenu") => void) {
+export function useSelectGesture(
+  onSelect: (source: "press" | "contextmenu") => void,
+  onTap?: (() => void) | null,
+) {
   const callback = useRef(onSelect);
+  const tap = useRef(onTap);
   useEffect(() => {
     callback.current = onSelect;
+    tap.current = onTap;
   });
   const pressRef = useRef<LongPress | null>(null);
   useEffect(() => {
@@ -44,6 +54,13 @@ export function useSelectGesture(onSelect: (source: "press" | "contextmenu") => 
       if (pressRef.current?.consumeClick()) {
         e.preventDefault();
         e.stopPropagation();
+        return;
+      }
+      // A control inside the row (a reaction badge, the menu) keeps its own click.
+      if (tap.current && !(e.target as Element).closest("[data-own-click]")) {
+        e.preventDefault();
+        e.stopPropagation();
+        tap.current();
       }
     },
     onContextMenu: (e: React.MouseEvent) => {

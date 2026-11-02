@@ -7,7 +7,9 @@ import { useTranslations } from "next-intl";
 import { toast } from "@/components/ui/sonner";
 import { env } from "@/env/client";
 import { WsIncomingEvent, ChatMessage, ChatAttachment, Conversation, PresenceMap, OpRejection } from "../types";
-import { withDelete, withEdit, withLastMessageChange } from "../utils/messageOps";
+import { withDelete, withEdit, withLastMessageChange, withReadState } from "../utils/messageOps";
+import { quoteOf } from "../utils/replies";
+import { forgetConversations } from "./useConversationActions";
 import { isConversationOnScreen, useChatStore, TYPING_HEARTBEAT_MS } from "../store/chatStore";
 import { useOutboxStore } from "../store/outboxStore";
 import {
@@ -85,6 +87,43 @@ function withoutReactionsOf(old: ReactionsResponse | undefined, messageId: strin
   const reactions = { ...old.reactions };
   delete reactions[messageId];
   return { reactions };
+}
+
+/**
+ * Messages deleted, live or by us: tombstones (or gone, "for me"), quotes of
+ * them blanked, their reactions dropped, and the inbox preview when one of
+ * them was the last message. "For me" moves our preview to an earlier message
+ * the server picked, so the list is asked for rather than guessed.
+ */
+function applyDeleted(
+  queryClient: ReturnType<typeof useQueryClient>,
+  conversationId: string,
+  messageIds: string[],
+  scope: "everyone" | "me",
+  deletedAt: string | undefined,
+): void {
+  const cached = queryClient.getQueryData<MessagesData>(["chat-messages", conversationId])?.messages ?? [];
+  const before = cached.filter((m) => messageIds.includes(m.messageId));
+  queryClient.setQueryData<MessagesData>(["chat-messages", conversationId], (old) =>
+    withDelete(old, messageIds, scope, deletedAt ?? new Date().toISOString()),
+  );
+  if (scope === "me") {
+    void queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+    return;
+  }
+  queryClient.setQueryData<ReactionsResponse>(["chat-reactions", conversationId], (old) =>
+    messageIds.reduce(withoutReactionsOf, old),
+  );
+  if (before.length === 0) {
+    void queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
+    return;
+  }
+  queryClient.setQueryData<ConversationsData>(["chat-conversations"], (old) =>
+    before.reduce(
+      (data, m) => withLastMessageChange(data, conversationId, m.createdAt, { deleted: true }),
+      old as ConversationsData | undefined,
+    ),
+  );
 }
 
 export function useChatSocket(token: string | undefined, currentUserId: string) {
@@ -233,6 +272,10 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
             text: entry.text,
             attachments: entry.attachments,
             clientMsgId: entry.clientMsgId,
+            // Only the key: the server reads the original and quotes it itself.
+            ...(entry.replyTo
+              ? { replyTo: { messageId: entry.replyTo.messageId, createdAt: entry.replyTo.createdAt } }
+              : {}),
           }),
         );
       } catch (err) {
@@ -782,26 +825,23 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
         }
 
         if (data.type === "MESSAGE_DELETED") {
-          const before = queryClient
-            .getQueryData<MessagesData>(["chat-messages", data.conversationId])
-            ?.messages.find((m) => m.messageId === data.messageId);
-          queryClient.setQueryData<MessagesData>(["chat-messages", data.conversationId], (old) =>
-            withDelete(old, data.messageId, data.scope, data.deletedAt ?? new Date().toISOString()),
+          applyDeleted(queryClient, data.conversationId, [data.messageId], data.scope, data.deletedAt);
+        }
+
+        if (data.type === "MESSAGES_DELETED") {
+          applyDeleted(queryClient, data.conversationId, data.messageIds, data.scope, data.deletedAt);
+        }
+
+        if (data.type === "CONVERSATIONS_READ_STATE") {
+          // Our own other tab marked them; follow it.
+          queryClient.setQueryData<ConversationsData>(["chat-conversations"], (old) =>
+            withReadState(old, data.conversationIds, data.unread),
           );
-          if (data.scope === "everyone") {
-            queryClient.setQueryData<ReactionsResponse>(["chat-reactions", data.conversationId], (old) =>
-              withoutReactionsOf(old, data.messageId),
-            );
-          }
-          if (data.scope === "everyone" && before) {
-            queryClient.setQueryData<ConversationsData>(["chat-conversations"], (old) =>
-              withLastMessageChange(old, data.conversationId, before.createdAt, { deleted: true }),
-            );
-          } else {
-            // "For me" moves our preview to an earlier message the server
-            // picked; ask for it rather than guess.
-            void queryClient.invalidateQueries({ queryKey: ["chat-conversations"] });
-          }
+          if (!data.unread) for (const id of data.conversationIds) useChatStore.getState().clearUnread(id);
+        }
+
+        if (data.type === "CONVERSATIONS_DELETED") {
+          forgetConversations(queryClient, data.conversationIds);
         }
 
         if (data.type === "OP_ACK") {
@@ -826,34 +866,11 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
         }
 
         if (data.type === "CONVERSATION_DELETED") {
-          // Remove from conversation list cache
-          queryClient.setQueryData<{ conversations: Conversation[] }>(
-            ["chat-conversations"],
-            (old) => {
-              if (!old) return old;
-              return {
-                conversations: old.conversations.filter(
-                  (c) => c.conversationId !== data.conversationId
-                ),
-              };
-            }
-          );
-          // Invalidate message and search caches for this conversation
-          void queryClient.removeQueries({ queryKey: ["chat-messages", data.conversationId] });
-          void queryClient.removeQueries({ queryKey: ["conversation-search"] });
-          useChatStore.getState().clearTyping(data.conversationId);
-          // Anything still queued for it has nowhere to go. Without this it
-          // would keep retrying into a deleted conversation - and, once the
-          // server starts answering "gone", sit there as a failed message in a
-          // thread the user can no longer open. The same cleanup runs locally
-          // when the deletion is ours (see ChatDrawer); this covers the case
-          // where the other side did it.
-          useOutboxStore.getState().clearConversation(data.conversationId);
-          // If the deleted conversation is open, close it
-          const { selectedConvId, setSelectedConvId } = useChatStore.getState();
-          if (selectedConvId === data.conversationId) {
-            setSelectedConvId(null);
-          }
+          // We deleted it for ourselves in another tab. Everything held for it
+          // goes - the row, the thread, the draft, and anything still queued,
+          // which would otherwise keep retrying into a conversation that is
+          // no longer in this inbox (see forgetConversations).
+          forgetConversations(queryClient, [data.conversationId]);
         }
       };
 
@@ -920,9 +937,12 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
   const sendMessage = (
     conversationId: string,
     text: string,
-    attachments: ChatAttachment[] = []
+    attachments: ChatAttachment[] = [],
+    replyTo?: ChatMessage,
   ) => {
-    const entry = useOutboxStore.getState().enqueue(conversationId, text, attachments);
+    const entry = useOutboxStore
+      .getState()
+      .enqueue(conversationId, text, attachments, replyTo ? quoteOf(replyTo) : undefined);
 
     const { lastAttachmentType: sendAttachType, attachmentPreview: sendAttachPreview } =
       attachmentMeta(attachments);
@@ -1051,25 +1071,39 @@ export function useChatSocket(token: string | undefined, currentUserId: string) 
       },
     );
 
-  const deleteMessage = (conversationId: string, message: ChatMessage, scope: "everyone" | "me"): boolean =>
+  /**
+   * Deletes one or more picked messages in one all-or-nothing request
+   * (`deleteMessages`, up to 100), with the change on screen at once and
+   * rolled back if the server refuses any of them.
+   */
+  const deleteMessages = (conversationId: string, messages: ChatMessage[], scope: "everyone" | "me"): boolean =>
     runOp(
-      { action: "deleteMessage", conversationId, messageId: message.messageId, createdAt: message.createdAt, scope },
+      {
+        action: "deleteMessages",
+        conversationId,
+        messages: messages.map((m) => ({ messageId: m.messageId, createdAt: m.createdAt })),
+        scope,
+      },
       () => {
         const undo = snapshot(conversationId);
+        const ids = messages.map((m) => m.messageId);
         queryClient.setQueryData<MessagesData>(["chat-messages", conversationId], (old) =>
-          withDelete(old, message.messageId, scope, new Date().toISOString()),
+          withDelete(old, ids, scope, new Date().toISOString()),
         );
         if (scope === "everyone") {
           queryClient.setQueryData<ReactionsResponse>(["chat-reactions", conversationId], (old) =>
-            withoutReactionsOf(old, message.messageId),
+            ids.reduce(withoutReactionsOf, old),
           );
           queryClient.setQueryData<ConversationsData>(["chat-conversations"], (old) =>
-            withLastMessageChange(old, conversationId, message.createdAt, { deleted: true }),
+            messages.reduce(
+              (data, m) => withLastMessageChange(data, conversationId, m.createdAt, { deleted: true }),
+              old as ConversationsData | undefined,
+            ),
           );
         }
         return undo;
       },
     );
 
-  return { sendMessage, sendTyping, markRead, editMessage, deleteMessage };
+  return { sendMessage, sendTyping, markRead, editMessage, deleteMessages };
 }

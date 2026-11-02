@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/sheet";
 import { useChatStore } from "../store/chatStore";
 import { useChatThreadData } from "../hooks/useChatThreadData";
+import { useUnreadTotal } from "../hooks/useUnreadTotal";
 import { useChatRuntime, type ChatRuntime } from "./ChatRuntime";
 import { InboxPanel } from "./InboxPanel";
 import { MessageThread } from "./MessageThread";
@@ -121,7 +122,7 @@ function ChatDrawerTriggerInner() {
   const isOpen = useChatStore((s) => s.isOpen);
   const openInbox = useChatStore((s) => s.openInbox);
   const closeInbox = useChatStore((s) => s.close);
-  const unreadCount = useChatStore((s) => s.unreadCount);
+  const unreadCount = useUnreadTotal();
   const onPage = useOnMessagesPage();
   // A count from an account that used this browser before; this one has no chat.
   const demoReadOnly = useDemoReadOnly();
@@ -165,21 +166,25 @@ export function ChatDrawerRoot() {
     <Sheet open={isOpen} onOpenChange={(open) => { if (!open) close(); }} modal={false}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-md flex flex-col p-0 gap-0"
+        // data-[side=right]: the sheet sets its own width under that selector
+        // (3/4, max-w-sm), which outranks a plain w-full - on a phone the
+        // chat was three quarters of the screen.
+        className="flex flex-col p-0 gap-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md"
         showCloseButton={false}
         aria-describedby={undefined}
         onInteractOutside={(e) => {
           if ((e.target as HTMLElement).closest("[data-chat-trigger]")) e.preventDefault();
         }}
-        // Escape first undoes a picked message or conversation, or an edit in
-        // progress - the sheet sees the key before anything inside it does,
-        // and closing the whole drawer is not what the user asked for.
+        // Escape first undoes a selection, an edit or a reply in progress -
+        // the sheet sees the key before anything inside it does, and closing
+        // the whole drawer is not what the user asked for.
         onEscapeKeyDown={(e) => {
           const selection = useSelectionStore.getState();
-          if (selection.selected || selection.editing) {
+          if (selection.selected || selection.editing || selection.replying) {
             e.preventDefault();
             selection.clear();
             selection.stopEdit();
+            selection.stopReply();
           }
         }}
       >
@@ -256,6 +261,7 @@ function ChatDrawerInner({ runtime }: { runtime: ChatRuntime }) {
           presence={data.presence}
           profilesLoading={data.profilesLoading}
           presenceLoading={data.presenceLoading}
+          profiles={data.profiles}
           renderTitle={(content) => (
             <SheetTitle className="text-sm font-semibold truncate">{content}</SheetTitle>
           )}
@@ -289,7 +295,7 @@ function ChatDrawerInner({ runtime }: { runtime: ChatRuntime }) {
             isLoading={data.msgsLoading}
             profiles={data.profiles}
             typingUserIds={data.typingInSelected}
-            onSend={(text, attachments) => sendMessage(selectedConvId, text, attachments)}
+            onSend={(text, attachments, replyTo) => sendMessage(selectedConvId, text, attachments, replyTo)}
             onMarkRead={(ids) => markRead(selectedConvId, ids)}
             onTyping={sendTyping}
           />

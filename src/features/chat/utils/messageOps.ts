@@ -50,6 +50,70 @@ export function messageActions(
   };
 }
 
+export interface SelectionActions {
+  reply: boolean;
+  copy: boolean;
+  edit: boolean;
+  deleteForEveryone: boolean;
+  deleteForMe: boolean;
+  react: boolean;
+}
+
+/**
+ * What a selection of messages offers, as on WhatsApp:
+ *
+ * - exactly one: what `messageActions` allows it, plus reply (anything not
+ *   deleted) and the emoji bar;
+ * - several: copy (when any has text) and delete only - no reply, no edit,
+ *   no emoji bar. Delete for everyone only when EVERY picked message could be
+ *   deleted for everyone on its own (own, not deleted, inside 60 hours) -
+ *   otherwise the dialog offers delete for me alone.
+ */
+export function selectionActions(
+  messages: Pick<ChatMessage, "senderId" | "text" | "createdAt" | "deletedAt">[],
+  me: string,
+  now: number,
+): SelectionActions {
+  const each = messages.map((m) => messageActions(m, me, now));
+  if (each.length === 0) {
+    return { reply: false, copy: false, edit: false, deleteForEveryone: false, deleteForMe: false, react: false };
+  }
+  const one = each.length === 1 ? each[0] : null;
+  return {
+    reply: !!one && !messages[0].deletedAt,
+    copy: each.some((a) => a.copy),
+    edit: !!one?.edit,
+    deleteForEveryone: each.every((a) => a.deleteForEveryone),
+    deleteForMe: true,
+    react: !!one?.react,
+  };
+}
+
+/**
+ * The clipboard text for a copy, as on WhatsApp: one message is just its
+ * text; several are one line each, in thread order, prefixed with when and by
+ * whom - `[10:05, 2.11.2026.] Ana: tekst` - with the date and time in the
+ * viewer's locale. Messages with no text (a photo, a deleted one) are left out.
+ */
+export function formatCopy(
+  messages: Pick<ChatMessage, "senderId" | "text" | "createdAt" | "deletedAt">[],
+  nameOf: (senderId: string) => string,
+  locale: string,
+): string {
+  const withText = [...messages]
+    .filter((m) => !m.deletedAt && m.text.trim())
+    .sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0));
+  if (withText.length === 1 && messages.length === 1) return withText[0].text;
+  const time = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" });
+  const date = new Intl.DateTimeFormat(locale, { day: "numeric", month: "numeric", year: "numeric" });
+  return withText
+    .map((m) => {
+      const at = new Date(m.createdAt);
+      return `[${time.format(at)}, ${date.format(at)}] ${nameOf(m.senderId)}: ${m.text}`;
+    })
+    .join("\n");
+}
+
 type MessagesData = { messages: ChatMessage[]; cursor?: string } | undefined;
 type ConversationsData = { conversations: Conversation[] } | undefined;
 
@@ -63,23 +127,44 @@ export function withEdit(data: MessagesData, messageId: string, text: string, ed
 }
 
 /**
- * The thread after a delete. For everyone the message keeps its place as a
- * tombstone (no text, no attachments) so both sides can show where it was;
- * for me it simply leaves this viewer's thread.
+ * The thread after a delete of one or more messages. For everyone a message
+ * keeps its place as a tombstone (no text, no attachments, no quote of its
+ * own) so both sides can show where it was, and every reply quoting it loses
+ * the quoted words, as the server does (`replyTo.deleted`). For me it simply
+ * leaves this viewer's thread, and a reply quoting it can no longer jump to
+ * it (`replyTo.unavailable`).
  */
 export function withDelete(
   data: MessagesData,
-  messageId: string,
+  messageIds: string | string[],
   scope: "everyone" | "me",
   deletedAt: string,
 ): MessagesData {
   if (!data) return data;
-  if (scope === "me") return { ...data, messages: data.messages.filter((m) => m.messageId !== messageId) };
+  const ids = new Set(Array.isArray(messageIds) ? messageIds : [messageIds]);
+  const quoting = (m: ChatMessage) => !!m.replyTo && ids.has(m.replyTo.messageId);
+  if (scope === "me") {
+    return {
+      ...data,
+      messages: data.messages
+        .filter((m) => !ids.has(m.messageId))
+        .map((m) => (quoting(m) ? { ...m, replyTo: { ...m.replyTo!, unavailable: true } } : m)),
+    };
+  }
   return {
     ...data,
-    messages: data.messages.map((m) =>
-      m.messageId === messageId ? { ...m, text: "", attachments: [], deletedAt } : m,
-    ),
+    messages: data.messages.map((m) => {
+      if (ids.has(m.messageId)) {
+        const tomb: ChatMessage = { ...m, text: "", attachments: [], deletedAt };
+        delete tomb.replyTo;
+        return tomb;
+      }
+      if (quoting(m)) {
+        const { messageId, createdAt, senderId, unavailable } = m.replyTo!;
+        return { ...m, replyTo: { messageId, createdAt, senderId, deleted: true, ...(unavailable ? { unavailable } : {}) } };
+      }
+      return m;
+    }),
   };
 }
 
@@ -102,5 +187,16 @@ export function withLastMessageChange(
         ? { ...c, lastMessagePreview: "", lastAttachmentType: "", lastMessageDeleted: true }
         : { ...c, lastMessagePreview: change.text.slice(0, 120) };
     }),
+  };
+}
+
+/** The inbox rows after "Mark as read" / "Mark as unread". Read moves the marker to the last message. */
+export function withReadState(data: ConversationsData, conversationIds: string[], unread: boolean): ConversationsData {
+  if (!data) return data;
+  const ids = new Set(conversationIds);
+  return {
+    conversations: data.conversations.map((c) =>
+      ids.has(c.conversationId) ? { ...c, markedUnread: unread, ...(unread ? {} : { lastReadAt: c.lastMessageAt }) } : c,
+    ),
   };
 }
