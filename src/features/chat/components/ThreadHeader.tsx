@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useChatStore } from "../store/chatStore";
 import { useSelectionStore } from "../store/selectionStore";
 import type { UserPresence } from "../types";
+import type { UserProfile } from "../hooks/useUserProfiles";
 import { PresenceLine } from "./PresenceLine";
 import { MessageActionBar } from "./MessageActionBar";
 import { IconButton } from "@/components/IconButton";
@@ -27,6 +28,8 @@ interface Props {
   leading?: React.ReactNode;
   /** At the end - the drawer's "open page" and close buttons. */
   trailing?: React.ReactNode;
+  /** The participants' names, for the selection bar's multi-message copy. */
+  profiles?: Record<string, UserProfile>;
   className?: string;
 }
 
@@ -56,7 +59,7 @@ export function BackToInboxButton({
  * drawer and the page; each surface adds its own controls through `leading`
  * and `trailing`.
  *
- * While a message is picked it becomes that message's action bar, as on
+ * While messages are picked it becomes their action bar, as on
  * WhatsApp. Deleting the whole conversation no longer lives here: it is picked
  * in the inbox list instead (see InboxSelectionHeader).
  */
@@ -69,22 +72,24 @@ export function ThreadHeader({
   renderTitle,
   leading,
   trailing,
+  profiles,
   className,
 }: Props) {
   const t = useTranslations("chat");
   const connected = useChatStore((s) => s.connected);
-  const pickedMessageId = useSelectionStore((s) =>
-    s.selected?.kind === "message" && s.selected.conversationId === conversationId
-      ? s.selected.messageId
+  const pickedMessageIds = useSelectionStore((s) =>
+    s.selected?.kind === "messages" && s.selected.conversationId === conversationId
+      ? s.selected.ids
       : null,
   );
 
-  if (pickedMessageId) {
+  if (pickedMessageIds) {
     return (
       <MessageActionBar
         className={className}
         conversationId={conversationId}
-        messageId={pickedMessageId}
+        messageIds={pickedMessageIds}
+        profiles={profiles}
         renderTitle={renderTitle}
       />
     );

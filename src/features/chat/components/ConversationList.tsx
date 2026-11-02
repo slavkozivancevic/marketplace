@@ -1,7 +1,15 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { MessageCircle, ImageIcon, FileText, Video, Paperclip, Clock, Check, CheckCheck, Ban, ChevronDown } from "lucide-react";
+import { useState } from "react";
+import { MessageCircle, ImageIcon, FileText, Video, Paperclip, Clock, Check, CheckCheck, Ban, ChevronDown, MessageSquareDot, Trash2, ListChecks } from "lucide-react";
+import { toast } from "@/components/ui/sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { IconButton } from "@/components/IconButton";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,6 +21,9 @@ import { ConversationListSkeleton } from "./MessagesPageSkeleton";
 import { classifyDay, formatChatDate, formatChatTime } from "../utils/dateLabels";
 import { useSelectGesture } from "../hooks/useSelectGesture";
 import { useSelectionStore } from "../store/selectionStore";
+import { useConversationActions } from "../hooks/useConversationActions";
+import { DeleteConversationsDialog } from "./DeleteConversationsDialog";
+import { isUnread } from "./InboxSelectionHeader";
 
 interface Props {
   conversations: Conversation[];
@@ -115,9 +126,10 @@ type RowProps = Omit<Props, "conversations" | "isLoading" | "isSearching"> & {
 };
 
 /**
- * One inbox row. A tap opens the conversation; a long press (touch),
- * right-click or the hover chevron (mouse) picks it instead, and the inbox
- * header then offers to delete it - as on WhatsApp.
+ * One inbox row, as on WhatsApp. A tap opens the conversation; a long press
+ * (touch), right-click or the hover menu's "Select" (mouse) enters selection
+ * mode with it, and from then on a tap picks or un-picks rows instead of
+ * opening them. A picked row carries a tick on its avatar.
  */
 function ConversationRow({
   conv,
@@ -131,12 +143,22 @@ function ConversationRow({
   rowTimestamp,
 }: RowProps) {
   const t = useTranslations("chat");
-  const picked = useSelectionStore((s) =>
-    s.selected?.kind === "conversation" ? s.selected.conversationId : null,
+  const isPicked = useSelectionStore(
+    (s) => s.selected?.kind === "conversations" && s.selected.ids.includes(conv.conversationId),
   );
+  const selectionActive = useSelectionStore((s) => s.selected?.kind === "conversations");
   const selectConversation = useSelectionStore((s) => s.selectConversation);
+  const toggleConversation = useSelectionStore((s) => s.toggleConversation);
   const clearSelection = useSelectionStore((s) => s.clear);
-  const gesture = useSelectGesture(() => selectConversation(conv.conversationId));
+  const toggle = () => {
+    if (!toggleConversation(conv.conversationId)) toast.error(t("selectionFull"));
+  };
+  const gesture = useSelectGesture(
+    () => (selectionActive ? toggle() : selectConversation(conv.conversationId)),
+    selectionActive ? toggle : null,
+  );
+  const { deleteConversations, setReadState, pending } = useConversationActions();
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const otherId =
     conv.participants.find((p) => p !== currentUserId) ?? conv.participants[0];
@@ -145,13 +167,11 @@ function ConversationRow({
   const displayName = profile?.name ?? "";
   const initials = getInitials(profile?.name, "");
   const isSelected = conv.conversationId === selectedId;
-  // Picked for an action (long press, right-click, chevron) - as on
-  // WhatsApp, marked apart from "the open one" above.
-  const isPicked = picked === conv.conversationId;
   const isTyping =
     Object.keys(typing[conv.conversationId] ?? {}).length > 0;
   const isMine = conv.lastMessageSenderId === currentUserId;
   const unread = convUnread[conv.conversationId] ?? 0;
+  const rowUnread = isUnread(convUnread, conv);
   const attachType = conv.lastAttachmentType;
   const isLastMsgPending = conv.lastMessagePending === true;
   // One source: the conversation itself. The server fills this on every
@@ -174,6 +194,19 @@ function ConversationRow({
     ? "You"
     : (profiles[conv.lastReactionUserId ?? ""]?.name?.split(" ")[0] ?? "");
 
+  const avatar = profileLoading ? (
+    <Skeleton className="size-9 rounded-full shrink-0" />
+  ) : profile?.imageUrl ? (
+    <FallbackImg
+      src={profile.imageUrl}
+      alt={displayName}
+      className="size-9 rounded-full shrink-0 object-cover bg-muted"
+      fallback={<InitialsAvatar initials={initials} />}
+    />
+  ) : (
+    <InitialsAvatar initials={initials} />
+  );
+
   return (
     <div className="group/row relative">
       <button
@@ -182,30 +215,26 @@ function ConversationRow({
           clearSelection();
           onSelect(conv.conversationId);
         }}
-        aria-pressed={isPicked || undefined}
+        aria-pressed={selectionActive ? isPicked : undefined}
         className={cn(
           // The touch callout and text selection would fight the long press.
           "flex items-center gap-3 rounded-lg p-3 pr-9 text-left transition-colors cursor-pointer w-full [-webkit-touch-callout:none] pointer-coarse:select-none",
           isPicked
-            ? "bg-primary/20 ring-2 ring-inset ring-primary/50 text-foreground"
+            ? "bg-primary/20 text-foreground"
             : isSelected
               ? "bg-primary/10 text-foreground"
               : "pointer-fine:hover:bg-muted/60"
         )}
       >
-        {/* Avatar */}
-        {profileLoading ? (
-          <Skeleton className="size-9 rounded-full shrink-0" />
-        ) : profile?.imageUrl ? (
-          <FallbackImg
-            src={profile.imageUrl}
-            alt={displayName}
-            className="size-9 rounded-full shrink-0 object-cover bg-muted"
-            fallback={<InitialsAvatar initials={initials} />}
-          />
-        ) : (
-          <InitialsAvatar initials={initials} />
-        )}
+        {/* Avatar, with WhatsApp's tick at the bottom right while picked. */}
+        <div className="relative shrink-0">
+          {avatar}
+          {isPicked && (
+            <span className="absolute -bottom-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-background">
+              <Check className="size-2.5 text-white" strokeWidth={3} />
+            </span>
+          )}
+        </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
@@ -225,11 +254,16 @@ function ConversationRow({
                   {rowTimestamp(new Date(conv.lastMessageAt))}
                 </span>
               )}
-              {unread > 0 && (
+              {unread > 0 ? (
                 <span className="flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground leading-none">
                   {unread > 9 ? "9+" : unread}
                 </span>
-              )}
+              ) : conv.markedUnread ? (
+                // "Mark as unread": a dot with no number, as on WhatsApp.
+                <span className="size-2.5 rounded-full bg-primary">
+                  <span className="sr-only">{t("markedUnread")}</span>
+                </span>
+              ) : null}
             </div>
           </div>
           {/* Typing outranks both previews - it is the newer fact, and it
@@ -265,18 +299,48 @@ function ConversationRow({
           ) : null}
         </div>
       </button>
-      {/* The visible way to pick a row with a mouse (WhatsApp Web). Outside
-          the row button - a button inside a button is invalid - and absent on
-          touch, where a resting row must look like a desktop one. */}
-      <IconButton
-        label={t("conversationOptions")}
-        variant="ghost"
-        size="icon-sm"
-        onClick={() => selectConversation(conv.conversationId)}
-        className="absolute right-1.5 bottom-2 opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 pointer-coarse:hidden"
-      >
-        <ChevronDown className="size-4 text-muted-foreground" />
-      </IconButton>
+      {/* The row's menu with a mouse, as on WhatsApp Web. Outside the row
+          button - a button inside a button is invalid - and absent on touch,
+          where a resting row must look like a desktop one. */}
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild>
+          <IconButton
+            label={t("conversationOptions")}
+            variant="ghost"
+            size="icon-sm"
+            className="absolute right-1.5 bottom-2 opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:hidden"
+          >
+            <ChevronDown className="size-4 text-muted-foreground" />
+          </IconButton>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            disabled={pending !== null}
+            onSelect={() => void setReadState([conv.conversationId], rowUnread)}
+          >
+            {rowUnread ? <CheckCheck /> : <MessageSquareDot />}
+            {rowUnread ? t("markAsRead") : t("markAsUnread")}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => (selectionActive ? toggle() : selectConversation(conv.conversationId))}
+          >
+            <ListChecks />
+            {t("select")}
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}>
+            <Trash2 />
+            {t("deleteConversationAction")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <DeleteConversationsDialog
+        count={1}
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        isLoading={pending === "delete"}
+        // Success removes the row and takes the dialog with it.
+        onConfirm={() => void deleteConversations([conv.conversationId])}
+      />
     </div>
   );
 }

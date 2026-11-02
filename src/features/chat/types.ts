@@ -28,6 +28,28 @@ export interface ChatMessage {
    * deleted". A message deleted "for me" never reaches this viewer at all.
    */
   deletedAt?: string;
+  /** The message this one answers (swipe / Reply), as the server snapshotted it. */
+  replyTo?: ReplyQuote;
+}
+
+/**
+ * A quote of the message a reply answers - the server's own snapshot of it,
+ * taken when the reply was written (the client never sends quoted text).
+ *
+ * - `deleted`: the original was deleted for everyone; the quote shows the
+ *   placeholder and nothing of what it said, as on current WhatsApp.
+ * - `unavailable`: the original is out of THIS viewer's reach (they hid it,
+ *   or it is from before they deleted the conversation). The quote still
+ *   shows; a tap says so instead of searching for it.
+ */
+export interface ReplyQuote {
+  messageId: string;
+  createdAt: string;
+  senderId: string;
+  excerpt?: string;
+  attachment?: { key: string; type: string; filename?: string };
+  deleted?: boolean;
+  unavailable?: boolean;
 }
 
 export interface Conversation {
@@ -45,6 +67,8 @@ export interface Conversation {
    * the unread badge, which is why it has to be the same kind of value.
    */
   lastReadAt?: string;
+  /** "Mark as unread" from the inbox: a dot until the conversation is opened or marked read. */
+  markedUnread?: boolean;
   /**
    * Who has read the last message.
    *
@@ -121,8 +145,14 @@ export type WsIncomingEvent =
   | { type: "MESSAGE_EDITED"; conversationId: string; messageId: string; text: string; editedAt: string }
   /** "everyone": a tombstone for both sides. "me": our own other tab hid it. */
   | { type: "MESSAGE_DELETED"; conversationId: string; messageId: string; scope: "everyone" | "me"; deletedAt?: string }
+  /** A multi-select delete (deleteMessages): the whole selection in one frame. */
+  | { type: "MESSAGES_DELETED"; conversationId: string; messageIds: string[]; scope: "everyone" | "me"; deletedAt?: string }
   /** Our edit or delete landed; carries the same fields as the matching event. */
   | { type: "OP_ACK"; opId: string }
   /** Our edit or delete was refused: the optimistic change is rolled back. */
   | { type: "OP_REJECTED"; opId: string; reason: OpRejection }
-  | { type: "CONVERSATION_DELETED"; conversationId: string };
+  | { type: "CONVERSATION_DELETED"; conversationId: string }
+  /** We deleted several conversations (inbox multi-select), from another tab or this one. */
+  | { type: "CONVERSATIONS_DELETED"; conversationIds: string[] }
+  /** We marked conversations read or unread, from another tab or this one. */
+  | { type: "CONVERSATIONS_READ_STATE"; conversationIds: string[]; unread: boolean };

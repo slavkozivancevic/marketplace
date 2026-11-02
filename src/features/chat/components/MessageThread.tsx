@@ -27,9 +27,9 @@ import {
   Ban,
   Pencil,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { cn } from "@/lib/utils";
+import { toast } from "@/components/ui/sonner";
 import { useReactions } from "../hooks/useReactions";
 import { Textarea } from "@/components/ui/textarea";
 import { FallbackImg } from "@/components/FallbackImg";
@@ -46,7 +46,14 @@ import { IconButton } from "@/components/IconButton";
 import { MessageThreadSkeleton } from "./MessagesPageSkeleton";
 import { SelectableMessage } from "./SelectableMessage";
 import { useChatRuntime } from "./ChatRuntime";
-import { useSelectionStore } from "../store/selectionStore";
+import { useMessageSelectionActive, useSelectionStore } from "../store/selectionStore";
+import { useAttachmentReadUrl } from "../hooks/useAttachmentReadUrl";
+import { useOlderMessages } from "../hooks/useOlderMessages";
+import { selectionActions } from "../utils/messageOps";
+import { QuoteBlock } from "./QuoteBlock";
+import { DeleteMessagesDialog } from "./DeleteMessagesDialog";
+import { MessageMenu } from "./MessageMenu";
+import { quoteOf } from "../utils/replies";
 
 /**
  * A message in the thread, whether or not the server has confirmed it.
@@ -92,7 +99,8 @@ interface Props {
   profiles?: Record<string, UserProfile>;
   /** Participants currently composing in this conversation (never includes us). */
   typingUserIds?: string[];
-  onSend: (text: string, attachments: Attachment[]) => void;
+  /** `replyTo`: the message this one answers (swipe / Reply), if any. */
+  onSend: (text: string, attachments: Attachment[], replyTo?: ChatMessage) => void;
   onMarkRead: (messageIds: string[]) => void;
   /**
    * Takes the conversation id on purpose. The cleanup that fires a "stop"
@@ -211,19 +219,6 @@ function SenderInitials({ initials }: { initials: string }) {
 
 // ── Attachment display ────────────────────────────────────────────────────────
 
-function useAttachmentReadUrl(key: string) {
-  return useQuery({
-    queryKey: ["chat-attachment-url", key],
-    queryFn: async () => {
-      const { data } = await axios.get<{ url: string }>(
-        `/api/chat/attachments/read-url?key=${encodeURIComponent(key)}`,
-      );
-      return data.url;
-    },
-    staleTime: 1000 * 60 * 50, // 50 min - presigned URL expires at 60 min (buffer of 10 min)
-    retry: 1,
-  });
-}
 
 // Rendered as a direct child (no portal) so Radix's dismiss logic never fires
 // for clicks inside it. position:fixed + z-[200] still covers the full viewport.
@@ -925,6 +920,7 @@ export function MessageThread({
         attachments: e.attachments,
         readBy: [currentUserId],
         createdAt: e.createdAt,
+        ...(e.replyTo ? { replyTo: e.replyTo } : {}),
         delivery: e.status,
         failedReason: e.failedReason,
       }));
@@ -994,7 +990,29 @@ export function MessageThread({
   const runtime = useChatRuntime();
   const hasSelection = useSelectionStore((s) => s.selected !== null);
   const selectMessage = useSelectionStore((s) => s.selectMessage);
+
   const clearSelection = useSelectionStore((s) => s.clear);
+  const selectionActive = useMessageSelectionActive(conversationId);
+  const pickedCount = useSelectionStore((s) =>
+    s.selected?.kind === "messages" && s.selected.conversationId === conversationId ? s.selected.ids.length : 0,
+  );
+  const startEdit = useSelectionStore((s) => s.startEdit);
+  const replying = useSelectionStore((s) =>
+    s.replying && s.replying.conversationId === conversationId ? s.replying : null,
+  );
+  const startReply = useSelectionStore((s) => s.startReply);
+  const stopReply = useSelectionStore((s) => s.stopReply);
+  const older = useOlderMessages(conversationId);
+  // A bubble's menu "Delete" asks here (one dialog for the thread), with
+  // whether it may still go for everyone, decided at the click.
+  const [deleteTarget, setDeleteTarget] = useState<{ message: ChatMessage; forEveryone: boolean } | null>(null);
+  // The original a tapped quote jumped to, flashed for a moment.
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [jumpingId, setJumpingId] = useState<string | null>(null);
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Distance from the bottom to keep while older history is put on top, so the
+  // reader stays on the message they were looking at.
+  const keepFromBottom = useRef<number | null>(null);
   const editing = useSelectionStore((s) =>
     s.editing && s.editing.conversationId === conversationId ? s.editing : null,
   );
@@ -1003,13 +1021,75 @@ export function MessageThread({
   const editingMessage = editing ? messages.find((m) => m.messageId === editing.messageId) : undefined;
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
-  // A selection or an edit belongs to the conversation it was made in.
+  // A selection, an edit or a reply belongs to the conversation it was made in.
   useEffect(() => {
     return () => {
       clearSelection();
       stopEdit();
+      stopReply();
     };
-  }, [conversationId, clearSelection, stopEdit]);
+  }, [conversationId, clearSelection, stopEdit, stopReply]);
+
+  // The emoji bar belongs to exactly one picked message (WhatsApp): picking a
+  // second one closes it, and so does the selection ending - the long press
+  // opened it together with the selection. (The desktop hover trigger never
+  // changes the selection, so this leaves it alone.)
+  useEffect(() => {
+    if (pickedCount !== 1) setPickerOpenFor(null);
+  }, [pickedCount]);
+
+  // A reply puts the cursor in the composer, as on WhatsApp, and puts away
+  // the emoji bar a long press may have left open.
+  useEffect(() => {
+    if (!replying) return;
+    setPickerOpenFor(null);
+    composerRef.current?.focus();
+  }, [replying]);
+
+  useEffect(() => () => {
+    if (highlightTimer.current) clearTimeout(highlightTimer.current);
+  }, []);
+
+  /**
+   * A tap on a quote, as on WhatsApp: scroll to the original and flash it.
+   * One older than anything loaded is fetched first (everything back to it,
+   * in one request); one this viewer can no longer reach - they hid it, or
+   * deleted the conversation after it - says so instead.
+   */
+  const jumpTo = async (quote: NonNullable<ChatMessage["replyTo"]>) => {
+    const show = () => {
+      const el = scrollRef.current?.querySelector<HTMLElement>(`[data-message-id="${CSS.escape(quote.messageId)}"]`);
+      if (!el) return false;
+      pinnedToBottom.current = false;
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+      setHighlightId(quote.messageId);
+      if (highlightTimer.current) clearTimeout(highlightTimer.current);
+      highlightTimer.current = setTimeout(() => setHighlightId(null), 1500);
+      return true;
+    };
+    if (quote.unavailable) {
+      toast.info(t("quoteUnavailable"));
+      return;
+    }
+    if (show()) return;
+    setJumpingId(quote.messageId);
+    const found = await older.loadUntil(quote.createdAt, quote.messageId);
+    setJumpingId(null);
+    // The rows are in the cache; give React the frame to put them on screen.
+    requestAnimationFrame(() => {
+      if (!found || !show()) toast.info(t("quoteUnavailable"));
+    });
+  };
+
+  /** The next page of history, when the reader reaches the top. */
+  const loadOlderKeepingPlace = () => {
+    const container = scrollRef.current;
+    if (!container || !older.hasMore || older.loading) return;
+    keepFromBottom.current = container.scrollHeight - container.scrollTop;
+    void older.loadOlder().then((ok) => {
+      if (!ok) keepFromBottom.current = null;
+    });
+  };
 
   // Edit mode puts the cursor at the end of the text it loaded.
   useEffect(() => {
@@ -1086,6 +1166,14 @@ export function MessageThread({
       // The switch is the event; there is nowhere else to observe it.
       setDetached(null);
     }
+    // Older history just went in on top: put the reader back where they were,
+    // measured from the bottom, which did not move.
+    if (keepFromBottom.current !== null && scrollRef.current) {
+      const container = scrollRef.current;
+      container.scrollTop = container.scrollHeight - keepFromBottom.current;
+      keepFromBottom.current = null;
+      return;
+    }
     if (pinnedToBottom.current) jumpToBottom();
     // `items`, not `messages`: a message you have just queued grows the thread
     // exactly like one that arrived, and should scroll into view the same way.
@@ -1154,6 +1242,9 @@ export function MessageThread({
     // browser clamping scrollTop by itself when the typing row vanishes from
     // under a bottom-pinned view. Every one of those happens at the bottom.
     if (pinnedToBottom.current) return;
+
+    // Near the top: the next page of history, as on WhatsApp.
+    if (container.scrollTop < 120) loadOlderKeepingPlace();
 
     const containerTop = container.getBoundingClientRect().top;
     const msgEls = container.querySelectorAll<HTMLElement>("[data-msg-date]");
@@ -1317,7 +1408,8 @@ export function MessageThread({
     pinnedToBottom.current = true;
     setDetached(null);
 
-    onSend(trimmed, attachments);
+    onSend(trimmed, attachments, replying?.message);
+    stopReply();
     // The send sound used to play here, on the click. It now follows the
     // server's acknowledgement (see useChatSocket), because here it was capable
     // of announcing a delivery that never happened.
@@ -1331,6 +1423,8 @@ export function MessageThread({
     text,
     pendingAttachments,
     onSend,
+    replying,
+    stopReply,
     conversationId,
     stopTyping,
     clearDraft,
@@ -1370,6 +1464,11 @@ export function MessageThread({
       stopEdit();
       return;
     }
+    if (replying && e.key === "Escape") {
+      e.preventDefault();
+      stopReply();
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (editing) saveEdit();
@@ -1398,6 +1497,15 @@ export function MessageThread({
     <div className="flex flex-col h-full min-h-0">
       {/* Messages + scroll-to-bottom button */}
       <div className="flex-1 relative min-h-0">
+        {/* Older history on its way. Over the list, not in it: a row in the
+            flow would move everything the reader is looking at. */}
+        {older.loading && !jumpingId && (
+          <div className="absolute top-2 inset-x-0 z-20 flex justify-center pointer-events-none">
+            <span className="flex size-7 items-center justify-center rounded-full bg-background border shadow-sm">
+              <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+            </span>
+          </div>
+        )}
         <div
           ref={scrollRef}
           onScroll={handleScroll}
@@ -1471,6 +1579,9 @@ export function MessageThread({
                   conversationId={conversationId!}
                   messageId={msg.messageId}
                   disabled={isPending}
+                  canReply={!isPending && !msg.deletedAt}
+                  highlighted={highlightId === msg.messageId}
+                  onReply={() => startReply(conversationId!, msg)}
                   onPress={() => !msg.deletedAt && setPickerOpenFor(msg.messageId)}
                   className={cn(
                     "flex gap-2 items-end group/msg",
@@ -1511,7 +1622,7 @@ export function MessageThread({
                             <Ban className="size-3.5 shrink-0" />
                             {isMine ? t("youDeletedThisMessage") : t("thisMessageWasDeleted")}
                           </div>
-                        ) : !msg.attachments?.length && isEmojiOnly(msg.text ?? "") ? (
+                        ) : !msg.attachments?.length && !msg.replyTo && isEmojiOnly(msg.text ?? "") ? (
                           <p className="text-4xl leading-none py-0.5 select-text">
                             {msg.text}
                           </p>
@@ -1529,6 +1640,17 @@ export function MessageThread({
                               hasFailed && "ring-1 ring-destructive",
                             )}
                           >
+                            {msg.replyTo && (
+                              <QuoteBlock
+                                quote={msg.replyTo}
+                                currentUserId={currentUserId}
+                                senderName={profiles[msg.replyTo.senderId]?.name ?? ""}
+                                onBubble={isMine ? "mine" : "theirs"}
+                                jumping={jumpingId === msg.replyTo.messageId}
+                                onJump={() => void jumpTo(msg.replyTo!)}
+                                className="mb-1.5 -mx-1"
+                              />
+                            )}
                             {msg.text && <p>{msg.text}</p>}
                             {msg.attachments?.map((att) => (
                               <AttachmentDisplay key={att.key} attachment={att} />
@@ -1639,20 +1761,24 @@ export function MessageThread({
                         </div>
                       )}
 
-                      {/* The visible way to pick a message with a mouse
-                          (WhatsApp Web); right-click works too. Absent on
-                          touch, where the held press picks it. */}
-                      {!isPending && (
-                        <IconButton
-                          label={t("messageOptions")}
-                          variant="ghost"
-                          size="icon-sm"
-                          data-keep-selection
-                          onClick={() => selectMessage(conversationId!, msg.messageId)}
-                          className="mb-0.5 size-6 opacity-0 group-hover/msg:opacity-100 focus-visible:opacity-100 pointer-coarse:hidden"
-                        >
-                          <ChevronDown className="size-3.5 text-muted-foreground" />
-                        </IconButton>
+                      {/* The message's menu with a mouse, as on WhatsApp Web;
+                          right-click picks it directly. Absent on touch, where
+                          the held press and the swipe do the same, and in
+                          selection mode, where a click toggles. */}
+                      {!isPending && !selectionActive && (
+                        <MessageMenu
+                          message={msg}
+                          currentUserId={currentUserId}
+                          onReply={() => startReply(conversationId!, msg)}
+                          onEdit={() => startEdit(conversationId!, msg.messageId, msg.text)}
+                          onDelete={() =>
+                            setDeleteTarget({
+                              message: msg,
+                              forEveryone: selectionActions([msg], currentUserId, Date.now()).deleteForEveryone,
+                            })
+                          }
+                          onSelect={() => selectMessage(conversationId!, msg.messageId)}
+                        />
                       )}
                     </div>
 
@@ -1723,6 +1849,19 @@ export function MessageThread({
           <div ref={bottomRef} />
         </div>
 
+        {deleteTarget && (
+          <DeleteMessagesDialog
+            count={1}
+            forEveryone={deleteTarget.forEveryone}
+            open
+            onOpenChange={(open) => !open && setDeleteTarget(null)}
+            onDelete={(scope) => {
+              runtime?.deleteMessages(conversationId!, [deleteTarget.message], scope);
+              setDeleteTarget(null);
+            }}
+          />
+        )}
+
         {/* Scroll-to-bottom button, doubling as the "waiting below" badge.
             Deliberately the same circle-plus-corner-badge shape as the unread
             badge on the header trigger, rather than a second visual language
@@ -1783,6 +1922,19 @@ export function MessageThread({
 
         {uploadErrorHere && (
           <p className="px-3 pt-2 text-xs text-destructive">{uploadErrorHere}</p>
+        )}
+
+        {replying && !editing && (
+          // Reply mode, as on WhatsApp: what is being answered above the box,
+          // and a way out. Escape leaves too.
+          <QuoteBlock
+            quote={quoteOf(replying.message)}
+            currentUserId={currentUserId}
+            senderName={profiles[replying.message.senderId]?.name ?? ""}
+            onBubble="composer"
+            onCancel={stopReply}
+            className="mx-3 mt-2"
+          />
         )}
 
         {editing && (

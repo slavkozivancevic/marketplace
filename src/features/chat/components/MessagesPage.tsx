@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { useMobileBottomBarStore } from "@/store/mobileBottomBar";
 import { useChatStore } from "../store/chatStore";
 import { useChatThreadData } from "../hooks/useChatThreadData";
+import { useUnreadTotal } from "../hooks/useUnreadTotal";
 import { useIsWideLayout } from "../hooks/useIsWideLayout";
 import { useUrlConversationId } from "../hooks/useUrlConversationId";
 import { useChatRuntime, type ChatRuntime } from "./ChatRuntime";
@@ -47,7 +48,7 @@ function MessagesPageInner({ runtime }: { runtime: ChatRuntime }) {
   // conversation, and a reload or a shared link reopens the same one.
   const [urlConvId, setUrlConvId] = useUrlConversationId();
   const selectedConvId = useChatStore((s) => s.selectedConvId);
-  const unreadCount = useChatStore((s) => s.unreadCount);
+  const unreadCount = useUnreadTotal();
   const data = useChatThreadData(selectedConvId, currentUserId);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -161,6 +162,7 @@ function MessagesPageInner({ runtime }: { runtime: ChatRuntime }) {
               presence={data.presence}
               profilesLoading={data.profilesLoading}
               presenceLoading={data.presenceLoading}
+              profiles={data.profiles}
               renderTitle={(content) => (
                 <h2 className="text-sm font-semibold truncate">{content}</h2>
               )}
@@ -178,7 +180,7 @@ function MessagesPageInner({ runtime }: { runtime: ChatRuntime }) {
                 isLoading={data.msgsLoading}
                 profiles={data.profiles}
                 typingUserIds={data.typingInSelected}
-                onSend={(text, attachments) => sendMessage(selectedConvId, text, attachments)}
+                onSend={(text, attachments, replyTo) => sendMessage(selectedConvId, text, attachments, replyTo)}
                 onMarkRead={(ids) => markRead(selectedConvId, ids)}
                 onTyping={sendTyping}
                 bottomInset

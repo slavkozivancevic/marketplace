@@ -1,4 +1,4 @@
-import type { ChatAttachment } from "../types";
+import type { ChatAttachment, ReplyQuote } from "../types";
 
 export type OutboxStatus =
   | "queued"
@@ -26,6 +26,12 @@ export interface OutboxEntry {
   conversationId: string;
   text: string;
   attachments: ChatAttachment[];
+  /**
+   * The message this one answers. The local copy of the quote draws the
+   * bubble until the ack; the server is sent only the key and makes its own
+   * snapshot, which replaces this one.
+   */
+  replyTo?: ReplyQuote;
   /** The sender's clock. Orders the queue and dates the bubble until the ack lands. */
   createdAt: string;
   /** Only ever incremented by a real attempt over an open socket. */

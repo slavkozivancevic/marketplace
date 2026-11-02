@@ -77,6 +77,8 @@ interface ChatStore {
   leavePage: () => void;
   setSelectedConvId: (id: string | null) => void;
   incrementUnread: (conversationId: string) => void;
+  /** "Mark as read" from the inbox: the badge goes, nothing is opened. */
+  clearUnread: (conversationId: string) => void;
   /**
    * Called on conversations load to surface messages that arrived while the
    * user was offline. Compares lastMessageAt against lastSeenAt to decide
@@ -211,6 +213,8 @@ export const useChatStore = create<ChatStore>()(
           if (!id) return { selectedConvId: null };
           return { selectedConvId: id, ...clearConv(s, id) };
         }),
+
+      clearUnread: (conversationId) => set((s) => clearConv(s, conversationId)),
 
       incrementUnread: (conversationId) =>
         set((s) => ({
