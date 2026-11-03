@@ -382,7 +382,9 @@ export async function getOrgPayoutsPage({
       // time (against COD debt), refunds happen later against whatever was
       // actually transferred - the two never overlap in what they explain.
       const theoreticalNet = theoreticalNetByOrder.get(p.orderId) ?? p.amount;
-      const codNetted = Math.max(0, theoreticalNet - p.amount);
+      // Signed: + was withheld for COD debt, - is a COD credit paid out with
+      // this transfer (it moved MORE than the order earned).
+      const codNetted = theoreticalNet - p.amount;
       return { ...p, refundState, reversedNet, codNetted };
     }),
     nextCursor,
@@ -688,7 +690,11 @@ export async function releaseSellerPayout({
     amount: netAfterCod,
     currency,
     locale: order.locale ?? "en",
-    codNetted: codNetted > 0 ? codNetted : undefined,
+    // Signed, both ways: positive was withheld for COD commission owed, negative
+    // is a credit the platform owed and paid out with this transfer. Dropping
+    // the negative case left the email with a total its own lines could not
+    // reach (#7187255C: 2.777,42 RSD of lines, 46.909,65 RSD paid).
+    codNetted: codNetted !== 0 ? codNetted : undefined,
   }).catch((e) => logger.error("[releaseSellerPayout] publishPayoutReleased failed", e));
 
   try {
@@ -720,7 +726,7 @@ export async function reverseSellerPayoutsForOrder(orderId: string): Promise<voi
       type: PaymentTransactionType.PAYOUT,
       status: PaymentTransactionStatus.SUCCEEDED,
     },
-    select: { organizationId: true, amount: true, providerId: true },
+    select: { organizationId: true, amount: true, currency: true, providerId: true },
   });
 
   for (const payout of payouts) {
@@ -733,7 +739,7 @@ export async function reverseSellerPayoutsForOrder(orderId: string): Promise<voi
         action: "payout.reversed",
         entityType: "Order",
         entityId: orderId,
-        diff: { seller: payout.organizationId, amount: payout.amount, reason: "external_refund" },
+        diff: { seller: payout.organizationId, amount: payout.amount, currency: payout.currency, reason: "external_refund" },
         actor: SYSTEM_ACTOR,
       });
     } catch (err) {
@@ -749,6 +755,7 @@ export async function reverseSellerPayoutsForOrder(orderId: string): Promise<voi
         diff: {
           seller: payout.organizationId,
           amount: payout.amount,
+          currency: payout.currency,
           error: err instanceof Error ? err.message.slice(0, 500) : "transfer reversal failed",
         },
         actor: SYSTEM_ACTOR,

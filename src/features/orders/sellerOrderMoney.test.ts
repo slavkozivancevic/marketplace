@@ -137,6 +137,20 @@ describe("sellerOrderMoney - clawback", () => {
   });
 });
 
+describe("sellerOrderMoney - COD balance netted against the transfer", () => {
+  it("shows a COD credit paid out with the transfer as negative netting, and the total that moved", () => {
+    // Payout owed 1200; the org also had 4400 of COD credit, paid with it.
+    const money = sellerOrderMoney(input({ isCod: false, payoutTxAmount: 5600 }));
+    expect(money.codNetted).toBe(-4400);
+    expect(money.orgPayout - money.codNetted).toBe(5600);
+    expect(money.finalTransferred).toBe(5600);
+  });
+
+  it("is zero with no transfer yet", () => {
+    expect(sellerOrderMoney(input({ isCod: false, payoutTxAmount: null })).codNetted).toBe(0);
+  });
+});
+
 describe("couponSliceAt", () => {
   it("never hands back more coupon than the part ever carried", () => {
     expect(couponSliceAt(5000, { itemsSubtotal: 1000, discountShare: 100 })).toBe(100);

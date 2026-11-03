@@ -474,9 +474,10 @@ export async function publishPayoutReleased(params: {
   amount: number;
   currency: string;
   locale: string;
-  // Slice of this payout withheld to net a COD commission balance owed (see
-  // releaseSellerPayout) - lets the email itemize it instead of only showing
-  // a bottom-line `amount` that doesn't match subtotal minus commission.
+  // The COD balance netted against this transfer (see releaseSellerPayout),
+  // signed: positive was withheld for commission the org owed, negative is a
+  // credit the platform owed it and paid out here. Lets the email itemize it, so
+  // subtotal - commission + shipping - codNetted is exactly `amount`.
   codNetted?: number;
 }): Promise<void> {
   const topicArn = await getTopicArn();

@@ -185,7 +185,7 @@ export async function markCodPaymentReceived(
     action: "order.cod_paid",
     entityType: "Order",
     entityId: orderId,
-    diff: { seller: ctx.organizationId, fee },
+    diff: { seller: ctx.organizationId, fee, currency: order.currency },
   });
 
   // The buyer's receipt is for the order, so it waits until the last seller has

@@ -228,7 +228,7 @@ export function AdminTagsPage({ tags }: { tags: TagListItem[] }) {
       <div className="flex flex-wrap items-center gap-3 shrink-0">
         <SearchInput value={search} onChange={setSearch} placeholder={t("tags.searchPlaceholder")} />
         <span className="text-xs text-muted-foreground ml-auto tabular-nums">
-          {filtered.length.toLocaleString()} {filtered.length !== 1 ? t("tags.tags") : t("tags.tag")}
+          {t("tags.listCount", { count: filtered.length })}
         </span>
       </div>
 

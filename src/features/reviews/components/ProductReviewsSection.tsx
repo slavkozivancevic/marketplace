@@ -1,5 +1,6 @@
 import { safeAuth } from "@/lib/auth/safeAuth";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
+import { formatRating } from "@/lib/i18n/numbers";
 import { prisma } from "@/core/db/prisma";
 import {
   getProductReviews,
@@ -22,6 +23,7 @@ export async function ProductReviewsSection({
   ratingCount,
 }: ProductReviewsSectionProps) {
   const t = await getTranslations("reviews");
+  const locale = await getLocale();
   const reviews = await getProductReviews(productId);
 
   const { userId: clerkUserId } = await safeAuth();
@@ -70,7 +72,7 @@ export async function ProductReviewsSection({
           <div className="flex items-center gap-2">
             <StarRating rating={avgRating} size={18} />
             <span className="whitespace-nowrap text-sm text-muted-foreground">
-              {avgRating.toFixed(1)} ({t("countLabel", { count: ratingCount })})
+              {formatRating(avgRating, locale)} ({t("countLabel", { count: ratingCount })})
             </span>
           </div>
         )}

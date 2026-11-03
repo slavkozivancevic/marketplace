@@ -130,7 +130,7 @@ export function AdminUsersPage({ users }: { users: SerializedUser[] }) {
             activeCount={activeFilterCount}
           />
           <span className="text-xs text-muted-foreground ml-auto tabular-nums">
-            {filtered.length.toLocaleString()} {filtered.length !== 1 ? t("users.usersLabel") : t("users.userLabel")}
+            {t("users.listCount", { count: filtered.length })}
           </span>
         </div>
         <div

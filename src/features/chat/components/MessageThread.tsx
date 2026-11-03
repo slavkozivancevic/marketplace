@@ -10,7 +10,7 @@ import {
   useCallback,
 } from "react";
 import { format } from "date-fns";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   Send,
   Paperclip,
@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import axios from "axios";
 import { cn } from "@/lib/utils";
+import { formatNumber } from "@/lib/i18n/numbers";
 import { toast } from "@/components/ui/sonner";
 import { useReactions } from "../hooks/useReactions";
 import { Textarea } from "@/components/ui/textarea";
@@ -300,6 +301,7 @@ function getPdfWorkerPort(): Worker {
 }
 
 function PdfPreviewCard({ attachment }: { attachment: Attachment }) {
+  const locale = useLocale();
   // Presigned URL - React Query caches this for 50 min (staleTime in useAttachmentReadUrl)
   const { data: presignedUrl } = useAttachmentReadUrl(attachment.key);
 
@@ -386,7 +388,7 @@ function PdfPreviewCard({ attachment }: { attachment: Attachment }) {
   }, [attachment.key, preview, presignedUrl]);
 
   const filename = attachment.filename ?? "document.pdf";
-  const sizeStr = attachment.size ? formatFileSize(attachment.size) : null;
+  const sizeStr = attachment.size ? formatFileSize(attachment.size, locale) : null;
   const metaParts = [
     preview
       ? `${preview.numPages} page${preview.numPages === 1 ? "" : "s"}`
@@ -508,13 +510,14 @@ function VideoLightbox({ url, onClose }: { url: string; onClose: () => void }) {
 const VIDEO_H = Math.round(IMG_MAX * (9 / 16)); // 108px - 16:9
 
 function VideoCard({ attachment }: { attachment: Attachment }) {
+  const locale = useLocale();
   const { data: url } = useAttachmentReadUrl(attachment.key);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [duration, setDuration] = useState<number | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const filename = attachment.filename ?? "video";
-  const sizeStr = attachment.size ? formatFileSize(attachment.size) : null;
+  const sizeStr = attachment.size ? formatFileSize(attachment.size, locale) : null;
 
   return (
     <>
@@ -841,10 +844,11 @@ function readImageDimensions(
   });
 }
 
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} kB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+/** A file size in the reader's number format ("1,5 MB" in sr/de/es, "1.5 MB" in en). */
+function formatFileSize(bytes: number, locale: string): string {
+  if (bytes < 1024) return `${formatNumber(bytes, locale)} B`;
+  if (bytes < 1024 * 1024) return `${formatNumber(Math.round(bytes / 1024), locale)} kB`;
+  return `${formatNumber(bytes / (1024 * 1024), locale, { maximumFractionDigits: 1 })} MB`;
 }
 
 async function uploadOne(

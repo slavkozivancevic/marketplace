@@ -30,7 +30,7 @@ Each link mints a one-time Clerk sign-in token, so there is no password to type 
 - **Real-time chat** over API Gateway WebSockets, with the gestures people know from WhatsApp: swipe to reply with a quote, edit within 15 minutes, delete for everyone or just for yourself, pick many messages or conversations at once, mark as unread. Typing indicators, online presence, read receipts, attachments, older history on scroll, and an outbox that keeps a message sent offline and delivers it exactly once on reconnect.
 - **Correct by construction.** Real HTTP 404s despite Next.js partial prerendering (decided in the proxy), deletes that would silently cascade are refused with an explanation, every cache read has a matching invalidation, every org-scoped query key carries the tenant.
 - **Operated like production.** Request-scoped structured logging, CloudWatch metrics and alarms, a Grafana Cloud dashboard, database wake-ups told apart from slow queries.
-- **Shipped by a pipeline.** GitHub Actions CI (lint, typecheck, ~600 unit and ~280 integration tests, Playwright E2E) gates every merge; CodePipeline + CodeBuild deploy to Lambda + CloudFront; release-please cuts versions.
+- **Shipped by a pipeline.** GitHub Actions CI (lint, typecheck, ~700 unit and ~280 integration tests, Playwright E2E) gates every merge; CodePipeline + CodeBuild deploy to Lambda + CloudFront; release-please cuts versions.
 
 ## Zero-cost by design
 

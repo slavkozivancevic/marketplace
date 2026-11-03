@@ -83,6 +83,13 @@ export function OrgPayoutTableRow({ payout }: { payout: OrgPayoutListItem }) {
             -{formatPrice(payout.codNetted, payout.currency as Currency, locale)} {t("codBalanceNettedShort")}
           </span>
         )}
+        {/* A COD credit the platform owed went out with this transfer - the
+            amount above is more than the order earned, and this says by what. */}
+        {payout.codNetted < 0 && (
+          <span className="text-[11px] text-emerald-600 dark:text-emerald-500 tabular-nums">
+            +{formatPrice(-payout.codNetted, payout.currency as Currency, locale)} {t("codBalanceCreditShort")}
+          </span>
+        )}
       </div>
 
       {/* Status */}
@@ -104,6 +111,15 @@ export function OrgPayoutTableRow({ payout }: { payout: OrgPayoutListItem }) {
             title={t("codBalanceNettedNote")}
           >
             {t("codBalanceNettedPill")}
+          </Badge>
+        )}
+        {payout.codNetted < 0 && (
+          <Badge
+            variant="outline"
+            className="text-[10px] text-emerald-600 border-emerald-600/40 dark:text-emerald-500"
+            title={t("codBalanceCreditNote")}
+          >
+            {t("codBalanceCreditPill")}
           </Badge>
         )}
         <Badge variant={statusVariant(payout.status)}>

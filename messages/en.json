@@ -292,7 +292,8 @@
     "historyRollingBack": "Rolling back...",
     "historyRollbackTitle": "Rollback to this version",
     "historyRollbackDesc": "Are you sure you want to rollback to version {version}? This will create a new version with this data.",
-    "historyRollbackSuccess": "Rolled back to version {version}"
+    "historyRollbackSuccess": "Rolled back to version {version}",
+    "showRatingBreakdown": "Show rating breakdown"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -582,7 +583,24 @@
         "name": "Name",
         "fee": "Commission",
         "orderCancelled": "Order cancelled",
-        "paid": "Paid out"
+        "paid": "Paid out",
+        "codNetted": "COD balance netted",
+        "countries": "Countries",
+        "email": "Email",
+        "isActive": "Active",
+        "orderId": "Order",
+        "productId": "Product",
+        "variantId": "Variant",
+        "marketId": "Market",
+        "countryCode": "Country",
+        "adjustment": "Price change",
+        "percentBps": "Percent",
+        "recurrence": "Repeats",
+        "startsAt": "Starts",
+        "endsAt": "Ends",
+        "timezone": "Time zone",
+        "priority": "Priority",
+        "active": "Active"
       },
       "values": {
         "USER": "User",
@@ -599,7 +617,16 @@
         "DRAFT": "Draft",
         "ARCHIVED": "Archived",
         "true": "Yes",
-        "false": "No"
+        "false": "No",
+        "PERCENT": "Percentage",
+        "FIXED_PRICE": "Fixed price",
+        "AMOUNT_OFF": "Amount off",
+        "NONE": "Once",
+        "DAILY": "Every day",
+        "WEEKLY": "Every week",
+        "MONTHLY": "Every month",
+        "external_refund": "Refunded outside the app",
+        "variantRemoved": "Variant removed"
       },
       "actions": {
         "order": {
@@ -724,7 +751,9 @@
         "warrantyMonths": "Warranty",
         "countryOfOrigin": "Country of origin",
         "stock": "Stock",
-        "categories": "Categories"
+        "categories": "Categories",
+        "tags": "Tags",
+        "translations": "Translations"
       }
     },
     "reviews": {
@@ -848,7 +877,8 @@
     "backToPriceMarkets": "Back to Markets",
     "editPriceMarket": "Edit: {name}",
     "editPriceMarketDesc": "Update the market's name and countries.",
-    "editPriceMarketLoading": "Edit Market"
+    "editPriceMarketLoading": "Edit Market",
+    "orgsListCount": "{count, plural, one {# organization} other {# organizations}}"
   },
   "adminCategories": {
     "actions": "Actions",
@@ -1041,7 +1071,8 @@
     "deleteDesc": "This permanently removes your rating and comment. This can't be undone.",
     "deleting": "Deleting...",
     "deleted": "Review deleted",
-    "updated": "Review updated"
+    "updated": "Review updated",
+    "editedAt": "Edited: {date}"
   },
   "search": {
     "result": "result",
@@ -1144,7 +1175,8 @@
     "publicEmpty": "No brands available right now.",
     "publicProductCount": "{count, plural, one {# product} other {# products}}",
     "publicBackToBrands": "Back to brands",
-    "publicNoProducts": "No products in this brand yet."
+    "publicNoProducts": "No products in this brand yet.",
+    "listCount": "{count, plural, one {# brand} other {# brands}}"
   },
   "tags": {
     "actions": "Actions",
@@ -1170,7 +1202,8 @@
     "slugDesc": "URL-friendly identifier. Auto-generated from name.",
     "creating": "Creating...",
     "saveChanges": "Save Changes",
-    "create": "Create Tag"
+    "create": "Create Tag",
+    "listCount": "{count, plural, one {# tag} other {# tags}}"
   },
   "trustPoints": {
     "label": "Label",
@@ -1202,7 +1235,8 @@
     "saveChanges": "Save Changes",
     "duplicate": "Duplicate",
     "duplicated": "Trust point duplicated",
-    "editCopy": "Edit copy"
+    "editCopy": "Edit copy",
+    "listCount": "{count, plural, one {# point} other {# points}}"
   },
   "invite": {
     "email": "Email Address",
@@ -1259,7 +1293,8 @@
     "selectRole": "Select a role",
     "saving": "Saving...",
     "updateRole": "Update Role",
-    "roleUpdated": "User role updated"
+    "roleUpdated": "User role updated",
+    "listCount": "{count, plural, one {# user} other {# users}}"
   },
   "notFound": {
     "notFound": "Not Found",
@@ -1878,7 +1913,10 @@
     "codOwedToYou": "Credited to your COD balance",
     "codBalancePooledNote": "Balances run per currency across all your orders, not per order - the live figure is on your payouts page, and it may already have been settled or paid out.",
     "codEarnings": "You keep",
-    "codToCollectNote": "Take exactly this much from the buyer. The coupon comes off the cash at the door, and the platform gives it back by reducing its commission - so your earnings are the same as without a coupon."
+    "codToCollectNote": "Take exactly this much from the buyer. The coupon comes off the cash at the door, and the platform gives it back by reducing its commission - so your earnings are the same as without a coupon.",
+    "codBalanceCreditLabel": "Owed to you from earlier cash-on-delivery orders",
+    "codBalanceCreditNote": "This transfer also paid out what the platform owed your organization from earlier cash-on-delivery orders - a coupon we funded that was larger than our commission, or commission returned on refunded goods.",
+    "payoutTransferred": "Transferred to you"
   },
   "relatedProducts": {
     "discoverMore": "Discover More",
@@ -2135,7 +2173,10 @@
     "connecting": "Redirecting to Stripe...",
     "toggleDetails": "Toggle details",
     "codCreditTitle": "Owed back to you",
-    "codCreditDesc": "A coupon on a cash-on-delivery order ran deeper than our commission on it, so you took less cash at the door than you earned. The difference is added to your next Stripe payout in the same currency."
+    "codCreditDesc": "A coupon on a cash-on-delivery order ran deeper than our commission on it, so you took less cash at the door than you earned. The difference is added to your next Stripe payout in the same currency.",
+    "codBalanceCreditShort": "COD credit",
+    "codBalanceCreditPill": "Includes COD credit",
+    "codBalanceCreditNote": "This payout also includes what the platform owed your organization from earlier cash-on-delivery orders."
   },
   "actionErrors": {
     "forbidden": "Forbidden",

@@ -10,7 +10,7 @@ import { stripe } from "@/services/stripe";
 import { env } from "@/env/server";
 import { ActionErrorResult } from "@/types/types";
 import { handleActionError } from "@/features/common/errors/domainErrors";
-import { demoRoleOfEmail, isDemoReadOnlyEmail } from "@/features/demo/demoAccounts";
+import { DEMO_CHECKOUT_EMAIL, demoRoleOfEmail, isDemoReadOnlyEmail } from "@/features/demo/demoAccounts";
 
 const isDemoAccountEmail = (email: string) => demoRoleOfEmail(email) !== null;
 import { enforceRateLimit, getClientIp } from "@/lib/rateLimit/guard";
@@ -318,11 +318,11 @@ async function runCheckoutSession(
       // buyer never picked.
       adaptive_pricing: { enabled: false },
       line_items: lineItems,
-      // A demo buyer's address is an alias of the owner's own mailbox, and
-      // Stripe would show it prefilled to whoever is trying the demo. Left
-      // blank, the visitor types any address; nothing here reads it back
-      // (order emails go to the account's address).
-      ...(!isDemoAccountEmail(user.email) && { customer_email: user.email }),
+      // Stripe shows `customer_email` prefilled and locked. A demo buyer's own
+      // address is an alias of the owner's mailbox, so it gets the neutral
+      // DEMO_CHECKOUT_EMAIL instead - nothing to type, nothing exposed. Order
+      // emails go to the account's address either way.
+      customer_email: isDemoAccountEmail(user.email) ? DEMO_CHECKOUT_EMAIL : user.email,
       ...(discounts && { discounts }),
       ...(shippingTotal > 0 && {
         shipping_options: [

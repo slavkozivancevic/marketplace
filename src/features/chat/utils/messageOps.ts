@@ -1,4 +1,5 @@
 import type { ChatMessage, Conversation } from "../types";
+import { intlLocale } from "@/lib/i18n/dateLocale";
 
 /**
  * The same windows the messaging service enforces (editMessage.ts,
@@ -104,8 +105,8 @@ export function formatCopy(
     .filter((m) => !m.deletedAt && m.text.trim())
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0));
   if (withText.length === 1 && messages.length === 1) return withText[0].text;
-  const time = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" });
-  const date = new Intl.DateTimeFormat(locale, { day: "numeric", month: "numeric", year: "numeric" });
+  const time = new Intl.DateTimeFormat(intlLocale(locale), { hour: "2-digit", minute: "2-digit" });
+  const date = new Intl.DateTimeFormat(intlLocale(locale), { day: "numeric", month: "numeric", year: "numeric" });
   return withText
     .map((m) => {
       const at = new Date(m.createdAt);

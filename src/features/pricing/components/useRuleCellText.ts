@@ -1,6 +1,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useMoney } from "@/lib/useMoney";
 import { countryName } from "@/lib/i18n/countries";
+import { intlLocale } from "@/lib/i18n/dateLocale";
 import type { RuleRow } from "./PriceRulesTable";
 
 /**
@@ -11,6 +12,9 @@ import type { RuleRow } from "./PriceRulesTable";
 export function useRuleCellText(marketNames: Record<string, string>) {
   const t = useTranslations("priceRules");
   const locale = useLocale();
+  // The BCP 47 tag the rest of the app formats with (sr -> sr-Latn): a bare
+  // "sr" makes Intl spell month names in Cyrillic.
+  const il = intlLocale(locale);
   const { formatOf } = useMoney();
 
   const time = (minute: number) =>
@@ -18,15 +22,15 @@ export function useRuleCellText(marketNames: Record<string, string>) {
   const duration = (minutes: number) =>
     t("durationHM", { hours: Math.floor(minutes / 60), minutes: minutes % 60 });
   const dateTime = (d: Date, tz: string) =>
-    new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", timeZone: tz }).format(d);
+    new Intl.DateTimeFormat(il, { dateStyle: "medium", timeStyle: "short", timeZone: tz }).format(d);
   const date = (d: Date, tz: string) =>
-    new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: tz }).format(d);
+    new Intl.DateTimeFormat(il, { dateStyle: "medium", timeZone: tz }).format(d);
   const weekday = (i: number) =>
-    new Intl.DateTimeFormat(locale, { weekday: "short", timeZone: "UTC" }).format(new Date(Date.UTC(2024, 0, i)));
+    new Intl.DateTimeFormat(il, { weekday: "short", timeZone: "UTC" }).format(new Date(Date.UTC(2024, 0, i)));
 
   const change = (r: RuleRow) => {
     if (r.adjustment === "PERCENT" && r.percentBps !== null) {
-      const pct = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(Math.abs(r.percentBps) / 100);
+      const pct = new Intl.NumberFormat(il, { maximumFractionDigits: 2 }).format(Math.abs(r.percentBps) / 100);
       return r.percentBps < 0 ? t("change.percentOff", { value: pct }) : t("change.percentUp", { value: pct });
     }
     const amount = formatOf(r.amountMoney);
