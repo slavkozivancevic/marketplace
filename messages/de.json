@@ -1633,7 +1633,8 @@
     "video": "Video",
     "file": "Datei",
     "quoteUnavailable": "Diese Nachricht ist nicht mehr verfügbar.",
-    "copiedCount": "{count, plural, one {Nachricht kopiert} other {# Nachrichten kopiert}}"
+    "copiedCount": "{count, plural, one {Nachricht kopiert} other {# Nachrichten kopiert}}",
+    "removeAttachment": "Anhang entfernen"
   },
   "mediaUpload": {
     "title": "Produktmedien hochladen",

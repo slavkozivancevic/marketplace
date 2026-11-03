@@ -1633,7 +1633,8 @@
     "video": "Video",
     "file": "Fajl",
     "quoteUnavailable": "Ova poruka više nije dostupna.",
-    "copiedCount": "{count, plural, one {Poruka je kopirana} few {# poruke su kopirane} other {# poruka je kopirano}}"
+    "copiedCount": "{count, plural, one {Poruka je kopirana} few {# poruke su kopirane} other {# poruka je kopirano}}",
+    "removeAttachment": "Ukloni prilog"
   },
   "mediaUpload": {
     "title": "Otpremanje slika i videa proizvoda",

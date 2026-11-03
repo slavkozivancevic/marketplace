@@ -15,6 +15,7 @@ import {
 import { useChatStore } from "../store/chatStore";
 import { useChatThreadData } from "../hooks/useChatThreadData";
 import { useUnreadTotal } from "../hooks/useUnreadTotal";
+import { CHAT_SURFACE_ATTR, useKeyboardFrame } from "../hooks/useKeyboardFrame";
 import { useChatRuntime, type ChatRuntime } from "./ChatRuntime";
 import { InboxPanel } from "./InboxPanel";
 import { MessageThread } from "./MessageThread";
@@ -158,6 +159,9 @@ export function ChatDrawerRoot() {
   // The demo seller and admin get no runtime (see ChatRuntimeGate) but still
   // a drawer, which says why there is no chat instead of not opening at all.
   const demoReadOnly = useDemoReadOnly();
+  // Phone keyboard open over the chat: the drawer sits in the visible area
+  // above it, header at the top (see useKeyboardFrame). Null on a desktop.
+  const keyboard = useKeyboardFrame();
   // No runtime means signed out (or not mounted yet) - same gate the old
   // `mounted` + `<SignedIn>` pair held, now owned by the provider.
   if (!runtime && !demoReadOnly) return null;
@@ -172,6 +176,8 @@ export function ChatDrawerRoot() {
         className="flex flex-col p-0 gap-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md"
         showCloseButton={false}
         aria-describedby={undefined}
+        {...{ [CHAT_SURFACE_ATTR]: "" }}
+        style={keyboard ? { top: keyboard.top, height: keyboard.height, bottom: "auto" } : undefined}
         onInteractOutside={(e) => {
           if ((e.target as HTMLElement).closest("[data-chat-trigger]")) e.preventDefault();
         }}

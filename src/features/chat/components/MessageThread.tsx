@@ -48,6 +48,7 @@ import { SelectableMessage } from "./SelectableMessage";
 import { useChatRuntime } from "./ChatRuntime";
 import { useMessageSelectionActive, useSelectionStore } from "../store/selectionStore";
 import { useAttachmentReadUrl } from "../hooks/useAttachmentReadUrl";
+import { useSupportsHover } from "@/hooks/useSupportsHover";
 import { useOlderMessages } from "../hooks/useOlderMessages";
 import { selectionActions } from "../utils/messageOps";
 import { QuoteBlock } from "./QuoteBlock";
@@ -712,12 +713,18 @@ function FileChip({
   progress,
   status,
   onRemove,
+  removeLabel,
 }: {
   file: File;
   progress: number;
   status: "uploading" | "done" | "error";
   onRemove: () => void;
+  removeLabel: string;
 }) {
+  // The remove control appears on hover with a mouse. A touch screen has no
+  // hover and nothing else that removes a staged file, so there it is always
+  // shown - as ProductMediaUpload does for its media, and as WhatsApp does.
+  const supportsHover = useSupportsHover();
   const isImage = file.type.startsWith("image/");
   const isVideo = file.type.startsWith("video/");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -797,13 +804,19 @@ function FileChip({
           </div>
         )}
       </div>
-      <button
+      <IconButton
+        label={removeLabel}
         type="button"
+        size="icon-xs"
         onClick={onRemove}
-        className="absolute -top-1.5 -right-1.5 size-4 rounded-full bg-foreground text-background flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+        className={cn(
+          // 24px: a target a finger can hit, which the old 16px dot was not.
+          "absolute -top-2 -right-2 rounded-full bg-foreground text-background hover:bg-foreground/90 transition-opacity cursor-pointer",
+          supportsHover ? "opacity-0 group-hover:opacity-100 focus-visible:opacity-100" : "opacity-100",
+        )}
       >
-        <X className="size-2.5" />
-      </button>
+        <X className="size-3" />
+      </IconButton>
     </div>
   );
 }
@@ -1183,6 +1196,38 @@ export function MessageThread({
   useLayoutEffect(() => {
     if (pinnedToBottom.current) jumpToBottom();
   }, [reactions, jumpToBottom]);
+
+  // The staged-files panel floats over the bottom of the list (so the list
+  // does not jump when it slides in), which used to hide the newest messages
+  // behind it with no way to scroll them clear. The list reserves the panel's
+  // height at its end instead, and stays at the live end if it was there.
+  // A callback ref: the panel is not there while the thread shows its
+  // skeleton, so it has to be observed whenever it actually mounts.
+  const [previewEl, setPreviewEl] = useState<HTMLDivElement | null>(null);
+  const [previewHeight, setPreviewHeight] = useState(0);
+  const hasStaged = pendingAttachments.length > 0;
+  useEffect(() => {
+    if (!previewEl) return;
+    const observer = new ResizeObserver(() => setPreviewHeight(previewEl.offsetHeight));
+    observer.observe(previewEl);
+    return () => observer.disconnect();
+  }, [previewEl]);
+  useLayoutEffect(() => {
+    if (pinnedToBottom.current) jumpToBottom();
+  }, [hasStaged, previewHeight, jumpToBottom]);
+
+  // The list itself getting shorter - the phone keyboard opening under the
+  // chat - must not push the newest message out of sight: at the live end it
+  // stays at the live end.
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(() => {
+      if (pinnedToBottom.current) jumpToBottom();
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [isLoading, jumpToBottom]);
 
   // The typing row appearing or disappearing changes the container's height by
   // exactly one row. Re-pin ONLY when the user was already at the bottom: if
@@ -1846,6 +1891,7 @@ export function MessageThread({
               profile={profiles[typingUserIds[0]]}
             />
           )}
+          {hasStaged && <div aria-hidden className="shrink-0" style={{ height: previewHeight }} />}
           <div ref={bottomRef} />
         </div>
 
@@ -1900,8 +1946,10 @@ export function MessageThread({
 
       {/* Input area */}
       <div className="shrink-0 border-t relative">
-        {/* File preview panel - absolutely positioned so it doesn't affect layout */}
+        {/* File preview panel - absolutely positioned so it doesn't affect
+            layout; the list reserves its height (see previewHeight). */}
         <div
+          ref={setPreviewEl}
           className={cn(
             "absolute bottom-full inset-x-2 bg-background border border-border rounded-t-xl shadow-md px-3 pt-3 pb-2 flex gap-2 flex-wrap transition-all duration-200 ease-out",
             pendingAttachments.length > 0
@@ -1916,6 +1964,7 @@ export function MessageThread({
               progress={att.progress}
               status={att.status}
               onRemove={() => removeFile(att.id)}
+              removeLabel={t("removeAttachment")}
             />
           ))}
         </div>

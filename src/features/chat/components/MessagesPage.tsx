@@ -15,6 +15,7 @@ import { useMobileBottomBarStore } from "@/store/mobileBottomBar";
 import { useChatStore } from "../store/chatStore";
 import { useChatThreadData } from "../hooks/useChatThreadData";
 import { useUnreadTotal } from "../hooks/useUnreadTotal";
+import { CHAT_SURFACE_ATTR, useKeyboardFrame } from "../hooks/useKeyboardFrame";
 import { useIsWideLayout } from "../hooks/useIsWideLayout";
 import { useUrlConversationId } from "../hooks/useUrlConversationId";
 import { useChatRuntime, type ChatRuntime } from "./ChatRuntime";
@@ -51,6 +52,11 @@ function MessagesPageInner({ runtime }: { runtime: ChatRuntime }) {
   const unreadCount = useUnreadTotal();
   const data = useChatThreadData(selectedConvId, currentUserId);
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Phone keyboard open over the open conversation: the thread column covers
+  // the visible area above it, its header at the top, as on WhatsApp (see
+  // useKeyboardFrame). Below `lg` only - the wide layout never has one.
+  const keyboardFrame = useKeyboardFrame();
+  const keyboard = !isWide && !!selectedConvId ? keyboardFrame : null;
 
   // Mounted = the drawer steps aside and the socket counts this page's
   // conversation as on screen. Leaving clears the selection.
@@ -148,10 +154,13 @@ function MessagesPageInner({ runtime }: { runtime: ChatRuntime }) {
 
       {/* Thread column */}
       <section
+        {...{ [CHAT_SURFACE_ATTR]: "" }}
         className={cn(
           "flex-1 min-w-0 flex-col",
           selectedConvId ? "flex" : "hidden lg:flex",
+          keyboard && "fixed inset-x-0 z-50 bg-background",
         )}
+        style={keyboard ? { top: keyboard.top, height: keyboard.height } : undefined}
       >
         {selectedConvId ? (
           <>

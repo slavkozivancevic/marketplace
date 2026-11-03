@@ -1633,7 +1633,8 @@
     "video": "Video",
     "file": "File",
     "quoteUnavailable": "This message is no longer available.",
-    "copiedCount": "{count, plural, one {Message copied} other {# messages copied}}"
+    "copiedCount": "{count, plural, one {Message copied} other {# messages copied}}",
+    "removeAttachment": "Remove attachment"
   },
   "mediaUpload": {
     "title": "Upload Product Media",
