@@ -20,8 +20,6 @@ interface SearchToolbarProps {
   filterValues?: FilterValues;
   onFilterChange?: (key: string, value: string[] | [number?, number?] | number | null) => void;
   onFilterClear?: () => void;
-
-  resultCount?: number;
 }
 
 export function SearchToolbar({
@@ -38,7 +36,6 @@ export function SearchToolbar({
   filterValues,
   onFilterChange,
   onFilterClear,
-  resultCount,
 }: SearchToolbarProps) {
   const activeFilterCount = filterValues
     ? Object.entries(filterValues).filter(([, v]) => {
@@ -79,11 +76,6 @@ export function SearchToolbar({
             triggerClassName="max-w-28 sm:max-w-none"
           />
         </div>
-        {resultCount != null && (
-          <span className="text-xs text-muted-foreground ml-auto tabular-nums">
-            {resultCount.toLocaleString()} result{resultCount !== 1 ? "s" : ""}
-          </span>
-        )}
       </div>
     </div>
   );

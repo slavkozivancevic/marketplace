@@ -9,6 +9,7 @@ import { X, ImageOff, ExternalLink, ShoppingCart, Award } from "lucide-react";
 import { RetryImage } from "@/components/RetryImage";
 import { MediaCounter } from "@/components/product/MediaCounter";
 
+import { formatNumber, formatRating } from "@/lib/i18n/numbers";
 import { useLocale } from "next-intl";
 import {
   Dialog,
@@ -562,7 +563,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                     <div className="flex items-center gap-1">
                       <StarRating rating={product.avgRating} size={11} />
                       <span className="text-[11px] text-muted-foreground">
-                        {product.avgRating.toFixed(1)} ({product.ratingCount})
+                        {formatRating(product.avgRating, locale)} ({formatNumber(product.ratingCount, locale)})
                       </span>
                     </div>
                   )}

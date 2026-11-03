@@ -570,7 +570,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                     commission plus coupon came to more than the payout printed
                     under it. The amount is not lost; the note below the block
                     carries it, which is also where the promise is spelled out. */}
-                <div className={`flex justify-between ${payoutReversed > 0 || codNetted > 0 || isCancelled ? "text-muted-foreground" : "font-semibold"}`}>
+                <div className={`flex justify-between ${payoutReversed > 0 || codNetted !== 0 || isCancelled ? "text-muted-foreground" : "font-semibold"}`}>
                   <span>{isCod ? t("codEarnings") : t("yourPayout")}</span>
                   <span className="tabular-nums">
                     {formatPrice(orgPayout, order.currency as Currency, locale)}
@@ -617,6 +617,19 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                     </span>
                   </div>
                 )}
+                {/* The other direction: a COD credit the platform owed this org
+                    (a coupon it funded that ran deeper than its commission, or
+                    commission given back on refunded goods) went out with this
+                    transfer. Without the line the transfer below is larger than
+                    everything above it. */}
+                {codNetted < 0 && (
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-500">
+                    <span>{t("codBalanceCreditLabel")}</span>
+                    <span className="tabular-nums">
+                      +{formatPrice(-codNetted, order.currency as Currency, locale)}
+                    </span>
+                  </div>
+                )}
                 {/* If items were refunded, show the payout clawback and the net
                     actually kept - matching the PAYOUT row in the ledger above. */}
                 {/* A COD seller has no payout to reverse - they are holding the
@@ -632,9 +645,15 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                     </span>
                   </div>
                 )}
-                {(payoutReversedFromTransfer > 0 || codNetted > 0) && (
+                {(payoutReversedFromTransfer > 0 || codNetted !== 0) && (
                   <div className="flex justify-between font-semibold">
-                    <span>{isCod ? t("codAfterRefundsLabel") : t("payoutAfterRefunds")}</span>
+                    <span>
+                      {isCod
+                        ? t("codAfterRefundsLabel")
+                        : payoutReversedFromTransfer > 0
+                          ? t("payoutAfterRefunds")
+                          : t("payoutTransferred")}
+                    </span>
                     <span className="tabular-nums">
                       {formatPrice(finalTransferred, order.currency as Currency, locale)}
                     </span>
@@ -715,6 +734,11 @@ export default async function OrgOrderDetailPage({ params }: Props) {
               {codNetted > 0 && codDebtRestored === 0 && (
                 <p className="mt-3 text-[11px] text-muted-foreground/80">
                   {t("codBalanceNettedNote")}
+                </p>
+              )}
+              {codNetted < 0 && (
+                <p className="mt-3 text-[11px] text-muted-foreground/80">
+                  {t("codBalanceCreditNote")}
                 </p>
               )}
               {/* The refund undid the debt relief the netting had given: that

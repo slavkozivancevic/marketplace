@@ -292,7 +292,8 @@
     "historyRollingBack": "Setze zurück...",
     "historyRollbackTitle": "Auf diese Version zurücksetzen",
     "historyRollbackDesc": "Möchten Sie wirklich auf Version {version} zurücksetzen? Es wird eine neue Version mit diesen Daten erstellt.",
-    "historyRollbackSuccess": "Auf Version {version} zurückgesetzt"
+    "historyRollbackSuccess": "Auf Version {version} zurückgesetzt",
+    "showRatingBreakdown": "Bewertungsverteilung anzeigen"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -582,7 +583,24 @@
         "name": "Name",
         "fee": "Provision",
         "orderCancelled": "Bestellung storniert",
-        "paid": "Ausgezahlt"
+        "paid": "Ausgezahlt",
+        "codNetted": "Mit Nachnahme-Saldo verrechnet",
+        "countries": "Länder",
+        "email": "E-Mail",
+        "isActive": "Aktiv",
+        "orderId": "Bestellung",
+        "productId": "Produkt",
+        "variantId": "Variante",
+        "marketId": "Markt",
+        "countryCode": "Land",
+        "adjustment": "Preisänderung",
+        "percentBps": "Prozent",
+        "recurrence": "Wiederholung",
+        "startsAt": "Beginn",
+        "endsAt": "Ende",
+        "timezone": "Zeitzone",
+        "priority": "Priorität",
+        "active": "Aktiv"
       },
       "values": {
         "USER": "Benutzer",
@@ -599,7 +617,16 @@
         "DRAFT": "Entwurf",
         "ARCHIVED": "Archiviert",
         "true": "Ja",
-        "false": "Nein"
+        "false": "Nein",
+        "PERCENT": "Prozentsatz",
+        "FIXED_PRICE": "Festpreis",
+        "AMOUNT_OFF": "Rabattbetrag",
+        "NONE": "Einmalig",
+        "DAILY": "Täglich",
+        "WEEKLY": "Wöchentlich",
+        "MONTHLY": "Monatlich",
+        "external_refund": "Erstattung außerhalb der App",
+        "variantRemoved": "Variante entfernt"
       },
       "actions": {
         "order": {
@@ -724,7 +751,9 @@
         "warrantyMonths": "Garantie",
         "countryOfOrigin": "Herkunftsland",
         "stock": "Lagerbestand",
-        "categories": "Kategorien"
+        "categories": "Kategorien",
+        "tags": "Tags",
+        "translations": "Übersetzungen"
       }
     },
     "reviews": {
@@ -848,7 +877,8 @@
     "backToPriceMarkets": "Zurück zu den Märkten",
     "editPriceMarket": "Bearbeiten: {name}",
     "editPriceMarketDesc": "Name und Länder des Markts aktualisieren.",
-    "editPriceMarketLoading": "Markt bearbeiten"
+    "editPriceMarketLoading": "Markt bearbeiten",
+    "orgsListCount": "{count, plural, one {# Organisation} other {# Organisationen}}"
   },
   "adminCategories": {
     "actions": "Aktionen",
@@ -1041,7 +1071,8 @@
     "deleteDesc": "Dies entfernt Ihre Bewertung und Ihren Kommentar dauerhaft. Kann nicht rückgängig gemacht werden.",
     "deleting": "Wird gelöscht...",
     "deleted": "Bewertung gelöscht",
-    "updated": "Bewertung aktualisiert"
+    "updated": "Bewertung aktualisiert",
+    "editedAt": "Bearbeitet: {date}"
   },
   "search": {
     "result": "Ergebnis",
@@ -1144,7 +1175,8 @@
     "publicEmpty": "Derzeit sind keine Marken verfügbar.",
     "publicProductCount": "{count, plural, one {# Produkt} other {# Produkte}}",
     "publicBackToBrands": "Zurück zu den Marken",
-    "publicNoProducts": "In dieser Marke sind noch keine Produkte vorhanden."
+    "publicNoProducts": "In dieser Marke sind noch keine Produkte vorhanden.",
+    "listCount": "{count, plural, one {# Marke} other {# Marken}}"
   },
   "tags": {
     "actions": "Aktionen",
@@ -1170,7 +1202,8 @@
     "slugDesc": "URL-freundlicher Bezeichner. Automatisch aus dem Namen generiert.",
     "creating": "Wird erstellt...",
     "saveChanges": "Änderungen speichern",
-    "create": "Tag erstellen"
+    "create": "Tag erstellen",
+    "listCount": "{count, plural, one {# Tag} other {# Tags}}"
   },
   "trustPoints": {
     "label": "Titel",
@@ -1202,7 +1235,8 @@
     "saveChanges": "Änderungen speichern",
     "duplicate": "Duplizieren",
     "duplicated": "Garantie dupliziert",
-    "editCopy": "Kopie bearbeiten"
+    "editCopy": "Kopie bearbeiten",
+    "listCount": "{count, plural, one {# Punkt} other {# Punkte}}"
   },
   "invite": {
     "email": "E-Mail-Adresse",
@@ -1259,7 +1293,8 @@
     "selectRole": "Rolle auswählen",
     "saving": "Speichere...",
     "updateRole": "Rolle aktualisieren",
-    "roleUpdated": "Benutzerrolle aktualisiert"
+    "roleUpdated": "Benutzerrolle aktualisiert",
+    "listCount": "{count, plural, one {# Benutzer} other {# Benutzer}}"
   },
   "notFound": {
     "notFound": "Nicht gefunden",
@@ -1878,7 +1913,10 @@
     "codOwedToYou": "Ihrem Nachnahme-Saldo gutgeschrieben",
     "codBalancePooledNote": "Salden werden je Währung über alle Ihre Bestellungen geführt, nicht je Bestellung - den aktuellen Stand finden Sie auf Ihrer Auszahlungsseite; er kann bereits beglichen oder ausgezahlt sein.",
     "codEarnings": "Ihnen bleibt",
-    "codToCollectNote": "Ziehen Sie genau diesen Betrag beim Käufer ein. Der Gutschein geht vom Bargeld an der Tür ab, und die Plattform erstattet ihn über eine geringere Provision - Ihr Erlös ist derselbe wie ohne Gutschein."
+    "codToCollectNote": "Ziehen Sie genau diesen Betrag beim Käufer ein. Der Gutschein geht vom Bargeld an der Tür ab, und die Plattform erstattet ihn über eine geringere Provision - Ihr Erlös ist derselbe wie ohne Gutschein.",
+    "codBalanceCreditLabel": "Guthaben aus früheren Nachnahme-Bestellungen",
+    "codBalanceCreditNote": "Mit dieser Überweisung wurde auch ausgezahlt, was die Plattform Ihrer Organisation aus früheren Nachnahme-Bestellungen schuldete - ein von uns finanzierter Gutschein, der höher war als unsere Provision, oder Provision, die für zurückgegebene Ware erstattet wurde.",
+    "payoutTransferred": "An Sie überwiesen"
   },
   "interactions": {
     "frequentlyBoughtTogetherEyebrow": "Zusammen gekauft",
@@ -2135,7 +2173,10 @@
     "connecting": "Weiterleitung zu Stripe...",
     "toggleDetails": "Details ein-/ausblenden",
     "codCreditTitle": "Ihnen erstattet",
-    "codCreditDesc": "Ein Gutschein auf einer Nachnahmebestellung lag über unserer Provision darauf, Sie haben an der Tür also weniger Bargeld eingezogen als Sie verdient haben. Die Differenz kommt zu Ihrer nächsten Stripe-Auszahlung in derselben Währung hinzu."
+    "codCreditDesc": "Ein Gutschein auf einer Nachnahmebestellung lag über unserer Provision darauf, Sie haben an der Tür also weniger Bargeld eingezogen als Sie verdient haben. Die Differenz kommt zu Ihrer nächsten Stripe-Auszahlung in derselben Währung hinzu.",
+    "codBalanceCreditShort": "Nachnahme-Guthaben",
+    "codBalanceCreditPill": "Inkl. Nachnahme-Guthaben",
+    "codBalanceCreditNote": "Diese Auszahlung enthält auch, was die Plattform Ihrer Organisation aus früheren Nachnahme-Bestellungen schuldete."
   },
   "actionErrors": {
     "forbidden": "Nicht erlaubt",

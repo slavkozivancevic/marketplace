@@ -36,6 +36,7 @@ import { useMoney } from "@/lib/useMoney";
 import { useMarketListItem } from "@/providers/MarketProvider";
 import { MarketPriceNote } from "@/features/priceMarkets/components/MarketPriceNote";
 import { cn } from "@/lib/utils";
+import { formatNumber, formatRating } from "@/lib/i18n/numbers";
 import { FreeShippingBadge } from "@/features/shipping/components/FreeShippingBadge";
 
 // ---------- Rating breakdown popover ----------
@@ -56,6 +57,8 @@ function RatingBreakdownPopover({
   const [open, setOpen] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const t = useTranslations("products");
+  const tCommon = useTranslations("common");
+  const locale = useLocale();
 
   const { data } = useQuery<RatingBreakdown>({
     queryKey: ["product", "rating-breakdown", productId],
@@ -84,14 +87,14 @@ function RatingBreakdownPopover({
           onClick={(e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); setOpen((p) => !p); }}
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
-          aria-label="Show rating breakdown"
+          aria-label={t("showRatingBreakdown")}
         >
           <StarRating rating={avgRating} size={14} />
           <span className="text-xs text-muted-foreground ml-1">
-            {avgRating.toFixed(1)}
+            {formatRating(avgRating, locale)}
           </span>
           <span className="text-xs text-muted-foreground">
-            ({ratingCount})
+            ({formatNumber(ratingCount, locale)})
           </span>
           <ChevronDown className="h-3 w-3 text-muted-foreground ml-0.5 cursor-pointer group-hover/rating:text-foreground transition-colors" />
         </button>
@@ -107,7 +110,7 @@ function RatingBreakdownPopover({
         <button
           className="absolute top-2 right-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           onClick={(e) => { e.stopPropagation(); setOpen(false); }}
-          aria-label="Close"
+          aria-label={tCommon("close")}
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -115,9 +118,9 @@ function RatingBreakdownPopover({
         {/* Header */}
         <div className="flex items-center gap-2">
           <StarRating rating={avgRating} size={15} />
-          <span className="text-sm font-semibold">{avgRating.toFixed(1)} {t("outOf5")}</span>
+          <span className="text-sm font-semibold">{formatRating(avgRating, locale)} {t("outOf5")}</span>
         </div>
-        <p className="text-xs text-muted-foreground">{ratingCount} {t("globalRatings")}</p>
+        <p className="text-xs text-muted-foreground">{formatNumber(ratingCount, locale)} {t("globalRatings")}</p>
 
         {/* Breakdown bars */}
         <div className="space-y-1">
@@ -133,7 +136,7 @@ function RatingBreakdownPopover({
                     style={{ width: open ? `${pct}%` : "0%" }}
                   />
                 </div>
-                <span className="text-xs text-muted-foreground w-8 text-right shrink-0">{pct}%</span>
+                <span className="text-xs text-muted-foreground w-10 text-right shrink-0 tabular-nums">{formatNumber(pct / 100, locale, { style: "percent" })}</span>
               </div>
             );
           })}

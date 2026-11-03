@@ -52,6 +52,7 @@ export type SellerOrderMoney = {
   codCommissionCredited: number;
   codOwedAfterRefunds: number;
   payoutReversed: number;
+  /** COD balance netted against the transfer: + withheld for debt, - credit paid out with it. */
   codNetted: number;
   payoutReversedFromTransfer: number;
   codDebtRestored: number;
@@ -130,7 +131,13 @@ export function sellerOrderMoney({
   // it is independent of payoutReversed - mixing the two would misattribute the
   // gap between them when an order has both. The two effects instead stack in
   // finalTransferred: what was actually transferred, minus any later clawback.
-  const codNetted = payoutTxAmount != null ? Math.max(0, orgPayout - payoutTxAmount) : 0;
+  //
+  // Signed, because the running balance cuts both ways: positive is COD debt
+  // withheld from this transfer, negative a COD credit (platform-funded coupon
+  // deeper than the commission, or commission returned on refunds) paid out
+  // WITH it. Clamping the credit to zero left a transfer larger than everything
+  // the page listed, with nothing to say why.
+  const codNetted = payoutTxAmount != null ? orgPayout - payoutTxAmount : 0;
   // The clawback cannot exceed what the transfer actually moved - Stripe
   // rejects a reversal larger than its transfer, so settleReturnRefund caps it
   // and puts the uncovered slice back on the COD balance as debt owed

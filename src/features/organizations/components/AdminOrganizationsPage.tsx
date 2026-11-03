@@ -137,7 +137,7 @@ export function AdminOrganizationsPage({
             activeCount={activeFilterCount}
           />
           <span className="text-xs text-muted-foreground ml-auto tabular-nums">
-            {filtered.length.toLocaleString()} {filtered.length !== 1 ? t("admin.orgsLabel") : t("admin.orgLabel")}
+            {t("admin.orgsListCount", { count: filtered.length })}
           </span>
         </div>
         <div

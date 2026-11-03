@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
+import { intlLocale } from "@/lib/i18n/dateLocale";
 import { useLocale, useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -86,7 +87,8 @@ export function PriceRuleFormSkeleton({ mode }: { mode: "create" | "edit" }) {
       : null) ?? DEFAULT_SHAPE;
 
   const weekdays = useMemo(() => {
-    const f = new Intl.DateTimeFormat(locale, { weekday: "short", timeZone: "UTC" });
+    // intlLocale: a bare "sr" gives Cyrillic day names.
+    const f = new Intl.DateTimeFormat(intlLocale(locale), { weekday: "short", timeZone: "UTC" });
     // 2024-01-01 was a Monday - the same list the form builds.
     return [1, 2, 3, 4, 5, 6, 7].map((i) => f.format(new Date(Date.UTC(2024, 0, i))));
   }, [locale]);

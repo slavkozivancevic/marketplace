@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useTransition } from "react";
+import { intlLocale } from "@/lib/i18n/dateLocale";
 import { useRouter } from "next/navigation";
 import { useForm, useFormState } from "react-hook-form";
 import { useLocale, useTranslations } from "next-intl";
@@ -160,7 +161,8 @@ export function PriceRuleForm({
 
   const timeZones = useMemo(() => Intl.supportedValuesOf("timeZone"), []);
   const weekdayLabels = useMemo(() => {
-    const f = new Intl.DateTimeFormat(locale, { weekday: "short", timeZone: "UTC" });
+    // intlLocale: a bare "sr" gives Cyrillic day names.
+    const f = new Intl.DateTimeFormat(intlLocale(locale), { weekday: "short", timeZone: "UTC" });
     // 2024-01-01 was a Monday, so day i is ISO weekday i.
     return [1, 2, 3, 4, 5, 6, 7].map((i) => ({ value: i, label: f.format(new Date(Date.UTC(2024, 0, i))) }));
   }, [locale]);

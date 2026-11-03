@@ -25,6 +25,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { AuditLogItem } from "../db/queries";
+import {
+  AUDIT_COLUMN_KEYS,
+  AUDIT_FIELD_KEYS,
+  AUDIT_VALUE_KEYS,
+  renderAuditDiff,
+  type AuditDiffLabels,
+} from "../auditDiff";
 // Grid template + row placeholder are owned by the skeleton module so the real
 // table and its loading state can never describe different columns.
 import { AUDIT_COLS as GRID, AuditSkeletonRow as SkeletonRow } from "./AuditTableSkeleton";
@@ -65,8 +72,8 @@ const KNOWN_ACTIONS = new Set([
 
 type Labels = {
   entity: (type: string) => string;
-  field: (key: string) => string;
-  value: (v: unknown) => string;
+  /** Field, column and value words plus the reader's locale, for the details column. */
+  diff: AuditDiffLabels;
   action: (a: string) => string;
   bulk: string;
   system: string;
@@ -92,40 +99,8 @@ function buildFetcher(f: AuditFilters) {
   };
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** Safety net so a raw UUID never surfaces in the details column: anything that
- *  looks like one is shortened to a #last8 handle (matching the entity column).
- *  Human-readable values are recorded at the source where possible (e.g. a
- *  coupon's code), and fall straight through here. */
-function humanizeValue(s: string): string {
-  return UUID_RE.test(s) ? `#${s.slice(-8)}` : s;
-}
-
-/** Human-readable summary of the diff: translated keys and enum values,
- *  "from → to" pairs, and the internal `byFilter` flag dropped. */
-function renderDiff(diff: AuditLogItem["diff"], labels: Labels): string | null {
-  if (!diff || typeof diff !== "object") return null;
-  // "byFilter" is an internal flag; "kind"/"orgId" on organization.* outcomes
-  // just restate the action name and entityId, so they'd be pure noise here.
-  // "fromId" is the machine link to a duplicate's source, kept in the record
-  // but not rendered - the readable "from" beside it is what a reader needs.
-  const INTERNAL_KEYS = new Set(["byFilter", "kind", "orgId", "fromId"]);
-  const entries = Object.entries(diff as Record<string, unknown>).filter(([k]) => !INTERNAL_KEYS.has(k));
-  if (entries.length === 0) return null;
-  return entries
-    .map(([k, v]) => {
-      if (v && typeof v === "object" && "from" in v && "to" in v) {
-        const o = v as { from: unknown; to: unknown };
-        return `${labels.field(k)}: ${labels.value(o.from)} → ${labels.value(o.to)}`;
-      }
-      return `${labels.field(k)}: ${labels.value(v)}`;
-    })
-    .join("  ·  ");
-}
-
 function Row({ row, dl, labels }: { row: AuditLogItem; dl: string; labels: Labels }) {
-  const diff = renderDiff(row.diff, labels);
+  const diff = renderAuditDiff(row.diff, labels.diff);
   const isBulk = row.entityId === "bulk";
   return (
     <div role="row" className={cn(GRID, "items-start border-b px-3 py-2.5 text-sm min-w-fit")}>
@@ -166,7 +141,8 @@ export function AuditLogView({
   facets: { actions: string[]; entityTypes: string[] };
 }) {
   const t = useTranslations("admin.audit");
-  const dl = dateLocale(useLocale());
+  const locale = useLocale();
+  const dl = dateLocale(locale);
 
   // Localized labels for entity types and diff field keys (action keys stay as
   // stable technical identifiers, like Stripe/AWS audit logs).
@@ -188,79 +164,20 @@ export function AuditLogView({
     PriceRule: t("entities.priceRule"),
     PriceMarket: t("entities.priceMarket"),
   };
-  const fieldLabels: Record<string, string> = {
-    count: t("fields.count"),
-    fields: t("fields.fields"),
-    from: t("fields.from"),
-    amount: t("fields.amount"),
-    currency: t("fields.currency"),
-    seller: t("fields.seller"),
-    status: t("fields.status"),
-    role: t("fields.role"),
-    member: t("fields.member"),
-    verified: t("fields.verified"),
-    leadTimeMinDays: t("fields.leadTimeMinDays"),
-    leadTimeMaxDays: t("fields.leadTimeMaxDays"),
-    returnWindowDays: t("fields.returnWindowDays"),
-    version: t("fields.version"),
-    carrier: t("fields.carrier"),
-    tracking: t("fields.tracking"),
-    created: t("fields.created"),
-    totalRows: t("fields.totalRows"),
-    errors: t("fields.errors"),
-    external: t("fields.external"),
-    settled: t("fields.settled"),
-    reason: t("fields.reason"),
-    error: t("fields.error"),
-    orgName: t("fields.orgName"),
-    deletedClerkUserId: t("fields.deletedClerkUserId"),
-    promotedUserId: t("fields.promotedUserId"),
-    productCount: t("fields.productCount"),
-    // What was deleted. The row is gone by the time anyone reads this, so the
-    // name is the only thing that identifies it.
-    name: t("fields.name"),
-  };
-  // Enum-like values (roles, statuses, booleans) are translated; identifiers
-  // (UUIDs, field names, currency codes, numbers) fall through unchanged.
-  // Product column names that appear in a bulk update's `fields` list.
-  const columnLabels: Record<string, string> = {
-    status: t("columns.status"),
-    brandId: t("columns.brandId"),
-    price: t("columns.price"),
-    compareAtPrice: t("columns.compareAtPrice"),
-    costPrice: t("columns.costPrice"),
-    taxable: t("columns.taxable"),
-    requiresShipping: t("columns.requiresShipping"),
-    isDigital: t("columns.isDigital"),
-    warrantyMonths: t("columns.warrantyMonths"),
-    countryOfOrigin: t("columns.countryOfOrigin"),
-    stock: t("columns.stock"),
-    categories: t("columns.categories"),
-  };
-  const valueLabels: Record<string, string> = {
-    USER: t("values.USER"),
-    ADMIN: t("values.ADMIN"),
-    SELLER: t("values.SELLER"),
-    OWNER: t("values.OWNER"),
-    MEMBER: t("values.MEMBER"),
-    REQUESTED: t("values.REQUESTED"),
-    APPROVED: t("values.APPROVED"),
-    REJECTED: t("values.REJECTED"),
-    SHIPPED: t("values.SHIPPED"),
-    REFUNDED: t("values.REFUNDED"),
-    PUBLISHED: t("values.PUBLISHED"),
-    DRAFT: t("values.DRAFT"),
-    ARCHIVED: t("values.ARCHIVED"),
-    true: t("values.true"),
-    false: t("values.false"),
-  };
+  // Every key, column and value the log can show has a label (auditDiff.ts
+  // lists them; its test fails on a writer's key that is missing).
+  type Key = Parameters<typeof t>[0];
+  const fieldLabels = Object.fromEntries(AUDIT_FIELD_KEYS.map((k) => [k, t(`fields.${k}` as Key)]));
+  const columnLabels = Object.fromEntries(AUDIT_COLUMN_KEYS.map((k) => [k, t(`columns.${k}` as Key)]));
+  const valueLabels = Object.fromEntries(AUDIT_VALUE_KEYS.map((k) => [k, t(`values.${k}` as Key)]));
   const labels: Labels = {
     entity: (type) => entityLabels[type] ?? type,
-    field: (key) => fieldLabels[key] ?? key,
-    value: (v) =>
-      Array.isArray(v)
-        ? v.map((x) => columnLabels[String(x)] ?? String(x)).join(", ")
-        : valueLabels[String(v)] ?? humanizeValue(String(v ?? "∅")),
+    diff: {
+      field: (key) => fieldLabels[key] ?? key,
+      column: (key) => columnLabels[key],
+      value: (code) => valueLabels[code],
+      locale,
+    },
     action: (a) => (KNOWN_ACTIONS.has(a) ? t(`actions.${a}` as Parameters<typeof t>[0]) : a),
     bulk: t("bulk"),
     system: t("system"),

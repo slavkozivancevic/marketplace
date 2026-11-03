@@ -292,7 +292,8 @@
     "historyRollingBack": "Vraćanje...",
     "historyRollbackTitle": "Vrati na ovu verziju",
     "historyRollbackDesc": "Da li ste sigurni da želite da vratite na verziju {version}? Biće kreirana nova verzija sa ovim podacima.",
-    "historyRollbackSuccess": "Vraćeno na verziju {version}"
+    "historyRollbackSuccess": "Vraćeno na verziju {version}",
+    "showRatingBreakdown": "Prikaži raspodelu ocena"
   },
   "dashboard": {
     "title": "Kontrolna tabla",
@@ -582,7 +583,24 @@
         "name": "Naziv",
         "fee": "Provizija",
         "orderCancelled": "Narudžbina otkazana",
-        "paid": "Isplaćeno"
+        "paid": "Isplaćeno",
+        "codNetted": "Prebijeno sa COD saldom",
+        "countries": "Zemlje",
+        "email": "Email",
+        "isActive": "Aktivno",
+        "orderId": "Narudžbina",
+        "productId": "Proizvod",
+        "variantId": "Varijanta",
+        "marketId": "Tržište",
+        "countryCode": "Zemlja",
+        "adjustment": "Promena cene",
+        "percentBps": "Procenat",
+        "recurrence": "Ponavljanje",
+        "startsAt": "Početak",
+        "endsAt": "Kraj",
+        "timezone": "Vremenska zona",
+        "priority": "Prioritet",
+        "active": "Aktivno"
       },
       "values": {
         "USER": "Korisnik",
@@ -599,7 +617,16 @@
         "DRAFT": "Nacrt",
         "ARCHIVED": "Arhivirano",
         "true": "Da",
-        "false": "Ne"
+        "false": "Ne",
+        "PERCENT": "Procenat",
+        "FIXED_PRICE": "Fiksna cena",
+        "AMOUNT_OFF": "Iznos popusta",
+        "NONE": "Jednom",
+        "DAILY": "Svaki dan",
+        "WEEKLY": "Svake nedelje",
+        "MONTHLY": "Svakog meseca",
+        "external_refund": "Povraćaj van aplikacije",
+        "variantRemoved": "Varijanta uklonjena"
       },
       "actions": {
         "order": {
@@ -724,7 +751,9 @@
         "warrantyMonths": "Garancija",
         "countryOfOrigin": "Zemlja porekla",
         "stock": "Zalihe",
-        "categories": "Kategorije"
+        "categories": "Kategorije",
+        "tags": "Tagovi",
+        "translations": "Prevodi"
       }
     },
     "reviews": {
@@ -848,7 +877,8 @@
     "backToPriceMarkets": "Nazad na tržišta",
     "editPriceMarket": "Izmena: {name}",
     "editPriceMarketDesc": "Ažurirajte naziv i zemlje tržišta.",
-    "editPriceMarketLoading": "Izmena tržišta"
+    "editPriceMarketLoading": "Izmena tržišta",
+    "orgsListCount": "{count, plural, one {# organizacija} few {# organizacije} other {# organizacija}}"
   },
   "adminCategories": {
     "actions": "Akcije",
@@ -1041,7 +1071,8 @@
     "deleteDesc": "Ovo trajno uklanja vašu ocenu i komentar. Ne može se poništiti.",
     "deleting": "Brisanje...",
     "deleted": "Recenzija obrisana",
-    "updated": "Recenzija izmenjena"
+    "updated": "Recenzija izmenjena",
+    "editedAt": "Izmenjeno: {date}"
   },
   "search": {
     "result": "rezultat",
@@ -1144,7 +1175,8 @@
     "publicEmpty": "Trenutno nema dostupnih brendova.",
     "publicProductCount": "{count, plural, one {# proizvod} few {# proizvoda} other {# proizvoda}}",
     "publicBackToBrands": "Nazad na brendove",
-    "publicNoProducts": "Trenutno nema proizvoda u ovom brendu."
+    "publicNoProducts": "Trenutno nema proizvoda u ovom brendu.",
+    "listCount": "{count, plural, one {# brend} few {# brenda} other {# brendova}}"
   },
   "tags": {
     "actions": "Akcije",
@@ -1170,7 +1202,8 @@
     "slugDesc": "URL-friendly identifikator. Automatski se generiše iz naziva.",
     "creating": "Kreiranje...",
     "saveChanges": "Sačuvaj izmene",
-    "create": "Kreiraj tag"
+    "create": "Kreiraj tag",
+    "listCount": "{count, plural, one {# tag} few {# taga} other {# tagova}}"
   },
   "trustPoints": {
     "label": "Naslov",
@@ -1202,7 +1235,8 @@
     "saveChanges": "Sačuvaj izmene",
     "duplicate": "Dupliraj",
     "duplicated": "Garancija duplirana",
-    "editCopy": "Izmeni kopiju"
+    "editCopy": "Izmeni kopiju",
+    "listCount": "{count, plural, one {# stavka} few {# stavke} other {# stavki}}"
   },
   "invite": {
     "email": "Email adresa",
@@ -1259,7 +1293,8 @@
     "selectRole": "Odaberite ulogu",
     "saving": "Čuvanje...",
     "updateRole": "Ažuriraj ulogu",
-    "roleUpdated": "Uloga korisnika ažurirana"
+    "roleUpdated": "Uloga korisnika ažurirana",
+    "listCount": "{count, plural, one {# korisnik} few {# korisnika} other {# korisnika}}"
   },
   "notFound": {
     "notFound": "Nije pronađeno",
@@ -1878,7 +1913,10 @@
     "codOwedToYou": "Odobrenje COD salda",
     "codBalancePooledNote": "Saldo se vodi zbirno po valuti, za sve vaše narudžbine, a ne po narudžbini - trenutno stanje je na stranici Isplate, i može već biti naplaćeno ili isplaćeno.",
     "codEarnings": "Vama ostaje",
-    "codToCollectNote": "Naplatite od kupca tačno ovoliko. Kupon se skida sa keša na vratima, a platforma vam ga vraća kroz umanjenu proviziju - vaša zarada je ista kao i bez kupona."
+    "codToCollectNote": "Naplatite od kupca tačno ovoliko. Kupon se skida sa keša na vratima, a platforma vam ga vraća kroz umanjenu proviziju - vaša zarada je ista kao i bez kupona.",
+    "codBalanceCreditLabel": "Dug platforme iz ranijih narudžbina pouzećem",
+    "codBalanceCreditNote": "Ovom isplatom je isplaćeno i ono što je platforma dugovala vašoj organizaciji iz ranijih narudžbina plaćenih pouzećem - kupon koji je platforma finansirala, a koji je bio veći od provizije, ili provizija vraćena za refundiranu robu.",
+    "payoutTransferred": "Ukupno isplaćeno"
   },
   "interactions": {
     "frequentlyBoughtTogetherEyebrow": "Kupljeno zajedno",
@@ -2135,7 +2173,10 @@
     "connecting": "Preusmeravanje na Stripe...",
     "toggleDetails": "Prikaži/sakrij detalje",
     "codCreditTitle": "Platforma duguje vama",
-    "codCreditDesc": "Kupon na narudžbini sa plaćanjem pouzećem bio je veći od naše provizije na njoj, pa ste na vratima naplatili manje nego što ste zaradili. Razlika se dodaje na vašu sledeću Stripe isplatu u istoj valuti."
+    "codCreditDesc": "Kupon na narudžbini sa plaćanjem pouzećem bio je veći od naše provizije na njoj, pa ste na vratima naplatili manje nego što ste zaradili. Razlika se dodaje na vašu sledeću Stripe isplatu u istoj valuti.",
+    "codBalanceCreditShort": "dug platforme",
+    "codBalanceCreditPill": "Uključen dug platforme",
+    "codBalanceCreditNote": "Ova isplata uključuje i ono što je platforma dugovala vašoj organizaciji iz ranijih narudžbina plaćenih pouzećem."
   },
   "actionErrors": {
     "forbidden": "Nije dozvoljeno",

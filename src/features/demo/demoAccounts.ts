@@ -55,6 +55,17 @@ export const DEMO_ACCOUNTS: Record<DemoRole, DemoAccount> = {
 
 export const DEMO_ROLES = Object.keys(DEMO_ACCOUNTS) as DemoRole[];
 
+/**
+ * The address a demo buyer's Stripe Checkout shows, prefilled and locked.
+ *
+ * The account's own address is an alias of the owner's mailbox, which must not
+ * be shown to whoever is trying the demo; left blank, Stripe asked the visitor
+ * to type one that nothing ever used (test mode sends no receipts, and order
+ * emails go to the account). A neutral address on our own domain says plainly
+ * that it is a demo, and leaves nothing to type. Never a real mailbox.
+ */
+export const DEMO_CHECKOUT_EMAIL = "demo-buyer@marketverseapp.com";
+
 export function isDemoRole(value: unknown): value is DemoRole {
   return typeof value === "string" && (DEMO_ROLES as string[]).includes(value);
 }

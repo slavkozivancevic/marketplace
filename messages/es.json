@@ -292,7 +292,8 @@
     "historyRollingBack": "Revirtiendo...",
     "historyRollbackTitle": "Revertir a esta versión",
     "historyRollbackDesc": "¿Estás seguro de que deseas revertir a la versión {version}? Se creará una nueva versión con estos datos.",
-    "historyRollbackSuccess": "Revertido a la versión {version}"
+    "historyRollbackSuccess": "Revertido a la versión {version}",
+    "showRatingBreakdown": "Ver desglose de valoraciones"
   },
   "dashboard": {
     "title": "Panel",
@@ -582,7 +583,24 @@
         "name": "Nombre",
         "fee": "Comisión",
         "orderCancelled": "Pedido cancelado",
-        "paid": "Pagado"
+        "paid": "Pagado",
+        "codNetted": "Compensado con saldo COD",
+        "countries": "Países",
+        "email": "Correo electrónico",
+        "isActive": "Activo",
+        "orderId": "Pedido",
+        "productId": "Producto",
+        "variantId": "Variante",
+        "marketId": "Mercado",
+        "countryCode": "País",
+        "adjustment": "Cambio de precio",
+        "percentBps": "Porcentaje",
+        "recurrence": "Repetición",
+        "startsAt": "Inicio",
+        "endsAt": "Fin",
+        "timezone": "Zona horaria",
+        "priority": "Prioridad",
+        "active": "Activo"
       },
       "values": {
         "USER": "Usuario",
@@ -599,7 +617,16 @@
         "DRAFT": "Borrador",
         "ARCHIVED": "Archivado",
         "true": "Sí",
-        "false": "No"
+        "false": "No",
+        "PERCENT": "Porcentaje",
+        "FIXED_PRICE": "Precio fijo",
+        "AMOUNT_OFF": "Importe de descuento",
+        "NONE": "Una vez",
+        "DAILY": "Cada día",
+        "WEEKLY": "Cada semana",
+        "MONTHLY": "Cada mes",
+        "external_refund": "Reembolso fuera de la app",
+        "variantRemoved": "Variante eliminada"
       },
       "actions": {
         "order": {
@@ -724,7 +751,9 @@
         "warrantyMonths": "Garantía",
         "countryOfOrigin": "País de origen",
         "stock": "Stock",
-        "categories": "Categorías"
+        "categories": "Categorías",
+        "tags": "Etiquetas",
+        "translations": "Traducciones"
       }
     },
     "reviews": {
@@ -848,7 +877,8 @@
     "backToPriceMarkets": "Volver a los mercados",
     "editPriceMarket": "Editar: {name}",
     "editPriceMarketDesc": "Actualiza el nombre y los países del mercado.",
-    "editPriceMarketLoading": "Editar mercado"
+    "editPriceMarketLoading": "Editar mercado",
+    "orgsListCount": "{count, plural, one {# organización} other {# organizaciones}}"
   },
   "adminCategories": {
     "actions": "Acciones",
@@ -1041,7 +1071,8 @@
     "deleteDesc": "Esto elimina permanentemente tu valoración y comentario. No se puede deshacer.",
     "deleting": "Eliminando...",
     "deleted": "Reseña eliminada",
-    "updated": "Reseña actualizada"
+    "updated": "Reseña actualizada",
+    "editedAt": "Editado: {date}"
   },
   "search": {
     "result": "resultado",
@@ -1144,7 +1175,8 @@
     "publicEmpty": "No hay marcas disponibles en este momento.",
     "publicProductCount": "{count, plural, one {# producto} other {# productos}}",
     "publicBackToBrands": "Volver a marcas",
-    "publicNoProducts": "Aún no hay productos en esta marca."
+    "publicNoProducts": "Aún no hay productos en esta marca.",
+    "listCount": "{count, plural, one {# marca} other {# marcas}}"
   },
   "tags": {
     "actions": "Acciones",
@@ -1170,7 +1202,8 @@
     "slugDesc": "Identificador amigable para la URL. Generado automáticamente a partir del nombre.",
     "creating": "Creando...",
     "saveChanges": "Guardar cambios",
-    "create": "Crear etiqueta"
+    "create": "Crear etiqueta",
+    "listCount": "{count, plural, one {# etiqueta} other {# etiquetas}}"
   },
   "trustPoints": {
     "label": "Título",
@@ -1202,7 +1235,8 @@
     "saveChanges": "Guardar cambios",
     "duplicate": "Duplicar",
     "duplicated": "Garantía duplicada",
-    "editCopy": "Editar copia"
+    "editCopy": "Editar copia",
+    "listCount": "{count, plural, one {# punto} other {# puntos}}"
   },
   "invite": {
     "email": "Correo electrónico",
@@ -1259,7 +1293,8 @@
     "selectRole": "Seleccionar un rol",
     "saving": "Guardando...",
     "updateRole": "Actualizar rol",
-    "roleUpdated": "Rol de usuario actualizado"
+    "roleUpdated": "Rol de usuario actualizado",
+    "listCount": "{count, plural, one {# usuario} other {# usuarios}}"
   },
   "notFound": {
     "notFound": "No encontrado",
@@ -1878,7 +1913,10 @@
     "codOwedToYou": "Abonado a tu saldo contra reembolso",
     "codBalancePooledNote": "Los saldos se llevan por moneda y para todos tus pedidos, no por pedido: la cifra actual está en tu página de pagos y puede que ya se haya liquidado o pagado.",
     "codEarnings": "Te queda",
-    "codToCollectNote": "Cobra exactamente este importe al comprador. El cupón se descuenta del efectivo en la puerta y la plataforma te lo devuelve reduciendo su comisión: tus ingresos son los mismos que sin cupón."
+    "codToCollectNote": "Cobra exactamente este importe al comprador. El cupón se descuenta del efectivo en la puerta y la plataforma te lo devuelve reduciendo su comisión: tus ingresos son los mismos que sin cupón.",
+    "codBalanceCreditLabel": "Saldo a tu favor de pedidos contra reembolso anteriores",
+    "codBalanceCreditNote": "Esta transferencia también pagó lo que la plataforma debía a tu organización por pedidos contra reembolso anteriores: un cupón financiado por nosotros mayor que nuestra comisión, o comisión devuelta por artículos reembolsados.",
+    "payoutTransferred": "Transferido a ti"
   },
   "interactions": {
     "frequentlyBoughtTogetherEyebrow": "Comprados juntos",
@@ -2135,7 +2173,10 @@
     "connecting": "Redirigiendo a Stripe...",
     "toggleDetails": "Mostrar/ocultar detalles",
     "codCreditTitle": "Te lo debemos",
-    "codCreditDesc": "Un cupón en un pedido contra reembolso superó nuestra comisión sobre él, así que cobraste menos efectivo en la puerta de lo que ganaste. La diferencia se suma a tu próximo pago de Stripe en la misma moneda."
+    "codCreditDesc": "Un cupón en un pedido contra reembolso superó nuestra comisión sobre él, así que cobraste menos efectivo en la puerta de lo que ganaste. La diferencia se suma a tu próximo pago de Stripe en la misma moneda.",
+    "codBalanceCreditShort": "saldo COD a favor",
+    "codBalanceCreditPill": "Incluye saldo COD a favor",
+    "codBalanceCreditNote": "Este pago también incluye lo que la plataforma debía a tu organización por pedidos contra reembolso anteriores."
   },
   "actionErrors": {
     "forbidden": "No permitido",

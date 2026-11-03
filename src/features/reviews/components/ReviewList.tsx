@@ -268,7 +268,7 @@ function ReviewItem({
                 <p>{new Date(review.createdAt).toLocaleString(dl)}</p>
                 {isEdited && review.editedAt && (
                   <p className="text-muted-foreground">
-                    Edited: {new Date(review.editedAt).toLocaleString(dl)}
+                    {t("editedAt", { date: new Date(review.editedAt).toLocaleString(dl) })}
                   </p>
                 )}
               </TooltipContent>
