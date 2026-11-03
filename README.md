@@ -27,7 +27,7 @@ Each link mints a one-time Clerk sign-in token, so there is no password to type 
 
 - **Money done carefully.** Every price is stored as one exact amount per currency (USD / EUR / RSD): what the seller typed is kept, the other currencies are derived once and frozen, so prices never drift with the exchange rate. Orders split into one **sub-order per seller**, and refunds close the books exactly - an append-only ledger records every charge, refund, payout and fee.
 - **Dynamic pricing with EU Omnibus rules.** Sellers schedule price changes (one-off, daily, weekly, monthly, in the seller's time zone) and set prices per **market** or per **country**. Schedule rules are materialized into price windows ahead of time and roll on the first read after a boundary - no per-minute cron. A strike-through "was" price is shown only when the lowest price of the previous 30 days can be proven for *that* buyer's market.
-- **Real-time chat** over API Gateway WebSockets: typing indicators, online presence, read receipts, attachments, and an outbox that keeps a message sent offline and delivers it exactly once on reconnect.
+- **Real-time chat** over API Gateway WebSockets, with the gestures people know from WhatsApp: swipe to reply with a quote, edit within 15 minutes, delete for everyone or just for yourself, pick many messages or conversations at once, mark as unread. Typing indicators, online presence, read receipts, attachments, older history on scroll, and an outbox that keeps a message sent offline and delivers it exactly once on reconnect.
 - **Correct by construction.** Real HTTP 404s despite Next.js partial prerendering (decided in the proxy), deletes that would silently cascade are refused with an explanation, every cache read has a matching invalidation, every org-scoped query key carries the tenant.
 - **Operated like production.** Request-scoped structured logging, CloudWatch metrics and alarms, a Grafana Cloud dashboard, database wake-ups told apart from slow queries.
 - **Shipped by a pipeline.** GitHub Actions CI (lint, typecheck, ~600 unit and ~280 integration tests, Playwright E2E) gates every merge; CodePipeline + CodeBuild deploy to Lambda + CloudFront; release-please cuts versions.
@@ -49,7 +49,7 @@ The platform will never have paying traffic, so every piece is chosen to cost no
 | Service | Description | Stack |
 |---|---|---|
 | **marketplace** | Storefront, seller dashboard, admin panel, checkout | Next.js 16, React 19, Prisma 7, PostgreSQL (Neon) |
-| **marketplace-messaging** | Real-time chat: WebSocket, typing, presence, read receipts, reactions, attachments, idempotent sends | AWS Lambda, API Gateway WebSocket + HTTP, DynamoDB, S3 |
+| **marketplace-messaging** | Real-time chat: WebSocket, typing, presence, read receipts, reactions, attachments, replies, edit and delete, idempotent sends | AWS Lambda, API Gateway WebSocket + HTTP, DynamoDB, S3 |
 | **marketplace-conversation-search** | Conversation search index, event-driven via SNS/SQS | AWS Lambda, DynamoDB, SNS, SQS |
 | **marketplace-notifications** | Transactional email (orders, COD, shipping, delivery, payouts, returns, review moderation, invites, roles) + five scheduled jobs (FX rates, bestsellers, review digest, COD balance digest, price-window horizon) | AWS Lambda, SES, DynamoDB, SNS/SQS, EventBridge |
 
@@ -382,21 +382,30 @@ Browser
   ├── WebSocket (wss://) ──► API Gateway WebSocket API
   │                               ├── $connect    → authenticate JWT, register connection
   │                               ├── $disconnect → remove connection record (TTL-backed)
-  │                               ├── sendMessage → persist to DynamoDB, fan-out to all
-  │                               │                 active connections of recipient via
-  │                               │                 ApiGatewayManagementApi
-  │                               └── markRead    → update unread count, push to recipient
+  │                               ├── sendMessage    → persist to DynamoDB (a reply stores the
+  │                               │                    server's own snapshot of the quoted message),
+  │                               │                    fan-out to all active connections of the
+  │                               │                    recipient via ApiGatewayManagementApi
+  │                               ├── markRead       → advance the reader's read marker, push receipts
+  │                               ├── editMessage    → sender only, within 15 minutes
+  │                               ├── deleteMessage  → for everyone (sender, 60 h) or for me (any)
+  │                               ├── deleteMessages → the multi-select delete, up to 100, all or nothing
+  │                               ├── typing         → ephemeral frame, never stored
+  │                               └── ping           → liveness probe for half-open sockets
   │
   └── HTTP (https://) ──► API Gateway HTTP API
         ├── POST /auth/token              → issue short-lived JWT (consumed by WebSocket client)
-        ├── POST /conversations           → create conversation (publishes to SNS search topic)
+        ├── POST /conversations           → create conversation, server-to-server only (publishes to SNS search topic)
         ├── GET  /conversations           → list user's conversations
-        ├── GET  /conversations/{id}/messages → paginated message history
+        ├── GET  /conversations/{id}/messages → paginated history, or everything back to one message (`from`)
+        ├── GET  /conversations/{id}/presence → online / last seen of the other participants
         ├── POST /attachments/upload-url  → presigned S3 PUT for direct browser upload
         ├── GET  /attachments/read-url    → presigned S3 GET for secure file access
         ├── GET  /conversations/{id}/reactions  → fetch emoji reactions per message
         ├── POST /conversations/{id}/reactions  → toggle reaction, push update via WebSocket
-        └── DELETE /conversations/{id}    → soft-delete, push to recipients, unpublish from search
+        ├── POST /conversations/read-state → mark read (sends receipts) or unread, up to 100
+        ├── POST /conversations/delete    → delete several for the caller only, all or nothing
+        └── DELETE /conversations/{id}    → delete for the caller only; the other side keeps it
 ```
 
 ### Tech Stack
@@ -413,7 +422,7 @@ Browser
 - **Secrets:** AWS SSM Parameter Store (SecureString) - secrets fetched at cold start, never baked into Lambda environment
 - **Auth:** **JOSE** (JWT) - short-lived tokens issued by the HTTP API and verified by WebSocket and HTTP Lambdas
 - **IDs:** ULID (universally unique, lexicographically sortable - ideal as DynamoDB sort keys)
-- **Push notifications:** AWS SNS (publishes `conversation.created` / `conversation.deleted` events to the search service)
+- **Push notifications:** AWS SNS (publishes `conversation.created` events to the search service; a conversation is never deleted for both sides, so nothing is unpublished)
 
 ### Key Engineering Decisions
 
@@ -425,6 +434,9 @@ Browser
 - **Idempotent sends with an outbox** - the client gives every message an id, keeps it in an outbox until the server acknowledges it over the socket, and resends after a reconnect; the server stores each id once. A message typed offline is delivered exactly once when the connection comes back.
 - **Presence, typing and read receipts from the socket itself** - online / last-seen is derived from live connection records, typing indicators are ephemeral WebSocket frames that never touch the table, read receipts come from server-side read markers, and a ping route lets the client probe a half-open connection.
 - **One socket per tab** - the chat drawer and the full-page inbox at `/messages` share a single connection, so a message is never delivered, counted or played twice.
+- **WhatsApp's rules, enforced by the server** - edit within 15 minutes, delete for everyone within 60 hours, delete for me any time (a per-user hide record), and delete a conversation for yourself only (a per-user `clearedAt` watermark - a new message brings it back with only what came after). A deleted message keeps its row as a tombstone, so read markers and the paging cursor stay valid.
+- **Quotes the client cannot forge** - a reply sends only the key of the message it answers; the server reads the original in the same conversation and stores its own snapshot. Deleting the original for everyone blanks every quote of it, as current WhatsApp does.
+- **All-or-nothing batches** - a multi-select delete of up to 100 messages or conversations is checked in full first and written in one DynamoDB transaction, so a dialog never has to explain a half-done delete.
 
 ### Project Structure
 
@@ -435,8 +447,13 @@ marketplace-messaging/
     ├── websocket/
     │   ├── connect.ts          JWT auth + connection registration
     │   ├── disconnect.ts       Connection record cleanup
-    │   ├── sendMessage.ts      Persist message + fan-out delivery
-    │   └── markRead.ts         Mark messages read + push update
+    │   ├── sendMessage.ts      Persist message (+ reply snapshot) + fan-out delivery
+    │   ├── markRead.ts         Mark messages read + push update
+    │   ├── editMessage.ts      Edit own text within 15 minutes
+    │   ├── deleteMessage.ts    Delete for everyone / for me
+    │   ├── deleteMessages.ts   Multi-select delete, one transaction
+    │   ├── typing.ts           Typing indicator fan-out
+    │   └── ping.ts             Liveness probe
     ├── http/
     │   ├── issueToken.ts       JWT issuance (internal API key protected)
     │   ├── createConversation.ts
@@ -446,11 +463,16 @@ marketplace-messaging/
     │   ├── getAttachmentReadUrl.ts     Presigned S3 GET
     │   ├── getReactions.ts
     │   ├── toggleReaction.ts   Toggle + real-time push via WebSocket
-    │   └── deleteConversation.ts
+    │   ├── getPresence.ts      Online / last seen
+    │   ├── setReadState.ts     Mark read / unread
+    │   ├── deleteConversation.ts   Delete for me
+    │   └── deleteConversations.ts  Multi-select delete for me
     └── lib/
         ├── auth.ts             JWT verify (jose)
         ├── db.ts               DynamoDB DocumentClient + helpers
-        └── httpAuth.ts         HTTP API key middleware
+        ├── httpAuth.ts         HTTP API key middleware
+        ├── replies.ts          Reply snapshots and blanking quotes
+        └── wsShared.ts         Connection lookup, fan-out, message ranges
 ```
 
 ### Deployment
@@ -479,7 +501,7 @@ An event-driven microservice that maintains a searchable index of conversations.
 ```
 marketplace-messaging
   │
-  └── SNS Topic (conversation.created / conversation.deleted)
+  └── SNS Topic (conversation.created)
         │
         └── SQS Queue (retry=3, DLQ on failure)
               │
