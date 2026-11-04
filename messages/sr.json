@@ -1413,7 +1413,7 @@
     "compareAt": "Uporedna cena",
     "cost": "Nabavna cena",
     "variantImages": "Slike varijante - opciono. Kada se odabere na stranici proizvoda, karusel će skočiti na prvu od ovih slika.",
-    "variantMedia": "Mediji varijante - opciono. Kada se odabere na stranici proizvoda, karusel će skočiti na prvi od ovih medija.",
+    "variantMedia": "Mediji varijante - opciono. Broj pokazuje redosled: slika 1 je glavna - na nju stranica proizvoda skače kada se izabere ova varijanta i ona se prikazuje u korpi. Da bi druga slika postala glavna, poništite izbor ostalih i nju izaberite prvu.",
     "uploadFirst": "Prvo otpremite slike proizvoda da biste ih povezali sa ovom varijantom.",
     "saving": "Čuvanje...",
     "create": "Kreiraj proizvod",

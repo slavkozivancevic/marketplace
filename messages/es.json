@@ -1413,7 +1413,7 @@
     "compareAt": "Comparativo",
     "cost": "Coste",
     "variantImages": "Imágenes de variante - opcional. Cuando se selecciona en la página del producto, el carrusel saltará a la primera de estas imágenes.",
-    "variantMedia": "Multimedia de variante - opcional. Cuando se selecciona en la página del producto, el carrusel saltará al primero de estos elementos.",
+    "variantMedia": "Multimedia de variante - opcional. El número indica el orden: la imagen 1 es la principal - la página del producto salta a ella al elegir esta variante y es la miniatura del carrito. Para que otra imagen sea la principal, deselecciona las demás y selecciónala primero.",
     "uploadFirst": "Sube primero las imágenes del producto para vincularlas a esta variante.",
     "saving": "Guardando...",
     "create": "Crear producto",

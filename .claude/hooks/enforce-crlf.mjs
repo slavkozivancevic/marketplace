@@ -14,6 +14,10 @@
  * they are never hand-edited. Rewriting them would be both pointless and a
  * drift risk - see the migration-drift note in CLAUDE.md.
  *
+ * The second LF island is `patches/` (patch-package). A patch applies to LF
+ * files in node_modules; turned CRLF, its context lines no longer match and
+ * `npm ci` fails on the postinstall. `.gitattributes` pins it to LF in git too.
+ *
  * Binary-safe: a file containing a NUL byte is left alone, so an image or font
  * written through a tool is never mangled.
  *
@@ -29,9 +33,10 @@ try {
 
   if (!path) process.exit(0);
 
-  // The sanctioned LF island. Matched on either separator so it holds on
+  // The sanctioned LF islands. Matched on either separator so they hold on
   // Windows paths too.
   if (/prisma[\\/]migrations[\\/]/i.test(path)) process.exit(0);
+  if (/(^|[\\/])patches[\\/][^\\/]+\.patch$/i.test(path)) process.exit(0);
 
   if (!statSync(path, { throwIfNoEntry: false })?.isFile()) process.exit(0);
 

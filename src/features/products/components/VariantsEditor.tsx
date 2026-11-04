@@ -352,20 +352,25 @@ export function VariantsEditor({
   // gets the same saved-value hint as every other row field. Media items
   // have no display name, so the saved set is described by thumbnail
   // position (stable - `uploadedMedia` order doesn't change within a
-  // session) rather than a name list.
-  const mediaKeysSig = (keys: string[] | undefined) => [...(keys ?? [])].sort().join(",");
+  // session) rather than a name list. Order is part of the value - the first
+  // item is the variant's main image (carousel jump, cart thumbnail) - so
+  // neither the signature nor the description sorts it away.
+  const mediaKeysSig = (keys: string[] | undefined) => (keys ?? []).join(",");
   const describeMediaKeys = (keys: string[] | undefined) => {
     const labels = (keys ?? [])
       .map((key) => uploadedMedia.findIndex((m) => m.key === key))
       .filter((idx) => idx >= 0)
-      .sort((a, b) => a - b)
       .map((idx) => `#${idx + 1}`);
     return labels.length > 0 ? labels.join(", ") : null;
   };
 
   return (
     <div className="space-y-4">
-      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-lg border p-4 bg-background dark:bg-input/30">
+      {/* Sticky, so it must be opaque. The dark tint (`--input` is translucent
+          there) is a gradient layer over the solid `bg-background`, not a
+          replacement for it - `dark:bg-input/30` alone let the scrolled
+          variants show through the header. */}
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-lg border p-4 bg-background dark:bg-linear-to-b dark:from-input/30 dark:to-input/30">
         <div>
           <h3 className="text-base font-semibold">{t("variants")}</h3>
           <p className="text-sm text-muted-foreground">{t("variantsDesc")}</p>
@@ -537,7 +542,10 @@ export function VariantsEditor({
 
             {/* Variant media - select which uploaded images/videos belong to
                 this variant. The first selected item is the one the storefront
-                carousel jumps to and the cart thumbnail uses. */}
+                carousel jumps to and the cart thumbnail uses, so every
+                selected thumbnail shows its place in that order - without it
+                two selected images look identical and the seller cannot tell
+                which one a color opens on. */}
             <div className="space-y-1.5">
               <span className="text-xs text-muted-foreground">{t("variantMedia")}</span>
               {uploadedMedia.length === 0 ? (
@@ -548,7 +556,12 @@ export function VariantsEditor({
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {uploadedMedia.map((m) => {
-                    const sel = (v.mediaKeys ?? []).includes(m.key);
+                    // Position among the keys that still have a thumbnail, so
+                    // a stale key cannot push the numbering past 1.
+                    const pos = (v.mediaKeys ?? [])
+                      .filter((k) => uploadedMedia.some((u) => u.key === k))
+                      .indexOf(m.key);
+                    const sel = pos >= 0;
                     const isVideo = m.mediaType === "VIDEO";
                     const thumb = isVideo ? (m.posterUrl ?? m.url) : m.url;
                     return (
@@ -556,6 +569,7 @@ export function VariantsEditor({
                         type="button"
                         key={m.key}
                         onClick={() => toggleMedia(i, m.key)}
+                        aria-pressed={sel}
                         className={cn(
                           "relative w-16 h-16 rounded border-2 overflow-hidden shrink-0 transition-all cursor-pointer",
                           sel
@@ -572,6 +586,11 @@ export function VariantsEditor({
                           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20">
                             <span className="text-white text-[10px] font-semibold">VIDEO</span>
                           </div>
+                        )}
+                        {sel && (
+                          <span className="pointer-events-none absolute left-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold tabular-nums text-primary-foreground">
+                            {pos + 1}
+                          </span>
                         )}
                       </button>
                     );

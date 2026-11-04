@@ -11,6 +11,7 @@ import { logger } from "@/lib/logger";
 import { recordAudit, SYSTEM_ACTOR } from "@/features/audit/db/audit";
 import { syncedEmail } from "@/features/demo/demoAccounts";
 import { publishOwnerAutoPromoted, publishMemberRemoved } from "@/services/notifications";
+import { MAIL_RECIPIENT_USER } from "@/features/demo/demoAccounts";
 
 /* ================= READ ================= */
 
@@ -360,7 +361,7 @@ export async function deleteUser(clerkUserId: string) {
       // offboarding, unexpected departures). Plain MEMBERs aren't notified,
       // same as they don't see the member-management UI either.
       const recipients = await prisma.membership.findMany({
-        where: { orgId: outcome.orgId, role: { in: ["OWNER", "ADMIN"] } },
+        where: { orgId: outcome.orgId, role: { in: ["OWNER", "ADMIN"] }, user: MAIL_RECIPIENT_USER },
         select: { user: { select: { email: true, name: true, locale: true } } },
       });
       for (const recipient of recipients) {

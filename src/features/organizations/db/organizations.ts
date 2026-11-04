@@ -5,6 +5,7 @@ import { NotFoundError, ForbiddenError } from "@/features/common/errors/domainEr
 import { revalidateOrganizationCache, revalidateOrganizationMembers } from "./cache";
 import { revalidateUserCache } from "@/features/users/db/cache";
 import { reassignActiveOrg } from "./activeOrg";
+import { MAIL_RECIPIENT_USER } from "@/features/demo/demoAccounts";
 
 export async function getAllOrganizations() {
   return prisma.organization.findMany({
@@ -81,6 +82,7 @@ export async function listMemberManagers(
     where: {
       orgId,
       role: { in: [MembershipRole.OWNER, MembershipRole.ADMIN] },
+      user: MAIL_RECIPIENT_USER,
       ...(options.excludeUserId ? { userId: { not: options.excludeUserId } } : {}),
     },
     select: { user: { select: { email: true, name: true, locale: true } } },

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/env/server";
 import { prisma } from "@/core/db/prisma";
 import { getAllCodBalances } from "@/features/payments/db/payouts";
+import { MAIL_RECIPIENT_USER } from "@/features/demo/demoAccounts";
 
 /**
  * GET /api/internal/cod-balance-digest
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
   const [balances, admins] = await Promise.all([
     getAllCodBalances(),
     prisma.user.findMany({
-      where: { role: "ADMIN" },
+      where: { role: "ADMIN", ...MAIL_RECIPIENT_USER },
       select: { email: true, locale: true },
     }),
   ]);

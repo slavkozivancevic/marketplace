@@ -58,8 +58,10 @@ Never run `npm run build` casually - it is slow. Prefer `typecheck`.
 - **Never use an em dash** in code, comments, translations, docs or chat output.
   Use `-` instead.
 - **Every file is CRLF.** Any file you create or edit must end its lines with
-  CRLF. The single exception is `prisma/migrations/**`, which `prisma migrate`
-  generates as LF and which is checksummed - leave those alone. An LF file makes
+  CRLF. Two exceptions: `prisma/migrations/**`, which `prisma migrate`
+  generates as LF and which is checksummed - leave those alone; and
+  `patches/*.patch` (patch-package, applied on `postinstall`), which must stay
+  LF to apply to the LF files in node_modules (`.gitattributes` pins it). An LF file makes
   every line of the diff look changed and buries the real change.
   `.claude/hooks/enforce-crlf.mjs` enforces this after every Write/Edit, so it
   is not something to remember - but do not fight it.

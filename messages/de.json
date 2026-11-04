@@ -1413,7 +1413,7 @@
     "compareAt": "Vergleich",
     "cost": "Kosten",
     "variantImages": "Variantenbilder - optional. Bei Auswahl auf der Produktseite springt das Karussell zum ersten dieser Bilder.",
-    "variantMedia": "Variantenmedien - optional. Bei Auswahl auf der Produktseite springt das Karussell zum ersten dieser Medien.",
+    "variantMedia": "Variantenmedien - optional. Die Zahl zeigt die Reihenfolge: Bild 1 ist das Hauptbild - die Produktseite springt dorthin, wenn diese Variante gewählt wird, und es erscheint im Warenkorb. Um ein anderes Bild zum Hauptbild zu machen, heben Sie die Auswahl der anderen auf und wählen Sie es zuerst.",
     "uploadFirst": "Laden Sie zuerst Produktbilder hoch, um sie mit dieser Variante zu verknüpfen.",
     "saving": "Speichere...",
     "create": "Produkt erstellen",
