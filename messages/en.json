@@ -600,7 +600,9 @@
         "endsAt": "Ends",
         "timezone": "Time zone",
         "priority": "Priority",
-        "active": "Active"
+        "active": "Active",
+        "codNettedWithheld": "COD debt collected",
+        "codNettedCredit": "Owed to the seller, paid out"
       },
       "values": {
         "USER": "User",

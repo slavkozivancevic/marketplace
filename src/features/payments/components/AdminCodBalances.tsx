@@ -27,6 +27,7 @@ import { settleCodBalanceAction, payOutCodCreditAction } from "../actions/codBal
 // Grid template is owned by the skeleton module so the two can never drift.
 import { COD_BALANCES_COLS as GRID } from "./AdminCodBalancesSkeleton";
 import { TableScroll } from "@/components/ui/table-scroll";
+import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 
 /**
  * One dialog, two directions. A positive balance is commission to collect from
@@ -200,7 +201,9 @@ export function AdminCodBalances({ items }: { items: AdminCodBalanceItem[] }) {
           role="row"
           className={cn(GRID, "border-b p-3 text-sm min-w-fit")}
         >
-          <div className="font-medium truncate">{item.organizationName}</div>
+          <TruncatedTooltip content={item.organizationName}>
+            <div className="font-medium truncate">{item.organizationName}</div>
+          </TruncatedTooltip>
           <div className="uppercase text-muted-foreground">{item.currency}</div>
           {/* A negative balance is the platform owing the seller - a COD coupon
               that ran deeper than the commission on it. Shown as its own thing,

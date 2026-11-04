@@ -1,4 +1,5 @@
 import { prisma } from "@/core/db/prisma";
+import { AUDIT_MONEY_KEYS } from "../auditMoney";
 import { Prisma } from "@/generated/prisma/client";
 
 /**
@@ -80,6 +81,35 @@ export async function getAuditLogsPage({
       if (d && typeof d.seller === "string" && nameById.has(d.seller)) {
         d.seller = nameById.get(d.seller)!;
       }
+    }
+  }
+
+  // Money in an Order entry recorded before the diff carried its currency
+  // (the COD commission until 2026-11-04): the amount is in the order's own
+  // currency, so read it from the order rather than show a bare number. Only
+  // for display - the log itself is append-only and stays as written.
+  const orderIdsNeedingCurrency = new Set<string>();
+  for (const r of rows) {
+    const d = r.diff as Record<string, unknown> | null;
+    if (
+      r.entityType === "Order" &&
+      d &&
+      d.currency == null &&
+      Object.entries(d).some(([k, v]) => AUDIT_MONEY_KEYS.has(k) && typeof v === "number")
+    ) {
+      orderIdsNeedingCurrency.add(r.entityId);
+    }
+  }
+  if (orderIdsNeedingCurrency.size > 0) {
+    const orders = await prisma.order.findMany({
+      where: { id: { in: [...orderIdsNeedingCurrency] } },
+      select: { id: true, currency: true },
+    });
+    const currencyById = new Map(orders.map((o) => [o.id, o.currency]));
+    for (const r of rows) {
+      const d = r.diff as Record<string, unknown> | null;
+      const currency = currencyById.get(r.entityId);
+      if (d && d.currency == null && currency && orderIdsNeedingCurrency.has(r.entityId)) d.currency = currency;
     }
   }
 

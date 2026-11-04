@@ -47,6 +47,7 @@ import {
 } from "@/features/products/actions/products";
 import type { BulkFilter, BulkUpdateFields } from "@/features/products/types/bulk";
 import { BULK_CATEGORY_MUTATION_LIMIT } from "@/features/products/types/bulk";
+import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -978,7 +979,9 @@ function PreviewCard({ preview }: { preview: PreviewResult }) {
             <tbody>
               {preview.samples.map((p) => (
                 <tr key={p.id} className="border-b last:border-b-0">
-                  <td className="px-3 py-1.5 max-w-50 truncate font-medium">{p.title}</td>
+                  <TruncatedTooltip content={p.title}>
+                    <td className="px-3 py-1.5 max-w-50 truncate font-medium">{p.title}</td>
+                  </TruncatedTooltip>
                   <td className="px-3 py-1.5">{format(p.priceMoney)}</td>
                   <td className="px-3 py-1.5">
                     <Badge variant={getStatusVariant(p.status)} className="text-[10px]">
@@ -1361,6 +1364,7 @@ export function ConditionalBulkPanel({
                   onSelect={() => addCondition(type)}
                   title={reasonLabel ?? undefined}
                 >
+                  {/* truncate-ok: menu item in a dropdown, not a table cell */}
                   <span className="truncate">{label}</span>
                   {reasonLabel && (
                     <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground shrink-0">

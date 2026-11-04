@@ -600,7 +600,9 @@
         "endsAt": "Kraj",
         "timezone": "Vremenska zona",
         "priority": "Prioritet",
-        "active": "Aktivno"
+        "active": "Aktivno",
+        "codNettedWithheld": "Naplaćen COD dug",
+        "codNettedCredit": "Isplaćen dug platforme"
       },
       "values": {
         "USER": "Korisnik",

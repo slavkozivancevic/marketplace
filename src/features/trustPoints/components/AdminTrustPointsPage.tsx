@@ -85,7 +85,9 @@ function TrustPointTableRow({
       </TruncatedTooltip>
       <div role="cell" className="flex items-center gap-2 text-xs text-muted-foreground min-w-0">
         <Icon className="h-4 w-4 shrink-0" />
-        <span className="truncate">{point.icon}</span>
+        <TruncatedTooltip content={point.icon}>
+          <span className="truncate">{point.icon}</span>
+        </TruncatedTooltip>
       </div>
       <div role="cell" className="text-right tabular-nums text-sm">{point.order}</div>
       <div role="cell" className="flex justify-center">

@@ -169,9 +169,11 @@ export function AdminAttributesPage({
               </TruncatedTooltip>
 
               {/* Key */}
-              <span className="font-mono text-xs text-muted-foreground truncate">
-                {row.key}
-              </span>
+              <TruncatedTooltip content={row.key}>
+                <span className="font-mono text-xs text-muted-foreground truncate">
+                  {row.key}
+                </span>
+              </TruncatedTooltip>
 
               {/* Type */}
               <div className="flex justify-center">

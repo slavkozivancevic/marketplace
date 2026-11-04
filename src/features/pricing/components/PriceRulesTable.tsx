@@ -20,6 +20,7 @@ import { PRICE_RULES_GRID } from "./priceRulesGrid";
 import { useRuleCellText } from "./useRuleCellText";
 import { priceRuleFormShape, priceRuleShapeKey } from "./PriceRuleFormSkeleton";
 import { setRouteShape } from "@/lib/navigation/routeShape";
+import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 
 export type RuleRow = EngineRule & { amountMoney: MoneySet | null; status: RuleStatus };
 
@@ -153,10 +154,14 @@ export function PriceRulesTable({
         const busy = pending?.id === r.id;
         return (
           <div key={r.id} role="row" className={cn(GRID, "border-b last:border-b-0 px-3 py-2.5 text-sm min-w-fit")}>
-            <div className="font-medium truncate">{r.name}</div>
-            <div className="truncate text-muted-foreground">
-              {r.variantId ? t("variant", { sku: variantSku[r.variantId] ?? "" }) : t("wholeProduct")}
-            </div>
+            <TruncatedTooltip content={r.name}>
+              <div className="font-medium truncate">{r.name}</div>
+            </TruncatedTooltip>
+            <TruncatedTooltip content={r.variantId ? t("variant", { sku: variantSku[r.variantId] ?? "" }) : t("wholeProduct")}>
+              <div className="truncate text-muted-foreground">
+                {r.variantId ? t("variant", { sku: variantSku[r.variantId] ?? "" }) : t("wholeProduct")}
+              </div>
+            </TruncatedTooltip>
             <div className="tabular-nums">{change(r)}</div>
             <div className="text-muted-foreground">{schedule(r)}</div>
             <div className="text-right tabular-nums">{r.priority}</div>

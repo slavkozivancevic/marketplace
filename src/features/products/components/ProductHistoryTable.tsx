@@ -16,6 +16,7 @@ import { useMoney } from "@/lib/useMoney";
 // Grid template is owned by the skeleton module so the two can never drift.
 import { HISTORY_COLS as GRID_COLS } from "./ProductHistoryTableSkeleton";
 import { TableScroll } from "@/components/ui/table-scroll";
+import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 
 interface ProductHistoryTableProps {
   history: SerializedProductHistory[];
@@ -40,23 +41,41 @@ function HistoryTableHeader() {
       role="row"
       className={`grid ${GRID_COLS} items-center gap-2 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit`}
     >
-      <div role="columnheader" className="truncate">{t("historyVersion")}</div>
+      <TruncatedTooltip content={t("historyVersion")}>
+        <div role="columnheader" className="truncate">{t("historyVersion")}</div>
+      </TruncatedTooltip>
       {/* "Current" badge column is centered (it's a badge cell), so the header
           placeholder badge - rendered invisible to keep header height aligned -
           is also centered. */}
       <div role="columnheader" className="flex justify-center">
         <Badge variant="outline" className="text-xs invisible">{t("historyCurrent")}</Badge>
       </div>
-      <div role="columnheader" className="truncate">{t("historyTitle")}</div>
-      <div role="columnheader" className="truncate">{t("historyDescription")}</div>
-      <div role="columnheader" className="truncate text-right">{t("historyPrice")}</div>
-      <div role="columnheader" className="truncate text-center">{t("historyStatus")}</div>
-      <div role="columnheader" className="truncate">{t("historyUpdatedBy")}</div>
-      <div role="columnheader" className="truncate">{t("historyDate")}</div>
-      <div role="columnheader" className="truncate">{t("historyTime")}</div>
+      <TruncatedTooltip content={t("historyTitle")}>
+        <div role="columnheader" className="truncate">{t("historyTitle")}</div>
+      </TruncatedTooltip>
+      <TruncatedTooltip content={t("historyDescription")}>
+        <div role="columnheader" className="truncate">{t("historyDescription")}</div>
+      </TruncatedTooltip>
+      <TruncatedTooltip content={t("historyPrice")}>
+        <div role="columnheader" className="truncate text-right">{t("historyPrice")}</div>
+      </TruncatedTooltip>
+      <TruncatedTooltip content={t("historyStatus")}>
+        <div role="columnheader" className="truncate text-center">{t("historyStatus")}</div>
+      </TruncatedTooltip>
+      <TruncatedTooltip content={t("historyUpdatedBy")}>
+        <div role="columnheader" className="truncate">{t("historyUpdatedBy")}</div>
+      </TruncatedTooltip>
+      <TruncatedTooltip content={t("historyDate")}>
+        <div role="columnheader" className="truncate">{t("historyDate")}</div>
+      </TruncatedTooltip>
+      <TruncatedTooltip content={t("historyTime")}>
+        <div role="columnheader" className="truncate">{t("historyTime")}</div>
+      </TruncatedTooltip>
       {/* Rollback is a labeled button (not an icon row) - keeping the column
           LEFT-aligned reads more naturally than right-anchoring a wide button. */}
-      <div role="columnheader" className="truncate">{t("historyActions")}</div>
+      <TruncatedTooltip content={t("historyActions")}>
+        <div role="columnheader" className="truncate">{t("historyActions")}</div>
+      </TruncatedTooltip>
     </div>
   );
 }
@@ -113,8 +132,12 @@ function HistoryRow({
           {t("historyCurrent")}
         </Badge>
       </div>
-      <div role="cell" className="truncate">{entry.title}</div>
-      <div role="cell" className="truncate text-muted-foreground">{entry.description}</div>
+      <TruncatedTooltip content={entry.title}>
+        <div role="cell" className="truncate">{entry.title}</div>
+      </TruncatedTooltip>
+      <TruncatedTooltip content={entry.description}>
+        <div role="cell" className="truncate text-muted-foreground">{entry.description}</div>
+      </TruncatedTooltip>
       <div role="cell" className="text-right tabular-nums">
         {format(entry.priceMoney)}
       </div>
@@ -123,22 +146,28 @@ function HistoryRow({
           {t(entry.status.toLowerCase() as "published" | "draft" | "archived")}
         </Badge>
       </div>
-      <div role="cell" className="truncate">
-        {entry.updatedBy?.name ?? entry.updatedBy?.email ?? "-"}
-      </div>
-      <div role="cell" className="truncate">
-        {new Date(entry.createdAt).toLocaleDateString(dl, {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-        })}
-      </div>
-      <div role="cell" className="truncate text-muted-foreground">
-        {new Date(entry.createdAt).toLocaleTimeString(dl, {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}
-      </div>
+      <TruncatedTooltip content={entry.updatedBy?.name ?? entry.updatedBy?.email ?? "-"}>
+        <div role="cell" className="truncate">
+          {entry.updatedBy?.name ?? entry.updatedBy?.email ?? "-"}
+        </div>
+      </TruncatedTooltip>
+      <TruncatedTooltip content={new Date(entry.createdAt).toLocaleDateString(dl, { year: "numeric", month: "short", day: "numeric", })}>
+        <div role="cell" className="truncate">
+          {new Date(entry.createdAt).toLocaleDateString(dl, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          })}
+        </div>
+      </TruncatedTooltip>
+      <TruncatedTooltip content={new Date(entry.createdAt).toLocaleTimeString(dl, { hour: "2-digit", minute: "2-digit", })}>
+        <div role="cell" className="truncate text-muted-foreground">
+          {new Date(entry.createdAt).toLocaleTimeString(dl, {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </div>
+      </TruncatedTooltip>
       <div role="cell">
         {!isLatest && (
           <ActionButton

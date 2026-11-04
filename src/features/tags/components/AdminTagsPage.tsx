@@ -80,9 +80,11 @@ function TagTableRow({
       <TruncatedTooltip content={displayName}>
         <div role="cell" className="font-medium truncate">{displayName}</div>
       </TruncatedTooltip>
-      <div role="cell" className="text-muted-foreground font-mono text-xs truncate">
-        {displaySlug}
-      </div>
+      <TruncatedTooltip content={displaySlug}>
+        <div role="cell" className="text-muted-foreground font-mono text-xs truncate">
+          {displaySlug}
+        </div>
+      </TruncatedTooltip>
       <div role="cell" className="text-right tabular-nums text-sm">{tag._count.products}</div>
       <div role="cell" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-end gap-1">

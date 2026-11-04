@@ -100,9 +100,15 @@ describe("renderAuditDiff - what the details column says", () => {
     expect(plain(renderAuditDiff({ amount: 541339, currency: "rsd", codNetted: 0 }, sr_))).toBe("Iznos: 5.413,39 RSD");
   });
 
+  it("payout that collected a COD debt says so in words", () => {
+    expect(plain(renderAuditDiff({ amount: 95968, currency: "rsd", codNetted: 199959 }, sr_))).toBe(
+      "Iznos: 959,68 RSD  ·  Naplaćen COD dug: 1.999,59 RSD",
+    );
+  });
+
   it("payout with a COD credit", () => {
     expect(plain(renderAuditDiff({ amount: 4690965, currency: "rsd", codNetted: -4413223 }, sr_))).toBe(
-      "Iznos: 46.909,65 RSD  ·  Prebijeno sa COD saldom: -44.132,23 RSD",
+      "Iznos: 46.909,65 RSD  ·  Isplaćen dug platforme: 44.132,23 RSD",
     );
   });
 

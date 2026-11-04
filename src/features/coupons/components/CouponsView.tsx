@@ -351,6 +351,7 @@ export function CouponsView() {
       >
         <SelectTrigger className="h-9 min-w-0 max-w-[45vw] sm:max-w-none sm:min-w-36">
           <SelectValue placeholder={t("table.status")}>
+            {/* truncate-ok: select trigger, the open list shows the full label */}
             <span className="truncate">{statusLabel}</span>
           </SelectValue>
         </SelectTrigger>
