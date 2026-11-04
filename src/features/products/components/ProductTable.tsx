@@ -57,21 +57,37 @@ export function ProductTableHeader({
       className="grid items-center gap-4 border-b p-3 text-sm font-medium text-muted-foreground shrink-0 bg-background rounded-t-lg sticky top-0 z-10 min-w-fit"
       style={{ gridTemplateColumns: cols }}
     >
-      <div role="columnheader" className="truncate">{t("image")}</div>
-      <div role="columnheader" className="truncate">{t("titleHeader")}</div>
-      <div role="columnheader" className="truncate">{t("brand")}</div>
-      <div role="columnheader" className="truncate">{t("descriptionHeader")}</div>
-      <div role="columnheader" className="truncate text-right">{t("price")}</div>
-      <div role="columnheader" className="truncate text-center">{t("status")}</div>
+      <TruncatedTooltip content={t("image")}>
+        <div role="columnheader" className="truncate">{t("image")}</div>
+      </TruncatedTooltip>
+      <TruncatedTooltip content={t("titleHeader")}>
+        <div role="columnheader" className="truncate">{t("titleHeader")}</div>
+      </TruncatedTooltip>
+      <TruncatedTooltip content={t("brand")}>
+        <div role="columnheader" className="truncate">{t("brand")}</div>
+      </TruncatedTooltip>
+      <TruncatedTooltip content={t("descriptionHeader")}>
+        <div role="columnheader" className="truncate">{t("descriptionHeader")}</div>
+      </TruncatedTooltip>
+      <TruncatedTooltip content={t("price")}>
+        <div role="columnheader" className="truncate text-right">{t("price")}</div>
+      </TruncatedTooltip>
+      <TruncatedTooltip content={t("status")}>
+        <div role="columnheader" className="truncate text-center">{t("status")}</div>
+      </TruncatedTooltip>
       {showCreatedBy && (
-        <div role="columnheader" className="truncate">{t("createdBy")}</div>
+        <TruncatedTooltip content={t("createdBy")}>
+          <div role="columnheader" className="truncate">{t("createdBy")}</div>
+        </TruncatedTooltip>
       )}
       {showActions && (
         // pr-2.5 (10px) compensates for the icon Button's internal padding:
         // a 16x16 icon inside a 36x36 ghost button leaves ~10px of empty
         // space on each side, so without this the header label sits to the
         // right of the trash icon's visible edge instead of aligned with it.
-        <div role="columnheader" className="truncate text-right pr-2.5">{t("actions")}</div>
+        <TruncatedTooltip content={t("actions")}>
+          <div role="columnheader" className="truncate text-right pr-2.5">{t("actions")}</div>
+        </TruncatedTooltip>
       )}
     </div>
   );

@@ -600,7 +600,9 @@
         "endsAt": "Ende",
         "timezone": "Zeitzone",
         "priority": "Priorität",
-        "active": "Aktiv"
+        "active": "Aktiv",
+        "codNettedWithheld": "Nachnahme-Schuld einbehalten",
+        "codNettedCredit": "Guthaben ausgezahlt"
       },
       "values": {
         "USER": "Benutzer",

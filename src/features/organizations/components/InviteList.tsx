@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { cancelInviteAction } from "../actions/invites";
 import { Invite } from "@/generated/prisma/client";
+import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 
 interface InviteListProps {
   invites: Invite[];
@@ -55,10 +56,14 @@ export function InviteList({ invites, canManage }: InviteListProps) {
         return (
           <div key={invite.id} className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{invite.email}</p>
-              <p className="truncate text-xs text-muted-foreground">
-                {t("expires", { date: new Date(invite.expiresAt).toLocaleDateString(dl, { year: "numeric", month: "short", day: "numeric" }) })}
-              </p>
+              <TruncatedTooltip content={invite.email}>
+                <p className="truncate text-sm font-medium">{invite.email}</p>
+              </TruncatedTooltip>
+              <TruncatedTooltip content={t("expires", { date: new Date(invite.expiresAt).toLocaleDateString(dl, { year: "numeric", month: "short", day: "numeric" }) })}>
+                <p className="truncate text-xs text-muted-foreground">
+                  {t("expires", { date: new Date(invite.expiresAt).toLocaleDateString(dl, { year: "numeric", month: "short", day: "numeric" }) })}
+                </p>
+              </TruncatedTooltip>
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
               <Badge variant="secondary">

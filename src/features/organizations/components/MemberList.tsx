@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { removeMemberAction, updateMemberRoleAction } from "../actions/organizations";
+import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 
 const MembershipRole = {
   OWNER: "OWNER",
@@ -187,8 +188,12 @@ function MemberRow({
     <div className="flex flex-col gap-2 py-2">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{member.user.name || member.user.email}</p>
-          <p className="truncate text-xs text-muted-foreground">{member.user.email}</p>
+          <TruncatedTooltip content={member.user.name || member.user.email}>
+            <p className="truncate text-sm font-medium">{member.user.name || member.user.email}</p>
+          </TruncatedTooltip>
+          <TruncatedTooltip content={member.user.email}>
+            <p className="truncate text-xs text-muted-foreground">{member.user.email}</p>
+          </TruncatedTooltip>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
           <Badge variant="outline">{userRoleLabel}</Badge>

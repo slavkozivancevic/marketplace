@@ -19,6 +19,7 @@ import { orderStatusKey, orderStatusVariant } from "../statusBadge";
 import { cn } from "@/lib/utils";
 // Grid template is owned by the skeleton module so the two can never drift.
 import { ORG_ORDER_COLS } from "./OrderTableSkeleton";
+import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 
 function PaymentMethodIcon({ method }: { method: string }) {
   if (method === "COD") return <Truck className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
@@ -90,14 +91,18 @@ export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
         </div>
 
         {/* Items */}
-        <div role="cell" className="text-sm truncate" title={itemSummary}>
-          {itemSummary}
-        </div>
+        <TruncatedTooltip content={itemSummary}>
+          <div role="cell" className="text-sm truncate">
+            {itemSummary}
+          </div>
+        </TruncatedTooltip>
 
         {/* Buyer */}
-        <div role="cell" className="text-sm text-muted-foreground truncate">
-          {order.user.name ?? "-"}
-        </div>
+        <TruncatedTooltip content={order.user.name ?? "-"}>
+          <div role="cell" className="text-sm text-muted-foreground truncate">
+            {order.user.name ?? "-"}
+          </div>
+        </TruncatedTooltip>
 
         {/* Org subtotal */}
         <div role="cell" className="font-semibold text-sm text-right tabular-nums">

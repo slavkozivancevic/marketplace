@@ -39,6 +39,7 @@ import { StarRating } from "./StarRating";
 import { moderateReviewAction } from "../actions/reviews";
 import { TableScroll } from "@/components/ui/table-scroll";
 import { IconButton } from "@/components/IconButton";
+import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 
 const ALL = "__all__";
 
@@ -178,14 +179,20 @@ function Row({
 
   return (
     <div role="row" className={cn(GRID, "border-b px-3 py-2.5 text-sm min-w-fit")}>
-      <div className="truncate font-medium" title={productName}>{productName}</div>
-      <div className="truncate text-muted-foreground" title={r.user.email ?? undefined}>
-        {r.user.name ?? r.user.email ?? t("anonymous")}
-      </div>
+      <TruncatedTooltip content={productName}>
+        <div className="truncate font-medium">{productName}</div>
+      </TruncatedTooltip>
+      <TruncatedTooltip content={r.user.name ?? r.user.email ?? t("anonymous")}>
+        <div className="truncate text-muted-foreground">
+          {r.user.name ?? r.user.email ?? t("anonymous")}
+        </div>
+      </TruncatedTooltip>
       <div><StarRating rating={r.rating} size={14} /></div>
-      <div className="text-muted-foreground line-clamp-2" title={r.comment ?? undefined}>
-        {r.comment || <span className="italic">{t("noComment")}</span>}
-      </div>
+      <TruncatedTooltip content={r.comment || <span className="italic">{t("noComment")}</span>}>
+        <div className="text-muted-foreground line-clamp-2">
+          {r.comment || <span className="italic">{t("noComment")}</span>}
+        </div>
+      </TruncatedTooltip>
       <div className="flex justify-center"><StatusBadge status={r.status} /></div>
       <div className="text-xs text-muted-foreground whitespace-nowrap">
         {new Date(r.createdAt).toLocaleDateString(dl, { year: "numeric", month: "short", day: "numeric" })}
@@ -302,6 +309,7 @@ export function ReviewsView({ counts }: { counts: Record<ReviewStatus, number> }
       >
         <SelectTrigger className="h-9 min-w-0 max-w-[45vw] sm:max-w-none sm:min-w-44">
           <SelectValue placeholder={t("colStatus")}>
+            {/* truncate-ok: select trigger, the open list shows the full label */}
             <span className="truncate">{selectedStatusLabel}</span>
           </SelectValue>
         </SelectTrigger>

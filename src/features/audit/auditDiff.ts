@@ -15,7 +15,7 @@ export const AUDIT_FIELD_KEYS = [
   "orgName", "deletedClerkUserId", "promotedUserId", "productCount", "name", "fee", "paid",
   "codNetted", "orderCancelled", "countries", "email", "isActive", "orderId", "productId",
   "variantId", "marketId", "countryCode", "adjustment", "percentBps", "recurrence", "startsAt",
-  "endsAt", "timezone", "priority", "active",
+  "endsAt", "timezone", "priority", "active", "codNettedWithheld", "codNettedCredit",
 ] as const;
 
 /** Recorded, never shown: machine links and flags that only restate the row. */
@@ -137,6 +137,13 @@ export function renderAuditDiff(diff: unknown, labels: AuditDiffLabels): string 
       if (v && typeof v === "object" && !Array.isArray(v) && "from" in v && "to" in v) {
         const o = v as { from: unknown; to: unknown };
         return `${labels.field(k)}: ${formatValue(k, o.from, record, labels)} → ${formatValue(k, o.to, record, labels)}`;
+      }
+      // The COD balance netted against a payout cuts both ways, and a sign is
+      // a poor way to say which: a debt the org owed was collected from the
+      // transfer, or a credit the platform owed it was paid out with it.
+      if (k === "codNetted" && typeof v === "number") {
+        const label = labels.field(v > 0 ? "codNettedWithheld" : "codNettedCredit");
+        return `${label}: ${formatValue(k, Math.abs(v), record, labels)}`;
       }
       return `${labels.field(k)}: ${formatValue(k, v, record, labels)}`;
     })

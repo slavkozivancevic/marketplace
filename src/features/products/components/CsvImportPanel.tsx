@@ -17,6 +17,7 @@ import type { ProductStatus } from "@/generated/prisma/client";
 import { VALID_CURRENCIES, type Currency } from "@/lib/currency-config";
 import { formatPrice } from "@/lib/currency";
 import { decimalToMinor } from "@/lib/money";
+import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 
 // ---------------------------------------------------------------------------
 // CSV template
@@ -507,11 +508,13 @@ export function CsvImportPanel() {
                     )}
                   >
                     <td className="px-3 py-2 text-muted-foreground">{rowIndex}</td>
-                    <td className="px-3 py-2 max-w-50 truncate">
-                      {result.ok ? result.data.title : (
-                        <span className="text-destructive italic">{t("invalid")}</span>
-                      )}
-                    </td>
+                    <TruncatedTooltip content={result.ok ? result.data.title : t("invalid")}>
+                      <td className="px-3 py-2 max-w-50 truncate">
+                        {result.ok ? result.data.title : (
+                          <span className="text-destructive italic">{t("invalid")}</span>
+                        )}
+                      </td>
+                    </TruncatedTooltip>
                     <td className="px-3 py-2">
                       {/* In the row's OWN currency, not a hardcoded "$": a row
                           written as 1000.05 with priceCurrency=rsd previewed as
@@ -527,12 +530,16 @@ export function CsvImportPanel() {
                           )
                         : "-"}
                     </td>
-                    <td className="px-3 py-2 max-w-32 truncate text-muted-foreground">
-                      {result.ok ? (result.data.brandRef ?? "-") : "-"}
-                    </td>
-                    <td className="px-3 py-2 max-w-40 truncate text-muted-foreground">
-                      {result.ok ? (result.data.categoryRefs?.join(", ") ?? "-") : "-"}
-                    </td>
+                    <TruncatedTooltip content={result.ok ? (result.data.brandRef ?? "-") : "-"}>
+                      <td className="px-3 py-2 max-w-32 truncate text-muted-foreground">
+                        {result.ok ? (result.data.brandRef ?? "-") : "-"}
+                      </td>
+                    </TruncatedTooltip>
+                    <TruncatedTooltip content={result.ok ? (result.data.categoryRefs?.join(", ") ?? "-") : "-"}>
+                      <td className="px-3 py-2 max-w-40 truncate text-muted-foreground">
+                        {result.ok ? (result.data.categoryRefs?.join(", ") ?? "-") : "-"}
+                      </td>
+                    </TruncatedTooltip>
                     <td className="px-3 py-2">
                       {result.ok ? (
                         <Badge variant="secondary" className="text-xs">

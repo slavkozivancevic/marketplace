@@ -29,6 +29,7 @@ import { SerializedProductListItem } from "@/types/types";
 import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
 import { useMoney } from "@/lib/useMoney";
+import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 
 type ProductStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 
@@ -298,9 +299,13 @@ export function BulkSelectPanel() {
                       )}
                     </div>
                     <div role="cell" className="min-w-0">
-                      <p className="truncate font-medium text-sm">{title}</p>
+                      <TruncatedTooltip content={title}>
+                        <p className="truncate font-medium text-sm">{title}</p>
+                      </TruncatedTooltip>
                       {brandName && (
-                        <p className="truncate text-xs text-muted-foreground">{brandName}</p>
+                        <TruncatedTooltip content={brandName}>
+                          <p className="truncate text-xs text-muted-foreground">{brandName}</p>
+                        </TruncatedTooltip>
                       )}
                     </div>
                     <div role="cell" className="text-sm text-right tabular-nums">

@@ -600,7 +600,9 @@
         "endsAt": "Fin",
         "timezone": "Zona horaria",
         "priority": "Prioridad",
-        "active": "Activo"
+        "active": "Activo",
+        "codNettedWithheld": "Deuda COD cobrada",
+        "codNettedCredit": "Saldo a favor pagado"
       },
       "values": {
         "USER": "Usuario",

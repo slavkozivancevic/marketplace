@@ -270,11 +270,13 @@ export function AdminCategoriesPage({
                 </div>
 
                 {/* Slug - show the active locale's slug (defaults to en) */}
-                <div className="font-mono text-xs text-muted-foreground truncate">
-                  {row.translations.find((tr) => tr.locale === locale)?.slug ??
-                    row.translations.find((tr) => tr.locale === "en")?.slug ??
-                    ""}
-                </div>
+                <TruncatedTooltip content={row.translations.find((tr) => tr.locale === locale)?.slug ?? row.translations.find((tr) => tr.locale === "en")?.slug ?? ""}>
+                  <div className="font-mono text-xs text-muted-foreground truncate">
+                    {row.translations.find((tr) => tr.locale === locale)?.slug ??
+                      row.translations.find((tr) => tr.locale === "en")?.slug ??
+                      ""}
+                  </div>
+                </TruncatedTooltip>
 
                 {/* Products */}
                 <div className="text-sm text-right tabular-nums">

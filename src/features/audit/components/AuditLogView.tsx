@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { AuditLogItem } from "../db/queries";
 import {
@@ -114,9 +115,13 @@ function Row({ row, dl, labels }: { row: AuditLogItem; dl: string; labels: Label
           hour: "2-digit", minute: "2-digit",
         })}
       </div>
-      <div className="truncate">
-        {row.actorEmail ?? <span className="text-muted-foreground italic">{labels.system}</span>}
-      </div>
+      {row.actorEmail ? (
+        <TruncatedTooltip content={row.actorEmail}>
+          <div className="truncate">{row.actorEmail}</div>
+        </TruncatedTooltip>
+      ) : (
+        <div className="text-muted-foreground italic">{labels.system}</div>
+      )}
       <div>
         <Badge variant="secondary" className="text-[11px]" title={row.action}>
           {labels.action(row.action)}
@@ -130,7 +135,9 @@ function Row({ row, dl, labels }: { row: AuditLogItem; dl: string; labels: Label
           <span className="font-mono text-muted-foreground">#{row.entityId.slice(-8)}</span>
         )}
       </div>
-      <div className="text-xs text-muted-foreground line-clamp-2" title={diff ?? undefined}>{diff ?? "-"}</div>
+      <TruncatedTooltip content={diff ?? "-"}>
+        <div className="text-xs text-muted-foreground line-clamp-2">{diff ?? "-"}</div>
+      </TruncatedTooltip>
     </div>
   );
 }
@@ -251,6 +258,7 @@ export function AuditLogView({
       >
         <SelectTrigger className="h-9 min-w-0 max-w-[45vw] sm:max-w-none sm:min-w-44">
           <SelectValue placeholder={t("allActions")}>
+            {/* truncate-ok: select trigger, the open list shows the full label */}
             <span className="truncate">{actionLabel}</span>
           </SelectValue>
         </SelectTrigger>
@@ -270,6 +278,7 @@ export function AuditLogView({
       >
         <SelectTrigger className="h-9 min-w-0 max-w-[45vw] sm:max-w-none sm:min-w-40">
           <SelectValue placeholder={t("allEntities")}>
+            {/* truncate-ok: select trigger, the open list shows the full label */}
             <span className="truncate">{entityTypeLabel}</span>
           </SelectValue>
         </SelectTrigger>

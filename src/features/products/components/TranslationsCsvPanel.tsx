@@ -21,6 +21,7 @@ import {
   type TranslationImportRow,
   type TranslationImportResult,
 } from "@/features/products/actions/translations";
+import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 
 type ParsedRow =
   | { ok: true; data: TranslationImportRow }
@@ -266,9 +267,11 @@ export function TranslationsCsvPanel() {
                 {parsed.map(({ rowIndex, result }) => (
                   <tr key={rowIndex} className={cn("border-b last:border-b-0", !result.ok && "bg-destructive/5")}>
                     <td className="px-3 py-2 text-muted-foreground">{rowIndex}</td>
-                    <td className="px-3 py-2 max-w-40 truncate text-muted-foreground">
-                      {result.ok ? result.data.productRef : "-"}
-                    </td>
+                    <TruncatedTooltip content={result.ok ? result.data.productRef : "-"}>
+                      <td className="px-3 py-2 max-w-40 truncate text-muted-foreground">
+                        {result.ok ? result.data.productRef : "-"}
+                      </td>
+                    </TruncatedTooltip>
                     <td className="px-3 py-2">
                       {result.ok ? (
                         <Badge variant="secondary" className="text-xs uppercase">{result.data.locale}</Badge>
@@ -276,9 +279,11 @@ export function TranslationsCsvPanel() {
                         <Badge variant="destructive" className="text-xs">{t("invalid")}</Badge>
                       )}
                     </td>
-                    <td className="px-3 py-2 max-w-50 truncate">
-                      {result.ok ? result.data.title : <span className="text-destructive italic">{t("invalid")}</span>}
-                    </td>
+                    <TruncatedTooltip content={result.ok ? result.data.title : t("invalid")}>
+                      <td className="px-3 py-2 max-w-50 truncate">
+                        {result.ok ? result.data.title : <span className="text-destructive italic">{t("invalid")}</span>}
+                      </td>
+                    </TruncatedTooltip>
                   </tr>
                 ))}
               </tbody>
