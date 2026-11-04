@@ -119,10 +119,17 @@ export function renderAuditDiff(diff: unknown, labels: AuditDiffLabels): string 
   // Money already shows its currency; a separate "Currency: rsd" would repeat it.
   const hideCurrency = currencyShownByMoney(record);
   // An empty value says nothing on its own ("Variant: none" on every rule for
-  // all variants); inside a "from -> to" pair it does, and is kept there.
+  // all variants); inside a "from -> to" pair it does, and is kept there. Same
+  // for a payout that netted nothing against the COD balance: "netted 0,00"
+  // on every ordinary payout is noise.
   const entries = Object.entries(record).filter(
     ([k, v]) =>
-      !AUDIT_INTERNAL_KEYS.has(k) && !(hideCurrency && k === "currency") && v !== null && v !== undefined && v !== "",
+      !AUDIT_INTERNAL_KEYS.has(k) &&
+      !(hideCurrency && k === "currency") &&
+      v !== null &&
+      v !== undefined &&
+      v !== "" &&
+      !(k === "codNetted" && v === 0),
   );
   if (entries.length === 0) return null;
   return entries

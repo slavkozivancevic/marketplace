@@ -96,6 +96,10 @@ describe("renderAuditDiff - what the details column says", () => {
     expect(plain(renderAuditDiff({ fee: 199959 }, sr_))).toBe("Provizija: 1.999,59");
   });
 
+  it("an ordinary payout says nothing about COD netting", () => {
+    expect(plain(renderAuditDiff({ amount: 541339, currency: "rsd", codNetted: 0 }, sr_))).toBe("Iznos: 5.413,39 RSD");
+  });
+
   it("payout with a COD credit", () => {
     expect(plain(renderAuditDiff({ amount: 4690965, currency: "rsd", codNetted: -4413223 }, sr_))).toBe(
       "Iznos: 46.909,65 RSD  ·  Prebijeno sa COD saldom: -44.132,23 RSD",
