@@ -1,3 +1,5 @@
+import type { Prisma } from "@/generated/prisma/client";
+
 /**
  * The public demo accounts linked from the README and the showcase page.
  *
@@ -120,3 +122,22 @@ export function isDemoReadOnlyEmail(email: string | null | undefined): boolean {
 export function syncedEmail(stored: string | null | undefined, incoming: string): string {
   return stored && demoRoleOfEmail(stored) ? stored : incoming;
 }
+
+/**
+ * The read-only demo accounts (seller, admin) are never mail recipients. Every
+ * visitor shares them, so nobody reads their inbox, and each address is an
+ * alias of the owner's mailbox: an org email sent to the owner AND the demo
+ * seller arrived twice in the same inbox. The demo buyers stay recipients - each
+ * is one visitor's own account, and its order emails are the demo working.
+ */
+export const DEMO_READ_ONLY_EMAILS = DEMO_ROLES.filter((role) => DEMO_ACCOUNTS[role].readOnly).map(
+  (role) => DEMO_ACCOUNTS[role].email,
+);
+
+/**
+ * The `User` filter for every query that picks who gets an email: drops the
+ * read-only demo accounts. Case-insensitive, like `demoRoleOfEmail`.
+ */
+export const MAIL_RECIPIENT_USER = {
+  email: { notIn: DEMO_READ_ONLY_EMAILS, mode: "insensitive" },
+} satisfies Prisma.UserWhereInput;

@@ -1,0 +1,3 @@
+# patch-package patches apply to LF files in node_modules, so they stay LF in
+# the repo and in every checkout, whatever core.autocrlf says.
+patches/*.patch text eol=lf

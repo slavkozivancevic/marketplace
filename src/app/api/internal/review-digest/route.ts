@@ -3,6 +3,7 @@ import { env } from "@/env/server";
 import { prisma } from "@/core/db/prisma";
 import { DEFAULT_LOCALE } from "@/i18n/config";
 import { getProductTitle } from "@/features/products/utils/translations";
+import { MAIL_RECIPIENT_USER } from "@/features/demo/demoAccounts";
 
 /**
  * GET /api/internal/review-digest
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
   const [pendingCount, admins, sampleRows] = await Promise.all([
     prisma.productReview.count({ where: { status: "PENDING" } }),
     prisma.user.findMany({
-      where: { role: "ADMIN" },
+      where: { role: "ADMIN", ...MAIL_RECIPIENT_USER },
       select: { email: true, locale: true },
     }),
     prisma.productReview.findMany({

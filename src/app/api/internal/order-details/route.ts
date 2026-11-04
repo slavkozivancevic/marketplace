@@ -9,6 +9,7 @@ import {
   platformFeeAmount,
   sellerNetAmount,
 } from "@/features/payments/config";
+import { MAIL_RECIPIENT_USER } from "@/features/demo/demoAccounts";
 
 /**
  * GET /api/internal/order-details?id={orderId}
@@ -89,7 +90,7 @@ export async function GET(request: NextRequest) {
                   id: true,
                   name: true,
                   members: {
-                    where: { role: { in: ["OWNER", "ADMIN"] } },
+                    where: { role: { in: ["OWNER", "ADMIN"] }, user: MAIL_RECIPIENT_USER },
                     include: {
                       user: { select: { email: true, locale: true } },
                     },

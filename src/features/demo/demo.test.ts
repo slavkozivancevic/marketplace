@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   DEMO_ACCOUNTS,
+  DEMO_READ_ONLY_EMAILS,
+  MAIL_RECIPIENT_USER,
   demoRoleOfEmail,
   isDemoReadOnlyEmail,
   isDemoRole,
@@ -48,6 +50,14 @@ describe("demo accounts", () => {
     expect(isDemoRole("seller")).toBe(true);
     expect(isDemoRole("owner")).toBe(false);
     expect(isDemoRole(null)).toBe(false);
+  });
+
+  it("keeps the shared read-only accounts out of every mail recipient list, and the buyers in", () => {
+    expect(DEMO_READ_ONLY_EMAILS).toEqual([DEMO_ACCOUNTS.seller.email, DEMO_ACCOUNTS.admin.email]);
+    expect(MAIL_RECIPIENT_USER.email.notIn).toEqual(DEMO_READ_ONLY_EMAILS);
+    expect(MAIL_RECIPIENT_USER.email.mode).toBe("insensitive");
+    expect(DEMO_READ_ONLY_EMAILS).not.toContain(DEMO_ACCOUNTS.buyer.email);
+    expect(DEMO_READ_ONLY_EMAILS).not.toContain(newDemoBuyerIdentity().email);
   });
 });
 

@@ -1413,7 +1413,7 @@
     "compareAt": "Compare at",
     "cost": "Cost",
     "variantImages": "Variant images - optional. When selected on the product page, the carousel will jump to the first of these images.",
-    "variantMedia": "Variant media - optional. When selected on the product page, the carousel will jump to the first of these items.",
+    "variantMedia": "Variant media - optional. The number shows the order: image 1 is the main one - the product page jumps to it when this variant is picked, and it is the cart thumbnail. To make another image the main one, deselect the others and select it first.",
     "uploadFirst": "Upload product media first to link them to this variant.",
     "saving": "Saving...",
     "create": "Create Product",
