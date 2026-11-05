@@ -65,6 +65,10 @@ export function OrgPayoutsList({
     useInfiniteVirtualList<OrgPayoutListItem>({
       queryKey: ["payouts", "org", orgId, filters],
       queryFn: buildFetcher(filters),
+      // Payouts are written by Stripe webhooks and the platform, never by an
+      // action on this page - refetch on every mount instead of serving the
+      // cached page for up to the global 60s staleTime.
+      refetchOnMount: "always",
       estimateSize: 56,
       resetScrollKey: scrollResetToken,
     });

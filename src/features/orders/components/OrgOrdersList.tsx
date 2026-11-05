@@ -74,6 +74,10 @@ export function OrgOrdersList({
     useInfiniteVirtualList<OrgOrderListItem>({
       queryKey: ["orders", "org", orgId, f],
       queryFn: buildFetcher(f),
+      // New orders and buyer returns arrive from other sessions, which no
+      // invalidation here can hear about - refetch on every mount rather than
+      // serve the cached page for up to the global 60s staleTime.
+      refetchOnMount: "always",
       estimateSize: 56,
       resetScrollKey: scrollResetToken,
     });

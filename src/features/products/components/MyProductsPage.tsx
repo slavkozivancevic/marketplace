@@ -100,6 +100,9 @@ export function MyProductsPage({
       const { data } = await axios.get(`/api/dashboard/my-products/counts?${sp.toString()}`);
       return data as { status: Record<string, number>; brand: Record<string, number>; createdBy: Record<string, number> };
     },
+    // Same as the list it counts (MyProductsList): fresh on every mount, or
+    // the badges disagree with the rows beside them.
+    refetchOnMount: "always",
   });
   const countsReady = countsQuery.isSuccess;
   const statusCounts = useMemo(() => countsQuery.data?.status ?? {}, [countsQuery.data]);

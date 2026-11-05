@@ -85,6 +85,9 @@ export function BulkSelectPanel() {
       fetchPage({ pageParam: pageParam as string | undefined, search }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor,
+    // Sellers edit products from their own sessions; a bulk edit must start
+    // from the current rows, not a page cached for up to the global 60s.
+    refetchOnMount: "always",
   });
 
   const allItems: SerializedProductListItem[] =
