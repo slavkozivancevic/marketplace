@@ -76,6 +76,10 @@ export function OrdersList({
     useInfiniteVirtualList<UserOrderListItem>({
       queryKey: ["orders", "user", f],
       queryFn: buildFetcher(f),
+      // The seller moves these orders along from another session (or another
+      // window), which no invalidation here can hear about; under the global
+      // 60s staleTime, soft-navigating back served the old status.
+      refetchOnMount: "always",
       estimateSize: 56,
       resetScrollKey: scrollResetToken,
     });
