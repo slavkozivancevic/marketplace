@@ -165,7 +165,7 @@ export function PublicHeader({
                 nav is hidden so this rail only needs its own content width,
                 letting the logo/tagline rail claim the rest instead of being
                 capped at a forced 50/50 split. */}
-            <div className="flex flex-none xl:flex-1 items-center justify-end gap-1 sm:gap-2">
+            <div className="flex flex-none xl:flex-1 items-center justify-end gap-2">
               {/* Below xl these move into the panel menu instead, so the
                   header rail stays short enough to never crowd the logo.
                   THE BREAKPOINT IS lg + 1 STEP ON PURPOSE. It was `lg` while
@@ -177,7 +177,7 @@ export function PublicHeader({
                   this rail ~215 + rail gaps = ~1044 against 1216 usable, so it
                   fits with room. Any new nav link has to be re-measured
                   against that budget, not just appended. */}
-              <div className="hidden xl:flex items-center gap-1 sm:gap-2">
+              <div className="hidden xl:flex items-center gap-2">
                 <PreferencesPopover />
                 <ChatDrawerTrigger signedIn={signedIn} />
                 {/* Always visible - count is 0 (query disabled) when signed out,
@@ -185,14 +185,12 @@ export function PublicHeader({
                 <WishlistHeaderButton />
               </div>
               <CartButton />
-              {/* ml-1 on top of the rail's own gap-2 = 12px in front of the
-                  auth cluster, against 8px inside it. That ratio plus the
-                  cluster's own leading rule (rendered by <HeaderAuth>, only
-                  when the sign-in/sign-up buttons are the ones showing) is
-                  what groups the pair. The bug being fixed was the ratio the
-                  wrong way round: the two buttons sat further from each other
-                  (gap-4) than from the cart icon (12px). */}
-              <div className="hidden xl:flex items-center ml-1">
+              {/* No margin of its own: a signed-in avatar sits on the rail's
+                  8px rhythm like every icon (an `ml-1` here pushed it 12px
+                  off the cart). The sign-in/sign-up pair gets its 12px gutters
+                  from the leading rule <HeaderAuth> renders with it - see
+                  `signedOutUI` there. */}
+              <div className="hidden xl:flex items-center">
                 <HeaderAuth mode="modal" showDashboardLink={false} signedIn={signedIn} />
               </div>
               {/* Mobile menu button */}

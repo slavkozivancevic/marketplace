@@ -20,9 +20,13 @@ import { useTranslations } from "next-intl";
 export function ChangedHint({
   changed,
   savedText,
+  message,
 }: {
   changed: boolean;
   savedText: string | null;
+  /** Replaces the "Saved: ..." sentence where the saved value cannot be
+   *  shown as text (a gallery) - say what changed instead. */
+  message?: string;
 }) {
   const t = useTranslations("form");
 
@@ -31,7 +35,7 @@ export function ChangedHint({
   return (
     <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500">
       <span className="size-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden />
-      {t("savedValue", { value: savedText ?? t("emptyValue") })}
+      {message ?? t("savedValue", { value: savedText ?? t("emptyValue") })}
     </p>
   );
 }

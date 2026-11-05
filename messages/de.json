@@ -1685,7 +1685,12 @@
     "tooLarge": "Datei zu groß: {name}",
     "uploaded": "Hochgeladen: {name}",
     "uploadFailed": "Upload fehlgeschlagen: {name}",
-    "remove": "Entfernen"
+    "remove": "Entfernen",
+    "badgeNew": "Neu",
+    "badgeWas": "Vorher #{n}",
+    "changeReordered": "Reihenfolge geändert",
+    "changeAdded": "Hinzugefügt: {count}",
+    "changeRemoved": "Entfernt: {count}"
   },
   "csvImport": {
     "step1Title": "1. Vorlage herunterladen",

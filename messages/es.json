@@ -1685,7 +1685,12 @@
     "tooLarge": "Archivo demasiado grande: {name}",
     "uploaded": "Subido: {name}",
     "uploadFailed": "Error al subir: {name}",
-    "remove": "Quitar"
+    "remove": "Quitar",
+    "badgeNew": "Nuevo",
+    "badgeWas": "Antes #{n}",
+    "changeReordered": "Orden cambiado",
+    "changeAdded": "Añadidos: {count}",
+    "changeRemoved": "Eliminados: {count}"
   },
   "csvImport": {
     "step1Title": "1. Descargar plantilla",

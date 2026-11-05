@@ -1685,7 +1685,12 @@
     "tooLarge": "File too large: {name}",
     "uploaded": "Uploaded: {name}",
     "uploadFailed": "Failed to upload: {name}",
-    "remove": "Remove"
+    "remove": "Remove",
+    "badgeNew": "New",
+    "badgeWas": "Was #{n}",
+    "changeReordered": "Order changed",
+    "changeAdded": "Added: {count}",
+    "changeRemoved": "Removed: {count}"
   },
   "csvImport": {
     "step1Title": "1. Download template",

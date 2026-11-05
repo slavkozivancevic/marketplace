@@ -153,15 +153,18 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
     if (productId != null) refetch();
   }, [productId, refetch]);
 
-  // Jump to this variant's first media item when selection changes.
+  // Jump to this variant's first media item when the selection changes - and
+  // again when that item moves. The popup opens on the cached payload and
+  // refetches straight away, so after a seller reorders the gallery the first
+  // render can carry the OLD order: keyed on the variant alone, the carousel
+  // stayed on the old index, which the fresh payload fills with another
+  // variant's image (black picked, white shown - first open only).
+  const variantMediaId = activeVariant?.media?.[0]?.mediaId;
+  const jumpIndex = variantMediaId ? media.findIndex((m) => m.id === variantMediaId) : -1;
   useEffect(() => {
-    if (!carouselApi || !activeVariant || media.length === 0) return;
-    const variantMediaId = activeVariant.media?.[0]?.mediaId;
-    if (!variantMediaId) return;
-    const idx = media.findIndex((m) => m.id === variantMediaId);
-    if (idx !== -1) carouselApi.scrollTo(idx);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeVariantId, carouselApi]);
+    if (!carouselApi || jumpIndex < 0) return;
+    carouselApi.scrollTo(jumpIndex);
+  }, [carouselApi, jumpIndex, activeVariantId]);
 
   // Resolved into display-currency minor units before anything compares them,
   // so the sale badge can never disagree with the two prices beside it.
@@ -201,6 +204,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
   // what stock still allows on top of what's already in the cart.
   const [quantity, setQuantity] = useState(1);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- a reset keyed on the product/variant, same as AddToCart's quantity reset
     setQuantity(1);
   }, [productId, activeVariantId]);
   const stockLimit = product
