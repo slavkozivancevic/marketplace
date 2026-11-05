@@ -272,16 +272,30 @@ export function ProductImageCarousel({
   }, [current]);
 
   const lastHandledTicket = useRef<number | undefined>(jumpTicket);
+  // Where the last variant jump landed. If `media` then arrives in another
+  // order (a stale render replaced by a fresh one after the seller reordered
+  // the gallery), that index now holds a different image - follow the item to
+  // its new place, unless the shopper has since moved the carousel themselves.
+  const lastJump = useRef<{ mediaId: string; index: number } | null>(null);
 
   useEffect(() => {
     if (!api) return;
     if (jumpTicket === undefined) return;
-    if (lastHandledTicket.current === jumpTicket) return;
+    if (lastHandledTicket.current === jumpTicket) {
+      const jump = lastJump.current;
+      if (!jump) return;
+      const movedTo = media.findIndex((m) => m.id === jump.mediaId);
+      if (movedTo === -1 || movedTo === jump.index) return;
+      if (api.selectedScrollSnap() === jump.index) api.scrollTo(movedTo);
+      lastJump.current = { mediaId: jump.mediaId, index: movedTo };
+      return;
+    }
     lastHandledTicket.current = jumpTicket;
     if (!jumpToMediaId) return;
     const targetIndex = media.findIndex((m) => m.id === jumpToMediaId);
     if (targetIndex === -1) return;
     api.scrollTo(targetIndex);
+    lastJump.current = { mediaId: jumpToMediaId, index: targetIndex };
   }, [api, jumpTicket, jumpToMediaId, media]);
 
   const openLightbox = (index: number) => {

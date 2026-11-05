@@ -1685,7 +1685,12 @@
     "tooLarge": "Fajl je prevelik: {name}",
     "uploaded": "Otpremljeno: {name}",
     "uploadFailed": "Greška pri otpremanju: {name}",
-    "remove": "Ukloni"
+    "remove": "Ukloni",
+    "badgeNew": "Novo",
+    "badgeWas": "Bilo #{n}",
+    "changeReordered": "Promenjen redosled",
+    "changeAdded": "Dodato: {count}",
+    "changeRemoved": "Uklonjeno: {count}"
   },
   "csvImport": {
     "step1Title": "1. Preuzmite predložak",

@@ -70,7 +70,7 @@ export function NotFoundAuth({
       {!avatarOnly && (
         <SignedOut>
           {/* Divider belongs to the buttons - see HeaderAuth's copy of this. */}
-          {!panel && <HeaderDivider className="mr-1" />}
+          {!panel && <HeaderDivider className="mx-1" />}
           <Button variant="outline" asChild className={cn(panel && "flex-1")}>
             <a href={`/${locale}/sign-in`}>{t("signIn")}</a>
           </Button>

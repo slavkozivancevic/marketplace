@@ -904,6 +904,11 @@ export function ProductForm({
     // Stored amounts do not depend on it - MoneyField handles the view.
   }, [product, liveStock, attributeLibrary, currency]);
 
+  // The saved gallery in saved order, for the Media section's changed markers
+  // (moved / new tiles, "saved" line) - the same baseline the form compares
+  // against, so the markers and the dirty dot on the tab cannot disagree.
+  const savedMediaKeys = useMemo(() => derivedValues.media.map((m) => m.key), [derivedValues]);
+
   // When a draft is restored after a language switch (see the draft block below)
   // this holds the restored values and becomes the controlled `values` source, so
   // the on-mount router.refresh() can't re-sync the form back to server data and
@@ -1803,6 +1808,7 @@ export function ProductForm({
               <ProductMediaUpload
                 media={uploadedMedia}
                 setMedia={setUploadedMedia}
+                savedKeys={mode === "update" ? savedMediaKeys : undefined}
               />
             </div>
           </TabsContent>

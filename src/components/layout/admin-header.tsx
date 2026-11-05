@@ -47,15 +47,15 @@ export function AdminHeader() {
             }
           />
 
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-2">
             <PreferencesPopover />
             {/* Admin is an auth-gated route, so the user is always signed in
                 here - hand that down so the auth controls render under the
                 boot loader instead of popping in once clerk-js settles. */}
-            {/* 12px in front of the account controls, as on every other
-                shell. No divider ever renders here: admin is auth-gated, so
-                this is always the avatar branch. */}
-            <div className="hidden sm:flex items-center ml-1">
+            {/* Admin is auth-gated, so this is always the avatar, and it sits
+                on the rail's own rhythm like every icon - no extra margin (an
+                `ml-1` here left it 12px off the icons, 8px apart). */}
+            <div className="hidden sm:flex items-center">
               <HeaderAuth mode="redirect" showDashboardLink={false} signedIn />
             </div>
             {/* Avatar-only below sm, always the rightmost element, so it's

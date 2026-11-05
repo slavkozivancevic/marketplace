@@ -5,6 +5,8 @@ import * as React from "react";
 import { useCallback, useEffect, useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { RetryImage } from "@/components/RetryImage";
+import { ChangedHint } from "@/components/forms/ChangedHint";
+import { galleryChange, tileChange } from "./galleryChange";
 import { useDropzone, FileRejection } from "react-dropzone";
 import axios, { AxiosProgressEvent } from "axios";
 import { PlayCircle } from "lucide-react";
@@ -53,6 +55,11 @@ import {
 type ProductMediaUploadProps = {
   media: PresignedUploadedMedia[];
   setMedia: React.Dispatch<React.SetStateAction<PresignedUploadedMedia[]>>;
+  /** The saved gallery, in saved order - edit mode only. When given, the
+   *  section marks what changed the way every other form field does: a moved
+   *  tile shows where it was, a new one says so, and a "saved" line below the
+   *  grid appears while the gallery differs from what is stored. */
+  savedKeys?: string[];
 };
 
 // Fetch the image/poster into the browser cache before swapping the visible
@@ -90,9 +97,11 @@ type SortableItemProps = {
   item: PresignedUploadedMedia;
   onClick: (e: React.MouseEvent) => void;
   onRemove: () => void;
+  /** Change marker against the saved gallery ("New", "Was #2"), if any. */
+  changeBadge?: string;
 };
 
-function SortableItem({ item, onClick, onRemove }: SortableItemProps) {
+function SortableItem({ item, onClick, onRemove, changeBadge }: SortableItemProps) {
   const sortableId = item.clientId ?? item.key;
   const {
     attributes,
@@ -158,6 +167,12 @@ function SortableItem({ item, onClick, onRemove }: SortableItemProps) {
           </div>
         )}
 
+        {changeBadge && (
+          <span className="pointer-events-none absolute top-1 left-1 rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-semibold text-white shadow-sm">
+            {changeBadge}
+          </span>
+        )}
+
         {item.progress !== undefined && item.progress < 100 && (
           <div className="absolute right-0 bottom-0 left-0 h-1.5 bg-muted">
             <div
@@ -194,6 +209,7 @@ function SortableItem({ item, onClick, onRemove }: SortableItemProps) {
 export const ProductMediaUpload: React.FC<ProductMediaUploadProps> = ({
   media,
   setMedia,
+  savedKeys,
 }) => {
   const t = useTranslations("mediaUpload");
   const dndId = useId();
@@ -504,6 +520,27 @@ export const ProductMediaUpload: React.FC<ProductMediaUploadProps> = ({
     }
   };
 
+  // Against the saved gallery (see galleryChange.ts). A tile still uploading
+  // has no saved key yet and reads as new, which it is. The line under the
+  // grid says WHAT changed: a count of saved items told a seller who only
+  // swapped two tiles nothing, and removed items have no tile left to mark.
+  const change = savedKeys ? galleryChange(savedKeys, media.map((m) => m.key)) : null;
+  const galleryChangeText = change
+    ? [
+        change.reordered ? t("changeReordered") : null,
+        change.added > 0 ? t("changeAdded", { count: change.added }) : null,
+        change.removed > 0 ? t("changeRemoved", { count: change.removed }) : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : undefined;
+  const changeBadgeFor = (key: string, index: number): string | undefined => {
+    if (!savedKeys) return undefined;
+    const tile = tileChange(savedKeys, key, index);
+    if (!tile) return undefined;
+    return tile.kind === "new" ? t("badgeNew") : t("badgeWas", { n: tile.from });
+  };
+
   return (
     <Card className="p-4">
       <CardHeader>
@@ -574,11 +611,18 @@ export const ProductMediaUpload: React.FC<ProductMediaUploadProps> = ({
                     setPreviewIndex(i);
                   }}
                   onRemove={() => removeItem(m.key)}
+                  changeBadge={changeBadgeFor(m.key, i)}
                 />
               ))}
             </div>
           </SortableContext>
         </DndContext>
+
+        {savedKeys && (
+          <div className="mt-3">
+            <ChangedHint changed={change?.changed ?? false} savedText={null} message={galleryChangeText} />
+          </div>
+        )}
       </CardContent>
 
       <MediaLightbox

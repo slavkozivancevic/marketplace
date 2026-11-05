@@ -81,12 +81,13 @@ export function NotFoundHeader() {
           {/* Mirrors the left flex-1 rail from md up (to keep the desktop nav
               centered); below md the nav is hidden so this only needs its own
               content width, leaving the rest for the logo/tagline rail. */}
-          <div className="flex flex-none md:flex-1 items-center justify-end gap-1 sm:gap-2">
+          <div className="flex flex-none md:flex-1 items-center justify-end gap-2">
             <PreferencesPopover />
-            {/* 12px in front of the account controls, as on every other
-                shell; <NotFoundAuth> brings its own leading rule when it is
-                the sign-in/sign-up buttons that render. */}
-            <div className="hidden md:flex items-center ml-1">
+            {/* No margin of its own, as on every other shell: the avatar sits
+                on the rail's rhythm, and <NotFoundAuth> brings the leading
+                rule (with its 12px gutters) when it is the sign-in/sign-up
+                buttons that render. */}
+            <div className="hidden md:flex items-center">
               <NotFoundAuth />
             </div>
             {/* Mobile menu button - reveals nav (and auth on phones) once the

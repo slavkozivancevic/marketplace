@@ -202,10 +202,12 @@ export function HeaderAuth({
       {/* The divider belongs to the buttons, not to the header, so it lives
           in this branch: it appears exactly when sign-in/sign-up do and is
           gone for a signed-in visitor, where there is only an avatar and
-          nothing to divide off. `mr-1` on top of the row's gap-2 puts 12px
-          on this side to match the 12px the caller's ml-1 puts on the other,
-          so the rule sits centered in its own gutter. */}
-      {!panel && <HeaderDivider className="mr-1" />}
+          nothing to divide off. `mx-1` on top of the rail's gap-2 puts 12px
+          on both sides, so the rule sits centered in its own gutter and the
+          pair reads as a group (8px inside it). The margin lives here, not on
+          the caller's wrapper: there it also pushed a signed-in avatar 12px
+          off the icons, against the 8px between them. */}
+      {!panel && <HeaderDivider className="mx-1" />}
       <SignInButton
         mode={mode}
         fallbackRedirectUrl={localeHome}
@@ -291,7 +293,8 @@ export function HeaderAuth({
     ? null
     : signedInPlaceholder;
 
-  // gap-2, not gap-4: the header rail spaces its own icons `gap-1 sm:gap-2`,
+  // gap-2, not gap-4: the header rail spaces its own icons `gap-2` (8px at
+  // every width, the same as the icon row in the mobile menus),
   // so a 16px gap here left sign-in and sign-up further apart from each other
   // than either was from the cart icon beside them - the pair read as two
   // unrelated controls. At 8px inside and 12px out to the caller's divider
