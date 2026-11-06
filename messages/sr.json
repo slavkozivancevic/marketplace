@@ -2506,6 +2506,7 @@
     "badgeBuyer": "Demo kupac - platite test karticom 4242 4242 4242 4242",
     "badgeReadOnly": "Demo nalog - samo pregled. Kupovina i poruke su za demo kupca.",
     "buyerOnly": "Kupovina, lista želja i poruke su za demo kupca. Ovaj demo nalog može samo da gleda.",
-    "signInAsBuyer": "Prijavite se kao kupac"
+    "signInAsBuyer": "Prijavite se kao kupac",
+    "onlyRolesForPage": "Ovde su ponuđeni samo nalozi koji mogu da otvore stranicu na koju ste krenuli."
   }
 }

@@ -22,6 +22,7 @@ import {
   demoBusyUrl,
   demoLandingPath,
   demoReturnPath,
+  demoRolesFor,
   demoTicketUrl,
 } from "./demoSignIn";
 import { demoSignInHref } from "./demoSignInHref";
@@ -130,6 +131,37 @@ describe("demo sign-in URLs", () => {
     expect(busy("/en/checkout")).toBe("/en/checkout");
     expect(busy("https://evil.com/en/checkout")).toBeNull();
     expect(busy("/en/sign-in")).toBeNull();
+  });
+});
+
+describe("demoRolesFor", () => {
+  const ALL = ["buyer", "seller", "admin"] as const;
+
+  it("offers only the buyer for a buyer-only page - from checkout, admin landed on the admin panel", () => {
+    expect(demoRolesFor("https://marketverseapp.com/sr/placanje", ALL)).toEqual(["buyer"]);
+    expect(demoRolesFor("/en/cart", ALL)).toEqual(["buyer"]);
+    expect(demoRolesFor("/sr/lista-zelja", ALL)).toEqual(["buyer"]);
+    // Only the path counts, whatever the host - as in demoSignInHref, which
+    // forwards just the path, read on this site.
+    expect(demoRolesFor("https://evil.com/en/checkout?x", ALL)).toEqual(["buyer"]);
+  });
+
+  it("offers the roles that can open the page, and nobody else", () => {
+    expect(demoRolesFor("/en/admin/users", ALL)).toEqual(["admin"]);
+    expect(demoRolesFor("/en/dashboard/my-products", ALL)).toEqual(["seller", "admin"]);
+    expect(demoRolesFor("/sr/proizvodi/ranac", ALL)).toEqual(["buyer", "seller", "admin"]);
+  });
+
+  it("offers everyone when there is no usable target - each then goes to its own home", () => {
+    expect(demoRolesFor(null, ALL)).toEqual(["buyer", "seller", "admin"]);
+    expect(demoRolesFor("/en/sign-in", ALL)).toEqual(["buyer", "seller", "admin"]);
+    expect(demoRolesFor("not a path", ALL)).toEqual(["buyer", "seller", "admin"]);
+  });
+
+  it("agrees with demoReturnPath: every offered role really returns to the page", () => {
+    for (const next of ["/en/checkout", "/en/admin/users", "/en/dashboard/my-products", "/sr/proizvodi/ranac"]) {
+      for (const role of demoRolesFor(next, ALL)) expect(demoReturnPath(role, "en", next)).toBe(next);
+    }
   });
 });
 

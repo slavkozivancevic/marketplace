@@ -6,7 +6,8 @@ import { useTranslations } from "next-intl";
 import { AppLoader } from "@/components/layout/app-loader";
 import { BootLoaderFallback } from "@/components/layout/boot-loader-fallback";
 import { DemoSignInPanel } from "@/features/demo/components/DemoSignInPanel";
-import { DemoTicketSignIn } from "@/features/demo/components/DemoTicketSignIn";
+import { DemoTicketSignIn, sameOriginTarget } from "@/features/demo/components/DemoTicketSignIn";
+import { useAuth } from "@clerk/nextjs";
 import { DEMO_BUSY_PARAM } from "@/features/demo/demoSignIn";
 
 const SignIn = dynamic(
@@ -36,6 +37,7 @@ function SignInContent() {
   // A demo click the route refused for now (rate limit) - seconds to wait.
   const busySeconds = Number(searchParams.get(DEMO_BUSY_PARAM)) || 0;
   const [expired, setExpired] = useState(false);
+  const { isLoaded, isSignedIn } = useAuth();
 
   const onFailed = useCallback(() => {
     // Drop the spent ticket, or <SignIn /> would try it again and show
@@ -48,6 +50,9 @@ function SignInContent() {
   }, []);
 
   if (hasTicket && !expired) return <DemoTicketSignIn onFailed={onFailed} />;
+  if (isLoaded && isSignedIn && !expired) {
+    return <SignedInBounce target={sameOriginTarget(searchParams.get("redirect_url"))} />;
+  }
 
   return (
     <div className="flex w-full flex-col items-center gap-6 px-4 py-8">
@@ -61,6 +66,20 @@ function SignInContent() {
       {expired && <CardLoader />}
     </div>
   );
+}
+
+/**
+ * Someone already signed in has no business on this page - Back, say, from
+ * the screen a sign-in led to. Clerk's `<SignIn />` sends them on to
+ * `redirect_url` too, but only after this page has painted: the demo panel
+ * flashed its offers before the page they came from. Go before painting,
+ * behind the boot loader, and `replace` so Back cannot land here again.
+ */
+function SignedInBounce({ target }: { target: string }) {
+  useEffect(() => {
+    window.location.replace(target);
+  }, [target]);
+  return <AppLoader hidden={false} />;
 }
 
 const CARD_WAIT_MS = 3000;

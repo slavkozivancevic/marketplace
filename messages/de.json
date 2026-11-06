@@ -2506,6 +2506,7 @@
     "badgeBuyer": "Demo-Käufer - mit der Testkarte 4242 4242 4242 4242 bezahlen",
     "badgeReadOnly": "Demokonto - nur Ansicht. Einkauf und Chat gibt es beim Demo-Käufer.",
     "buyerOnly": "Einkauf, Wunschliste und Nachrichten gibt es beim Demo-Käufer. Dieses Demokonto kann nur ansehen.",
-    "signInAsBuyer": "Als Käufer anmelden"
+    "signInAsBuyer": "Als Käufer anmelden",
+    "onlyRolesForPage": "Hier stehen nur die Konten, die die Seite öffnen können, zu der Sie wollten."
   }
 }

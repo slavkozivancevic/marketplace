@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useDemoReadOnly } from "../useDemoReadOnly";
 import { demoSignInHref } from "../demoSignInHref";
+import { DemoSignInLink } from "./DemoSignInLink";
 
 /**
  * Stands in for a buyer action (cart, wishlist, checkout, chat) while the demo
@@ -31,7 +32,7 @@ export function DemoBuyerOnlyNotice({ className }: { className?: string }) {
         {/* AlertDescription underlines links in running text, and its
             descendant selector outranks a plain class - this one is a button. */}
         <Button asChild variant="outline" className="no-underline!">
-          <a href={demoSignInHref("buyer", locale, pathname)}>{t("signInAsBuyer")}</a>
+          <DemoSignInLink href={demoSignInHref("buyer", locale, pathname)}>{t("signInAsBuyer")}</DemoSignInLink>
         </Button>
       </AlertDescription>
     </Alert>
