@@ -47,14 +47,11 @@ import { IconButton } from "@/components/IconButton";
 import { MessageThreadSkeleton } from "./MessagesPageSkeleton";
 import { SelectableMessage } from "./SelectableMessage";
 import { useChatRuntime } from "./ChatRuntime";
-import { useMessageSelectionActive, useSelectionStore } from "../store/selectionStore";
+import { useSelectionStore } from "../store/selectionStore";
 import { useAttachmentReadUrl } from "../hooks/useAttachmentReadUrl";
 import { useSupportsHover } from "@/hooks/useSupportsHover";
 import { useOlderMessages } from "../hooks/useOlderMessages";
-import { selectionActions } from "../utils/messageOps";
 import { QuoteBlock } from "./QuoteBlock";
-import { DeleteMessagesDialog } from "./DeleteMessagesDialog";
-import { MessageMenu } from "./MessageMenu";
 import { quoteOf } from "../utils/replies";
 
 /**
@@ -1006,23 +1003,17 @@ export function MessageThread({
   // Picking a message and editing one (as on WhatsApp) - see MessageActionBar.
   const runtime = useChatRuntime();
   const hasSelection = useSelectionStore((s) => s.selected !== null);
-  const selectMessage = useSelectionStore((s) => s.selectMessage);
 
   const clearSelection = useSelectionStore((s) => s.clear);
-  const selectionActive = useMessageSelectionActive(conversationId);
   const pickedCount = useSelectionStore((s) =>
     s.selected?.kind === "messages" && s.selected.conversationId === conversationId ? s.selected.ids.length : 0,
   );
-  const startEdit = useSelectionStore((s) => s.startEdit);
   const replying = useSelectionStore((s) =>
     s.replying && s.replying.conversationId === conversationId ? s.replying : null,
   );
   const startReply = useSelectionStore((s) => s.startReply);
   const stopReply = useSelectionStore((s) => s.stopReply);
   const older = useOlderMessages(conversationId);
-  // A bubble's menu "Delete" asks here (one dialog for the thread), with
-  // whether it may still go for everyone, decided at the click.
-  const [deleteTarget, setDeleteTarget] = useState<{ message: ChatMessage; forEveryone: boolean } | null>(null);
   // The original a tapped quote jumped to, flashed for a moment.
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [jumpingId, setJumpingId] = useState<string | null>(null);
@@ -1709,7 +1700,10 @@ export function MessageThread({
 
                         {/* Reaction badges */}
                         {hasAnyReaction && !msg.deletedAt && (
-                          <div className={cn("flex flex-wrap gap-1 mt-1", isMine && "justify-end")}>
+                          // data-own-click: in selection mode a tap on the row
+                          // toggles it (useSelectGesture) - a badge is a control
+                          // of its own and keeps its click.
+                          <div data-own-click className={cn("flex flex-wrap gap-1 mt-1", isMine && "justify-end")}>
                             {Object.entries(msgReactions).map(([emoji, userIds]) => {
                               const iReacted = userIds.includes(currentUserId);
                               return (
@@ -1735,7 +1729,12 @@ export function MessageThread({
 
                       {/* Reaction trigger button - visible on hover */}
                       {!isPending && !msg.deletedAt && (
-                        <div className="relative mb-0.5" data-reaction-picker>
+                        // data-own-click: the smile and the emoji bar stay
+                        // usable while messages are selected. Without it the
+                        // row's selection-mode tap took every click here and
+                        // only un-picked the message - and a held press opens
+                        // this very bar on a phone, so it was never usable there.
+                        <div className="relative mb-0.5" data-reaction-picker data-own-click>
                           <button
                             type="button"
                             onClick={() =>
@@ -1810,25 +1809,10 @@ export function MessageThread({
                         </div>
                       )}
 
-                      {/* The message's menu with a mouse, as on WhatsApp Web;
-                          right-click picks it directly. Absent on touch, where
-                          the held press and the swipe do the same, and in
-                          selection mode, where a click toggles. */}
-                      {!isPending && !selectionActive && (
-                        <MessageMenu
-                          message={msg}
-                          currentUserId={currentUserId}
-                          onReply={() => startReply(conversationId!, msg)}
-                          onEdit={() => startEdit(conversationId!, msg.messageId, msg.text)}
-                          onDelete={() =>
-                            setDeleteTarget({
-                              message: msg,
-                              forEveryone: selectionActions([msg], currentUserId, Date.now()).deleteForEveryone,
-                            })
-                          }
-                          onSelect={() => selectMessage(conversationId!, msg.messageId)}
-                        />
-                      )}
+                      {/* No per-message menu: a right-click (or a held press
+                          on a phone) selects the message, and every action -
+                          reply, copy, edit, delete - is in the selection bar
+                          above the thread, for one message or many. */}
                     </div>
 
                     {hasFailed ? (
@@ -1898,19 +1882,6 @@ export function MessageThread({
           {hasStaged && <div aria-hidden className="shrink-0" style={{ height: previewHeight }} />}
           <div ref={bottomRef} />
         </div>
-
-        {deleteTarget && (
-          <DeleteMessagesDialog
-            count={1}
-            forEveryone={deleteTarget.forEveryone}
-            open
-            onOpenChange={(open) => !open && setDeleteTarget(null)}
-            onDelete={(scope) => {
-              runtime?.deleteMessages(conversationId!, [deleteTarget.message], scope);
-              setDeleteTarget(null);
-            }}
-          />
-        )}
 
         {/* Scroll-to-bottom button, doubling as the "waiting below" badge.
             Deliberately the same circle-plus-corner-badge shape as the unread

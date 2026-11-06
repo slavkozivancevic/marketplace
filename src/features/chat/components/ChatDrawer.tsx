@@ -229,7 +229,12 @@ function ChatDrawerInner({ runtime }: { runtime: ChatRuntime }) {
   const setSelectedConvId = useChatStore((s) => s.setSelectedConvId);
   const data = useChatThreadData(selectedConvId, currentUserId);
 
-  const headerClass = "shrink-0 border-b px-4 py-3 flex-row items-center gap-2";
+  // One fixed height for every state of the header - the thread's (its second
+  // line, presence, makes it the tallest: 36px of text + py-3 + the border),
+  // the selection bar that replaces it, the inbox's and the inbox selection's.
+  // Sized by content they were 61px and 53px, and picking a message made the
+  // whole sheet jump. Same idea as MESSAGES_HEADER_CLASS on the full page.
+  const headerClass = "h-15.25 shrink-0 border-b px-4 py-3 flex-row items-center gap-2";
 
   // The way out to the full page. Carries the open conversation in the URL,
   // which the page reads as its selection. Object `href`: the string form

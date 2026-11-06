@@ -35,6 +35,16 @@ Never run `npm run build` casually - it is slow. Prefer `typecheck`.
 - **Never run `git commit` or `git push`.** Report what changed and let the user
   commit. When the user does commit, branch commits are `wip`; the PR title
   carries the real message (squash-merge).
+- **Start every change on a fresh branch from an up-to-date main.** Before the
+  first edit of a new task, run `git status`. If the working tree is clean:
+  `git switch main`, `git pull origin main`, then
+  `git switch -c <type>/<kebab-name-of-the-change>` (`fix/`, `feat/`, `chore/`
+  - named after what the user asked for), and only then edit. Never start work
+  on whatever branch happens to be checked out: it is usually one whose PR was
+  already squash-merged, and its stale `wip` commit then shows up again in the
+  next PR. If the tree is NOT clean, do not switch - the changes belong to the
+  task in progress; carry on there. Switching and pulling are fine; committing
+  and pushing stay the user's (rule below).
 - **After editing `prisma/schema.prisma`, STOP.** Do not run `prisma migrate`.
   Report the schema change and wait for the user to run the migration. I run
   every migration myself, and I run it ONE STEP AT A TIME: give me the EXACT
