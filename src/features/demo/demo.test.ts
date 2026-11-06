@@ -21,6 +21,8 @@ import {
   DEMO_BUSY_PARAM,
   demoBusyUrl,
   demoLandingPath,
+  DEMO_FOR_PARAM,
+  buyerActionSignInPath,
   demoReturnPath,
   demoRolesFor,
   demoTicketUrl,
@@ -156,6 +158,21 @@ describe("demoRolesFor", () => {
     expect(demoRolesFor(null, ALL)).toEqual(["buyer", "seller", "admin"]);
     expect(demoRolesFor("/en/sign-in", ALL)).toEqual(["buyer", "seller", "admin"]);
     expect(demoRolesFor("not a path", ALL)).toEqual(["buyer", "seller", "admin"]);
+  });
+
+  it("narrows to the intent - a buyer action from a page everyone may open offers the buyer alone", () => {
+    // "Message the seller" from a product page: the page alone said anyone.
+    expect(demoRolesFor("/sr/proizvodi/ranac", ALL, "buyer")).toEqual(["buyer"]);
+    expect(demoRolesFor(null, ALL, "buyer")).toEqual(["buyer"]);
+    expect(demoRolesFor("/en/checkout", ALL, "buyer")).toEqual(["buyer"]);
+  });
+
+  it("builds the buyer-action sign-in path the panel reads", () => {
+    const url = new URL(buyerActionSignInPath("sr", "/sr/proizvodi/ranac?boja=crna"), "https://x.invalid");
+    expect(url.pathname).toBe("/sr/sign-in");
+    expect(url.searchParams.get("redirect_url")).toBe("/sr/proizvodi/ranac?boja=crna");
+    expect(url.searchParams.get(DEMO_FOR_PARAM)).toBe("buyer");
+    expect(demoRolesFor(url.searchParams.get("redirect_url"), ALL, "buyer")).toEqual(["buyer"]);
   });
 
   it("agrees with demoReturnPath: every offered role really returns to the page", () => {
