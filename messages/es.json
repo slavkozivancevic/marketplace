@@ -2506,6 +2506,7 @@
     "badgeBuyer": "Comprador demo: paga con la tarjeta de prueba 4242 4242 4242 4242",
     "badgeReadOnly": "Cuenta demo: solo lectura. Las compras y el chat son del comprador demo.",
     "buyerOnly": "Las compras, la lista de deseos y los mensajes son del comprador demo. Esta cuenta demo solo puede mirar.",
-    "signInAsBuyer": "Entrar como comprador"
+    "signInAsBuyer": "Entrar como comprador",
+    "onlyRolesForPage": "Aquí solo aparecen las cuentas que pueden abrir la página a la que ibas."
   }
 }

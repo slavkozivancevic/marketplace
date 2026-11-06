@@ -74,6 +74,31 @@ export function demoReturnPath(role: DemoRole, locale: Locale, next: string | nu
 }
 
 /**
+ * The demo accounts worth offering for the page sign-in interrupted - the
+ * ones `demoReturnPath` would actually send back there. Offering the others
+ * was a trap: from checkout, "Admin" signed in and then landed on the admin
+ * panel, nowhere near the payment step the visitor was on.
+ *
+ * `from` is Clerk's `redirect_url` (a full URL) or a path. No usable target,
+ * or one no demo account may open (sign-in, an invite): every role, each to
+ * its own home, as before.
+ */
+export function demoRolesFor(from: string | null | undefined, roles: readonly DemoRole[]): DemoRole[] {
+  if (!from) return [...roles];
+  let path: string;
+  try {
+    const url = new URL(from, "https://demo.invalid");
+    path = url.pathname + url.search;
+  } catch {
+    return [...roles];
+  }
+  const safe = safeLocalPath(path);
+  if (!safe) return [...roles];
+  const allowed = roles.filter((role) => roleMayOpen(role, safe.key));
+  return allowed.length > 0 ? allowed : [...roles];
+}
+
+/**
  * The sign-in URL that redeems a Clerk sign-in token. Clerk's `<SignIn />`
  * picks `__clerk_ticket` up by itself and then follows `redirect_url` - the
  * role's home unless a checked `returnPath` (see demoReturnPath) is given.

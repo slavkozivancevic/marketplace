@@ -2506,6 +2506,7 @@
     "badgeBuyer": "Demo buyer - pay with test card 4242 4242 4242 4242",
     "badgeReadOnly": "Demo account - view only. Shopping and chat are for the demo buyer.",
     "buyerOnly": "Shopping, the wishlist and messages are for the demo buyer. This demo account can only look.",
-    "signInAsBuyer": "Sign in as buyer"
+    "signInAsBuyer": "Sign in as buyer",
+    "onlyRolesForPage": "Only the accounts that can open the page you were going to are shown here."
   }
 }

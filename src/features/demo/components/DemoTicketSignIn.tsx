@@ -10,7 +10,7 @@ import { AppLoader } from "@/components/layout/app-loader";
 let redeeming: string | null = null;
 
 /** `redirect_url` only if it stays on this site, else the home page. */
-function sameOriginTarget(raw: string | null): string {
+export function sameOriginTarget(raw: string | null): string {
   if (!raw) return "/";
   try {
     const url = new URL(raw, window.location.origin);
