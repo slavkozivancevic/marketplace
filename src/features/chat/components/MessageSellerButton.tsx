@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import axios from "axios";
 import { useChatStore } from "../store/chatStore";
 import { useDemoReadOnly } from "@/features/demo/useDemoReadOnly";
+import { buyerActionSignInPath } from "@/features/demo/demoSignIn";
 
 interface Props {
   productId: string;
@@ -38,8 +39,10 @@ export function MessageSellerButton({ productId, className, isOwnProduct = false
       // so middleware doesn't have to bounce again. Keep the pending state on
       // for the whole hard navigation - the page is about to unload, so the
       // spinner correctly runs until the browser leaves.
+      // Messaging is the buyer's, so the demo panel there offers the demo
+      // buyer only - the page alone (a product) would let it offer all three.
       setLoading(true);
-      window.location.href = `/${locale}/sign-in?redirect_url=${encodeURIComponent(window.location.pathname)}`;
+      window.location.href = buyerActionSignInPath(locale, window.location.pathname);
       return;
     }
 

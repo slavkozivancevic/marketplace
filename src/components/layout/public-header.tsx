@@ -189,9 +189,14 @@ export function PublicHeader({
                   8px rhythm like every icon (an `ml-1` here pushed it 12px
                   off the cart). The sign-in/sign-up pair gets its 12px gutters
                   from the leading rule <HeaderAuth> renders with it - see
-                  `signedOutUI` there. */}
+                  `signedOutUI` there.
+                  `redirect`, not `modal`, in all three instances: Clerk's
+                  modal has no demo panel, so a visitor who came to try the
+                  demo found no way in from the storefront header. The page
+                  has it, and returns here afterwards (Clerk passes this
+                  page as `redirect_url`). */}
               <div className="hidden xl:flex items-center">
-                <HeaderAuth mode="modal" showDashboardLink={false} signedIn={signedIn} />
+                <HeaderAuth mode="redirect" showDashboardLink={false} signedIn={signedIn} />
               </div>
               {/* Mobile menu button */}
               <IconButton
@@ -213,7 +218,7 @@ export function PublicHeader({
                   widths; the full controls take over at xl - never both at
                   once. */}
               <div className="xl:hidden">
-                <HeaderAuth mode="modal" avatarOnly signedIn={signedIn} />
+                <HeaderAuth mode="redirect" avatarOnly signedIn={signedIn} />
               </div>
             </div>
           </div>
@@ -276,7 +281,7 @@ export function PublicHeader({
                   it, so the panel doesn't end in a dead strip of whitespace. */}
               <div className="pt-3 px-3 xl:hidden has-[>div:empty]:hidden">
                 <HeaderAuth
-                  mode="modal"
+                  mode="redirect"
                   showDashboardLink={false}
                   signedIn={signedIn}
                   hideAvatarWhenSignedIn

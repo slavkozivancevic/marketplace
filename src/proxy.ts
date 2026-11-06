@@ -20,6 +20,7 @@ import { isUnknownLocalePath } from "@/lib/seo/appRoutes";
 import { THEME_COOKIE_NAME } from "@/providers/theme/constants";
 import { normalizeCountryCode } from "@/lib/i18n/countries";
 import { COUNTRY_COOKIE, COUNTRY_COOKIE_MAX_AGE } from "@/features/priceMarkets/utils/markets";
+import { DEMO_BUSY_PARAM, safeLocalPath } from "@/features/demo/demoSignIn";
 
 const intlMiddleware = createIntlMiddleware(routing);
 
@@ -48,6 +49,41 @@ function isSameOriginRequest(req: Parameters<typeof intlMiddleware>[0]): boolean
   } catch {
     return false;
   }
+}
+
+/**
+ * Where a signed-in visitor on the bare sign-in (or sign-up) page belongs, or null when
+ * this request is not one to bounce (see the call site). `redirect_url` is a
+ * query parameter anyone can write, so only its path is used - and only a
+ * path of this site that is not sign-in or sign-up again (safeLocalPath, the
+ * same check the demo route uses); anything else goes to the locale's home.
+ * Built on `req.nextUrl`, so the host is the one this request came in on.
+ */
+function signedInSignInTarget(req: Parameters<typeof intlMiddleware>[0]): URL | null {
+  // Sign-up carries the same demo panel, so it gets the same treatment.
+  const match = req.nextUrl.pathname.match(/^\/([a-z]{2})\/sign-(?:in|up)\/?$/);
+  if (!match || !(SUPPORTED_LOCALES as readonly string[]).includes(match[1])) return null;
+  const params = req.nextUrl.searchParams;
+  if (params.has("__clerk_ticket") || params.has(DEMO_BUSY_PARAM)) return null;
+
+  let wanted: string | null = null;
+  const raw = params.get("redirect_url");
+  if (raw) {
+    try {
+      const url = new URL(raw, "https://redirect.invalid");
+      wanted = url.pathname + url.search;
+    } catch {
+      wanted = null;
+    }
+  }
+  const safe = safeLocalPath(wanted);
+  const usable = safe && !/^\/sign-(in|up)(\/|$)/.test(safe.key) ? safe.path : `/${match[1]}`;
+
+  const target = req.nextUrl.clone();
+  const [pathPart, query = ""] = usable.split("?");
+  target.pathname = pathPart;
+  target.search = query ? `?${query}` : "";
+  return target;
 }
 
 /**
@@ -229,6 +265,18 @@ export default clerkMiddleware(async (auth, req) => {
   // error log. 405 rather than 404: the URL exists, the method does not.
   if (MUTATING_METHODS.has(req.method) && !req.headers.get("next-action")) {
     return new NextResponse(null, { status: 405, headers: { Allow: "GET, HEAD" } });
+  }
+
+  // A signed-in visitor on the sign-in page goes straight on to where it
+  // would send them. The page does the same once clerk-js loads, but on a full
+  // load that is after it has painted: Back to it after a sign-in, or a typed
+  // URL, flashed the demo panel's offers first. Only the bare page - Clerk's
+  // own steps (`/sign-in/factor-two`, `/sign-in/sso-callback`) finish a sign-in
+  // and must run - and never with a demo ticket (it signs the current session
+  // out to switch accounts) or the demo rate-limit message.
+  const signInBounce = signedInSignInTarget(req);
+  if (signInBounce && (await auth()).userId) {
+    return NextResponse.redirect(signInBounce);
   }
 
   // Storefront URLs whose shape no route can serve - extra path depth under

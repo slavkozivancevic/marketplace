@@ -83,19 +83,47 @@ export function demoReturnPath(role: DemoRole, locale: Locale, next: string | nu
  * or one no demo account may open (sign-in, an invite): every role, each to
  * its own home, as before.
  */
-export function demoRolesFor(from: string | null | undefined, roles: readonly DemoRole[]): DemoRole[] {
-  if (!from) return [...roles];
+export function demoRolesFor(
+  from: string | null | undefined,
+  roles: readonly DemoRole[],
+  intent?: DemoRole | null,
+): DemoRole[] {
+  // A buyer action started from a page everyone may open (message the seller,
+  // save to the wishlist - from a product page): the page alone said "anyone",
+  // and the panel offered the seller and admin, who cannot do the thing the
+  // visitor clicked. The intent narrows it.
+  const offered = intent ? roles.filter((role) => role === intent) : [...roles];
+  if (offered.length === 0) return [...roles];
+  if (!from) return offered;
   let path: string;
   try {
     const url = new URL(from, "https://demo.invalid");
     path = url.pathname + url.search;
   } catch {
-    return [...roles];
+    return offered;
   }
   const safe = safeLocalPath(path);
-  if (!safe) return [...roles];
-  const allowed = roles.filter((role) => roleMayOpen(role, safe.key));
-  return allowed.length > 0 ? allowed : [...roles];
+  if (!safe) return offered;
+  const allowed = offered.filter((role) => roleMayOpen(role, safe.key));
+  return allowed.length > 0 ? allowed : offered;
+}
+
+/**
+ * The sign-in query parameter naming the only demo account that can do what
+ * the visitor clicked (see buyerActionSignInPath). Read by the demo panel;
+ * Clerk ignores it.
+ */
+export const DEMO_FOR_PARAM = "demo_for";
+
+/**
+ * Where a signed-out click on a buyer action (message the seller, save to the
+ * wishlist) goes: the sign-in page, back to `returnPath` afterwards, with the
+ * demo panel told the action is the buyer's - so it offers the demo buyer
+ * alone, not the seller and admin who could open the page but not do it.
+ */
+export function buyerActionSignInPath(locale: string, returnPath: string): string {
+  const params = new URLSearchParams({ redirect_url: returnPath, [DEMO_FOR_PARAM]: "buyer" });
+  return `/${locale}/sign-in?${params.toString()}`;
 }
 
 /**

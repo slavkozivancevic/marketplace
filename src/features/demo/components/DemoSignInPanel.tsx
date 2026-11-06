@@ -4,9 +4,9 @@ import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { ShieldCheck, ShoppingBag, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DEMO_ROLES, type DemoRole } from "../demoAccounts";
+import { DEMO_ROLES, isDemoRole, type DemoRole } from "../demoAccounts";
 import { demoSignInHref } from "../demoSignInHref";
-import { demoRolesFor } from "../demoSignIn";
+import { DEMO_FOR_PARAM, demoRolesFor } from "../demoSignIn";
 import { DemoSignInLink } from "./DemoSignInLink";
 
 const ICON: Record<DemoRole, typeof ShoppingBag> = {
@@ -34,8 +34,10 @@ const ICON: Record<DemoRole, typeof ShoppingBag> = {
 export function DemoSignInPanel() {
   const t = useTranslations("demo");
   const locale = useLocale();
-  const redirectUrl = useSearchParams().get("redirect_url");
-  const roles = demoRolesFor(redirectUrl, DEMO_ROLES);
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect_url");
+  const intent = searchParams.get(DEMO_FOR_PARAM);
+  const roles = demoRolesFor(redirectUrl, DEMO_ROLES, isDemoRole(intent) ? intent : null);
 
   return (
     <section

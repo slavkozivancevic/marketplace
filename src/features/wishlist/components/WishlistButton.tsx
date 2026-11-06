@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { Heart } from "lucide-react";
-import { useClerk, useAuth } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
 import { useLocale } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import { useIsWishlisted, useWishlistToggle } from "../hooks/useWishlist";
 import { useDemoReadOnly } from "@/features/demo/useDemoReadOnly";
+import { buyerActionSignInPath } from "@/features/demo/demoSignIn";
 
 interface WishlistButtonProps {
   productId: string;
@@ -21,7 +22,6 @@ export function WishlistButton({
   size = 18,
 }: WishlistButtonProps) {
   const { isSignedIn } = useAuth();
-  const { openSignIn } = useClerk();
   const locale = useLocale();
   const pathname = usePathname();
   const router = useRouter();
@@ -49,9 +49,11 @@ export function WishlistButton({
     e.stopPropagation();
 
     if (!isSignedIn) {
-      // Land back on the same-locale home so middleware doesn't have to
-      // resolve `/` -> `/<locale>` again after Clerk closes the modal.
-      openSignIn({ fallbackRedirectUrl: `/${locale}` });
+      // The sign-in page, not Clerk's modal: the modal has no demo panel, so
+      // a visitor trying the demo had no way in from here. Back to this page
+      // afterwards, with the panel told saving is the buyer's - it offers the
+      // demo buyer only, as from "message the seller".
+      window.location.href = buyerActionSignInPath(locale, window.location.pathname + window.location.search);
       return;
     }
 
