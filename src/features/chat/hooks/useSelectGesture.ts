@@ -25,15 +25,43 @@ import { createLongPress, type LongPress } from "@/lib/longPress";
  * The press lives in a ref made in an effect, and every ref is read only from
  * an event handler - never during render.
  */
+/**
+ * An event the row's gestures must leave alone: one on a control with a click
+ * of its own (`data-own-click`), or one that only reaches the row through
+ * React - a portal (the menu's items, a confirm dialog) is a child of the row
+ * in React's tree, so its clicks bubble here although the DOM puts them
+ * elsewhere. Taking those as a tap on the row swallowed every menu item in
+ * selection mode and only un-picked the message.
+ */
+function ownEvent(e: React.SyntheticEvent): boolean {
+  const target = e.target as Node;
+  if (!(e.currentTarget as Node).contains(target)) return true;
+  return target instanceof Element && target.closest("[data-own-click]") !== null;
+}
+
+/** A control inside the row that a plain click must still reach. */
+const INTERACTIVE = "a, button, video, audio, input, textarea, [role='button'], [data-own-click]";
+
+/**
+ * `onMouseClick`, when given, makes a plain left click with a MOUSE select the
+ * row outside selection mode (the thread's messages: with no menu chevron any
+ * more, the bubble itself is the affordance - hover tint and pointer cursor).
+ * Not for touch, where a tap does nothing and the held press selects; not for
+ * a click on a control inside the row; not for the click that ends dragging a
+ * text selection.
+ */
 export function useSelectGesture(
   onSelect: (source: "press" | "contextmenu") => void,
   onTap?: (() => void) | null,
+  onMouseClick?: (() => void) | null,
 ) {
   const callback = useRef(onSelect);
   const tap = useRef(onTap);
+  const mouseClick = useRef(onMouseClick);
   useEffect(() => {
     callback.current = onSelect;
     tap.current = onTap;
+    mouseClick.current = onMouseClick;
   });
   const pressRef = useRef<LongPress | null>(null);
   useEffect(() => {
@@ -46,7 +74,14 @@ export function useSelectGesture(
   }, []);
 
   return {
-    onPointerDown: (e: React.PointerEvent) => pressRef.current?.down(e.pointerType, e.clientX, e.clientY),
+    onPointerDown: (e: React.PointerEvent) => {
+      // A press that starts on a control of its own (`data-own-click`: the
+      // emoji bar, a reaction badge, the menu chevron) is that control's -
+      // holding an emoji a beat too long must not toggle the selection
+      // instead of reacting.
+      if (ownEvent(e)) return;
+      pressRef.current?.down(e.pointerType, e.clientX, e.clientY);
+    },
     onPointerMove: (e: React.PointerEvent) => pressRef.current?.move(e.clientX, e.clientY),
     onPointerUp: () => pressRef.current?.end(),
     onPointerCancel: () => pressRef.current?.end(),
@@ -57,13 +92,25 @@ export function useSelectGesture(
         return;
       }
       // A control inside the row (a reaction badge, the menu) keeps its own click.
-      if (tap.current && !(e.target as Element).closest("[data-own-click]")) {
+      if (tap.current && !ownEvent(e)) {
         e.preventDefault();
         e.stopPropagation();
         tap.current();
+        return;
+      }
+      if (
+        mouseClick.current &&
+        !ownEvent(e) &&
+        e.button === 0 &&
+        (e.nativeEvent as PointerEvent).pointerType === "mouse" &&
+        !(e.target as Element).closest(INTERACTIVE) &&
+        !window.getSelection()?.toString()
+      ) {
+        mouseClick.current();
       }
     },
     onContextMenu: (e: React.MouseEvent) => {
+      if (ownEvent(e)) return;
       // Android also fires contextmenu for a held press; that one was already
       // handled by the press, and the system menu must not open over it.
       e.preventDefault();

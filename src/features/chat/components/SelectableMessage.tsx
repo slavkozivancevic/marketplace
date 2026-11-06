@@ -13,8 +13,9 @@ import { SWIPE_REPLY_PX } from "../utils/swipe";
  * A message row, with WhatsApp's gestures:
  *
  * - a held press on touch (which also opens the emoji bar - a phone has no
- *   hover trigger), right-click, or the bubble menu's "Select" enters
- *   selection mode with it; from then on a TAP picks or un-picks messages;
+ *   hover trigger), or a click or right-click with a mouse, enters selection
+ *   mode with it; from then on a TAP picks or un-picks messages. Every action
+ *   on the picks is in the selection bar - there is no per-message menu;
  * - a swipe to the right answers it (`onReply`), touch only.
  *
  * A picked row is tinted across the thread's width and the header turns into
@@ -65,6 +66,9 @@ export function SelectableMessage({
       if (source === "press") onPress?.();
     },
     selectionActive ? toggle : null,
+    // A mouse click on the bubble selects it - the affordance the hover tint
+    // and the pointer cursor below promise. (Touch: the held press.)
+    () => selectMessage(conversationId, messageId),
   );
   const swipe = useSwipeReply(() => onReply?.(), canReply && !!onReply && !selectionActive && !disabled);
 
@@ -103,7 +107,11 @@ export function SelectableMessage({
         // pan-y keeps the thread scrolling and hands sideways drags to the swipe.
         "relative -mx-2 rounded-lg px-2 py-0.5 transition-colors duration-500 [-webkit-touch-callout:none] pointer-coarse:select-none touch-pan-y",
         picked ? "bg-primary/15" : highlighted && "bg-primary/25",
-        selectionActive && "cursor-pointer",
+        // With a mouse a click selects (or, in selection mode, toggles), so
+        // the row says so on hover the way an inbox row does: a light tint
+        // and the pointer. Touch keeps a resting row plain.
+        !disabled && "pointer-fine:cursor-pointer",
+        !disabled && !picked && !highlighted && "pointer-fine:hover:bg-muted/60",
       )}
     >
       {swipe.offset > 0 && (

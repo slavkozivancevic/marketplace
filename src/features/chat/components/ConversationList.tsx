@@ -1,16 +1,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState } from "react";
-import { MessageCircle, ImageIcon, FileText, Video, Paperclip, Clock, Check, CheckCheck, Ban, ChevronDown, MessageSquareDot, Trash2, ListChecks } from "lucide-react";
+import { MessageCircle, ImageIcon, FileText, Video, Paperclip, Clock, Check, CheckCheck, Ban } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { IconButton } from "@/components/IconButton";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FallbackImg } from "@/components/FallbackImg";
@@ -21,9 +13,6 @@ import { ConversationListSkeleton } from "./MessagesPageSkeleton";
 import { classifyDay, formatChatDate, formatChatTime } from "../utils/dateLabels";
 import { useSelectGesture } from "../hooks/useSelectGesture";
 import { useSelectionStore } from "../store/selectionStore";
-import { useConversationActions } from "../hooks/useConversationActions";
-import { DeleteConversationsDialog } from "./DeleteConversationsDialog";
-import { isUnread } from "./InboxSelectionHeader";
 
 interface Props {
   conversations: Conversation[];
@@ -157,8 +146,6 @@ function ConversationRow({
     () => (selectionActive ? toggle() : selectConversation(conv.conversationId)),
     selectionActive ? toggle : null,
   );
-  const { deleteConversations, setReadState, pending } = useConversationActions();
-  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const otherId =
     conv.participants.find((p) => p !== currentUserId) ?? conv.participants[0];
@@ -171,7 +158,6 @@ function ConversationRow({
     Object.keys(typing[conv.conversationId] ?? {}).length > 0;
   const isMine = conv.lastMessageSenderId === currentUserId;
   const unread = convUnread[conv.conversationId] ?? 0;
-  const rowUnread = isUnread(convUnread, conv);
   const attachType = conv.lastAttachmentType;
   const isLastMsgPending = conv.lastMessagePending === true;
   // One source: the conversation itself. The server fills this on every
@@ -218,7 +204,7 @@ function ConversationRow({
         aria-pressed={selectionActive ? isPicked : undefined}
         className={cn(
           // The touch callout and text selection would fight the long press.
-          "flex items-center gap-3 rounded-lg p-3 pr-9 text-left transition-colors cursor-pointer w-full [-webkit-touch-callout:none] pointer-coarse:select-none",
+          "flex items-center gap-3 rounded-lg p-3 text-left transition-colors cursor-pointer w-full [-webkit-touch-callout:none] pointer-coarse:select-none",
           isPicked
             ? "bg-primary/20 text-foreground"
             : isSelected
@@ -299,48 +285,10 @@ function ConversationRow({
           ) : null}
         </div>
       </button>
-      {/* The row's menu with a mouse, as on WhatsApp Web. Outside the row
-          button - a button inside a button is invalid - and absent on touch,
-          where a resting row must look like a desktop one. */}
-      <DropdownMenu modal={false}>
-        <DropdownMenuTrigger asChild>
-          <IconButton
-            label={t("conversationOptions")}
-            variant="ghost"
-            size="icon-sm"
-            className="absolute right-1.5 bottom-2 opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:hidden"
-          >
-            <ChevronDown className="size-4 text-muted-foreground" />
-          </IconButton>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            disabled={pending !== null}
-            onSelect={() => void setReadState([conv.conversationId], rowUnread)}
-          >
-            {rowUnread ? <CheckCheck /> : <MessageSquareDot />}
-            {rowUnread ? t("markAsRead") : t("markAsUnread")}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={() => (selectionActive ? toggle() : selectConversation(conv.conversationId))}
-          >
-            <ListChecks />
-            {t("select")}
-          </DropdownMenuItem>
-          <DropdownMenuItem variant="destructive" onSelect={() => setDeleteOpen(true)}>
-            <Trash2 />
-            {t("deleteConversationAction")}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <DeleteConversationsDialog
-        count={1}
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        isLoading={pending === "delete"}
-        // Success removes the row and takes the dialog with it.
-        onConfirm={() => void deleteConversations([conv.conversationId])}
-      />
+      {/* No per-row menu: a right-click (or a held press on a phone) selects
+          the row, and every action - read state, delete - is in the selection
+          bar above the list, for one conversation or many. One place for
+          them, as in the thread. */}
     </div>
   );
 }

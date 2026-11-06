@@ -144,7 +144,12 @@ function MessagesPageInner({ runtime }: { runtime: ChatRuntime }) {
         )}
       >
         {/* A picked conversation swaps the header for its actions (WhatsApp). */}
-        <InboxSelectionHeader className={MESSAGES_HEADER_CLASS}>
+        <InboxSelectionHeader
+          className={MESSAGES_HEADER_CLASS}
+          // The same type as the title it replaces, so the swap does not
+          // change the size of the header's text.
+          renderTitle={(content) => <h1 className="text-base font-semibold">{content}</h1>}
+        >
           <div className={MESSAGES_HEADER_CLASS}>
             <h1 className="text-base font-semibold">{t("messages")}</h1>
           </div>

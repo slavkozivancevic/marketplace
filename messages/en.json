@@ -1631,8 +1631,6 @@
     "openMessages": "Messages",
     "youDeletedThisMessage": "You deleted this message",
     "thisMessageWasDeleted": "This message was deleted",
-    "conversationOptions": "Conversation options",
-    "messageOptions": "Message options",
     "clearSelection": "Cancel selection",
     "selectedCount": "{count, plural, one {# selected} other {# selected}}",
     "deleteConversationAction": "Delete conversation",

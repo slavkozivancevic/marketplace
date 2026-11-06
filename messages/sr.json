@@ -1631,8 +1631,6 @@
     "openMessages": "Poruke",
     "youDeletedThisMessage": "Obrisali ste ovu poruku",
     "thisMessageWasDeleted": "Ova poruka je obrisana",
-    "conversationOptions": "Opcije razgovora",
-    "messageOptions": "Opcije poruke",
     "clearSelection": "Poništi izbor",
     "selectedCount": "{count, plural, one {# izabran} few {# izabrana} other {# izabranih}}",
     "deleteConversationAction": "Obriši razgovor",

@@ -93,7 +93,9 @@ export function MessageActionBar({
 
   return (
     <div className={className}>
-      <IconButton label={t("clearSelection")} variant="ghost" size="icon-sm" onClick={clear}>
+      {/* -ml-1, as the back arrow it stands in for (BackToInboxButton): the
+          two swap in place, so icon and title must not jump sideways. */}
+      <IconButton label={t("clearSelection")} variant="ghost" size="icon-sm" onClick={clear} className="-ml-1">
         <X className="size-4" />
       </IconButton>
       {renderTitle(t("selectedCount", { count: picked.length }))}
