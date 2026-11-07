@@ -86,13 +86,23 @@ export function useSelectGesture(
     onPointerUp: () => pressRef.current?.end(),
     onPointerCancel: () => pressRef.current?.end(),
     onClickCapture: (e: React.MouseEvent) => {
+      // A control of its own (the emoji bar, a reaction badge) always gets
+      // its click, and clears the "swallow the click after a held press" flag
+      // on the way. The press that opens the emoji bar often ends without the
+      // browser firing that click at all (Android takes it), so the flag was
+      // left set - and since a press starting on such a control does not
+      // reset it (onPointerDown above), the first tap on an emoji was
+      // swallowed and only the second one reacted.
+      if (ownEvent(e)) {
+        pressRef.current?.consumeClick();
+        return;
+      }
       if (pressRef.current?.consumeClick()) {
         e.preventDefault();
         e.stopPropagation();
         return;
       }
-      // A control inside the row (a reaction badge, the menu) keeps its own click.
-      if (tap.current && !ownEvent(e)) {
+      if (tap.current) {
         e.preventDefault();
         e.stopPropagation();
         tap.current();
@@ -100,7 +110,6 @@ export function useSelectGesture(
       }
       if (
         mouseClick.current &&
-        !ownEvent(e) &&
         e.button === 0 &&
         (e.nativeEvent as PointerEvent).pointerType === "mouse" &&
         !(e.target as Element).closest(INTERACTIVE) &&

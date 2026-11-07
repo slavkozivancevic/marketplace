@@ -39,10 +39,20 @@ export function InboxPanel({
   const [search, setSearch] = useState("");
   const { data: searchData } = useConversationSearch(search);
 
-  const filteredConversations = search.trim()
-    ? conversations.filter((conv) =>
-        (searchData?.results ?? []).some((r) => r.conversationId === conv.conversationId)
-      )
+  // Search finds what the list shows. A deleted account shows as "Deleted
+  // account", so typing that (or part of it) finds it - never the name it
+  // used to have, which the search service and its index no longer hold. The
+  // label is matched here because it is this screen's wording, in this
+  // locale; every other name is matched by the service.
+  const q = search.trim().toLowerCase();
+  const deletedLabelMatches = q.length > 0 && t("deletedAccount").toLowerCase().includes(q);
+  const filteredConversations = q
+    ? conversations.filter((conv) => {
+        if ((searchData?.results ?? []).some((r) => r.conversationId === conv.conversationId)) return true;
+        if (!deletedLabelMatches) return false;
+        const otherId = conv.participants.find((p) => p !== currentUserId) ?? conv.participants[0];
+        return profiles[otherId]?.deleted === true;
+      })
     : conversations;
 
   return (
