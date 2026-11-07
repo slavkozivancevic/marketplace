@@ -8,6 +8,7 @@ import { syncClerkUserMetadata } from "@/services/clerk";
 import { CacheTags } from "@/lib/cache/tags";
 import { UserRole } from "../schema/users";
 import { logger } from "@/lib/logger";
+import { syncConversationSearchName } from "@/features/chat/server/searchIndexSync";
 import { recordAudit, SYSTEM_ACTOR } from "@/features/audit/db/audit";
 import { syncedEmail } from "@/features/demo/demoAccounts";
 import { publishOwnerAutoPromoted, publishMemberRemoved } from "@/services/notifications";
@@ -60,6 +61,8 @@ export async function createOrUpdateUserFromClerk(params: {
   imageUrl: string | null;
   role: UserRole;
 }) {
+  // The row as it was before this sync, to tell whether the name changed.
+  let storedBefore: { name: string | null; deletedAt: Date | null } | null = null;
   const user = await prisma.$transaction(async (tx) => {
     // One sync per Clerk user at a time. Two can arrive together - the demo
     // buyer route writes its user while Clerk's user.created webhook does the
@@ -68,8 +71,9 @@ export async function createOrUpdateUserFromClerk(params: {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${params.clerkUserId}))`;
     const stored = await tx.user.findUnique({
       where: { clerkUserId: params.clerkUserId },
-      select: { email: true },
+      select: { email: true, name: true, deletedAt: true },
     });
+    storedBefore = stored;
     const dbUser = await tx.user.upsert({
       where: { clerkUserId: params.clerkUserId },
       update: {
@@ -131,6 +135,13 @@ export async function createOrUpdateUserFromClerk(params: {
   });
 
   if (user) {
+    // An existing user renamed (or brought back): the inbox search keeps its
+    // own copy of the name - update it. Before the cache invalidation, which
+    // must stay the last thing here (see CLAUDE.md, Cache).
+    const before = storedBefore as { name: string | null; deletedAt: Date | null } | null;
+    if (before && (before.name !== params.name || before.deletedAt !== null)) {
+      await syncConversationSearchName(user.id, { name: params.name, deleted: false });
+    }
     revalidateUserCache(user.id, params.clerkUserId);
     revalidatePath("/[locale]/dashboard", "page");
     revalidatePath("/[locale]/admin", "page");
@@ -321,6 +332,10 @@ export async function deleteUser(clerkUserId: string) {
       },
     });
   });
+
+  // Erase the name from the inbox search's copy too - before the cache
+  // invalidation below, which must stay last (see CLAUDE.md, Cache).
+  await syncConversationSearchName(existingUser.id, { name: null, deleted: true });
 
   for (const membership of existingUser.memberships) {
     revalidateOrganizationCache(membership.orgId);

@@ -10,6 +10,7 @@ import { useSelectionStore } from "../store/selectionStore";
 import type { UserProfile } from "../hooks/useUserProfiles";
 import { useChatRuntime } from "./ChatRuntime";
 import { formatCopy, selectionActions } from "../utils/messageOps";
+import { chatDisplayName } from "../utils/displayName";
 import { DeleteMessagesDialog } from "./DeleteMessagesDialog";
 
 /**
@@ -75,7 +76,7 @@ export function MessageActionBar({
   const single = picked.length === 1 ? picked[0] : null;
 
   const copy = async () => {
-    const text = formatCopy(picked, (id) => profiles[id]?.name ?? "", locale);
+    const text = formatCopy(picked, (id) => chatDisplayName(profiles[id], t("deletedAccount")), locale);
     try {
       await navigator.clipboard.writeText(text);
       toast.success(t("copiedCount", { count: picked.filter((m) => !m.deletedAt && m.text.trim()).length }));

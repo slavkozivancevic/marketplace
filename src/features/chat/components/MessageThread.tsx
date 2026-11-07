@@ -53,6 +53,7 @@ import { useSupportsHover } from "@/hooks/useSupportsHover";
 import { useOlderMessages } from "../hooks/useOlderMessages";
 import { QuoteBlock } from "./QuoteBlock";
 import { quoteOf } from "../utils/replies";
+import { chatDisplayName } from "../utils/displayName";
 
 /**
  * A message in the thread, whether or not the server has confirmed it.
@@ -1038,10 +1039,23 @@ export function MessageThread({
     };
   }, [conversationId, clearSelection, stopEdit, stopReply]);
 
-  // The emoji bar belongs to exactly one picked message (WhatsApp): picking a
-  // second one closes it, and so does the selection ending - the long press
-  // opened it together with the selection. (The desktop hover trigger never
-  // changes the selection, so this leaves it alone.)
+  // The bar a held press opens (touch), as on WhatsApp: it IS the selection's
+  // - shown exactly while that one message, picked by the press, is the whole
+  // selection, and gone the moment the selection changes (another message
+  // picked, this one un-picked, the selection cleared). Derived from the
+  // store, not kept as state of its own: as state it outlived the selection
+  // (press A, tap B, tap A off - B alone picked, the bar still over A).
+  const pressBarFor = useSelectionStore((s) =>
+    s.selected?.kind === "messages" &&
+    s.selected.conversationId === conversationId &&
+    s.selected.withReactions &&
+    s.selected.ids.length === 1
+      ? s.selected.ids[0]
+      : null,
+  );
+
+  // The desktop smile's bar (`pickerOpenFor`) is not the selection's, but a
+  // change in the picks still puts it away.
   useEffect(() => {
     if (pickedCount !== 1) setPickerOpenFor(null);
   }, [pickedCount]);
@@ -1622,7 +1636,6 @@ export function MessageThread({
                   canReply={!isPending && !msg.deletedAt}
                   highlighted={highlightId === msg.messageId}
                   onReply={() => startReply(conversationId!, msg)}
-                  onPress={() => !msg.deletedAt && setPickerOpenFor(msg.messageId)}
                   className={cn(
                     "flex gap-2 items-end group/msg",
                     isMine && "flex-row-reverse",
@@ -1684,7 +1697,7 @@ export function MessageThread({
                               <QuoteBlock
                                 quote={msg.replyTo}
                                 currentUserId={currentUserId}
-                                senderName={profiles[msg.replyTo.senderId]?.name ?? ""}
+                                senderName={chatDisplayName(profiles[msg.replyTo.senderId], t("deletedAccount"))}
                                 onBubble={isMine ? "mine" : "theirs"}
                                 jumping={jumpingId === msg.replyTo.messageId}
                                 onJump={() => void jumpTo(msg.replyTo!)}
@@ -1727,14 +1740,23 @@ export function MessageThread({
                         )}
                       </div>
 
-                      {/* Reaction trigger button - visible on hover */}
+                      {/* Reaction trigger: the smile, on hover - with a mouse
+                          only. A phone has no smile (WhatsApp has none): its
+                          way to the emoji bar is the held press that selects
+                          the message (`pressBarFor`). */}
                       {!isPending && !msg.deletedAt && (
                         // data-own-click: the smile and the emoji bar stay
                         // usable while messages are selected. Without it the
                         // row's selection-mode tap took every click here and
                         // only un-picked the message - and a held press opens
                         // this very bar on a phone, so it was never usable there.
-                        <div className="relative mb-0.5" data-reaction-picker data-own-click>
+                        // self-stretch + items-end: the wrapper spans the row's
+                        // full height with the smile at its foot, so the bar
+                        // (bottom-full) opens ABOVE the message's top, as on
+                        // WhatsApp. Sized by the smile alone it sat at the
+                        // row's foot, and on a phone - no smile, a 0px wrapper
+                        // - the bar covered the bubble and its reactions.
+                        <div className="relative mb-0.5 flex items-end self-stretch" data-reaction-picker data-own-click>
                           <button
                             type="button"
                             onClick={() =>
@@ -1743,7 +1765,7 @@ export function MessageThread({
                               )
                             }
                             className={cn(
-                              "size-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border transition-all cursor-pointer",
+                              "size-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border transition-all cursor-pointer pointer-coarse:hidden",
                               pickerOpenFor === msg.messageId
                                 ? "opacity-100"
                                 : "opacity-0 group-hover/msg:opacity-100",
@@ -1757,7 +1779,7 @@ export function MessageThread({
                               where the message bubble sits. Without this,
                               wide bubbles push the picker past the drawer
                               edge and trigger horizontal scroll. */}
-                          {pickerOpenFor === msg.messageId && (
+                          {(pickerOpenFor === msg.messageId || pressBarFor === msg.messageId) && (
                             <div
                               ref={(el) => {
                                 if (!el || !scrollRef.current) return;
@@ -1954,7 +1976,7 @@ export function MessageThread({
           <QuoteBlock
             quote={quoteOf(replying.message)}
             currentUserId={currentUserId}
-            senderName={profiles[replying.message.senderId]?.name ?? ""}
+            senderName={chatDisplayName(profiles[replying.message.senderId], t("deletedAccount"))}
             onBubble="composer"
             onCancel={stopReply}
             className="mx-3 mt-2"

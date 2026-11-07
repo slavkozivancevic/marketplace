@@ -269,6 +269,7 @@ function ChatDrawerInner({ runtime }: { runtime: ChatRuntime }) {
           className={`flex ${headerClass}`}
           conversationId={selectedConvId}
           name={data.otherParticipantName}
+          deleted={data.otherParticipantDeleted}
           presence={data.presence}
           profilesLoading={data.profilesLoading}
           presenceLoading={data.presenceLoading}

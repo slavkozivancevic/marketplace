@@ -1604,6 +1604,7 @@
     "noConversationsYet": "Noch keine Konversationen",
     "messages": "Nachrichten",
     "conversation": "Konversation",
+    "deletedAccount": "Gelöschtes Konto",
     "deleteConversationDesc": "Die Unterhaltung verschwindet nur aus Ihrem Posteingang. Ihr Gegenüber behält sie, und bei einer neuen Nachricht sehen Sie nur, was danach kommt.",
     "deleting": "Lösche...",
     "delete": "Löschen",

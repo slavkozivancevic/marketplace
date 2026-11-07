@@ -173,6 +173,7 @@ function MessagesPageInner({ runtime }: { runtime: ChatRuntime }) {
               className={MESSAGES_HEADER_CLASS}
               conversationId={selectedConvId}
               name={data.otherParticipantName}
+              deleted={data.otherParticipantDeleted}
               presence={data.presence}
               profilesLoading={data.profilesLoading}
               presenceLoading={data.presenceLoading}
