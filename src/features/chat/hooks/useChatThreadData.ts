@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
+import { chatDisplayName } from "../utils/displayName";
 import { useChatStore } from "../store/chatStore";
 import { useConversations } from "./useConversations";
 import { useMessages } from "./useMessages";
@@ -14,6 +16,7 @@ import { useUserProfiles } from "./useUserProfiles";
  * what "the other participant" or "typing here" means.
  */
 export function useChatThreadData(selectedConvId: string | null, currentUserId: string) {
+  const t = useTranslations("chat");
   const queryClient = useQueryClient();
   const typing = useChatStore((s) => s.typing);
 
@@ -32,7 +35,9 @@ export function useChatThreadData(selectedConvId: string | null, currentUserId: 
   const selectedConv = conversations.find((c) => c.conversationId === selectedConvId);
   const otherParticipantId =
     selectedConv?.participants.find((p) => p !== currentUserId) ?? "";
-  const otherParticipantName = profiles[otherParticipantId]?.name ?? "";
+  const otherProfile = profiles[otherParticipantId];
+  const otherParticipantDeleted = otherProfile?.deleted === true;
+  const otherParticipantName = chatDisplayName(otherProfile, t("deletedAccount"));
 
   // When opened to a specific conversation, ensure inbox is fresh
   useEffect(() => {
@@ -61,6 +66,7 @@ export function useChatThreadData(selectedConvId: string | null, currentUserId: 
     selectedConv,
     otherParticipantId,
     otherParticipantName,
+    otherParticipantDeleted,
     typingInSelected,
     presence: presenceData?.presence[otherParticipantId],
     presenceLoading: presenceLoading && !presenceData,

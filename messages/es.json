@@ -1604,6 +1604,7 @@
     "noConversationsYet": "Aún no hay conversaciones",
     "messages": "Mensajes",
     "conversation": "Conversación",
+    "deletedAccount": "Cuenta eliminada",
     "deleteConversationDesc": "La conversación desaparece solo de tu bandeja. La otra persona la conserva y, si llega un mensaje nuevo, verás solo lo que venga después.",
     "deleting": "Eliminando...",
     "delete": "Eliminar",

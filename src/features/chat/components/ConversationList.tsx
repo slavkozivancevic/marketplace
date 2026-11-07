@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { MessageCircle, ImageIcon, FileText, Video, Paperclip, Clock, Check, CheckCheck, Ban } from "lucide-react";
+import { MessageCircle, ImageIcon, FileText, Video, Paperclip, Clock, Check, CheckCheck, Ban, UserX } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,6 +13,7 @@ import { ConversationListSkeleton } from "./MessagesPageSkeleton";
 import { classifyDay, formatChatDate, formatChatTime } from "../utils/dateLabels";
 import { useSelectGesture } from "../hooks/useSelectGesture";
 import { useSelectionStore } from "../store/selectionStore";
+import { chatDisplayName } from "../utils/displayName";
 
 interface Props {
   conversations: Conversation[];
@@ -40,11 +41,14 @@ function getInitials(name: string | null | undefined, fallback: string): string 
   return fallback.slice(0, 2).toUpperCase();
 }
 
-/** The badge shown when there is no picture, or the picture failed to load. */
-function InitialsAvatar({ initials }: { initials: string }) {
+/**
+ * The badge shown when there is no picture, or the picture failed to load. A
+ * deleted account has neither picture nor initials left - a neutral icon.
+ */
+function InitialsAvatar({ initials, deleted = false }: { initials: string; deleted?: boolean }) {
   return (
     <div className="size-9 rounded-full bg-muted flex items-center justify-center shrink-0 text-xs font-semibold uppercase text-muted-foreground">
-      {initials}
+      {deleted ? <UserX className="size-4" aria-hidden /> : initials}
     </div>
   );
 }
@@ -151,7 +155,8 @@ function ConversationRow({
     conv.participants.find((p) => p !== currentUserId) ?? conv.participants[0];
   const profile = profiles[otherId];
   const profileLoading = profilesLoading;
-  const displayName = profile?.name ?? "";
+  const deleted = profile?.deleted === true;
+  const displayName = chatDisplayName(profile, t("deletedAccount"));
   const initials = getInitials(profile?.name, "");
   const isSelected = conv.conversationId === selectedId;
   const isTyping =
@@ -176,9 +181,12 @@ function ConversationRow({
     !!conv.lastReactionPreview &&
     !!conv.lastReactionAt &&
     (!conv.lastMessageAt || conv.lastReactionAt > conv.lastMessageAt);
+  const reactionActor = profiles[conv.lastReactionUserId ?? ""];
   const reactionActorName = conv.lastReactionUserId === currentUserId
     ? "You"
-    : (profiles[conv.lastReactionUserId ?? ""]?.name?.split(" ")[0] ?? "");
+    : reactionActor?.deleted
+      ? t("deletedAccount")
+      : (reactionActor?.name?.split(" ")[0] ?? "");
 
   const avatar = profileLoading ? (
     <Skeleton className="size-9 rounded-full shrink-0" />
@@ -190,7 +198,7 @@ function ConversationRow({
       fallback={<InitialsAvatar initials={initials} />}
     />
   ) : (
-    <InitialsAvatar initials={initials} />
+    <InitialsAvatar initials={initials} deleted={deleted} />
   );
 
   return (
@@ -232,7 +240,10 @@ function ConversationRow({
                 <Skeleton className="h-3.5 w-24" />
               </div>
             ) : (
-              <span className="text-sm font-medium truncate">{displayName}</span>
+              // A deleted account reads as a label, not a name: muted, italic.
+              <span className={cn("text-sm font-medium truncate", deleted && "italic text-muted-foreground")}>
+                {displayName}
+              </span>
             )}
             <div className="flex items-center gap-1.5 shrink-0">
               {conv.lastMessageAt && (

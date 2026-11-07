@@ -2,14 +2,10 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { refuseDemoChat } from "@/features/chat/server/chatToken";
+import { verifySearchResults, type SearchResult } from "@/features/chat/server/searchResults";
+import { prisma } from "@/core/db/prisma";
 import { env } from "@/env/server";
 import axios from "axios";
-
-interface SearchResult {
-  conversationId: string;
-  otherUserId: string;
-  otherUserNameDisplay: string;
-}
 
 export async function GET(request: NextRequest) {
   const { userId: clerkUserId } = await auth();
@@ -30,7 +26,19 @@ export async function GET(request: NextRequest) {
         headers: { "x-api-key": env.CONVERSATION_SEARCH_API_KEY },
       }
     );
-    return NextResponse.json(data);
+
+    // The index is a copy of names, updated by events; this database is the
+    // truth. Check every hit against it before answering - see
+    // verifySearchResults for what a stale copy got wrong.
+    const otherIds = [...new Set(data.results.map((r) => r.otherUserId))];
+    const users = otherIds.length
+      ? await prisma.user.findMany({
+          where: { id: { in: otherIds } },
+          select: { id: true, name: true, deletedAt: true },
+        })
+      : [];
+    const results = verifySearchResults(data.results, users, q);
+    return NextResponse.json({ results });
   } catch (error) {
     if (axios.isAxiosError(error) && error.response) {
       return NextResponse.json(error.response.data, { status: error.response.status });

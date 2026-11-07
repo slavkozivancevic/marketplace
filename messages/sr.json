@@ -1604,6 +1604,7 @@
     "noConversationsYet": "Još nema razgovora",
     "messages": "Poruke",
     "conversation": "Razgovor",
+    "deletedAccount": "Obrisan nalog",
     "deleteConversationDesc": "Razgovor nestaje samo iz Vašeg inboxa. Sagovornik ga zadržava, a ako stigne nova poruka, videćete samo ono što dođe posle.",
     "deleting": "Brisanje...",
     "delete": "Obriši",

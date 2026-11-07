@@ -1604,6 +1604,7 @@
     "noConversationsYet": "No conversations yet",
     "messages": "Messages",
     "conversation": "Conversation",
+    "deletedAccount": "Deleted account",
     "deleteConversationDesc": "The conversation disappears from your inbox only. The other person keeps it, and if a new message arrives you will see only what comes after.",
     "deleting": "Deleting...",
     "delete": "Delete",

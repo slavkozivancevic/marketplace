@@ -12,8 +12,9 @@ import { SWIPE_REPLY_PX } from "../utils/swipe";
 /**
  * A message row, with WhatsApp's gestures:
  *
- * - a held press on touch (which also opens the emoji bar - a phone has no
- *   hover trigger), or a click or right-click with a mouse, enters selection
+ * - a held press on touch (a selection marked `withReactions`, which the
+ *   thread answers with the emoji bar - a phone has no smile), or a click or
+ *   right-click with a mouse, enters selection
  *   mode with it; from then on a TAP picks or un-picks messages. Every action
  *   on the picks is in the selection bar - there is no per-message menu;
  * - a swipe to the right answers it (`onReply`), touch only.
@@ -29,7 +30,6 @@ export function SelectableMessage({
   disabled = false,
   canReply = false,
   highlighted = false,
-  onPress,
   onReply,
   className,
   children,
@@ -40,8 +40,6 @@ export function SelectableMessage({
   /** Not deleted and not pending - a swipe may answer it. */
   canReply?: boolean;
   highlighted?: boolean;
-  /** A held press (touch) - the thread opens the emoji bar over the message. */
-  onPress?: () => void;
   onReply?: () => void;
   className?: string;
   children: React.ReactNode;
@@ -63,7 +61,6 @@ export function SelectableMessage({
     (source) => {
       if (selectionActive) return toggle();
       selectMessage(conversationId, messageId, source === "press");
-      if (source === "press") onPress?.();
     },
     selectionActive ? toggle : null,
     // A mouse click on the bubble selects it - the affordance the hover tint

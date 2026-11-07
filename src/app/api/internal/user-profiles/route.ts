@@ -7,6 +7,10 @@ import { prisma } from "@/core/db/prisma";
  *
  * Internal-only endpoint called by AWS Lambdas (e.g. conversation-search processEvent).
  * Protected by x-api-key. Returns user names keyed by internal user ID.
+ *
+ * A deleted account comes back as `{ name: null, deleted: true }`: its name is
+ * not kept anywhere, so a search index built from this never makes it
+ * findable again (it used to get the English placeholder "Deleted User").
  */
 export async function GET(request: NextRequest) {
   const apiKey = request.headers.get("x-api-key");
@@ -22,11 +26,14 @@ export async function GET(request: NextRequest) {
 
   const users = await prisma.user.findMany({
     where: { id: { in: ids } },
-    select: { id: true, name: true },
+    select: { id: true, name: true, deletedAt: true },
   });
 
   const profiles = Object.fromEntries(
-    users.map((u) => [u.id, { name: u.name }])
+    users.map((u) => {
+      const deleted = u.deletedAt !== null;
+      return [u.id, { name: deleted ? null : u.name, deleted }];
+    })
   );
 
   return NextResponse.json({ profiles });

@@ -31,6 +31,8 @@ interface Props {
   /** The participants' names, for the selection bar's multi-message copy. */
   profiles?: Record<string, UserProfile>;
   className?: string;
+  /** The other participant deleted their account - `name` is the label. */
+  deleted?: boolean;
 }
 
 /**
@@ -74,6 +76,7 @@ export function ThreadHeader({
   trailing,
   profiles,
   className,
+  deleted = false,
 }: Props) {
   const t = useTranslations("chat");
   const connected = useChatStore((s) => s.connected);
@@ -104,13 +107,23 @@ export function ThreadHeader({
           // `my-0.5`: the bar is a block, so without it the title line is
           // 16px instead of text-sm's 20px and the header text shifts 2px
           // when the name arrives.
-          profilesLoading ? <Skeleton className="h-4 w-28 my-0.5" /> : name || t("conversation")
+          profilesLoading ? (
+            <Skeleton className="h-4 w-28 my-0.5" />
+          ) : deleted ? (
+            // A deleted account: the label reads as one, muted and italic.
+            <span className="italic text-muted-foreground">{name}</span>
+          ) : (
+            name || t("conversation")
+          )
         )}
-        <PresenceLine
-          presence={presence}
-          isLoading={profilesLoading || presenceLoading}
-          disconnected={!connected}
-        />
+        {/* A deleted account is never online again - no presence line. */}
+        {!deleted && (
+          <PresenceLine
+            presence={presence}
+            isLoading={profilesLoading || presenceLoading}
+            disconnected={!connected}
+          />
+        )}
       </div>
       <div className="ml-auto flex items-center gap-0.5 shrink-0">{trailing}</div>
     </div>
