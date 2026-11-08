@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { CategoryTreeItem } from "../db/categories";
 import { getCategoryName } from "../utils/translations";
+import { pressSurface, pressText } from "@/components/ui/pressable";
 
 /** This locale's own slug, falling back the way the rest of the storefront
  *  does - a category with no row for the active locale must still be
@@ -88,7 +89,7 @@ export function CategoriesMegaMenu({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="relative flex items-center gap-1 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+          className={`relative flex items-center gap-1 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground cursor-pointer ${pressText}`}
           aria-label={t("nav.categories")}
         >
           {t("nav.categories")}
@@ -119,7 +120,7 @@ export function CategoriesMegaMenu({
               <Link
                 href="/categories"
                 onClick={() => setOpen(false)}
-                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-sm font-medium text-primary hover:underline"
+                className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-sm font-medium text-primary hover:underline ${pressText}`}
               >
                 <span className="truncate">{tCat("allCategories")}</span>
                 {/* ArrowRight, not the ChevronRight the departments carry:
@@ -164,7 +165,7 @@ export function CategoriesMegaMenu({
                 <Link
                   href={{ pathname: "/categories/[slug]", params: { slug: activeSlug } }}
                   onClick={() => setOpen(false)}
-                  className="shrink-0 text-xs font-medium text-primary hover:underline"
+                  className={`shrink-0 text-xs font-medium text-primary hover:underline ${pressText}`}
                 >
                   {/* `browseAll` ("See all"), not `seeAll` ("See all {name}"):
                       the department's name is the heading immediately to the
@@ -196,7 +197,7 @@ export function CategoriesMegaMenu({
                       key={child.id}
                       href={{ pathname: "/categories/[slug]", params: { slug: childSlug } }}
                       onClick={() => setOpen(false)}
-                      className="group flex flex-col gap-1.5 rounded-md p-1.5 transition-colors hover:bg-muted"
+                      className={cn("group flex flex-col gap-1.5 rounded-md p-1.5 transition-colors", pressSurface)}
                     >
                       <div className="relative aspect-square w-full max-w-full overflow-hidden rounded bg-muted/40">
                         {image ? (

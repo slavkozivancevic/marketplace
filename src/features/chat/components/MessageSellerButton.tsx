@@ -6,6 +6,7 @@ import { Loader2, MessageCircle } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import axios from "axios";
 import { useChatStore } from "../store/chatStore";
@@ -66,8 +67,11 @@ export function MessageSellerButton({ productId, className, isOwnProduct = false
       <Tooltip>
         <TooltipTrigger asChild>
           {/* Wrap so the tooltip still fires on a disabled button (which
-              swallows pointer events on its own). */}
-          <span className={className}>
+              swallows pointer events on its own). `block`: an inline span takes
+              no vertical margin, and the purchase card spaces its children with
+              `space-y-4` (Tailwind 4: margin-bottom on the one BEFORE) - so the
+              demo notice under this button sat 4px off it instead of 16px. */}
+          <span className={cn("block", className)}>
             <Button variant="outline" className="w-full" disabled>
               <MessageCircle className="size-4" />
               {t("ownProduct")}

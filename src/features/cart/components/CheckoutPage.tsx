@@ -36,6 +36,7 @@ import { Link } from "@/i18n/navigation";
 import { CountrySelect } from "@/features/products/components/CountrySelect";
 import { useViewerMarket } from "@/providers/MarketProvider";
 import { isCountryCode } from "@/lib/i18n/countries";
+import { pressText } from "@/components/ui/pressable";
 
 type PaymentMethod = "card" | "cod";
 
@@ -317,7 +318,7 @@ export function CheckoutPage() {
                 <button
                   type="button"
                   onClick={() => setApplied(null)}
-                  className="text-xs text-destructive hover:underline cursor-pointer"
+                  className={`text-xs text-destructive hover:underline cursor-pointer ${pressText}`}
                 >
                   {t("removeCoupon")}
                 </button>

@@ -6,7 +6,9 @@
  *   buyer  - UserRole USER, its own (unverified) personal organization
  *   seller - UserRole SELLER, ADMIN member of the Proton org (the 94-product
  *            catalog, its price rules and orders) and active there
- *   admin  - UserRole ADMIN
+ *   admin  - UserRole ADMIN, and the same Proton membership as the seller:
+ *            /admin/products lists the active organization's catalog, so
+ *            without it the admin sees an empty list
  *
  * The seller and the admin are view-only - the app refuses their writes by
  * email - so nothing here grants anything a visitor could abuse.
@@ -234,8 +236,8 @@ for (const role of SHARED_ROLES) {
       await tx.membership.create({ data: { userId: row.id, orgId: org.id, role: "OWNER" } });
       await tx.user.update({ where: { id: row.id }, data: { activeOrgId: org.id } });
     }
-    // 3. The seller works in the real catalog, as an ADMIN member.
-    if (role === "seller") {
+    // 3. The seller and the admin work in the real catalog, as ADMIN members.
+    if (role === "seller" || role === "admin") {
       await tx.membership.upsert({
         where: { userId_orgId: { userId: row.id, orgId: PROTON_ORG_ID } },
         update: { role: "ADMIN" },

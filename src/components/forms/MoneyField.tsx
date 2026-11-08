@@ -29,6 +29,7 @@ import {
   withoutOverride,
   type MoneyInput,
 } from "@/lib/money-input";
+import { pressSurface, pressText } from "@/components/ui/pressable";
 
 /**
  * One money amount, entered in a currency the user picks.
@@ -410,7 +411,7 @@ export function MoneyField({
                     // the way IN still gets a written label below.
                     <button
                       type="button"
-                      className="ml-auto grid size-6 shrink-0 cursor-pointer place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                      className={cn("ml-auto grid size-6 shrink-0 cursor-pointer place-items-center rounded text-muted-foreground hover:text-foreground active:text-foreground", pressSurface)}
                       title={t("useConvertedTooltip")}
                       aria-label={t("useConverted")}
                       onClick={() => clearOverride(row.currency)}
@@ -420,7 +421,7 @@ export function MoneyField({
                   ) : (
                     <button
                       type="button"
-                      className="ml-auto shrink-0 cursor-pointer whitespace-nowrap text-primary underline-offset-2 hover:underline"
+                      className={`ml-auto shrink-0 cursor-pointer whitespace-nowrap text-primary underline-offset-2 hover:underline ${pressText}`}
                       title={t("enterManuallyTooltip")}
                       onClick={() =>
                         // Only reveals the input. The override is written on

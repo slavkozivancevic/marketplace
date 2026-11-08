@@ -18,6 +18,7 @@ import { CategoriesMegaMenu } from "@/features/categories/components/CategoriesM
 import type { CategoryTreeItem } from "@/features/categories/db/categories";
 import { IconButton } from "@/components/IconButton";
 import { cn } from "@/lib/utils";
+import { pressNavLink, pressText } from "@/components/ui/pressable";
 
 interface PublicHeaderProps {
   showAdminLink?: boolean;
@@ -138,7 +139,7 @@ export function PublicHeader({
                   a query string appended to a localized pathname. */}
               <Link
                 href={{ pathname: "/products", query: { onSale: "true" } }}
-                className="relative px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground group"
+                className={`relative px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground group ${pressText}`}
               >
                 {t("nav.deals")}
                 <span className="absolute inset-x-4 -bottom-px h-px bg-primary scale-x-0 transition-transform duration-300 group-hover:scale-x-100" />
@@ -148,7 +149,7 @@ export function PublicHeader({
                   <Link
                     key={link.href}
                     href={link.href as never}
-                    className="relative px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground group"
+                    className={`relative px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground group ${pressText}`}
                   >
                     {link.label}
                     <span className="absolute inset-x-4 -bottom-px h-px bg-primary scale-x-0 transition-transform duration-300 group-hover:scale-x-100" />
@@ -246,14 +247,14 @@ export function PublicHeader({
                   out for a narrow screen, so the menu becomes a plain link. */}
               <Link
                 href="/categories"
-                className="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                className={cn("block px-3 py-2 text-sm font-medium rounded-md transition-colors", pressNavLink)}
                 onClick={() => setMobileOpen(false)}
               >
                 {t("nav.categories")}
               </Link>
               <Link
                 href={{ pathname: "/products", query: { onSale: "true" } }}
-                className="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                className={cn("block px-3 py-2 text-sm font-medium rounded-md transition-colors", pressNavLink)}
                 onClick={() => setMobileOpen(false)}
               >
                 {t("nav.deals")}
@@ -263,7 +264,7 @@ export function PublicHeader({
                   <Link
                     key={link.href}
                     href={link.href as never}
-                    className="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                    className={cn("block px-3 py-2 text-sm font-medium rounded-md transition-colors", pressNavLink)}
                     onClick={() => setMobileOpen(false)}
                   >
                     {link.label}

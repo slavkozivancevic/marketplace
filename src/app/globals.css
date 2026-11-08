@@ -975,6 +975,24 @@
   opacity: 1;
 }
 
+/* Pressed, and while the brand page it opens is loading: the engaged look,
+   arriving at once (a tap is over before a 300ms fade would show) and held
+   until the next page is up - the press feedback every clickable surface gets
+   (see `pressable.tsx`). Aimed at the image and the vignette for the same
+   reason as above: a filter on the link would drag the loading shimmer. */
+.brand-logo-muted:active img,
+.brand-logo-muted:has([data-link-pending]) img {
+  filter: grayscale(0);
+  opacity: 1;
+  transition-duration: 0ms;
+}
+
+.brand-logo-muted:active .theme-vignette,
+.brand-logo-muted:has([data-link-pending]) .theme-vignette {
+  opacity: 0;
+  transition-duration: 0ms;
+}
+
 /* ===== SWAP =====
    How one thing becomes another in the brand strip.
 

@@ -9,6 +9,7 @@ import { useDismissable } from "@/hooks/useDismissable";
 import { BrandHomeLink } from "./brand-home-link";
 import { IconButton } from "@/components/IconButton";
 import { cn } from "@/lib/utils";
+import { pressNavLink, pressText } from "@/components/ui/pressable";
 import { PreferencesPopover } from "./preferences-popover";
 import { NotFoundAuth } from "./not-found-auth";
 
@@ -71,7 +72,7 @@ export function NotFoundHeader() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="relative px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                className={`relative px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground ${pressText}`}
               >
                 {link.label}
               </Link>
@@ -132,7 +133,7 @@ export function NotFoundHeader() {
             <Link
               key={link.href}
               href={link.href}
-              className="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+              className={cn("block px-3 py-2 text-sm font-medium rounded-md transition-colors", pressNavLink)}
               onClick={() => setMobileOpen(false)}
             >
               {link.label}

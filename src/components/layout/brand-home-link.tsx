@@ -3,6 +3,7 @@
 import { Link } from "@/i18n/navigation";
 import { useTouchHover, touchActiveAttr } from "@/hooks/useTouchHover";
 import { BrandLockup } from "./brand-lockup";
+import { pressText } from "@/components/ui/pressable";
 
 /**
  * The brand lockup as a link home, with the comet reachable by touch.
@@ -33,7 +34,7 @@ export function BrandHomeLink({
       ref={containerRef}
       {...touchProps}
       {...touchActiveAttr(active)}
-      className={className}
+      className={`${className ?? ""} ${pressText}`}
     >
       <BrandLockup size="header" effect="hover" tagline={tagline} />
     </Link>

@@ -32,6 +32,7 @@ import type { Currency } from "@/lib/currency-config";
 import { getVariantLabel } from "@/features/attributes/utils/translations";
 import { getProductTitle } from "@/features/products/utils/translations";
 import { shippingCountryLabel } from "@/lib/i18n/countries";
+import { pressText } from "@/components/ui/pressable";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -782,7 +783,7 @@ export default async function OrgOrderDetailPage({ params }: Props) {
                 )}
                 <a
                   href={`mailto:${order.user.email}`}
-                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                  className={`flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors ${pressText}`}
                 >
                   <Mail className="h-3.5 w-3.5" />
                   {order.user.email}

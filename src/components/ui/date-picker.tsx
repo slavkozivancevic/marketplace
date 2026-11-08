@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { dateLocale } from "@/lib/i18n/dateLocale";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { pressText } from "@/components/ui/pressable";
 
 /** Local YYYY-MM-DD (no UTC shift, unlike toISOString). */
 function toYMD(d: Date): string {
@@ -88,7 +89,7 @@ export function DatePicker({
                 e.stopPropagation();
                 onChange(null);
               }}
-              className="text-muted-foreground hover:text-foreground"
+              className={`text-muted-foreground hover:text-foreground ${pressText}`}
             >
               <X className="size-3.5" />
             </span>

@@ -54,6 +54,7 @@ import { useOlderMessages } from "../hooks/useOlderMessages";
 import { QuoteBlock } from "./QuoteBlock";
 import { quoteOf } from "../utils/replies";
 import { chatDisplayName } from "../utils/displayName";
+import { pressSurface, pressText } from "@/components/ui/pressable";
 
 /**
  * A message in the thread, whether or not the server has confirmed it.
@@ -242,7 +243,7 @@ function ImageLightbox({ url, onClose }: { url: string; onClose: () => void }) {
           e.stopPropagation();
           onClose();
         }}
-        className="absolute top-4 right-4 text-white bg-black/40 hover:bg-black/70 rounded-full p-2 transition-colors cursor-pointer"
+        className="absolute top-4 right-4 text-white bg-black/40 hover:bg-black/70 active:bg-black/80 active:duration-0 rounded-full p-2 transition-colors cursor-pointer"
       >
         <X className="size-5" />
       </button>
@@ -399,7 +400,7 @@ function PdfPreviewCard({ attachment }: { attachment: Attachment }) {
     <div
       role="button"
       tabIndex={0}
-      className="mt-1.5 rounded-xl overflow-hidden border border-black/10 cursor-pointer hover:opacity-90 transition-opacity"
+      className={`mt-1.5 rounded-xl overflow-hidden border border-black/10 cursor-pointer hover:opacity-90 transition-opacity ${pressText}`}
       style={{ width: IMG_MAX }}
       onClick={() => presignedUrl && window.open(presignedUrl, "_blank")}
       onKeyDown={(e) => {
@@ -490,7 +491,7 @@ function VideoLightbox({ url, onClose }: { url: string; onClose: () => void }) {
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); onClose(); }}
-        className="absolute top-4 right-4 text-white bg-black/40 hover:bg-black/70 rounded-full p-2 transition-colors cursor-pointer"
+        className="absolute top-4 right-4 text-white bg-black/40 hover:bg-black/70 active:bg-black/80 active:duration-0 rounded-full p-2 transition-colors cursor-pointer"
       >
         <X className="size-5" />
       </button>
@@ -525,7 +526,7 @@ function VideoCard({ attachment }: { attachment: Attachment }) {
       <div
         role="button"
         tabIndex={0}
-        className="mt-1.5 rounded-xl overflow-hidden border border-black/10 cursor-pointer hover:opacity-90 transition-opacity"
+        className={`mt-1.5 rounded-xl overflow-hidden border border-black/10 cursor-pointer hover:opacity-90 transition-opacity ${pressText}`}
         style={{ width: IMG_MAX }}
         onClick={() => url && setLightboxOpen(true)}
         onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && url) setLightboxOpen(true); }}
@@ -697,7 +698,7 @@ function InlineAttachmentDisplay({ attachment }: { attachment: Attachment }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="mt-1.5 flex items-center gap-1.5 text-xs underline underline-offset-2 opacity-80 hover:opacity-100"
+      className={`mt-1.5 flex items-center gap-1.5 text-xs underline underline-offset-2 opacity-80 hover:opacity-100 ${pressText}`}
     >
       <FileText className="size-3.5 shrink-0" />
       <span>
@@ -812,7 +813,7 @@ function FileChip({
         onClick={onRemove}
         className={cn(
           // 24px: a target a finger can hit, which the old 16px dot was not.
-          "absolute -top-2 -right-2 rounded-full bg-foreground text-background hover:bg-foreground/90 transition-opacity cursor-pointer",
+          "absolute -top-2 -right-2 rounded-full bg-foreground text-background pointer-fine:hover:bg-foreground/90 active:bg-foreground/80 transition-opacity cursor-pointer",
           supportsHover ? "opacity-0 group-hover:opacity-100 focus-visible:opacity-100" : "opacity-100",
         )}
       >
@@ -1728,7 +1729,7 @@ export function MessageThread({
                                     "flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border transition-colors cursor-pointer",
                                     iReacted
                                       ? "bg-primary/10 border-primary/30 text-primary"
-                                      : "bg-background border-border text-foreground hover:bg-muted",
+                                      : cn("bg-background border-border text-foreground", pressSurface),
                                   )}
                                 >
                                   <span>{emoji}</span>
@@ -1765,7 +1766,8 @@ export function MessageThread({
                               )
                             }
                             className={cn(
-                              "size-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border transition-all cursor-pointer pointer-coarse:hidden",
+                              "size-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground active:text-foreground border border-transparent hover:border-border transition-all cursor-pointer pointer-coarse:hidden",
+                              pressSurface,
                               pickerOpenFor === msg.messageId
                                 ? "opacity-100"
                                 : "opacity-0 group-hover/msg:opacity-100",
@@ -1818,7 +1820,7 @@ export function MessageThread({
                                       clearSelection();
                                     }}
                                     className={cn(
-                                      "text-base w-7 h-7 flex items-center justify-center rounded-full transition-all cursor-pointer hover:scale-125",
+                                      "text-base w-7 h-7 flex items-center justify-center rounded-full transition-all cursor-pointer hover:scale-125 active:scale-110 active:bg-muted active:duration-0",
                                       iReacted && "bg-primary/10",
                                     )}
                                   >
@@ -1849,14 +1851,14 @@ export function MessageThread({
                         <button
                           type="button"
                           onClick={() => retrySend(msg.messageId)}
-                          className="font-medium text-destructive underline underline-offset-2 cursor-pointer hover:no-underline"
+                          className={`font-medium text-destructive underline underline-offset-2 cursor-pointer hover:no-underline ${pressText}`}
                         >
                           {t("resend")}
                         </button>
                         <button
                           type="button"
                           onClick={() => discardSend(msg.messageId)}
-                          className="text-muted-foreground underline underline-offset-2 cursor-pointer hover:no-underline"
+                          className={`text-muted-foreground underline underline-offset-2 cursor-pointer hover:no-underline ${pressText}`}
                         >
                           {t("discard")}
                         </button>
@@ -1918,7 +1920,8 @@ export function MessageThread({
             setShowScrollBtn(false);
           }}
           className={cn(
-            "absolute bottom-4 right-4 z-10 size-8 rounded-full bg-background border shadow-md flex items-center justify-center hover:bg-muted cursor-pointer transition-all duration-200",
+            "absolute bottom-4 right-4 z-10 size-8 rounded-full bg-background border shadow-md flex items-center justify-center cursor-pointer transition-all duration-200",
+            pressSurface,
             newBelowCount > 0 && "border-primary",
             showJumpButton
               ? "opacity-100 translate-y-0"

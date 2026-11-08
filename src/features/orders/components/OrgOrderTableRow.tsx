@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 // Grid template is owned by the skeleton module so the two can never drift.
 import { ORG_ORDER_COLS } from "./OrderTableSkeleton";
 import { TruncatedTooltip } from "@/components/TruncatedTooltip";
+import { LinkPendingMark, pressSurface } from "@/components/ui/pressable";
 
 function PaymentMethodIcon({ method }: { method: string }) {
   if (method === "COD") return <Truck className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
@@ -64,10 +65,12 @@ export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
       <div
         role="row"
         className={cn(
-          "grid items-center gap-4 border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors min-w-fit",
+          "grid items-center gap-4 border-b p-3 cursor-pointer transition-colors min-w-fit",
+          pressSurface,
           ORG_ORDER_COLS,
         )}
       >
+        <LinkPendingMark />
         {/* Order ID */}
         <div role="cell" className="font-mono text-xs text-muted-foreground">
           #{order.id.slice(-8).toUpperCase()}

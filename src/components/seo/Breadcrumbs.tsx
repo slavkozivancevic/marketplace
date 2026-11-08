@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LinkPendingMark } from "@/components/ui/pressable";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { absoluteUrl, breadcrumbJsonLd, renderJsonLd } from "@/lib/seo/jsonLd";
@@ -89,9 +90,10 @@ export function Breadcrumbs({
                 ) : (
                   <Link
                     href={item.href}
-                    className="hover:text-foreground transition-colors truncate max-w-[16rem]"
+                    className="hover:text-foreground active:text-foreground active:duration-0 has-data-link-pending:text-foreground transition-colors truncate max-w-[16rem]"
                   >
                     {item.name}
+                    <LinkPendingMark />
                   </Link>
                 )}
               </li>

@@ -1,4 +1,6 @@
+import type { ComponentProps } from "react";
 import { createNavigation } from "next-intl/navigation";
+import { LinkPendingMark } from "@/components/ui/pressable";
 import { routing } from "./routing";
 
 /**
@@ -15,5 +17,22 @@ import { routing } from "./routing";
  * The wrapper picks pathnames from `routing.pathnames`, which is where the
  * `products <-> proizvodi <-> produkte <-> productos` mapping lives.
  */
-export const { Link, redirect, usePathname, useRouter, getPathname } =
-  createNavigation(routing);
+const navigation = createNavigation(routing);
+export const { redirect, usePathname, useRouter, getPathname } = navigation;
+
+const BaseLink = navigation.Link;
+
+/**
+ * Every link carries `LinkPendingMark`, so the link itself - and anything
+ * styled on it, like a `<Button asChild>` - can tell that the navigation it
+ * started is still in flight and keep its pressed look until the next page
+ * arrives (see `pressable.tsx`). The mark renders nothing at rest.
+ */
+export const Link = function Link({ children, ...props }: ComponentProps<typeof BaseLink>) {
+  return (
+    <BaseLink {...props}>
+      {children}
+      <LinkPendingMark />
+    </BaseLink>
+  );
+} as typeof BaseLink;

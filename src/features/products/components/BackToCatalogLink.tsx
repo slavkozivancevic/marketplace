@@ -5,6 +5,7 @@ import type { Route } from "next";
 import NextLink from "next/link";
 import { useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { LinkPendingMark } from "@/components/ui/pressable";
 import { readCatalogUrl } from "../utils/catalogReturn";
 
 /** Nothing to subscribe to: the catalog writes its URL before this page is
@@ -51,6 +52,8 @@ export function BackToCatalogLink({
   return (
     <NextLink href={returnUrl as Route} {...props}>
       {children}
+      {/* Our Link renders this itself; next/link does not. */}
+      <LinkPendingMark />
     </NextLink>
   );
 }

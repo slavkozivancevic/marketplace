@@ -57,6 +57,7 @@ import {
 } from "@/features/organizations/components/SellerPromises";
 import { DemoBuyerOnlyNotice } from "@/features/demo/components/DemoBuyerOnlyNotice";
 import { useDemoReadOnly } from "@/features/demo/useDemoReadOnly";
+import { pressText } from "@/components/ui/pressable";
 
 type QuickViewProduct = SerializedPublicProduct & {
   ratingBreakdown: Record<number, number>;
@@ -295,7 +296,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
           <DialogTitle className="sr-only">{t("noLongerAvailable")}</DialogTitle>
           <button
             onClick={handleClose}
-            className="absolute top-2.5 right-2.5 z-10 rounded-full bg-background/80 backdrop-blur-xs border border-border/50 p-1 text-muted-foreground hover:text-foreground transition-colors shadow-sm cursor-pointer"
+            className={`absolute top-2.5 right-2.5 z-10 rounded-full bg-background/80 backdrop-blur-xs border border-border/50 p-1 text-muted-foreground hover:text-foreground transition-colors shadow-sm cursor-pointer ${pressText}`}
             aria-label="Close"
           >
             <X className="h-3.5 w-3.5" />
@@ -338,7 +339,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
         {/* Close */}
         <button
           onClick={handleClose}
-          className="absolute top-2.5 right-2.5 z-10 rounded-full bg-background/80 backdrop-blur-xs border border-border/50 p-1 text-muted-foreground hover:text-foreground transition-colors shadow-sm cursor-pointer"
+          className={`absolute top-2.5 right-2.5 z-10 rounded-full bg-background/80 backdrop-blur-xs border border-border/50 p-1 text-muted-foreground hover:text-foreground transition-colors shadow-sm cursor-pointer ${pressText}`}
           aria-label="Close"
         >
           <X className="h-3.5 w-3.5" />
@@ -503,7 +504,7 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                     },
                   }}
                   onClick={handleClose}
-                  className="flex items-center gap-1 text-xs text-primary hover:underline"
+                  className={`flex items-center gap-1 text-xs text-primary hover:underline ${pressText}`}
                 >
                   <ExternalLink className="h-3 w-3" />
                   {t("viewFullDetails")}
@@ -732,14 +733,14 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                         },
                       }}
                       onClick={handleClose}
-                      className="flex items-center gap-1 text-xs text-primary hover:underline"
+                      className={`flex items-center gap-1 text-xs text-primary hover:underline ${pressText}`}
                     >
                       <ExternalLink className="h-3 w-3" />
                       {t("viewFullDetails")}
                     </Link>
                     <button
                       onClick={handleClose}
-                      className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      className={`text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer ${pressText}`}
                     >
                       {t("cancel")}
                     </button>

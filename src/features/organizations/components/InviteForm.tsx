@@ -34,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { sendInviteFormSchema, SendInviteInput } from "../schema/invites";
 import { sendInviteAction } from "../actions/invites";
 import { INVITABLE_ROLES } from "@/types/types";
+import { pressText } from "@/components/ui/pressable";
 
 export function InviteForm() {
   const t = useTranslations("invite");
@@ -134,7 +135,7 @@ export function InviteForm() {
                         });
                         form.setFocus("email");
                       }}
-                      className="absolute right-3 cursor-pointer rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      className={`absolute right-3 cursor-pointer rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${pressText}`}
                       aria-label={t("clear")}
                     >
                       <X className="h-4 w-4" />

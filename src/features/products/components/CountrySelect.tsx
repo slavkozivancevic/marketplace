@@ -18,6 +18,7 @@ import {
   sortedCountries,
   type CountryCode,
 } from "@/lib/i18n/countries";
+import { pressText } from "@/components/ui/pressable";
 
 /**
  * Searchable country picker for `Product.countryOfOrigin`.
@@ -131,7 +132,7 @@ export function CountrySelect({
                 role="button"
                 tabIndex={-1}
                 aria-label={text.clear}
-                className="rounded-sm p-0.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                className={`rounded-sm p-0.5 text-muted-foreground hover:text-foreground cursor-pointer ${pressText}`}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();

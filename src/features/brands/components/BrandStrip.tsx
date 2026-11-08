@@ -8,6 +8,7 @@ import { useTouchHover, touchActiveAttr } from "@/hooks/useTouchHover";
 import { BrandLogo } from "./BrandLogo";
 import { getBrandName, getBrandSlug } from "../utils/translations";
 import type { BrandListItem } from "../db/brands";
+import { pressText } from "@/components/ui/pressable";
 
 /**
  * A band of real brand logos under the hero.
@@ -359,7 +360,7 @@ export function BrandStrip({
           {allBrandsLabel && (
             <Link
               href="/brands"
-              className="group/all shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground"
+              className={`group/all shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground ${pressText}`}
             >
               {allBrandsLabel}
               <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover/all:translate-x-0.5" />

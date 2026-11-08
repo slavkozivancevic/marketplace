@@ -14,6 +14,7 @@ import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList"
 import type { OrgOrderFilters } from "@/lib/query/searchParams";
 import { useActiveOrgId } from "@/features/organizations/components/ActiveOrgContext";
 import { TableScroll } from "@/components/ui/table-scroll";
+import { pressText } from "@/components/ui/pressable";
 
 function buildFetcher(filters: OrgOrderFilters) {
   return async ({
@@ -111,7 +112,7 @@ export function OrgOrdersList({
           {hasFilters ? t("tryAdjusting") : (
             <>
               {t("noOrdersYetDesc")}{" "}
-              <Link href="/dashboard/my-products" className="underline">
+              <Link href="/dashboard/my-products" className={`underline ${pressText}`}>
                 {t("viewProducts")}
               </Link>
             </>

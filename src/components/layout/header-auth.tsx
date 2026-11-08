@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useWhenHidden } from "@/hooks/useWhenHidden";
 import { DemoAvatarBadge } from "@/features/demo/components/DemoAvatarBadge";
 import { demoRoleOfEmail } from "@/features/demo/demoAccounts";
+import { pressText } from "@/components/ui/pressable";
 
 interface HeaderAuthProps {
   mode?: "modal" | "redirect";
@@ -228,7 +229,7 @@ export function HeaderAuth({
   );
 
   const dashboardLink = showDashboardLink && (
-    <Link href="/dashboard" className="text-sm">
+    <Link href="/dashboard" className={`text-sm ${pressText}`}>
       {t("dashboard")}
     </Link>
   );

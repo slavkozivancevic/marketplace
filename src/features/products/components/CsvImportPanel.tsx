@@ -417,7 +417,7 @@ export function CsvImportPanel() {
         {/* Drop zone */}
         <div
           className={cn(
-            "rounded-lg border-2 border-dashed p-8 text-center transition-colors cursor-pointer",
+            "rounded-lg border-2 border-dashed p-8 text-center transition-colors cursor-pointer active:bg-muted/50 active:duration-0",
             isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-muted-foreground/50",
           )}
           onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}

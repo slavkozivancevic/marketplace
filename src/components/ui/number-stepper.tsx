@@ -3,6 +3,7 @@
 import { ChevronUp, ChevronDown, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { pressSurface } from "@/components/ui/pressable";
 
 /**
  * Number input with custom stepper arrows. Chromium ignores `cursor` on the
@@ -63,7 +64,7 @@ export function NumberStepper({
   const showClear = allowEmpty && value != null;
 
   const arrowClass =
-    "flex h-3.5 w-5 cursor-pointer items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30";
+    `flex h-3.5 w-5 cursor-pointer items-center justify-center rounded-sm text-muted-foreground transition-colors hover:text-foreground active:text-foreground disabled:pointer-events-none disabled:opacity-30 ${pressSurface}`;
 
   return (
     <div className={cn("relative", className)}>
@@ -106,7 +107,7 @@ export function NumberStepper({
           tabIndex={-1}
           aria-label="Clear"
           onClick={() => onChange(null)}
-          className="absolute right-6 top-1/2 flex h-5 w-5 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
+          className={cn("absolute right-6 top-1/2 flex h-5 w-5 -translate-y-1/2 cursor-pointer items-center justify-center rounded-sm text-muted-foreground/70 transition-colors hover:text-foreground active:text-foreground", pressSurface)}
         >
           <X className="h-3 w-3" />
         </button>

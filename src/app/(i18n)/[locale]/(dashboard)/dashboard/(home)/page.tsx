@@ -14,6 +14,7 @@ import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { canManageOrgPayouts } from "@/lib/auth/permissions";
 import { pickActiveMembership } from "@/features/organizations/db/activeOrg";
 import { dashboardHomeCards } from "./cards";
+import { LinkPendingMark, pressCard } from "@/components/ui/pressable";
 
 export default async function DashboardPage() {
   await connection();
@@ -85,10 +86,11 @@ export default async function DashboardPage() {
             const Icon = card.icon;
             return (
               <Link key={card.href} href={card.href as never} className="group">
-                <Card className="h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 border-border/50">
+                <Card className={`h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 border-border/50 ${pressCard}`}>
+                  <LinkPendingMark />
                   <CardHeader>
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground group-active:bg-primary group-active:text-primary-foreground group-has-data-link-pending:bg-primary group-has-data-link-pending:text-primary-foreground">
                         <Icon className="h-5 w-5" />
                       </div>
                       <div className="flex-1">
@@ -111,10 +113,11 @@ export default async function DashboardPage() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Link href="/admin" className="group">
-                <Card className="h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 border-border/50">
+                <Card className={`h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 border-border/50 ${pressCard}`}>
+                  <LinkPendingMark />
                   <CardHeader>
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground group-active:bg-primary group-active:text-primary-foreground group-has-data-link-pending:bg-primary group-has-data-link-pending:text-primary-foreground">
                         <Shield className="h-5 w-5" />
                       </div>
                       <div className="flex-1">

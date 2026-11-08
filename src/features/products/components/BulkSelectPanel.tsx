@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ActionButton } from "@/components/ActionButton";
 import { TableScroll } from "@/components/ui/table-scroll";
+import { pressSurface } from "@/components/ui/pressable";
 import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { bulkUpdateProductStatus, bulkDeleteProducts } from "@/features/products/actions/products";
@@ -276,7 +277,8 @@ export function BulkSelectPanel() {
                     key={product.id}
                     role="row"
                     className={cn(
-                      "grid items-center gap-4 border-b p-3 transition-colors cursor-pointer hover:bg-muted/50 min-w-fit",
+                      "grid items-center gap-4 border-b p-3 transition-colors cursor-pointer min-w-fit",
+                      pressSurface,
                       checked && "bg-primary/5",
                     )}
                     style={{ gridTemplateColumns: GRID_COLS }}
