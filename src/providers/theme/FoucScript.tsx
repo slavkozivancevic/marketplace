@@ -1,4 +1,5 @@
-import { THEMES, THEME_COOKIE_NAME, RESOLVED_THEMES } from "./constants";
+import { THEMES, THEME_COOKIE_NAME, RESOLVED_THEMES, THEME_COLORS } from "./constants";
+import { setThemeColorMeta } from "./themeColorMeta";
 
 /**
  * Synchronous theme bootstrap that runs at HTML-parse time, before the
@@ -45,6 +46,7 @@ try {
   for (var i = 0; i < RESOLVED.length; i++) html.classList.remove(RESOLVED[i]);
   html.classList.add(resolved);
   html.style.colorScheme = (resolved === 'dark' || resolved === 'cosmos') ? 'dark' : 'light';
+  (${setThemeColorMeta.toString()})(${JSON.stringify(THEME_COLORS)}[resolved]);
 } catch (e) {}
 })();`;
 

@@ -1939,6 +1939,14 @@
     "appearance": "Izgled",
     "toggle": "Promeni temu"
   },
+  "installApp": {
+    "button": "Instaliraj aplikaciju",
+    "iosTitle": "Instalirajte MarketVerse",
+    "iosDescription": "Dodajte MarketVerse na početni ekran i otvarajte ga kao svaku drugu aplikaciju.",
+    "iosStep1": "Tapnite Podeli u traci pregledača.",
+    "iosStep2": "Izaberite \"Dodaj na početni ekran\".",
+    "close": "Zatvori"
+  },
   "currency": {
     "label": "Valuta",
     "usd": "Američki dolar",

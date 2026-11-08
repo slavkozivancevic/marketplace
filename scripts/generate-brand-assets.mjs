@@ -10,6 +10,10 @@
  *                            email header background ({appUrl}/email-header-bg.png)
  *   - public/brand/stripe-icon.png 512x512 rounded dark tile - upload as the
  *                            "Icon" in Stripe Dashboard branding settings
+ *   - public/brand/app-icon-{192,512}.png rounded dark tile, installed-app
+ *                            icon (manifest purpose "any")
+ *   - public/brand/app-icon-maskable-{192,512}.png full-bleed dark tile, mark
+ *                            inside the safe zone (manifest purpose "maskable")
  *   - public/brand/stripe-icon-dark.png 512x512 mark alone on transparent -
  *                            icon variant for dark surfaces (tile would vanish
  *                            into the #040511 brand-color backdrop)
@@ -195,6 +199,24 @@ console.log("wrote public/email-header-bg.png (1200x240)");
 await mkdir(path.join(root, "public/brand"), { recursive: true });
 await writeFile(path.join(root, "public/brand/stripe-icon.png"), await png(rounded, 512));
 console.log("wrote public/brand/stripe-icon.png (512)");
+
+// Installed-app (PWA) icons, listed in src/app/manifest.ts. `any` is the
+// rounded dark tile; `maskable` is full-bleed with the mark shrunk into the
+// 80% safe circle (farthest point, the comet tail at 3,7, lands 25.3 units
+// from centre against a 25.6 radius) so a round/squircle launcher mask never
+// clips it. Never list icon.svg there: Android renders it without
+// prefers-color-scheme: dark, so it gets the dark bag on a transparent canvas.
+const maskable = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>${TAIL_GRADIENT}</defs>
+  <rect width="64" height="64" fill="#0a0b1e"/>
+  <g transform="translate(10.88,10.88) scale(0.66)">${MARK_DARK}</g>
+</svg>`;
+for (const size of [192, 512]) {
+  await writeFile(path.join(root, `public/brand/app-icon-${size}.png`), await png(rounded, size));
+  console.log(`wrote public/brand/app-icon-${size}.png`);
+  await writeFile(path.join(root, `public/brand/app-icon-maskable-${size}.png`), await png(maskable, size));
+  console.log(`wrote public/brand/app-icon-maskable-${size}.png`);
+}
 
 // Icon variant for dark surfaces: the mark alone on transparent (the rounded
 // tile would vanish into the #040511 brand-color backdrop).

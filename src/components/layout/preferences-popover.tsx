@@ -18,7 +18,9 @@ import type { Locale } from "@/i18n/config";
 import { VALID_CURRENCIES } from "@/lib/currency-config";
 import { useCurrencyStore } from "@/store/currency";
 import { SUPPORTED_LOCALES, LOCALE_LABELS } from "@/i18n/config";
-import { Sun, Moon, Sparkles, Monitor, SlidersHorizontal } from "lucide-react";
+import { Sun, Moon, Sparkles, Monitor, SlidersHorizontal, Download } from "lucide-react";
+import { useInstallApp } from "@/features/installApp/useInstallApp";
+import { InstallAppDialog } from "@/features/installApp/components/InstallAppDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
@@ -92,6 +94,19 @@ export function PreferencesPopover() {
   const { country: viewerCountry } = useViewerMarket();
   const setViewerCountry = useSetViewerCountry();
   const tMarkets = useTranslations("priceMarkets");
+  const tInstall = useTranslations("installApp");
+  const { kind: installKind, install, prompting } = useInstallApp();
+  const [installHelpOpen, setInstallHelpOpen] = useState(false);
+
+  function handleInstall() {
+    if (installKind === "prompt") {
+      void install();
+      return;
+    }
+    // iOS: the steps live in a dialog that outlives this menu.
+    setOpen(false);
+    setInstallHelpOpen(true);
+  }
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -327,7 +342,28 @@ export function PreferencesPopover() {
             );
           })}
         </div>
+
+        {/* Install app: only when this device can actually install it and
+            is not already running the installed app (see useInstallApp). */}
+        {installKind && (
+          <>
+            <DropdownMenuSeparator className="my-3" />
+            <button
+              type="button"
+              onClick={handleInstall}
+              disabled={prompting}
+              className={cn(
+                "flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border border-border px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground active:text-foreground disabled:cursor-default disabled:opacity-50",
+                pressSurface,
+              )}
+            >
+              <Download className="h-3.5 w-3.5" />
+              {tInstall("button")}
+            </button>
+          </>
+        )}
       </DropdownMenuContent>
+      <InstallAppDialog open={installHelpOpen} onOpenChange={setInstallHelpOpen} />
     </DropdownMenu>
   );
 }

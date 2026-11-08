@@ -20,6 +20,7 @@ import { getViewerCountry } from "@/features/priceMarkets/db/viewer";
 import { getPriceMarketConfig } from "@/features/priceMarkets/db/markets";
 import { getCurrencyRates } from "@/features/currency/db/currencyRates";
 import { FoucScript } from "@/providers/theme/FoucScript";
+import { InstallPromptScript } from "@/features/installApp/components/InstallPromptScript";
 import { ScrollbarScript } from "@/providers/scrollbars/ScrollbarScript";
 import { NavigationProgress } from "@/components/layout/NavigationProgress";
 import { LocaleSwitchLoader } from "@/components/layout/locale-switch-loader";
@@ -52,10 +53,8 @@ export const viewport: Viewport = {
   // resolve to real values instead of 0 (used for the mobile sidebar trigger
   // and other bottom-pinned UI).
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "oklch(0.94 0.008 240)" },
-    { media: "(prefers-color-scheme: dark)", color: "oklch(0.13 0 0)" },
-  ],
+  // No `themeColor`: the single theme-color meta follows the theme picked in
+  // the app, so FoucScript / ThemeProvider own it (see themeColorMeta.ts).
 };
 
 async function fetchCurrencyRates() {
@@ -130,6 +129,7 @@ export default async function LocaleRootLayout({
             HTML parser executes it before any visible content paints. See
             FoucScript.tsx for the React-19-warning workaround details. */}
         <FoucScript />
+        <InstallPromptScript />
         <ScrollbarScript />
         {/* Parser-run like the two above: a Back/Forward that arrives before
             the streamed app hydrates becomes a full load instead of a soft

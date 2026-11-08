@@ -16,10 +16,12 @@ import {
   RESOLVED_THEMES,
   resolveTheme,
   THEME_COOKIE_MAX_AGE,
+  THEME_COLORS,
   THEME_COOKIE_NAME,
   type ResolvedTheme,
   type ThemeName,
 } from "./constants";
+import { setThemeColorMeta } from "./themeColorMeta";
 
 type ThemeContextValue = {
   /** Stored preference (may be "system"). */
@@ -58,6 +60,7 @@ function applyThemeToHtml(resolved: ResolvedTheme) {
   RESOLVED_THEMES.forEach((t) => html.classList.remove(t));
   html.classList.add(resolved);
   html.style.colorScheme = DARK_THEMES.has(resolved) ? "dark" : "light";
+  setThemeColorMeta(THEME_COLORS[resolved]);
 }
 
 /**
