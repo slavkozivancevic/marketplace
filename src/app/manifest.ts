@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { env } from "@/env/server";
 import { SPLASH_COLOR } from "@/providers/theme/constants";
 
 /**
@@ -31,6 +32,14 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     background_color: SPLASH_COLOR,
     theme_color: SPLASH_COLOR,
+    // Lets the site ask "is this app already installed?" from a browser tab
+    // (`navigator.getInstalledRelatedApps()`, see useInstallApp), so the
+    // "Install app" entry hides once it is. Must name this manifest's own
+    // absolute URL. `prefer_related_applications` stays unset (false): this is
+    // not a pointer to a store app.
+    related_applications: [
+      { platform: "webapp", url: new URL("/manifest.webmanifest", env.APP_URL).href },
+    ],
     icons: [
       { src: "/brand/app-icon-192.png", type: "image/png", sizes: "192x192", purpose: "any" },
       { src: "/brand/app-icon-512.png", type: "image/png", sizes: "512x512", purpose: "any" },

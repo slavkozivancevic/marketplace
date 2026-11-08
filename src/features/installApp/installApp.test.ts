@@ -15,12 +15,15 @@ const UA = {
   firefoxDesktop: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
 };
 
-const base = { hasPrompt: false, standalone: false, maxTouchPoints: 0 };
+const base = { hasPrompt: false, standalone: false, installed: false, maxTouchPoints: 0 };
 
 describe("resolveInstallKind", () => {
-  it("offers the browser prompt when Chrome handed one over (Android and desktop)", () => {
+  it("offers the browser prompt when Chrome on Android handed one over", () => {
     expect(resolveInstallKind({ ...base, hasPrompt: true, userAgent: UA.androidChrome, maxTouchPoints: 5 })).toBe("prompt");
-    expect(resolveInstallKind({ ...base, hasPrompt: true, userAgent: UA.desktopChrome })).toBe("prompt");
+  });
+
+  it("offers nothing on desktop, even when Chrome handed over a prompt", () => {
+    expect(resolveInstallKind({ ...base, hasPrompt: true, userAgent: UA.desktopChrome })).toBeNull();
   });
 
   it("offers the Share steps on iPhone and on iPad with a desktop UA", () => {
@@ -35,6 +38,10 @@ describe("resolveInstallKind", () => {
   it("offers nothing inside the installed app, even with a prompt or on iOS", () => {
     expect(resolveInstallKind({ ...base, standalone: true, hasPrompt: true, userAgent: UA.androidChrome })).toBeNull();
     expect(resolveInstallKind({ ...base, standalone: true, userAgent: UA.iphone, maxTouchPoints: 5 })).toBeNull();
+  });
+
+  it("offers nothing in a browser tab once the app is installed on the device", () => {
+    expect(resolveInstallKind({ ...base, installed: true, hasPrompt: true, userAgent: UA.androidChrome, maxTouchPoints: 5 })).toBeNull();
   });
 
   it("offers nothing where the browser cannot install", () => {

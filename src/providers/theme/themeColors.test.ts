@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import manifest from "@/app/manifest";
+
+vi.mock("@/env/server", () => ({ env: { APP_URL: "https://shop.test" } }));
 import { RESOLVED_THEMES, THEME_COLORS } from "./constants";
 import { setThemeColorMeta } from "./themeColorMeta";
 
@@ -70,6 +72,13 @@ describe("installed-app manifest", () => {
 
   it("never lists icon.svg - Android renders its light variant (dark bag)", () => {
     expect(m.icons?.some((i) => i.src.endsWith(".svg"))).toBe(false);
+  });
+
+  it("names itself as a related webapp, so a browser tab can tell the app is installed", () => {
+    expect(m.related_applications).toEqual([
+      { platform: "webapp", url: "https://shop.test/manifest.webmanifest" },
+    ]);
+    expect(m.prefer_related_applications).toBeUndefined();
   });
 
   it("has a maskable icon at 512", () => {
