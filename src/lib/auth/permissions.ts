@@ -7,8 +7,8 @@ import {
 } from "@/features/common/errors/domainErrors";
 
 const rolePermissions: Record<MembershipRole, Permission[]> = {
-  OWNER: ["product:create", "product:update", "product:delete", "product:read", "order:read", "order:manage", "payout:manage"],
-  ADMIN: ["product:create", "product:update", "product:delete", "product:read", "order:read", "order:manage", "payout:manage"],
+  OWNER: ["product:create", "product:update", "product:delete", "product:read", "order:read", "order:manage", "payout:manage", "payout:read"],
+  ADMIN: ["product:create", "product:update", "product:delete", "product:read", "order:read", "order:manage", "payout:manage", "payout:read"],
   MEMBER: ["product:read", "order:read"],
 };
 
@@ -25,8 +25,11 @@ export function canManageOrgPayouts(role: MembershipRole): boolean {
   return hasPermission(role, "payout:manage");
 }
 
+// Every `*:read` is a read. A screen that only shows data asks for one: the
+// payouts list used to ask for `payout:manage`, which counts as a write, so the
+// view-only demo seller got a 403 on a page it is allowed to open.
 function isWritePermission(permission: Permission) {
-  return permission !== "product:read" && permission !== "order:read";
+  return !permission.endsWith(":read");
 }
 
 /**

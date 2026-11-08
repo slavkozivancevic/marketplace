@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ArrowRight, ChevronDown, ChevronRight, ImageOff } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -15,6 +15,11 @@ import { cn } from "@/lib/utils";
 import type { CategoryTreeItem } from "../db/categories";
 import { getCategoryName } from "../utils/translations";
 import { pressSurface, pressText } from "@/components/ui/pressable";
+import { isAimingAt, type Point } from "../utils/menuAim";
+
+/** How long a department the pointer is only crossing waits before it takes
+ *  over the panel - long enough for a diagonal to reach the tiles. */
+const AIM_DELAY_MS = 250;
 
 /** This locale's own slug, falling back the way the rest of the storefront
  *  does - a category with no row for the active locale must still be
@@ -56,6 +61,43 @@ export function CategoriesMegaMenu({
   const [open, setOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
 
+  // Menu aim. Hovering a department previews it at once - unless the pointer
+  // is on its way to the panel, crossing other departments on a diagonal
+  // toward a tile or "See all". Then the department under it waits, and takes
+  // over only if the pointer stops there instead of reaching the panel.
+  // Click, focus and touch are never delayed.
+  const panelRef = useRef<HTMLDivElement>(null);
+  const trail = useRef<Point[]>([]);
+  const aimTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelAim = () => {
+    if (aimTimer.current) clearTimeout(aimTimer.current);
+    aimTimer.current = null;
+  };
+  useEffect(() => cancelAim, []);
+
+  const previewOnHover = (id: string) => {
+    cancelAim();
+    const panel = panelRef.current?.getBoundingClientRect();
+    const prev = trail.current[0];
+    const cur = trail.current[trail.current.length - 1];
+    if (!panel || !prev || !cur || !isAimingAt(prev, cur, panel)) {
+      setActiveId(id);
+      return;
+    }
+    aimTimer.current = setTimeout(() => {
+      aimTimer.current = null;
+      const now = trail.current[trail.current.length - 1];
+      // Stopped on this department: it is the one wanted after all.
+      if (now === cur) setActiveId(id);
+      else previewOnHover(id);
+    }, AIM_DELAY_MS);
+  };
+
+  const selectNow = (id: string) => {
+    cancelAim();
+    setActiveId(id);
+  };
+
   if (tree.length === 0) return null;
 
   const active = tree.find((d) => d.id === activeId) ?? tree[0];
@@ -83,7 +125,11 @@ export function CategoriesMegaMenu({
         setOpen(next);
         // Reopen on the first department rather than wherever the last visit
         // wandered to - the panel should look the same every time it opens.
-        if (!next) setActiveId(null);
+        if (!next) {
+          cancelAim();
+          trail.current = [];
+          setActiveId(null);
+        }
       }}
     >
       <PopoverTrigger asChild>
@@ -108,7 +154,13 @@ export function CategoriesMegaMenu({
             squeezed out of it - the panel itself is capped at the viewport
             width above, and browser zoom shrinks it the same way. */}
         <div className="grid grid-cols-[10rem_minmax(0,1fr)] sm:grid-cols-[13rem_minmax(0,1fr)] max-h-[70vh]">
-          <ul className="overflow-y-auto border-r py-2">
+          <ul
+            className="overflow-y-auto border-r py-2"
+            onMouseMove={(e) => {
+              // The last few positions: the oldest one is "a moment ago".
+              trail.current = [...trail.current.slice(-2), { x: e.clientX, y: e.clientY }];
+            }}
+          >
             {/* The directory itself, first and above the departments.
                 Without it this panel was the ONLY thing the "Categories"
                 control did on a wide screen, while the same control below xl
@@ -136,9 +188,9 @@ export function CategoriesMegaMenu({
                 <li key={dept.id}>
                   <button
                     type="button"
-                    onMouseEnter={() => setActiveId(dept.id)}
-                    onFocus={() => setActiveId(dept.id)}
-                    onClick={() => setActiveId(dept.id)}
+                    onMouseEnter={() => previewOnHover(dept.id)}
+                    onFocus={() => selectNow(dept.id)}
+                    onClick={() => selectNow(dept.id)}
                     className={cn(
                       "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors cursor-pointer",
                       isActive
@@ -156,7 +208,9 @@ export function CategoriesMegaMenu({
             })}
           </ul>
 
-          <div className="overflow-y-auto p-4">
+          {/* Reaching the panel ends the aim: the department it showed when
+              the pointer left the rail is the one being browsed. */}
+          <div ref={panelRef} className="overflow-y-auto p-4" onMouseEnter={cancelAim}>
             <div className="mb-3 flex items-center justify-between gap-3">
               <p className="text-sm font-semibold truncate">
                 {getCategoryName(active, locale)}

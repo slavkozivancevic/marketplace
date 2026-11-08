@@ -28,6 +28,20 @@ export async function getPricingPageData(
   organizationId: string,
   productId: string,
 ): Promise<PricingPageData> {
+  // Thrown out here, never inside the cached function: an error crossing the
+  // `use cache` boundary comes back as a plain Error, so the pages'
+  // `instanceof NotFoundError` missed it and a missing product (or a typed
+  // `/my-products/new/pricing`) showed "Something went wrong" instead of the
+  // not-found page.
+  const data = await loadPricingPageData(organizationId, productId);
+  if (!data) throw new NotFoundError(`Product ${productId} not found`);
+  return data;
+}
+
+async function loadPricingPageData(
+  organizationId: string,
+  productId: string,
+): Promise<PricingPageData | null> {
   "use cache";
   cacheTag(CacheTags.priceRules.byProduct(organizationId, productId));
   cacheTag(CacheTags.products.byId(organizationId, productId));
@@ -52,7 +66,7 @@ export async function getPricingPageData(
       priceRules: { orderBy: [{ priority: "desc" }, { createdAt: "desc" }] },
     },
   });
-  if (!product) throw new NotFoundError(`Product ${productId} not found`);
+  if (!product) return null;
 
   return {
     productId: product.id,
@@ -86,9 +100,16 @@ export async function getRuleCountByVariant(
 
 /** One rule of the org with its product's variants, for the edit form. */
 export async function getRuleForEdit(organizationId: string, ruleId: string) {
+  // Not found is thrown outside the cache - see getPricingPageData.
+  const data = await loadRuleForEdit(organizationId, ruleId);
+  if (!data) throw new NotFoundError(`Price rule ${ruleId} not found`);
+  return data;
+}
+
+async function loadRuleForEdit(organizationId: string, ruleId: string) {
   "use cache";
   const rule = await prisma.priceRule.findFirst({ where: { id: ruleId, organizationId } });
-  if (!rule) throw new NotFoundError(`Price rule ${ruleId} not found`);
+  if (!rule) return null;
   cacheTag(CacheTags.priceRules.byProduct(organizationId, rule.productId));
   return { rule: { ...toEngineRule(rule), amountMoney: parseMoney(rule.amountMoney) } };
 }

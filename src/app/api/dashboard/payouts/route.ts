@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    requirePermission(ctx, "payout:manage");
+    requirePermission(ctx, "payout:read");
   } catch {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

@@ -21,6 +21,7 @@ export function FloatingSidebarTrigger({
   ...props
 }: IconButtonProps) {
   const bottomBarPresent = useMobileBottomBarStore((s) => s.count > 0);
+  const extent = useMobileBottomBarStore((s) => s.extent);
   return (
     <IconButton
       variant="default"
@@ -32,6 +33,13 @@ export function FloatingSidebarTrigger({
           : "bottom-[calc(1rem+env(safe-area-inset-bottom))]",
         className,
       )}
+      // A measured bar that grew past the fixed lift (staged files above the
+      // chat composer): clear all of it, with the same 1rem gap.
+      style={
+        bottomBarPresent && extent > 0
+          ? { bottom: `calc(max(6rem, ${extent}px + 1rem) + env(safe-area-inset-bottom))` }
+          : undefined
+      }
       {...props}
     >
       {children}

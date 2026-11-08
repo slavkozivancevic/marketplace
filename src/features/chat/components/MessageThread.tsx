@@ -55,6 +55,7 @@ import { QuoteBlock } from "./QuoteBlock";
 import { quoteOf } from "../utils/replies";
 import { chatDisplayName } from "../utils/displayName";
 import { pressSurface, pressText } from "@/components/ui/pressable";
+import { useMobileBottomBarStore } from "@/store/mobileBottomBar";
 
 /**
  * A message in the thread, whether or not the server has confirmed it.
@@ -1226,6 +1227,28 @@ export function MessageThread({
     if (pinnedToBottom.current) jumpToBottom();
   }, [hasStaged, previewHeight, jumpToBottom]);
 
+  // On the messages page the composer is the phone's bottom bar, and the
+  // floating inbox button sits just above it. The button has to clear what
+  // actually stands there - the composer plus, while files are staged, the
+  // panel above it - or it covers the first thumbnail.
+  const [footerEl, setFooterEl] = useState<HTMLDivElement | null>(null);
+  const [footerHeight, setFooterHeight] = useState(0);
+  useEffect(() => {
+    if (!footerEl) return;
+    const observer = new ResizeObserver(() => setFooterHeight(footerEl.offsetHeight));
+    observer.observe(footerEl);
+    return () => observer.disconnect();
+  }, [footerEl]);
+  const bottomExtent = footerHeight + (hasStaged ? previewHeight : 0);
+  useEffect(() => {
+    if (!bottomInset) return;
+    useMobileBottomBarStore.getState().setExtent(bottomExtent);
+  }, [bottomInset, bottomExtent]);
+  useEffect(() => {
+    if (!bottomInset) return;
+    return () => useMobileBottomBarStore.getState().setExtent(0);
+  }, [bottomInset]);
+
   // The list itself getting shorter - the phone keyboard opening under the
   // chat - must not push the newest message out of sight: at the live end it
   // stays at the live end.
@@ -1945,7 +1968,7 @@ export function MessageThread({
       </div>
 
       {/* Input area */}
-      <div className="shrink-0 border-t relative">
+      <div ref={setFooterEl} className="shrink-0 border-t relative">
         {/* File preview panel - absolutely positioned so it doesn't affect
             layout; the list reserves its height (see previewHeight). */}
         <div
