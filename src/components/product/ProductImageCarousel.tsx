@@ -404,7 +404,7 @@ export function ProductImageCarousel({
                           type="button"
                           onClick={() => openLightbox(index)}
                           aria-label="View fullscreen"
-                          className="absolute top-2 right-2 z-10 cursor-pointer rounded-full bg-black/50 p-1.5 text-white transition-all duration-200 hover:bg-black/75 hover:scale-110"
+                          className="absolute top-2 right-2 z-10 cursor-pointer rounded-full bg-black/50 p-1.5 text-white transition-all duration-200 hover:bg-black/75 hover:scale-110 active:bg-black/85 active:scale-100 active:duration-0"
                         >
                           <Maximize2 className="h-4 w-4" />
                         </button>

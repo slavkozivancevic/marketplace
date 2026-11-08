@@ -12,6 +12,7 @@ import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Footer } from "@/components/layout/footer";
 import { absoluteUrl } from "@/lib/seo/jsonLd";
 import { BrandLogo, type LogoBackdrop } from "@/features/brands/components/BrandLogo";
+import { pressCard } from "@/components/ui/pressable";
 
 export async function generateMetadata({
   params,
@@ -141,7 +142,7 @@ export default async function BrandsPage() {
                     pathname: "/brands/[slug]",
                     params: { slug: b.slug },
                   }}
-                  className="group flex flex-col items-center justify-center gap-3 rounded-xl border border-border/50 bg-card p-6 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5 hover:border-border"
+                  className={`group flex flex-col items-center justify-center gap-3 rounded-xl border border-border/50 bg-card p-6 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5 hover:border-border ${pressCard}`}
                 >
                   <BrandLogo
                     src={b.logoUrl}

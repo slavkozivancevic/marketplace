@@ -11,6 +11,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { pressNavLink } from "@/components/ui/pressable";
 import { FloatingSidebarTrigger } from "./floating-sidebar-trigger";
 import type { LucideIcon } from "lucide-react";
 
@@ -59,7 +60,7 @@ function NavLinks({
               "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
               isActive
                 ? "bg-primary/10 text-primary shadow-sm"
-                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                : pressNavLink
             )}
           >
             <Icon
@@ -93,7 +94,7 @@ function NavLinks({
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                   isActive
                     ? "bg-primary/10 text-primary shadow-sm"
-                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                    : pressNavLink
                 )}
               >
                 <Icon

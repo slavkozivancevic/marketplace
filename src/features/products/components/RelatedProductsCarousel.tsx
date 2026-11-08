@@ -15,6 +15,7 @@ import {
   useCarousel,
 } from "@/components/ui/carousel";
 import { padForLoop } from "@/lib/carouselLoop";
+import { pressText } from "@/components/ui/pressable";
 
 // Carousels render the exact same storefront card as the products grid and the
 // wishlist (single source: <ProductCard>). The data is a full product list
@@ -107,7 +108,7 @@ export function RelatedProductsCarousel({
           {showViewAll && (
             <Link
               href="/products"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:block"
+              className={`text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:block ${pressText}`}
             >
               {t("viewAll")}
             </Link>

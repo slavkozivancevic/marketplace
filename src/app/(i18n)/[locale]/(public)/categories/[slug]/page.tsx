@@ -29,6 +29,7 @@ import {
 import { getPublicProductsPage } from "@/features/products/db/publicProducts";
 import { getViewerCountry } from "@/features/priceMarkets/db/viewer";
 import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
+import { pressNavLink } from "@/components/ui/pressable";
 
 // Matches a v4 UUID - used to redirect legacy `/categories/<uuid>` URLs to
 // the locale-correct slug form.
@@ -364,7 +365,7 @@ export default async function CategoryDetailPage({ params }: CategoryPageProps) 
                     pathname: "/categories/[slug]",
                     params: { slug: childT.slug },
                   }}
-                  className="rounded-full border border-border/60 bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-border transition-colors"
+                  className={`rounded-full border border-border/60 bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-border transition-colors ${pressNavLink}`}
                 >
                   {getCategoryName(child, locale)}
                 </Link>

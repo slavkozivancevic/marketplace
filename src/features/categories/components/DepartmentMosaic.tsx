@@ -9,6 +9,7 @@ import type { DepartmentWithImages } from "../db/categories";
 import { getCategoryName, getCategorySlug } from "../utils/translations";
 import { MOSAIC_MIN_IMAGES } from "../utils/mosaic";
 import { useTouchHover, touchActiveAttr } from "@/hooks/useTouchHover";
+import { pressTile } from "@/components/ui/pressable";
 
 /**
  * The hero's visual: a fixed collage of real catalogue photographs - the same
@@ -219,6 +220,7 @@ function CollageTile({
     "group/tile relative block overflow-hidden rounded-xl border border-border/50 bg-card",
     "transition-transform duration-300 ease-out",
     "hoverable:hover:z-10 hoverable:hover:scale-[1.03] data-[touch-active=true]:z-10 data-[touch-active=true]:scale-[1.03] focus-visible:z-10 focus-visible:scale-[1.03]",
+    pressTile,
     className,
   );
 

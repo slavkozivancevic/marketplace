@@ -15,6 +15,7 @@ import type { DepartmentWithImages } from "../db/categories";
 import { getCategoryName, getCategorySlug } from "../utils/translations";
 import { useTouchHover, touchActiveAttr } from "@/hooks/useTouchHover";
 import { useLocale } from "next-intl";
+import { pressText, pressTile } from "@/components/ui/pressable";
 
 // ---------- Collage ----------
 
@@ -130,7 +131,7 @@ function DepartmentCard({ dept }: { dept: DepartmentWithImages }) {
       ref={containerRef}
       {...touchProps}
       {...touchActiveAttr(touchActive)}
-      className="group relative overflow-hidden rounded-xl border border-border/50 bg-card aspect-square flex flex-col items-center justify-end hoverable:hover:border-border hoverable:hover:shadow-lg hoverable:hover:shadow-black/10 transition-all duration-300 hoverable:hover:-translate-y-0.5 data-[touch-active=true]:border-border data-[touch-active=true]:shadow-lg data-[touch-active=true]:shadow-black/10 data-[touch-active=true]:-translate-y-0.5 shrink-0"
+      className={`group relative overflow-hidden rounded-xl border border-border/50 bg-card aspect-square flex flex-col items-center justify-end hoverable:hover:border-border hoverable:hover:shadow-lg hoverable:hover:shadow-black/10 transition-all duration-300 hoverable:hover:-translate-y-0.5 data-[touch-active=true]:border-border data-[touch-active=true]:shadow-lg data-[touch-active=true]:shadow-black/10 data-[touch-active=true]:-translate-y-0.5 shrink-0 ${pressTile}`}
     >
       <DepartmentCollage images={dept.productImages} name={name} />
 
@@ -244,7 +245,7 @@ export function DepartmentCarousel({
               yet. */}
           <Link
             href="/categories"
-            className="hidden sm:flex items-center gap-1 text-sm text-primary hover:underline shrink-0"
+            className={`hidden sm:flex items-center gap-1 text-sm text-primary hover:underline shrink-0 ${pressText}`}
           >
             {browseAllLabel}
             <ChevronRight className="h-3.5 w-3.5" />
@@ -288,7 +289,7 @@ export function DepartmentCarousel({
         <div className="mt-5 text-center sm:hidden">
           <Link
             href="/categories"
-            className="text-sm text-primary hover:underline inline-flex items-center gap-1"
+            className={`text-sm text-primary hover:underline inline-flex items-center gap-1 ${pressText}`}
           >
             {browseAllLabel}
             <ChevronRight className="h-3.5 w-3.5" />

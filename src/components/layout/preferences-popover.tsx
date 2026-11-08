@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { IconButton } from "@/components/IconButton";
+import { pressSurface } from "@/components/ui/pressable";
 
 const currencySymbols: Record<string, string> = {
   usd: "$",
@@ -227,7 +228,7 @@ export function PreferencesPopover() {
                 "flex cursor-pointer items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition-colors",
                 locale === lang.locale
                   ? "border-primary bg-primary/5 text-primary"
-                  : "border-border text-muted-foreground hover:border-primary/50 hover:bg-muted hover:text-foreground",
+                  : cn("border-border text-muted-foreground hover:border-primary/50 hover:text-foreground active:text-foreground", pressSurface),
               )}
             >
               <span className="relative h-3 w-4 shrink-0">
@@ -269,7 +270,7 @@ export function PreferencesPopover() {
                 "flex flex-1 cursor-pointer items-center justify-center rounded-md border px-2 py-1.5 text-xs font-medium transition-colors",
                 mounted && currency === code
                   ? "border-primary bg-primary/5 text-primary"
-                  : "border-border text-muted-foreground hover:border-primary/50 hover:bg-muted hover:text-foreground",
+                  : cn("border-border text-muted-foreground hover:border-primary/50 hover:text-foreground active:text-foreground", pressSurface),
               )}
             >
               {code.toUpperCase()}
@@ -318,7 +319,7 @@ export function PreferencesPopover() {
                   "flex cursor-pointer flex-col items-center justify-center rounded-md border py-2 transition-colors",
                   isActive
                     ? "border-primary bg-primary/5 text-primary"
-                    : "border-border text-muted-foreground hover:border-primary/50 hover:bg-muted hover:text-foreground",
+                    : cn("border-border text-muted-foreground hover:border-primary/50 hover:text-foreground active:text-foreground", pressSurface),
                 )}
               >
                 <Icon className="h-3.5 w-3.5" />

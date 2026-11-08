@@ -217,7 +217,7 @@ function ConversationRow({
             ? "bg-primary/20 text-foreground"
             : isSelected
               ? "bg-primary/10 text-foreground"
-              : "pointer-fine:hover:bg-muted/60"
+              : "pointer-fine:hover:bg-muted/60 active:bg-muted active:duration-0"
         )}
       >
         {/* Avatar, with WhatsApp's tick at the bottom right while picked. */}

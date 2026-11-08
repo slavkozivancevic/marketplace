@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import type { FilterGroup, FilterValues } from "./FilterSidebar";
+import { pressText } from "@/components/ui/pressable";
 
 interface ActiveFiltersProps {
   groups: FilterGroup[];
@@ -77,7 +78,7 @@ export function ActiveFilters({
           // moves the same distance in every theme and automatically picks the
           // right direction: darker on light, lighter on dark. Same reasoning as
           // the button variants' color-mix ladder.
-          className="gap-1 pr-1 cursor-pointer border-border/60 bg-card text-card-foreground hover:bg-[color-mix(in_oklab,var(--card)_96%,var(--foreground))] transition-colors"
+          className="gap-1 pr-1 cursor-pointer border-border/60 bg-card text-card-foreground hover:bg-[color-mix(in_oklab,var(--card)_96%,var(--foreground))] active:bg-[color-mix(in_oklab,var(--card)_90%,var(--foreground))] active:duration-0 transition-colors"
           onClick={() =>
             chip.value === "__range__"
               ? onRemove(chip.key)
@@ -92,7 +93,7 @@ export function ActiveFilters({
         <button
           type="button"
           onClick={onClearAll}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors underline cursor-pointer"
+          className={`text-xs text-muted-foreground hover:text-foreground transition-colors underline cursor-pointer ${pressText}`}
         >
           {t("clearAll")}
         </button>

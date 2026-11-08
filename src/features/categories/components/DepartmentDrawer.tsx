@@ -12,6 +12,7 @@ import {
 import type { CategoryTreeItem } from "../db/categories";
 import { getCategoryName } from "../utils/translations";
 import { useLocale } from "next-intl";
+import { pressSurface, pressText } from "@/components/ui/pressable";
 
 interface DepartmentDrawerProps {
   open: boolean;
@@ -101,7 +102,7 @@ export function DepartmentDrawer({
           {currentFrame ? (
             <button
               onClick={drillBack}
-              className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors p-0.5"
+              className={`cursor-pointer text-muted-foreground hover:text-foreground transition-colors p-0.5 ${pressText}`}
               aria-label={t("back")}
             >
               <ChevronLeft className="h-4 w-4" />
@@ -116,7 +117,7 @@ export function DepartmentDrawer({
 
           <button
             onClick={handleClose}
-            className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors p-0.5 ml-auto"
+            className={`cursor-pointer text-muted-foreground hover:text-foreground transition-colors p-0.5 ml-auto ${pressText}`}
             aria-label={t("close")}
           >
             <X className="h-4 w-4" />
@@ -127,7 +128,7 @@ export function DepartmentDrawer({
         {currentFrame && (
           <button
             onClick={drillBack}
-            className="cursor-pointer flex items-center gap-1.5 px-4 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors border-b bg-muted/30 shrink-0"
+            className={`cursor-pointer flex items-center gap-1.5 px-4 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors border-b bg-muted/30 shrink-0 ${pressText}`}
           >
             <ChevronLeft className="h-3 w-3" />
             {t("backTo")} {backLabel}
@@ -145,7 +146,7 @@ export function DepartmentDrawer({
                 "cursor-pointer w-full flex items-center justify-between px-4 py-3 text-sm border-b border-border/40 transition-colors text-left",
                 selectedDept === ""
                   ? "bg-primary/5 text-primary font-semibold"
-                  : "hover:bg-muted text-foreground",
+                  : cn("text-foreground", pressSurface),
               )}
             >
               <span>{t("allDepartments")}</span>
@@ -163,7 +164,7 @@ export function DepartmentDrawer({
                 "cursor-pointer w-full flex items-center justify-between px-4 py-3 text-sm border-b border-border/40 transition-colors text-left font-medium",
                 selectedDept === currentFrame.parentSlug
                   ? "bg-primary/5 text-primary"
-                  : "hover:bg-muted text-foreground",
+                  : cn("text-foreground", pressSurface),
               )}
             >
               <span>{t("seeAll", { name: getCategoryName(currentFrame.item, locale) })}</span>
@@ -187,7 +188,7 @@ export function DepartmentDrawer({
                   "cursor-pointer w-full flex items-center justify-between px-4 py-3 text-sm border-b border-border/40 transition-colors text-left",
                   isSelected
                     ? "bg-primary/5 text-primary font-semibold"
-                    : "hover:bg-muted text-foreground",
+                    : cn("text-foreground", pressSurface),
                 )}
               >
                 <span className="flex-1 truncate">{getCategoryName(item, locale)}</span>

@@ -85,6 +85,7 @@ import { useCurrencyStore } from "@/store/currency";
 import { MoneyField } from "@/components/forms/MoneyField";
 import { formatPrice } from "@/lib/currency";
 import { emptyMoneyInput, toMoneyInput, type MoneyInput } from "@/lib/money-input";
+import { pressSurface } from "@/components/ui/pressable";
 
 // ── Translation form shape ───────────────────────────────────────────────
 //
@@ -348,14 +349,14 @@ function CategoryPicker({
             <div className="p-2 space-y-3">
               {tree.map((dept) => (
                 <div key={dept.id}>
-                  <label className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted cursor-pointer">
+                  <label className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer ${pressSurface}`}>
                     <Checkbox checked={value.includes(dept.id)} onCheckedChange={() => toggle(dept.id)} />
                     <span className="text-sm font-semibold">{getCategoryName(dept, locale)}</span>
                   </label>
                   {dept.children.length > 0 && (
                     <div className="ml-4 mt-0.5 space-y-0.5">
                       {dept.children.map((sub) => (
-                        <label key={sub.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted cursor-pointer">
+                        <label key={sub.id} className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer ${pressSurface}`}>
                           <Checkbox checked={value.includes(sub.id)} onCheckedChange={() => toggle(sub.id)} />
                           <span className="text-sm text-muted-foreground">{getCategoryName(sub, locale)}</span>
                         </label>
@@ -376,7 +377,7 @@ function CategoryPicker({
             return (
               <Badge key={id} variant="secondary" className="gap-1 pr-1">
                 {getCategoryName(node, locale)}
-                <button type="button" onClick={() => toggle(id)} className="rounded-full hover:bg-muted-foreground/20 p-0.5 cursor-pointer">
+                <button type="button" onClick={() => toggle(id)} className="rounded-full hover:bg-muted-foreground/20 active:bg-muted-foreground/30 active:duration-0 p-0.5 cursor-pointer">
                   <X className="h-3 w-3" />
                 </button>
               </Badge>
@@ -421,7 +422,7 @@ function TagPicker({
           ) : (
             <div className="p-2 space-y-0.5">
               {options.map((opt) => (
-                <label key={opt.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted cursor-pointer">
+                <label key={opt.id} className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer ${pressSurface}`}>
                   <Checkbox checked={value.includes(opt.id)} onCheckedChange={() => toggle(opt.id)} />
                   <span className="text-sm">{getTagName(opt, locale)}</span>
                 </label>
@@ -438,7 +439,7 @@ function TagPicker({
             return (
               <Badge key={id} variant="secondary" className="gap-1 pr-1">
                 {getTagName(opt, locale)}
-                <button type="button" onClick={() => toggle(id)} className="rounded-full hover:bg-muted-foreground/20 p-0.5 cursor-pointer">
+                <button type="button" onClick={() => toggle(id)} className="rounded-full hover:bg-muted-foreground/20 active:bg-muted-foreground/30 active:duration-0 p-0.5 cursor-pointer">
                   <X className="h-3 w-3" />
                 </button>
               </Badge>

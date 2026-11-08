@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/sheet";
 import type { CategoryTreeItem } from "../db/categories";
 import { getCategoryName } from "../utils/translations";
+import { pressSurface, pressText } from "@/components/ui/pressable";
 
 interface CategoryToolbarProps {
   categories: CategoryTreeItem[];
@@ -75,20 +76,20 @@ function CategoryDrawer({
         <SheetHeader className="shrink-0 px-4 pt-4 pb-3 border-b">
           <div className="flex items-center gap-2">
             {parentLabel ? (
-              <button onClick={handleBack} className="text-muted-foreground hover:text-foreground transition-colors">
+              <button onClick={handleBack} className={`text-muted-foreground hover:text-foreground transition-colors ${pressText}`}>
                 <ChevronLeft className="h-4 w-4" />
               </button>
             ) : null}
             <SheetTitle className="text-sm font-semibold">
               {parentLabel ?? t("allCategories")}
             </SheetTitle>
-            <button onClick={handleClose} className="ml-auto text-muted-foreground hover:text-foreground">
+            <button onClick={handleClose} className={`ml-auto text-muted-foreground hover:text-foreground ${pressText}`}>
               <X className="h-4 w-4" />
             </button>
           </div>
           {parentLabel && (
             <button
-              className="text-xs text-muted-foreground hover:text-foreground text-left"
+              className={`text-xs text-muted-foreground hover:text-foreground text-left ${pressText}`}
               onClick={handleBack}
             >
               ← {t("backTo")} {stack.length > 1 ? stack[stack.length - 2].label : t("allCategories")}
@@ -105,7 +106,8 @@ function CategoryDrawer({
                 key={item.id}
                 onClick={() => handleDrillIn(item)}
                 className={cn(
-                  "w-full flex items-center justify-between px-4 py-3 text-sm border-b border-border/50 hover:bg-muted transition-colors text-left",
+                  "w-full flex items-center justify-between px-4 py-3 text-sm border-b border-border/50 transition-colors text-left",
+                  pressSurface,
                   isSelected && "bg-primary/5 text-primary font-medium",
                 )}
               >
@@ -128,7 +130,7 @@ function CategoryDrawer({
           <div className="shrink-0 border-t px-4 py-3">
             <button
               onClick={() => onChange([])}
-              className="text-xs text-muted-foreground hover:text-foreground underline"
+              className={`text-xs text-muted-foreground hover:text-foreground underline ${pressText}`}
             >
               {t("clearAll")}
             </button>
@@ -170,7 +172,7 @@ export function CategoryToolbar({
             "flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all border",
             selectedIds.length === 0
               ? "bg-foreground text-background border-foreground"
-              : "bg-background border-border text-foreground hover:bg-muted",
+              : cn("bg-background border-border text-foreground", pressSurface),
           )}
         >
           <AlignLeft className="h-3.5 w-3.5" />
@@ -188,7 +190,7 @@ export function CategoryToolbar({
                 "shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all border whitespace-nowrap",
                 isActive
                   ? "bg-foreground text-background border-foreground"
-                  : "bg-background border-border text-foreground hover:bg-muted",
+                  : cn("bg-background border-border text-foreground", pressSurface),
               )}
             >
               {getCategoryName(cat, locale)}

@@ -38,6 +38,7 @@ import { MarketPriceNote } from "@/features/priceMarkets/components/MarketPriceN
 import { cn } from "@/lib/utils";
 import { formatNumber, formatRating } from "@/lib/i18n/numbers";
 import { FreeShippingBadge } from "@/features/shipping/components/FreeShippingBadge";
+import { LinkPendingMark, pressCard, pressText } from "@/components/ui/pressable";
 
 // ---------- Rating breakdown popover ----------
 
@@ -108,7 +109,7 @@ function RatingBreakdownPopover({
       >
         {/* Close button */}
         <button
-          className="absolute top-2 right-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          className={`absolute top-2 right-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer ${pressText}`}
           onClick={(e) => { e.stopPropagation(); setOpen(false); }}
           aria-label={tCommon("close")}
         >
@@ -149,7 +150,7 @@ function RatingBreakdownPopover({
             params: { slug: productSlug },
             hash: "reviews",
           }}
-          className="text-xs text-primary hover:underline block pt-1"
+          className={`text-xs text-primary hover:underline block pt-1 ${pressText}`}
           onClick={(e: React.MouseEvent) => e.stopPropagation()}
         >
           {t("seeCustomerReviews")} &rsaquo;
@@ -211,7 +212,8 @@ export function ProductCard({
         href={{ pathname: "/products/[slug]", params: { slug: productSlug } }}
         className="block h-full"
       >
-        <Card className="h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 border-border/50 pt-0 pb-0 gap-0 flex flex-col">
+        <Card className={`h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 border-border/50 pt-0 pb-0 gap-0 flex flex-col ${pressCard}`}>
+          <LinkPendingMark />
           <CardHeader className="p-0 relative">
             {(() => {
               // Card hero cycles through every media item: images use their

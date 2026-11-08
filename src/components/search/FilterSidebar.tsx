@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { pressText } from "@/components/ui/pressable";
 
 // ---------- Filter config types ----------
 
@@ -199,7 +200,7 @@ function CheckboxFilter({
       {showToggle && (
         <button
           onClick={() => setExpanded((p) => !p)}
-          className="flex items-center gap-1 text-xs text-primary hover:underline mt-1 cursor-pointer"
+          className={`flex items-center gap-1 text-xs text-primary hover:underline mt-1 cursor-pointer ${pressText}`}
         >
           {expanded ? (
             <>
@@ -360,7 +361,7 @@ function StarRatingFilter({
         {value != null && (
           <button
             onClick={() => onChange(null)}
-            className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            className={`text-muted-foreground hover:text-foreground transition-colors cursor-pointer ${pressText}`}
             aria-label="Clear rating filter"
           >
             <X className="h-3.5 w-3.5" />

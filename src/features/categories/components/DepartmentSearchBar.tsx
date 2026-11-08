@@ -15,6 +15,7 @@ import type { CategoryTreeItem } from "../db/categories";
 import { getCategoryName } from "../utils/translations";
 import { useLocale } from "next-intl";
 import { useDebounce } from "@/hooks/useDebounce";
+import { pressSurface, pressText } from "@/components/ui/pressable";
 
 interface DepartmentSearchBarProps {
   /** Full category tree passed from server. */
@@ -170,7 +171,8 @@ export function DepartmentSearchBar({
             <button
               onClick={() => setDrawerOpen(true)}
               className={cn(
-                "flex cursor-pointer items-center gap-1.5 px-3 text-sm font-medium whitespace-nowrap shrink-0 border-r border-border hover:bg-muted transition-colors",
+                "flex cursor-pointer items-center gap-1.5 px-3 text-sm font-medium whitespace-nowrap shrink-0 border-r border-border transition-colors",
+                pressSurface,
                 dept ? "text-primary" : "text-foreground",
               )}
               aria-label={t("selectDepartment")}
@@ -203,7 +205,7 @@ export function DepartmentSearchBar({
             ) : localSearch ? (
               <button
                 onClick={clearSearch}
-                className="absolute right-3 cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
+                className={`absolute right-3 cursor-pointer text-muted-foreground hover:text-foreground transition-colors ${pressText}`}
                 aria-label="Clear search"
               >
                 <X className="h-4 w-4" />

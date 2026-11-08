@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { APP_VERSION } from "@/lib/version";
 import { BrandHomeLink } from "./brand-home-link";
 import { PROJECT_LINKS } from "@/lib/projectLinks";
+import { pressText } from "@/components/ui/pressable";
 
 export function Footer() {
   const t = useTranslations("footer");
@@ -54,14 +55,14 @@ export function Footer() {
                         href={link.href}
                         target="_blank"
                         rel="noopener"
-                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        className={`text-sm text-muted-foreground hover:text-foreground transition-colors ${pressText}`}
                       >
                         {link.label}
                       </a>
                     ) : (
                       <Link
                         href={link.href as never}
-                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        className={`text-sm text-muted-foreground hover:text-foreground transition-colors ${pressText}`}
                       >
                         {link.label}
                       </Link>

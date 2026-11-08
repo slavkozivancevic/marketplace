@@ -212,7 +212,7 @@ export function MediaLightbox({
         <div className="relative flex items-center justify-center w-full h-full">
           <button
             onClick={() => handleOpenChange(false)}
-            className="absolute top-3 right-3 z-10 cursor-pointer rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70 transition-colors"
+            className="absolute top-3 right-3 z-10 cursor-pointer rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70 active:bg-black/80 active:duration-0 transition-colors"
           >
             <X className="h-5 w-5" />
           </button>

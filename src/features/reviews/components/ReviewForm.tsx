@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StarRating } from "./StarRating";
 import { submitReview } from "../actions/reviews";
 import { isActionErrorResult } from "@/features/common/errors/actionErrorResult";
+import { pressText } from "@/components/ui/pressable";
 
 interface ReviewFormProps {
   productId: string;
@@ -80,7 +81,7 @@ export function ReviewForm({ productId, orderId }: ReviewFormProps) {
               <button
                 type="button"
                 onClick={() => setRating(0)}
-                className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                className={`text-muted-foreground hover:text-foreground transition-colors cursor-pointer ${pressText}`}
                 aria-label="Clear rating"
               >
                 <X className="h-3.5 w-3.5" />

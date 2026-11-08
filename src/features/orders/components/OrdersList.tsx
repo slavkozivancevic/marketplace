@@ -15,6 +15,7 @@ import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
 import type { OrderFilters } from "@/lib/query/searchParams";
 import { TableScroll } from "@/components/ui/table-scroll";
+import { pressText } from "@/components/ui/pressable";
 
 function buildFetcher(filters: OrderFilters) {
   return async ({
@@ -115,7 +116,7 @@ export function OrdersList({
           ) : (
             <>
               {t("orders.noneYetDesc")}{" "}
-              <Link href="/products" className="underline">
+              <Link href="/products" className={`underline ${pressText}`}>
                 {t("orders.browse")}
               </Link>
             </>

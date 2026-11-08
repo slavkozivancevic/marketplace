@@ -16,6 +16,7 @@ import {
   getStorefrontCategoryTree,
 } from "@/features/categories/db/categories";
 import { getCategoryName } from "@/features/categories/utils/translations";
+import { pressCard } from "@/components/ui/pressable";
 
 export async function generateMetadata({
   params,
@@ -117,7 +118,7 @@ export default async function CategoriesDirectoryPage() {
                   <Link
                     key={dept.id}
                     href={{ pathname: "/categories/[slug]", params: { slug } }}
-                    className="group rounded-lg border bg-card p-3 transition-colors hover:border-primary/40"
+                    className={`group rounded-lg border bg-card p-3 transition-colors hover:border-primary/40 ${pressCard}`}
                   >
                     <div className="relative mb-2 aspect-square w-full max-w-full overflow-hidden rounded bg-muted/40">
                       {image ? (

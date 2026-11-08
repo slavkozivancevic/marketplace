@@ -48,6 +48,7 @@ import {
 import type { BulkFilter, BulkUpdateFields } from "@/features/products/types/bulk";
 import { BULK_CATEGORY_MUTATION_LIMIT } from "@/features/products/types/bulk";
 import { TruncatedTooltip } from "@/components/TruncatedTooltip";
+import { pressSurface, pressText } from "@/components/ui/pressable";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -309,7 +310,7 @@ function ChipGroup<T extends { id: string }>({
             className={`cursor-pointer rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
               selected
                 ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-background hover:bg-muted"
+                : `border-border bg-background ${pressSurface}`
             }`}
             title={labelFor(opt)}
           >
@@ -498,7 +499,7 @@ function ConditionRow({
                   className={`cursor-pointer rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
                     selected
                       ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-background hover:bg-muted"
+                      : `border-border bg-background ${pressSurface}`
                   }`}
                 >
                   {STATUS_LABELS[s]}
@@ -610,7 +611,7 @@ function ConditionRow({
                     <button
                       type="button"
                       aria-label={t("removeCountry", { country: countryName(code, locale) })}
-                      className="cursor-pointer"
+                      className={`cursor-pointer ${pressText}`}
                       onClick={() =>
                         onUpdate({
                           type: "countryOfOrigin",

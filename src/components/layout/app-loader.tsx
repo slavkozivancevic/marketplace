@@ -5,6 +5,7 @@ import { useAuth } from "@clerk/nextjs";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { LoaderVisual } from "./loader-visual";
+import { pressText } from "@/components/ui/pressable";
 
 const STUCK_MS = 10_000;
 
@@ -96,7 +97,7 @@ export function AppLoader({ hidden }: { hidden: boolean }) {
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="cursor-pointer text-sm font-medium text-primary underline underline-offset-4"
+            className={`cursor-pointer text-sm font-medium text-primary underline underline-offset-4 ${pressText}`}
           >
             {t("reloadPage")}
           </button>

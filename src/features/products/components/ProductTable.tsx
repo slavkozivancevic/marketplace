@@ -26,6 +26,7 @@ import { getBrandName } from "@/features/brands/utils/translations";
 // a column here can't leave the skeleton behind.
 import { buildProductTableCols } from "./ProductTableSkeleton";
 import { IconButton } from "@/components/IconButton";
+import { LinkPendingMark, pressSurface } from "@/components/ui/pressable";
 
 function getStatusVariant(status: string) {
   switch (status) {
@@ -199,10 +200,11 @@ export function ProductTableRow({
         "grid items-center gap-4 border-b p-3 transition-all min-w-fit",
         isBusy
           ? "opacity-50 pointer-events-none cursor-default"
-          : "cursor-pointer hover:bg-muted/50",
+          : cn("cursor-pointer", pressSurface),
       )}
       style={{ gridTemplateColumns: cols }}
     >
+      <LinkPendingMark />
       <div role="cell">
         {thumbnailUrl ? (
           <div className="relative h-12 w-12 overflow-hidden rounded border bg-muted">

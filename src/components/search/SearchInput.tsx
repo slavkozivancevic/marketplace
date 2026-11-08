@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Search, X, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { pressText } from "@/components/ui/pressable";
 
 interface SearchInputProps {
   value: string;
@@ -97,7 +98,7 @@ export function SearchInput({
           <button
             type="button"
             onClick={handleClear}
-            className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
+            className={`cursor-pointer text-muted-foreground hover:text-foreground transition-colors ${pressText}`}
           >
             <X className="size-4" />
             <span className="sr-only">Clear search</span>

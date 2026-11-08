@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { countryName, foldForSearch, sortedCountries, type CountryCode } from "@/lib/i18n/countries";
+import { pressText } from "@/components/ui/pressable";
 
 /**
  * Picks the countries of one market.
@@ -179,7 +180,7 @@ export function CountryMultiSelect({
                 type="button"
                 disabled={disabled}
                 aria-label={t("countryRemove", { country: c.name })}
-                className="cursor-pointer"
+                className={`cursor-pointer ${pressText}`}
                 onClick={() => toggle(c.code)}
               >
                 <X className="h-3 w-3" />
