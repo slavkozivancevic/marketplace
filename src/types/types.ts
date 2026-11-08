@@ -26,7 +26,8 @@ export type Permission =
   | "product:read"
   | "order:read"
   | "order:manage"
-  | "payout:manage";
+  | "payout:manage"
+  | "payout:read";
 
 import type { MediaType } from "@/generated/prisma/client";
 

@@ -104,6 +104,19 @@ describe("view-only demo accounts", () => {
     const demoSeller = makeCtx({ membershipRole: MembershipRole.ADMIN, isDemoReadOnly: true });
     expect(() => requirePermission(demoSeller, "product:read")).not.toThrow();
     expect(() => requirePermission(demoSeller, "order:read")).not.toThrow();
+    expect(() => requirePermission(demoSeller, "payout:read")).not.toThrow();
+  });
+
+  it("can read payouts but not manage them", () => {
+    const demoSeller = makeCtx({ membershipRole: MembershipRole.ADMIN, isDemoReadOnly: true });
+    expect(() => requirePermission(demoSeller, "payout:read")).not.toThrow();
+    expect(() => requirePermission(demoSeller, "payout:manage")).toThrow(DemoReadOnlyError);
+  });
+
+  it("keeps payout:read away from a MEMBER", () => {
+    expect(() =>
+      requirePermission(makeCtx({ membershipRole: MembershipRole.MEMBER }), "payout:read"),
+    ).toThrow(ForbiddenError);
   });
 
   it("assertWritable passes everyone else", () => {

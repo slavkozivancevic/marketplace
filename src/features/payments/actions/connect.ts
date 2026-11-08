@@ -118,7 +118,9 @@ export async function syncConnectStatus(): Promise<
 > {
   try {
     const ctx = await resolveRequestContext();
-    requirePermission(ctx, "payout:manage");
+    // A read: the only thing written is Stripe's own state mirrored back, so
+    // the view-only demo seller sees the org's real Connect status too.
+    requirePermission(ctx, "payout:read");
 
     const account = await getConnectedAccount(ctx.organizationId);
     if (!account) return DISCONNECTED;

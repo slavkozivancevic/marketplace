@@ -16,7 +16,7 @@ import {
   DEMO_BUYER_TTL_MS,
   pickDemoBuyersToRetire,
 } from "./demoBuyerPolicy";
-import { demoSafe, maskEmail, maskEmails } from "./maskEmail";
+import { demoSafe, demoSafeOrder, maskEmail, maskEmails, maskName } from "./maskEmail";
 import {
   DEMO_BUSY_PARAM,
   demoBusyUrl,
@@ -98,6 +98,54 @@ describe("maskEmail", () => {
     const rows = [{ email: "marija@example.com" }];
     expect(demoSafe(rows, { isDemoReadOnly: false })).toBe(rows);
     expect(demoSafe(rows, { isDemoReadOnly: true })[0].email).toBe("m***@example.com");
+  });
+});
+
+describe("demoSafeOrder", () => {
+  const order = {
+    id: "o1",
+    shippingName: "Toma Zojkic",
+    shippingLine1: "Zemunska 15",
+    shippingLine2: "Stan 4",
+    shippingCity: "Dobanovci",
+    shippingPostalCode: "11272",
+    shippingCountry: "RS",
+    user: { name: "Zojka Zojkic", email: "zojka@example.com" },
+    items: [{ name: "Leather Backpack" }],
+  };
+
+  it("masks the buyer's names, street and postal code, keeps city and country", () => {
+    const out = demoSafeOrder(order, { isDemoReadOnly: true });
+    expect(out.shippingName).toBe("T*** Z***");
+    expect(out.shippingLine1).toBe("***");
+    expect(out.shippingLine2).toBe("***");
+    expect(out.shippingPostalCode).toBe("***");
+    expect(out.shippingCity).toBe("Dobanovci");
+    expect(out.shippingCountry).toBe("RS");
+    expect(out.user).toEqual({ name: "Z*** Z***", email: "z***@example.com" });
+    // A `name` outside a `user` is a product's, not a person's.
+    expect(out.items[0].name).toBe("Leather Backpack");
+    expect(order.shippingLine1).toBe("Zemunska 15");
+  });
+
+  it("walks a page of orders, and leaves empty fields empty", () => {
+    const page = { items: [{ ...order, shippingLine2: null, user: { name: null, email: "a@b.io" } }] };
+    const out = demoSafeOrder(page, { isDemoReadOnly: true });
+    expect(out.items[0].shippingLine2).toBeNull();
+    expect(out.items[0].user.name).toBeNull();
+    expect(out.items[0].shippingLine1).toBe("***");
+  });
+
+  it("changes nothing for a viewer who is not a demo account", () => {
+    expect(demoSafeOrder(order, { isDemoReadOnly: false })).toBe(order);
+  });
+});
+
+describe("maskName", () => {
+  it("keeps each word's first letter", () => {
+    expect(maskName("Toma")).toBe("T***");
+    expect(maskName("  Ana  Marija Kovac ")).toBe("A*** M*** K***");
+    expect(maskName("   ")).toBe("***");
   });
 });
 
