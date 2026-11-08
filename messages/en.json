@@ -1939,6 +1939,14 @@
     "appearance": "Appearance",
     "toggle": "Change theme"
   },
+  "installApp": {
+    "button": "Install app",
+    "iosTitle": "Install MarketVerse",
+    "iosDescription": "Add MarketVerse to your home screen and open it like any other app.",
+    "iosStep1": "Tap Share in the browser toolbar.",
+    "iosStep2": "Choose \"Add to Home Screen\".",
+    "close": "Close"
+  },
   "currency": {
     "label": "Currency",
     "usd": "US Dollar",

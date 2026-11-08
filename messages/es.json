@@ -1939,6 +1939,14 @@
     "appearance": "Apariencia",
     "toggle": "Cambiar tema"
   },
+  "installApp": {
+    "button": "Instalar app",
+    "iosTitle": "Instala MarketVerse",
+    "iosDescription": "Añade MarketVerse a tu pantalla de inicio y ábrelo como cualquier otra app.",
+    "iosStep1": "Toca Compartir en la barra del navegador.",
+    "iosStep2": "Elige \"Añadir a pantalla de inicio\".",
+    "close": "Cerrar"
+  },
   "currency": {
     "label": "Divisa",
     "usd": "Dólar estadounidense",

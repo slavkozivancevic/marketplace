@@ -18,6 +18,22 @@ export const DARK_THEMES: ReadonlySet<ResolvedTheme> = new Set([
   "cosmos",
 ]);
 
+/**
+ * Each theme's `--background` from `globals.css`, as hex. Drives the single
+ * `<meta name="theme-color">` (status bar of the installed app, address bar
+ * of mobile Chrome), so the bar continues the header - `.header-bg` paints
+ * `var(--background)`. Follows the theme picked in the app, not the OS.
+ * `themeColors.test.ts` fails if these drift from the stylesheet.
+ */
+export const THEME_COLORS: Readonly<Record<ResolvedTheme, string>> = {
+  light: "#e7ecf0",
+  dark: "#070707",
+  cosmos: "#040511",
+};
+
+/** Brand tile color: the installed app's splash and icon background. */
+export const SPLASH_COLOR = "#0a0b1e";
+
 export function isThemeName(value: unknown): value is ThemeName {
   return (
     typeof value === "string" &&
