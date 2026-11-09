@@ -2,6 +2,7 @@ import { logger } from "@/lib/logger";
 import { NextResponse, type NextRequest } from "next/server";
 import { connection } from "next/server";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
+import { orgChangedResponse } from "@/features/organizations/api/orgChangedResponse";
 import { demoSafeOrder } from "@/features/demo/maskEmail";
 import { requirePermission } from "@/lib/auth/permissions";
 import { getOrgOrdersPage } from "@/features/orders/db/orgOrders";
@@ -25,6 +26,9 @@ export async function GET(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const orgChanged = orgChangedResponse(req, ctx);
+  if (orgChanged) return orgChanged;
 
   try {
     requirePermission(ctx, "order:read");

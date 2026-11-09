@@ -4,9 +4,9 @@ import {
   handleActionError,
   ForbiddenError,
 } from "@/features/common/errors/domainErrors";
-import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
+import { resolveRequestContextAnyOrg } from "@/lib/auth/resolveRequestContext";
 import { syncClerkUserMetadata } from "@/services/clerk";
-import { revalidateUserCache } from "@/features/users/db/cache";
+import { refreshOwnUserCache } from "@/features/users/db/cache";
 import { revalidateOrganizationCache } from "@/features/organizations/db/cache";
 import { switchActiveOrg } from "@/features/users/db/users";
 import { prisma } from "@/core/db/prisma";
@@ -16,7 +16,9 @@ export async function switchOrganizationAction(
   targetOrgId: string,
 ): Promise<void | ActionErrorResult> {
   try {
-    const ctx = await resolveRequestContext();
+    // AnyOrg: a tab still showing an org that was switched away elsewhere must
+    // be able to switch too - it is the way out, not a write into that org.
+    const ctx = await resolveRequestContextAnyOrg();
 
     const membership = await prisma.membership.findUnique({
       where: {
@@ -40,7 +42,9 @@ export async function switchOrganizationAction(
       activeOrgId: targetOrgId,
     });
 
-    revalidateUserCache(ctx.userId, ctx.clerkUserId);
+    // updateTag, not only revalidateTag: the refresh that follows must render
+    // the shell with the new org - see refreshOwnUserCache.
+    refreshOwnUserCache(ctx.userId, ctx.clerkUserId);
     revalidateOrganizationCache(targetOrgId);
   } catch (error) {
     return handleActionError(error);

@@ -4,13 +4,12 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 import { cn } from "@/lib/utils";
 import { getBrandName } from "@/features/brands/utils/translations";
 import { useQueryStates } from "nuqs";
 import { useCurrencyStore, getCurrentRate } from "@/store/currency";
 import { getCurrencyConfig } from "@/lib/currency";
-import { useActiveOrgId } from "@/features/organizations/components/ActiveOrgContext";
+import { useActiveOrgId, useOrgScopedGet } from "@/features/organizations/components/ActiveOrgContext";
 import {
   myProductSearchParams,
   type MyProductFilters,
@@ -43,6 +42,7 @@ export function MyProductsPage({
   const currency = useCurrencyStore((s) => s.currency);
   const currencySymbol = getCurrencyConfig(currency).symbol;
   const orgId = useActiveOrgId();
+  const orgGet = useOrgScopedGet();
 
   // "title" sort dropped when title moved to ProductTranslation.
   const SORT_OPTIONS = [
@@ -97,8 +97,11 @@ export function MyProductsPage({
       for (const id of params.createdBy) sp.append("createdBy", id);
       if (params.minPrice != null) sp.set("minPrice", String(params.minPrice / rate));
       if (params.maxPrice != null) sp.set("maxPrice", String(params.maxPrice / rate));
-      const { data } = await axios.get(`/api/dashboard/my-products/counts?${sp.toString()}`);
-      return data as { status: Record<string, number>; brand: Record<string, number>; createdBy: Record<string, number> };
+      return orgGet<{
+        status: Record<string, number>;
+        brand: Record<string, number>;
+        createdBy: Record<string, number>;
+      }>(`/api/dashboard/my-products/counts?${sp.toString()}`);
     },
     // Same as the list it counts (MyProductsList): fresh on every mount, or
     // the badges disagree with the rows beside them.

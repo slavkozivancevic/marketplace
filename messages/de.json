@@ -2200,6 +2200,7 @@
     "concurrencyConflict": "Dieser Datensatz wurde von einem anderen Benutzer geändert. Bitte neu laden und erneut versuchen.",
     "organizationNotVerified": "Ihre Organisation ist noch nicht verifiziert",
     "membershipNotFound": "Mitgliedschaft nicht gefunden",
+    "orgChanged": "Ihre aktive Organisation wurde in einem anderen Tab oder Fenster gewechselt. Es wurde nichts gespeichert - die Seite zeigt jetzt die aktuelle Organisation. Bitte prüfen Sie sie und versuchen Sie es erneut.",
     "versionRequired": "Eine gültige Version ist für die nebenläufige Bearbeitung erforderlich",
     "imageProcessingFailed": "Bildverarbeitung fehlgeschlagen",
     "videoProcessingFailed": "Videoverarbeitung fehlgeschlagen",

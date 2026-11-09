@@ -15,7 +15,7 @@ import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
 import { assertWritable } from "@/lib/auth/permissions";
 import { prisma } from "@/core/db/prisma";
 import { syncClerkUserMetadata } from "@/services/clerk";
-import { revalidateUserCache } from "@/features/users/db/cache";
+import { refreshOwnUserCache } from "@/features/users/db/cache";
 import { recordAudit } from "@/features/audit/db/audit";
 import { createInvite, cancelInvite, acceptInvite, declineInvite } from "../db/invites";
 import { getOrganizationById } from "../db/organizations";
@@ -197,7 +197,9 @@ export async function acceptInviteAction(
       logger.error("[notifications] publishInviteAccepted failed", err),
     );
 
-    revalidateUserCache(dbUser.id, dbUser.clerkUserId);
+    // acceptInvite moved activeOrgId to the joined org; the shell must show
+    // it on the very next render - see refreshOwnUserCache.
+    refreshOwnUserCache(dbUser.id, dbUser.clerkUserId);
     revalidatePath("/[locale]/dashboard/organization", "page");
     revalidatePath("/[locale]/dashboard", "page");
   } catch (error) {

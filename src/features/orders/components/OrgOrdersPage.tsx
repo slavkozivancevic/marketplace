@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 import { cn } from "@/lib/utils";
 import { useQueryStates } from "nuqs";
 import { orgOrderSearchParams, type OrgOrderFilters } from "@/lib/query/searchParams";
@@ -12,11 +11,12 @@ import { SearchToolbar } from "@/components/search/SearchToolbar";
 import { FilterSidebar, type FilterGroup, type FilterValues } from "@/components/search/FilterSidebar";
 import { ActiveFilters } from "@/components/search/ActiveFilters";
 import { OrgOrdersList } from "./OrgOrdersList";
-import { useActiveOrgId } from "@/features/organizations/components/ActiveOrgContext";
+import { useActiveOrgId, useOrgScopedGet } from "@/features/organizations/components/ActiveOrgContext";
 
 export function OrgOrdersPage() {
   const t = useTranslations("orgOrders");
   const orgId = useActiveOrgId();
+  const orgGet = useOrgScopedGet();
 
   const SORT_OPTIONS = [
     { value: "createdAt", label: t("date") },
@@ -41,8 +41,7 @@ export function OrgOrdersPage() {
     queryFn: async () => {
       const sp = new URLSearchParams();
       if (search) sp.set("search", search);
-      const { data } = await axios.get(`/api/dashboard/org-orders/counts?${sp.toString()}`);
-      return data as { status: Record<string, number> };
+      return orgGet<{ status: Record<string, number> }>(`/api/dashboard/org-orders/counts?${sp.toString()}`);
     },
     // Same as the list it counts (OrgOrdersList): fresh on every mount, or the
     // badges disagree with the rows beside them.

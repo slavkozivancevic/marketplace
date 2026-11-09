@@ -1,5 +1,4 @@
 "use client";
-import axios from "axios";
 import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
 
@@ -12,10 +11,11 @@ import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
 import type { MyProductFilters } from "@/lib/query/searchParams";
 import { useCurrencyStore, getCurrentRate } from "@/store/currency";
-import { useActiveOrgId } from "@/features/organizations/components/ActiveOrgContext";
+import { useActiveOrgId, useOrgScopedGet } from "@/features/organizations/components/ActiveOrgContext";
+import { isOrgChangedError } from "@/features/organizations/orgScope";
 import { TableScroll } from "@/components/ui/table-scroll";
 
-function buildFetcher(filters: MyProductFilters) {
+function buildFetcher(filters: MyProductFilters, get: ReturnType<typeof useOrgScopedGet>) {
   return async ({
     pageParam,
   }: {
@@ -34,8 +34,7 @@ function buildFetcher(filters: MyProductFilters) {
     for (const id of filters.brandId) params.append("brandId", id);
     for (const id of filters.createdBy) params.append("createdBy", id);
 
-    const { data } = await axios.get(`/api/dashboard/my-products?${params.toString()}`);
-    return data;
+    return get(`/api/dashboard/my-products?${params.toString()}`);
   };
 }
 
@@ -62,11 +61,12 @@ export function MyProductsList({
   const f = filters ?? defaultFilters;
   const { currency } = useCurrencyStore();
   const orgId = useActiveOrgId();
+  const orgGet = useOrgScopedGet();
 
   const { parentRef, virtualizer, items, query, isSentinelIndex, isPlaceholderData } =
     useInfiniteVirtualList<SerializedAdminProductListItem>({
       queryKey: ["products", "my-products", orgId, f, currency],
-      queryFn: buildFetcher(f),
+      queryFn: buildFetcher(f, orgGet),
       estimateSize: 73,
       // SSR prefetch uses ["products","my-products",filters] (no currency),
       // so hydration cannot push fresh data into this cache after a server
@@ -91,7 +91,9 @@ export function MyProductsList({
   const anyRowBusy = busyIds.size > 0;
   const tableLocked = isPlaceholderData || anyRowBusy;
 
-  if (query.status === "pending") {
+  // A 409 ORG_CHANGED is the shell re-rendering on the right org, not a
+  // failure: keep the skeleton until the new org's rows arrive.
+  if (query.status === "pending" || isOrgChangedError(query.error)) {
     return (
       <TableScroll>
         <ProductTableHeader showActions={canWrite} />

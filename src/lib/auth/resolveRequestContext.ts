@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { safeAuth } from "./safeAuth";
 import { validateAuthSync } from "./validateAuthSync";
+import { assertActionOrg } from "@/features/organizations/api/assertActionOrg";
 import { prisma } from "@/core/db/prisma";
 import { RequestContext } from "../../types/types";
 import { isDemoReadOnlyEmail } from "@/features/demo/demoAccounts";
@@ -9,10 +10,16 @@ import {
   UnauthenticatedError,
 } from "@/features/common/errors/domainErrors";
 
+/**
+ * The request context for whatever org the user is in NOW, with no check of
+ * which org the calling tab shows. Only for the one action whose whole point is
+ * to leave that org: `switchOrganizationAction`, which a stale tab must still
+ * be able to run. Everything else uses `resolveRequestContext`.
+ */
 // Wrapped in React cache() so the many requireRole()/resolveRequestContext()
 // calls within a single render (layout + page + nested components) share one
 // result instead of each re-running auth(), DB lookups and the Clerk sync.
-export const resolveRequestContext = cache(
+export const resolveRequestContextAnyOrg = cache(
   async (): Promise<RequestContext> => {
   const { userId, sessionClaims } = await safeAuth();
 
@@ -159,4 +166,20 @@ export const resolveRequestContext = cache(
     isDemoReadOnly: isDemoReadOnlyEmail(membership.user.email),
   };
   }
+);
+
+/**
+ * The request context, refusing a Server Action sent from a tab that still
+ * shows another org - see `src/features/organizations/orgScope.ts`. Without
+ * this, a save from a tab left open on org A, after A was switched away
+ * elsewhere, landed in org B: a product created in the wrong shop, the wrong
+ * org renamed. Pages and route handlers pass through untouched; the six list
+ * routes run their own check (`orgChangedResponse`) to answer with a 409.
+ */
+export const resolveRequestContext = cache(
+  async (): Promise<RequestContext> => {
+    const ctx = await resolveRequestContextAnyOrg();
+    await assertActionOrg(ctx);
+    return ctx;
+  },
 );

@@ -1,6 +1,5 @@
 "use client";
 
-import axios from "axios";
 import { useTranslations } from "next-intl";
 import { useInfiniteVirtualList } from "@/components/infinite/useInfiniteVirtualList";
 import { OrgOrderTableRow } from "./OrgOrderTableRow";
@@ -12,11 +11,12 @@ import type { OrgOrderListItem } from "../db/orgOrders";
 import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
 import type { InfinitePage } from "@/components/infinite/useInfiniteVirtualList";
 import type { OrgOrderFilters } from "@/lib/query/searchParams";
-import { useActiveOrgId } from "@/features/organizations/components/ActiveOrgContext";
+import { useActiveOrgId, useOrgScopedGet } from "@/features/organizations/components/ActiveOrgContext";
+import { isOrgChangedError } from "@/features/organizations/orgScope";
 import { TableScroll } from "@/components/ui/table-scroll";
 import { pressText } from "@/components/ui/pressable";
 
-function buildFetcher(filters: OrgOrderFilters) {
+function buildFetcher(filters: OrgOrderFilters, get: ReturnType<typeof useOrgScopedGet>) {
   return async ({
     pageParam,
   }: {
@@ -29,8 +29,7 @@ function buildFetcher(filters: OrgOrderFilters) {
     if (filters.sortBy) params.set("sortBy", filters.sortBy);
     if (filters.sortOrder) params.set("sortOrder", filters.sortOrder);
     if (filters.status.length > 0) params.set("status", filters.status.join(","));
-    const { data } = await axios.get(`/api/dashboard/org-orders?${params.toString()}`);
-    return data;
+    return get(`/api/dashboard/org-orders?${params.toString()}`);
   };
 }
 
@@ -70,11 +69,12 @@ export function OrgOrdersList({
   };
   const f = filters ?? defaultFilters;
   const orgId = useActiveOrgId();
+  const orgGet = useOrgScopedGet();
 
   const { parentRef, virtualizer, items, query, isSentinelIndex, isPlaceholderData } =
     useInfiniteVirtualList<OrgOrderListItem>({
       queryKey: ["orders", "org", orgId, f],
-      queryFn: buildFetcher(f),
+      queryFn: buildFetcher(f, orgGet),
       // New orders and buyer returns arrive from other sessions, which no
       // invalidation here can hear about - refetch on every mount rather than
       // serve the cached page for up to the global 60s staleTime.
@@ -83,7 +83,9 @@ export function OrgOrdersList({
       resetScrollKey: scrollResetToken,
     });
 
-  if (query.status === "pending") {
+  // A 409 ORG_CHANGED is the shell re-rendering on the right org, not a
+  // failure: keep the skeleton until the new org's rows arrive.
+  if (query.status === "pending" || isOrgChangedError(query.error)) {
     return (
       <TableScroll>
         <OrgOrderTableHeader t={t} />
