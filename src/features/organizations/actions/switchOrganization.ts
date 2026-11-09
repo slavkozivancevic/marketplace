@@ -50,7 +50,8 @@ export async function switchOrganizationAction(
     return handleActionError(error);
   }
 
-  // No redirect: the client (OrganizationSwitcher) refreshes the session token
-  // and re-renders the current route in place, so the user stays on the page
-  // they switched from with data re-scoped to the new org.
+  // No redirect: the invalidations above make Next re-render the current route
+  // in this action's response, so the user stays on the page they switched
+  // from with data re-scoped to the new org. The client adds no
+  // router.refresh() of its own - see OrganizationSwitcher.
 }
