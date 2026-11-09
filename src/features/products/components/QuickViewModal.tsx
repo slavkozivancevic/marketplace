@@ -99,6 +99,24 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [activeVariantId, setActiveVariantId] = useState<string | null>(null);
 
+  // The product the dialog shows, which outlives `productId` by the length of
+  // the close animation. The caller clears `productId` the moment the dialog
+  // closes (Add to Cart, Cancel, Esc), and the dialog is still on screen while
+  // it fades out: keyed on `productId`, the query switched to an empty key and
+  // dropped its data, so the closing frames drew an empty panel with a broken
+  // image. The per-product state resets when the NEXT product opens, for the
+  // same reason - not on close, where it would change what is still fading.
+  const [shownId, setShownId] = useState(productId);
+  const [openedId, setOpenedId] = useState(productId);
+  if (productId !== openedId) {
+    setOpenedId(productId);
+    if (productId != null) {
+      setShownId(productId);
+      setCurrentSlide(0);
+      setActiveVariantId(null);
+    }
+  }
+
   // Shimmer-until-loaded tracking for slides and thumbs, keyed by media id so
   // entries never collide when the modal is reused across products. The ref
   // callback catches cached images that complete before React attaches onLoad
@@ -113,9 +131,9 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
   }, []);
 
   const { data: neutralProduct, isLoading, error, refetch } = useQuery({
-    queryKey: ["product", "quick-view", productId],
-    queryFn: () => fetchProduct(productId!),
-    enabled: productId != null,
+    queryKey: ["product", "quick-view", shownId],
+    queryFn: () => fetchProduct(shownId!),
+    enabled: shownId != null,
     // Always refetch when the popup opens so admin edits to variant-image
     // links show up immediately instead of being served from cache.
     staleTime: 0,
@@ -281,8 +299,6 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
 
   const handleClose = () => {
     onClose();
-    setCurrentSlide(0);
-    setActiveVariantId(null);
   };
 
   if (isGone) {
