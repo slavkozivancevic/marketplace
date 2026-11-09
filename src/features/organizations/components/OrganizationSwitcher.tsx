@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { toast } from "@/components/ui/sonner";
 import { Loader2 } from "lucide-react";
@@ -31,7 +30,6 @@ export function OrganizationSwitcher({
   currentOrgId,
 }: OrganizationSwitcherProps) {
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
   const { getToken } = useAuth();
 
   // Portal the overlay to <body>: the sidebar is a transformed/contained
@@ -55,19 +53,24 @@ export function OrganizationSwitcher({
         return;
       }
 
-      // The switch updated the DB + Clerk publicMetadata, but the live session
-      // JWT still carries the previous activeOrgId claim. Force a fresh token
-      // so the very next server render (resolveRequestContext) scopes to the
-      // new org immediately, then re-render the current route in place - the
-      // user stays on the same page with freshly-scoped data. Keeping the
-      // transition open across the refresh holds the loader until the new RSC
-      // payload is committed.
+      // No router.refresh() here. The action calls updateTag/revalidatePath,
+      // so Next answers it with x-action-revalidated and re-renders the current
+      // route itself (server-action-reducer, FreshnessPolicy.RefreshAll) - the
+      // user stays on the page and the data is re-scoped to the new org. An
+      // extra router.refresh() only queued a second router action behind that
+      // one, and about one switch in six then sat with the loader up and the
+      // switcher locked until some unrelated state update (on staging: the
+      // AppLoader's 10s "stuck" timer) let React commit. Measured 2026-11-09:
+      // with the refresh 8 stalls of 10s in 48 switches, without it 0 in 36.
+      //
+      // The session JWT still names the previous org until it refreshes;
+      // resolveRequestContext trusts the DB, so this only spares later
+      // requests the claim/DB mismatch path.
       try {
         await getToken({ skipCache: true });
       } catch {
         // Non-fatal: the next natural token refresh still reconciles the claim.
       }
-      router.refresh();
     });
   };
 
