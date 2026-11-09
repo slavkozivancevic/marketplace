@@ -2200,6 +2200,7 @@
     "concurrencyConflict": "Ovaj zapis je u međuvremenu izmenio drugi korisnik. Osvežite stranicu i pokušajte ponovo.",
     "organizationNotVerified": "Vaša organizacija još nije verifikovana",
     "membershipNotFound": "Članstvo nije pronađeno",
+    "orgChanged": "Aktivna organizacija je promenjena u drugom tabu ili prozoru. Ništa nije sačuvano - stranica sada prikazuje trenutnu organizaciju, proverite je i pokušajte ponovo.",
     "versionRequired": "Verzija je obavezna radi sigurne istovremene izmene",
     "imageProcessingFailed": "Obrada slike nije uspela",
     "videoProcessingFailed": "Obrada videa nije uspela",

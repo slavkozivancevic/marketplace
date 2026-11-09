@@ -1,6 +1,5 @@
 "use client";
 
-import axios from "axios";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { useInfiniteVirtualList } from "@/components/infinite/useInfiniteVirtualList";
@@ -11,10 +10,11 @@ import type { OrgPayoutListItem } from "../db/payouts";
 import type { OrgPayoutFilters } from "@/lib/query/searchParams";
 import { OrgPayoutTableRow } from "./OrgPayoutTableRow";
 import { OrgPayoutSkeletonRow, PAYOUT_COL } from "./OrgPayoutTableSkeleton";
-import { useActiveOrgId } from "@/features/organizations/components/ActiveOrgContext";
+import { useActiveOrgId, useOrgScopedGet } from "@/features/organizations/components/ActiveOrgContext";
+import { isOrgChangedError } from "@/features/organizations/orgScope";
 import { TableScroll } from "@/components/ui/table-scroll";
 
-function buildFetcher(filters: OrgPayoutFilters) {
+function buildFetcher(filters: OrgPayoutFilters, get: ReturnType<typeof useOrgScopedGet>) {
   return async ({
     pageParam,
   }: {
@@ -28,8 +28,7 @@ function buildFetcher(filters: OrgPayoutFilters) {
     if (filters.sortOrder) params.set("sortOrder", filters.sortOrder);
     if (filters.status.length > 0) params.set("status", filters.status.join(","));
     if (filters.refunded.length > 0) params.set("refunded", filters.refunded.join(","));
-    const { data } = await axios.get(`/api/dashboard/payouts?${params.toString()}`);
-    return data;
+    return get(`/api/dashboard/payouts?${params.toString()}`);
   };
 }
 
@@ -60,11 +59,12 @@ export function OrgPayoutsList({
 }) {
   const t = useTranslations("payouts");
   const orgId = useActiveOrgId();
+  const orgGet = useOrgScopedGet();
 
   const { parentRef, virtualizer, items, query, isSentinelIndex, isPlaceholderData } =
     useInfiniteVirtualList<OrgPayoutListItem>({
       queryKey: ["payouts", "org", orgId, filters],
-      queryFn: buildFetcher(filters),
+      queryFn: buildFetcher(filters, orgGet),
       // Payouts are written by Stripe webhooks and the platform, never by an
       // action on this page - refetch on every mount instead of serving the
       // cached page for up to the global 60s staleTime.
@@ -73,7 +73,9 @@ export function OrgPayoutsList({
       resetScrollKey: scrollResetToken,
     });
 
-  if (query.status === "pending") {
+  // A 409 ORG_CHANGED is the shell re-rendering on the right org, not a
+  // failure: keep the skeleton until the new org's rows arrive.
+  if (query.status === "pending" || isOrgChangedError(query.error)) {
     return (
       <TableScroll>
         <PayoutTableHeader t={t} />

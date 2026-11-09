@@ -214,6 +214,25 @@ export class MembershipNotFoundError extends Error {
   }
 }
 
+/**
+ * A Server Action came from a tab still showing another org than the one the
+ * user is in now (switched in another tab, or by another visitor on a shared
+ * demo account). Nothing was written; see `assertActionOrg`.
+ */
+export class OrgChangedActionError extends Error {
+  readonly i18n: ErrorI18n;
+  constructor(arg: string | ErrorI18n = "The active organization changed") {
+    const { i18n, message } = normalizeI18n(
+      arg,
+      "orgChanged",
+      "The active organization changed",
+    );
+    super(message);
+    this.i18n = i18n;
+    this.name = "OrgChangedActionError";
+  }
+}
+
 export class InviteInvalidError extends Error {
   readonly i18n: ErrorI18n;
   constructor(arg: string | ErrorI18n = "This invite is no longer valid") {

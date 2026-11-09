@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { connection } from "next/server";
 import { productRepository } from "@/features/products/db/products";
 import { resolveRequestContext } from "@/lib/auth/resolveRequestContext";
+import { orgChangedResponse } from "@/features/organizations/api/orgChangedResponse";
 import { demoSafe } from "@/features/demo/maskEmail";
 import { handleActionError } from "@/features/common/errors/domainErrors";
 import { ProductStatus } from "@/generated/prisma/client";
@@ -32,6 +33,9 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     return NextResponse.json(await handleActionError(e), { status: 401 });
   }
+
+  const orgChanged = orgChangedResponse(req, ctx);
+  if (orgChanged) return orgChanged;
 
   const { searchParams } = req.nextUrl;
   const take = Math.min(

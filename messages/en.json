@@ -2200,6 +2200,7 @@
     "concurrencyConflict": "This record was modified by another user. Please reload and try again.",
     "organizationNotVerified": "Your organization is not verified yet",
     "membershipNotFound": "Membership not found",
+    "orgChanged": "Your active organization was changed in another tab or window. Nothing was saved - the page now shows the current organization, check it and try again.",
     "versionRequired": "A valid version is required for concurrency safety",
     "imageProcessingFailed": "Image processing failed",
     "videoProcessingFailed": "Video processing failed",

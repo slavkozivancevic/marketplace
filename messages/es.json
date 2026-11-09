@@ -2200,6 +2200,7 @@
     "concurrencyConflict": "Otro usuario modificó este registro. Recarga la página e inténtalo de nuevo.",
     "organizationNotVerified": "Tu organización aún no está verificada",
     "membershipNotFound": "Membresía no encontrada",
+    "orgChanged": "Tu organización activa se cambió en otra pestaña o ventana. No se guardó nada: la página ahora muestra la organización actual, revísala e inténtalo de nuevo.",
     "versionRequired": "Se requiere una versión válida para la seguridad concurrente",
     "imageProcessingFailed": "Fallo al procesar la imagen",
     "videoProcessingFailed": "Fallo al procesar el video",
