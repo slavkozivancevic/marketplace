@@ -10,6 +10,7 @@ import {
 } from "./ProductSpecifications";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SerializedPublicProduct } from "@/types/types";
+import { firstInStockVariant } from "@/features/cart/utils/defaultVariant";
 import { useMarketProduct } from "@/providers/MarketProvider";
 import type { SellerPolicy } from "@/features/organizations/components/SellerPromises";
 import {
@@ -43,7 +44,7 @@ export function ProductDetailLayout({
       (v) => v.optionValues.length > 0,
     );
     if (optionVariants.length === 0) return null;
-    return optionVariants.find((v) => v.stock > 0)?.id ?? null;
+    return firstInStockVariant(product.options, optionVariants)?.id ?? null;
   });
   const [jumpTicket, setJumpTicket] = useState<{
     ticket: number;

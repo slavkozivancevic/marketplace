@@ -22,6 +22,7 @@ import {
   getOptionValue,
 } from "@/features/products/utils/optionTranslations";
 import { buildCartVariantOptions, buildLocalizedText } from "@/features/cart/utils/variantOptions";
+import { firstInStockVariant } from "@/features/cart/utils/defaultVariant";
 import { getProductTitle } from "@/features/products/utils/translations";
 import { recordInteractionClient } from "@/features/interactions/recordClient";
 import { useDemoReadOnly } from "@/features/demo/useDemoReadOnly";
@@ -62,7 +63,7 @@ export function AddToCart({ product, onActiveVariantChange, selectMode = false, 
 
   const [selectedValues, setSelectedValues] = useState<SelectedValues>(() => {
     if (!hasOptions) return {};
-    const firstInStock = optionVariants.find((v) => v.stock > 0);
+    const firstInStock = firstInStockVariant(product.options, optionVariants);
     if (!firstInStock) return {};
     return Object.fromEntries(
       firstInStock.optionValues.map((ov) => [ov.optionId, ov.value]),
