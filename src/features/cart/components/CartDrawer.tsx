@@ -45,6 +45,23 @@ export function CartDrawer() {
   const demoReadOnly = useDemoReadOnly();
   const shipping = useCartShipping(isOpen && !demoReadOnly);
 
+  // The first pass usually lands while the sheet is still sliding in, but a
+  // cold server can take seconds (measured 2.7s on staging), and an empty sheet
+  // that long reads as broken. Past 400ms a spinner shows over the held
+  // content - absolutely positioned, so it moves nothing - and goes when the
+  // content fades in.
+  const waiting = isOpen && items.length > 0 && !demoReadOnly && !shipping.ready;
+  const [slowPass, setSlowPass] = useState(false);
+  useEffect(() => {
+    if (!waiting) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSlowPass(false);
+      return;
+    }
+    const timer = setTimeout(() => setSlowPass(true), 400);
+    return () => clearTimeout(timer);
+  }, [waiting]);
+
   useEffect(() => {
     if (pathname === "/checkout" || pathname === "/cart") {
       // Deliberately do NOT reset `checkingOut` here: the sheet's close
@@ -107,7 +124,16 @@ export function CartDrawer() {
           </SheetClose>
         </SheetHeader>
         <DemoBuyerOnlyGate>
-          <div className="flex flex-col flex-1 overflow-hidden p-6 gap-0">
+          <div className="relative flex flex-col flex-1 overflow-hidden p-6 gap-0">
+            {slowPass && (
+              <div
+                role="status"
+                className="pointer-events-none absolute inset-0 flex items-center justify-center animate-in fade-in duration-200"
+              >
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="sr-only">{tCommon("loading")}</span>
+              </div>
+            )}
             {items.length === 0 ? (
               // Same empty state the /cart page renders, down to the way out: a
               // drawer that only says "empty" is a dead end.
