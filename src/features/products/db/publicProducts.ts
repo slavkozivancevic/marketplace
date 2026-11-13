@@ -58,7 +58,9 @@ export const listItemInclude = {
   // the product has variants at all, and whether ANY of them still has stock.
   // `Product.stock` is null for a variant product, so without these a card
   // could not tell "nobody tracks this" from "every variant is sold out".
-  _count: { select: { variants: true } },
+  // `media` counts every gallery item, whatever `take` a caller sets on
+  // `media` - see `mediaCount` below.
+  _count: { select: { variants: true, media: true } },
   variants: { where: { stock: { gt: 0 } }, take: 1, select: { id: true } },
   // Market rules ride along viewer-neutral; the card applies the viewer's market.
   ...marketRulesInclude,
@@ -101,6 +103,7 @@ export function serializeListItem(p: ListItemRow): SerializedProductListItem {
     // What the viewer's market does to it - applied per viewer, not here.
     marketRules: marketRulesOf({ priceRules, marketRuleClocks }),
     schedule: schedulePricing(p),
+    mediaCount: _count.media,
     // Resolved here, once, so every card surface (grid, wishlist, carousels)
     // answers the same way - and so the probes above never leak into the
     // payload as something a component might re-derive differently.

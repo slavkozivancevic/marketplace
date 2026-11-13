@@ -7,13 +7,10 @@ import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { VALID_CURRENCIES } from "@/lib/currency-config";
 
 import { prisma } from "@/core/db/prisma";
-import { Link, getPathname } from "@/i18n/navigation";
+import { getPathname } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import { getCategoryName } from "@/features/categories/utils/translations";
 import { CacheTags } from "@/lib/cache/tags";
-import { PageHeader } from "@/components/PageHeader";
-import { Button } from "@/components/ui/button";
-import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { absoluteUrl } from "@/lib/seo/jsonLd";
 import { Footer } from "@/components/layout/footer";
 import { PublicProductsPage } from "@/features/products/components/PublicProductsPage";
@@ -29,7 +26,11 @@ import {
 import { getPublicProductsPage } from "@/features/products/db/publicProducts";
 import { getViewerCountry } from "@/features/priceMarkets/db/viewer";
 import { GRID_PAGE_SIZE } from "@/constants/queryConstants";
-import { pressNavLink } from "@/components/ui/pressable";
+import {
+  CategoryPageHeader,
+  categoryHeaderProps,
+} from "@/features/categories/components/CategoryPageHeader";
+import { findCategoryBySlug } from "@/features/categories/utils/findBySlug";
 
 // Matches a v4 UUID - used to redirect legacy `/categories/<uuid>` URLs to
 // the locale-correct slug form.
@@ -65,10 +66,6 @@ async function fetchCategoryBySlugAnyLocale(slug: string) {
     include: {
       translations: true,
       parent: { select: { id: true, translations: true } },
-      children: {
-        where: { isActive: true },
-        select: { id: true, translations: true },
-      },
     },
   });
 }
@@ -236,41 +233,8 @@ export default async function CategoryDetailPage({ params }: CategoryPageProps) 
     localTranslation ??
     category.translations.find((tr) => tr.locale === routing.defaultLocale) ??
     category.translations[0];
-  // See generateMetadata: a present row does not guarantee a non-blank name,
-  // so headings and breadcrumbs read through `getCategoryName`. Slugs still
-  // come from the rows themselves - those are per-locale URLs, never blank.
-  const categoryName = getCategoryName(category, locale);
   const t = await getTranslations("categories");
   const tCrumbs = await getTranslations("breadcrumbs");
-
-  const homePath = getPathname({ href: "/", locale });
-  const productsListPath = getPathname({ href: "/products", locale });
-  const currentPath = getPathname({
-    href: { pathname: "/categories/[slug]", params: { slug } },
-    locale,
-  });
-  const parent = category.parent;
-  // `parentT` supplies the crumb's per-locale SLUG; the label comes from
-  // `getCategoryName` for the same blank-name reason as above.
-  const parentT = parent
-    ? parent.translations.find((tr) => tr.locale === locale) ??
-      parent.translations.find((tr) => tr.locale === routing.defaultLocale)
-    : null;
-  const parentName = parent ? getCategoryName(parent, locale) : "";
-  const breadcrumbItems = [
-    { name: tCrumbs("home"), href: homePath },
-    { name: tCrumbs("products"), href: productsListPath },
-    ...(parentT
-      ? [{
-          name: parentName,
-          href: getPathname({
-            href: { pathname: "/categories/[slug]", params: { slug: parentT.slug } },
-            locale,
-          }),
-        }]
-      : []),
-    { name: categoryName, href: currentPath },
-  ];
 
   const localePaths: LocalePaths = {};
   for (const tr of category.translations) {
@@ -338,42 +302,22 @@ export default async function CategoryDetailPage({ params }: CategoryPageProps) 
     <div className="flex-1 flex flex-col min-h-0">
       <PublishLocalePaths paths={localePaths} />
 
-      <div className="shrink-0 px-6 pt-2 pb-3 sticky-header-bg">
-        <Breadcrumbs items={breadcrumbItems} />
-        <PageHeader
-          title={categoryName}
-          description={localT?.description ?? undefined}
-        >
-          <Button asChild variant="outline">
-            <Link href="/products">{t("publicBackToShop")}</Link>
-          </Button>
-        </PageHeader>
-
-        {/* Subcategory chips - only render when this is a parent category
-            with active children, so leaf categories don't show an empty row. */}
-        {category.children.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {category.children.map((child) => {
-              const childT =
-                child.translations.find((tr) => tr.locale === locale) ??
-                child.translations.find((tr) => tr.locale === routing.defaultLocale);
-              if (!childT) return null;
-              return (
-                <Link
-                  key={child.id}
-                  href={{
-                    pathname: "/categories/[slug]",
-                    params: { slug: childT.slug },
-                  }}
-                  className={`rounded-full border border-border/60 bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-border transition-colors ${pressNavLink}`}
-                >
-                  {getCategoryName(child, locale)}
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      <CategoryPageHeader
+        {...categoryHeaderProps({
+          category: {
+            translations: category.translations,
+            // The chips come from the storefront tree, not the row's own
+            // children: that tree is what the mega menu and this page's
+            // loading state draw, it is in the admin's order and it drops
+            // subcategories with nothing to buy.
+            children: findCategoryBySlug(categoryTree, deptSlug)?.node.children ?? [],
+          },
+          parent: category.parent,
+          slug,
+          locale: locale as Locale,
+          labels: { home: tCrumbs("home"), products: tCrumbs("products"), back: t("publicBackToShop") },
+        })}
+      />
 
       {/* Identical to /products - same grid, sidebar and department selector -
           only pre-scoped to this category. The dept selector stays usable so

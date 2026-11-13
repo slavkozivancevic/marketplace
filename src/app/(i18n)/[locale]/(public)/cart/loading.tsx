@@ -1,7 +1,7 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { getPathname } from "@/i18n/navigation";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
-import { CartPageLoading } from "@/features/cart/components/CartPage";
+import { CartPage } from "@/features/cart/components/CartPage";
 
 /**
  * Cart page skeleton.
@@ -28,7 +28,12 @@ export default async function CartLoading() {
         />
       </div>
       <div className="flex-1 overflow-y-auto min-h-0">
-        <CartPageLoading />
+        {/* The cart lives in this browser, so the loading state is the cart
+            itself: CartPage draws its own skeleton until the store and the
+            delivery pass are in, and with both cached (the drawer resolved
+            them on "Add to cart") it is the finished cart from the first
+            frame - the page then mounts onto the same picture. */}
+        <CartPage />
       </div>
     </>
   );

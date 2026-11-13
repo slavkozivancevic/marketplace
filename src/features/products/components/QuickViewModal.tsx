@@ -58,6 +58,7 @@ import {
 import { DemoBuyerOnlyNotice } from "@/features/demo/components/DemoBuyerOnlyNotice";
 import { useDemoReadOnly } from "@/features/demo/useDemoReadOnly";
 import { pressText } from "@/components/ui/pressable";
+import { rememberProductMediaCount } from "@/features/products/productPageHint";
 
 type QuickViewProduct = SerializedPublicProduct & {
   ratingBreakdown: Record<number, number>;
@@ -150,6 +151,10 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
     axios.isAxiosError(error) && error.response?.status === 404;
 
   const media = product?.media ?? [];
+  const fullDetailsSlug =
+    product?.translations.find((tr) => tr.locale === locale)?.slug ??
+    product?.translations.find((tr) => tr.locale === "en")?.slug ??
+    "";
   const activeVariant = product?.variants.find((v) => v.id === activeVariantId);
   const specRows = product ? buildSpecRows(product, locale, t) : [];
   const localTitle = product ? getProductTitle(product, locale) : "";
@@ -299,6 +304,13 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
 
   const handleClose = () => {
     onClose();
+  };
+
+  // "View full details": tell the product page skeleton how many gallery items
+  // to draw, then close.
+  const handleOpenFullDetails = () => {
+    if (product) rememberProductMediaCount(fullDetailsSlug, media.length);
+    handleClose();
   };
 
   if (isGone) {
@@ -513,13 +525,10 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                   href={{
                     pathname: "/products/[slug]",
                     params: {
-                      slug:
-                        product.translations.find((tr) => tr.locale === locale)?.slug ??
-                        product.translations.find((tr) => tr.locale === "en")?.slug ??
-                        "",
+                      slug: fullDetailsSlug,
                     },
                   }}
-                  onClick={handleClose}
+                  onClick={handleOpenFullDetails}
                   className={`flex items-center gap-1 text-xs text-primary hover:underline ${pressText}`}
                 >
                   <ExternalLink className="h-3 w-3" />
@@ -742,13 +751,10 @@ export function QuickViewModal({ productId, onClose }: QuickViewModalProps) {
                       href={{
                         pathname: "/products/[slug]",
                         params: {
-                          slug:
-                            product.translations.find((tr) => tr.locale === locale)?.slug ??
-                            product.translations.find((tr) => tr.locale === "en")?.slug ??
-                            "",
+                          slug: fullDetailsSlug,
                         },
                       }}
-                      onClick={handleClose}
+                      onClick={handleOpenFullDetails}
                       className={`flex items-center gap-1 text-xs text-primary hover:underline ${pressText}`}
                     >
                       <ExternalLink className="h-3 w-3" />

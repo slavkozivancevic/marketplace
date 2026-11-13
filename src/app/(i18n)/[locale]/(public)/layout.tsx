@@ -7,6 +7,7 @@ import {
   getStorefrontCategoryTree,
 } from "@/features/categories/db/categories";
 import { CacheTags } from "@/lib/cache/tags";
+import { StorefrontCategoryTreeProvider } from "@/features/categories/components/StorefrontCategoryTree";
 
 /**
  * The category tree behind the header menu, on every storefront page.
@@ -53,16 +54,20 @@ export default async function PublicLayout({
   // must never be a scroll container, or a sideways overflow can park the whole
   // page in a blank void beside the content.
   return (
-    <div className="flex h-dvh flex-col overflow-clip">
-      <PublicHeader
-        showAdminLink={isAdmin}
-        categoryTree={categoryMenu.tree}
-        categoryImages={categoryMenu.categoryImages}
-        signedIn={!!userId}
-      />
-      <main className="flex-1 flex flex-col min-h-0 overflow-clip">
-        {children}
-      </main>
-    </div>
+    // The tree goes to the header's mega menu AND to the routes below: a
+    // category page's loading state draws its header from it.
+    <StorefrontCategoryTreeProvider tree={categoryMenu.tree}>
+      <div className="flex h-dvh flex-col overflow-clip">
+        <PublicHeader
+          showAdminLink={isAdmin}
+          categoryTree={categoryMenu.tree}
+          categoryImages={categoryMenu.categoryImages}
+          signedIn={!!userId}
+        />
+        <main className="flex-1 flex flex-col min-h-0 overflow-clip">
+          {children}
+        </main>
+      </div>
+    </StorefrontCategoryTreeProvider>
   );
 }

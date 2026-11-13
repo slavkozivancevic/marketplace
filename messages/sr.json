@@ -293,7 +293,8 @@
     "historyRollbackTitle": "Vrati na ovu verziju",
     "historyRollbackDesc": "Da li ste sigurni da želite da vratite na verziju {version}? Biće kreirana nova verzija sa ovim podacima.",
     "historyRollbackSuccess": "Vraćeno na verziju {version}",
-    "showRatingBreakdown": "Prikaži raspodelu ocena"
+    "showRatingBreakdown": "Prikaži raspodelu ocena",
+    "cardNoReviews": "Još nema ocena"
   },
   "dashboard": {
     "title": "Kontrolna tabla",

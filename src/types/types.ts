@@ -292,6 +292,9 @@ export type AdminProductListItem = Prisma.ProductGetPayload<{
         email: true;
       };
     };
+    // Every gallery item - `media` is a take-limited window. Tells the
+    // product detail skeleton how many thumbnails to draw.
+    _count: { select: { media: true } };
   };
 }>;
 
@@ -377,6 +380,10 @@ export type SerializedProductListItem = Omit<
   marketRules: MarketRules;
   /** The schedule rule behind `priceMoney`, for the market layer's Omnibus check. */
   schedule: SchedulePricing;
+  /** Every gallery item the product has - `media` may be a `take`-limited
+   *  window. Tells the product page skeleton whether to draw the thumbnail
+   *  strip (see `productPageHint`). */
+  mediaCount: number;
 };
 
 export type SerializedAdminProductListItem = WithMoney<AdminProductListItem>;

@@ -1,4 +1,5 @@
 import { Footer } from "@/components/layout/footer";
+import { ProductGallerySkeleton } from "@/features/products/components/ProductGallerySkeleton";
 import {
   Skeleton,
   SkeletonArray,
@@ -12,7 +13,9 @@ import {
  * typical catalogue product (brand, tags, warranty, one option, in stock):
  *   header  - Breadcrumbs + PageHeader with the short description under the
  *             title and the "Back to products" outline button on the right
- *   left    - ProductImageCarousel's h-96 main frame
+ *   left    - ProductImageCarousel: the h-96 main frame and, for two or more
+ *             items, the 64px thumbnail strip (ProductGallerySkeleton - the
+ *             count comes from the link that started the navigation)
  *   right   - ProductPurchaseSection's Card (py-4, content px-4 pt-6
  *             space-y-4): price row (h-9), brand (h-5), tags (h-5), four trust
  *             lines (space-y-1.5), AddToCart (option label + pills, stock line,
@@ -39,9 +42,9 @@ export default function ProductDetailLoading() {
         <div className="flex-1 px-6 pb-6">
           <div className="space-y-10">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Gallery main frame */}
+              {/* Gallery: main frame + thumbnail strip */}
               <div className="space-y-4">
-                <Skeleton className="h-96 w-full rounded-lg" />
+                <ProductGallerySkeleton />
               </div>
 
               {/* Purchase card */}

@@ -98,10 +98,10 @@ export function PublicProductsGrid({
     queryFn: buildFetcher(filters, locale),
     minCardWidth: 280,
     gap: 24,
-    estimateRowHeight: 353,
+    estimateRowHeight: 397,
     // Only governs the very first paint - the hook swaps in the first measured
     // row height after that (see `measureRow`). Kept close to reality anyway:
-    // measured at 353px for the first row on a 1206px-wide, 4-column grid.
+    // every card is 397px since the rating row is on all of them (2026-11-13).
     scrollContainerRef,
     // Public listings reflect cross-tenant changes (publish/unpublish/archive,
     // media edits). The SSR prefetch now uses this exact key (currency included),

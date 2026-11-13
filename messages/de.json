@@ -293,7 +293,8 @@
     "historyRollbackTitle": "Auf diese Version zurücksetzen",
     "historyRollbackDesc": "Möchten Sie wirklich auf Version {version} zurücksetzen? Es wird eine neue Version mit diesen Daten erstellt.",
     "historyRollbackSuccess": "Auf Version {version} zurückgesetzt",
-    "showRatingBreakdown": "Bewertungsverteilung anzeigen"
+    "showRatingBreakdown": "Bewertungsverteilung anzeigen",
+    "cardNoReviews": "Noch keine Bewertungen"
   },
   "dashboard": {
     "title": "Dashboard",

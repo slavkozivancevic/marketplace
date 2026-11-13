@@ -293,7 +293,8 @@
     "historyRollbackTitle": "Rollback to this version",
     "historyRollbackDesc": "Are you sure you want to rollback to version {version}? This will create a new version with this data.",
     "historyRollbackSuccess": "Rolled back to version {version}",
-    "showRatingBreakdown": "Show rating breakdown"
+    "showRatingBreakdown": "Show rating breakdown",
+    "cardNoReviews": "No reviews yet"
   },
   "dashboard": {
     "title": "Dashboard",
