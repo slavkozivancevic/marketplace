@@ -17,6 +17,7 @@ import {
 import { CacheTags } from "@/lib/cache/tags";
 import { ProductDetails } from "@/features/products/components/ProductDetails";
 import { PageHeader } from "@/components/PageHeader";
+import { ProductDetailLoadingHeader } from "@/features/products/components/ProductDetailsLoadingParts";
 import { Breadcrumbs, type BreadcrumbItem } from "@/components/seo/Breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -53,38 +54,31 @@ async function buildBaseCrumbs(): Promise<BreadcrumbItem[]> {
 async function MyProductLoading({ id }: { id: string }) {
   const t = await getTranslations();
   const tCrumbs = await getTranslations("breadcrumbs");
-  const locale = await getLocale();
   const baseCrumbs = await buildBaseCrumbs();
-  const breadcrumbItems = [
-    ...baseCrumbs,
-    {
-      name: tCrumbs("productDetails"),
-      href: getPathname({ href: { pathname: "/dashboard/my-products/[id]", params: { id } }, locale }),
-    },
-  ];
   return (
     <>
-      <div className="shrink-0 px-6 pt-2 sticky-header-bg">
-        <Breadcrumbs items={breadcrumbItems} seo={false} />
-        <PageHeader
-          title={t("myProducts.viewProduct")}
-          description={t("myProducts.viewProductDesc")}
-        >
-          <Button asChild variant="outline">
-            <Link href="/dashboard/my-products">{t("myProducts.backTo")}</Link>
-          </Button>
-          {/* Shown to every member on the loaded page, so it is here too -
-              its absence made the header jump. Edit and the status actions are
-              OWNER/ADMIN only, but those are who open this page, so they are
-              placeheld as well. */}
-          <Button asChild variant="outline">
-            <Link href={{ pathname: "/dashboard/my-products/[id]/pricing", params: { id } }}>
-              {t("priceRules.title")}
-            </Link>
-          </Button>
-          <SkeletonButton label={t("common.edit")} />
-        </PageHeader>
-      </div>
+      {/* The clicked list row's title when it recorded the product. */}
+      <ProductDetailLoadingHeader
+        area="dashboard"
+        baseCrumbs={baseCrumbs}
+        genericTitle={t("myProducts.viewProduct")}
+        genericCrumb={tCrumbs("productDetails")}
+        description={t("myProducts.viewProductDesc")}
+      >
+        <Button asChild variant="outline">
+          <Link href="/dashboard/my-products">{t("myProducts.backTo")}</Link>
+        </Button>
+        {/* Shown to every member on the loaded page, so it is here too -
+            its absence made the header jump. Edit and the status actions are
+            OWNER/ADMIN only, but those are who open this page, so they are
+            placeheld as well. */}
+        <Button asChild variant="outline">
+          <Link href={{ pathname: "/dashboard/my-products/[id]/pricing", params: { id } }}>
+            {t("priceRules.title")}
+          </Link>
+        </Button>
+        <SkeletonButton label={t("common.edit")} />
+      </ProductDetailLoadingHeader>
       <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
         <ProductDetailsSkeleton />
       </div>
