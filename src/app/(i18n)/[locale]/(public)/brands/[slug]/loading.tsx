@@ -1,61 +1,18 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { BrandHeaderSkeleton } from "@/features/brands/components/BrandHeaderSkeleton";
 import {
-  Skeleton,
-  SkeletonBreadcrumbs,
-  SkeletonButton,
   SkeletonFilterSidebar,
   SkeletonProductGrid,
   SkeletonSearchToolbar,
   SkeletonActiveFiltersSpacer,
 } from "@/components/ui/skeleton";
 
-// Brand name/logo are dynamic (per slug); the hero strip renders as skeletons
-// above the same filtered catalog grid as /products. Reproduces the real
-// hero's box exactly: no gap between <Breadcrumbs> (own pb-1) and the row
-// below (the real page has none either), a 64px logo, and h-8/h-5 row
-// wrappers pinning the title/description bars to the real `text-2xl`/
-// `text-sm` line-heights (a bare skeleton bar alone sits shorter than that).
-// A two-line description is taller than the logo, so its line count sets the
-// header height - see the description block below.
+// The header is BrandHeaderSkeleton (the real header when the link that led
+// here recorded the brand); below it, the same catalog placeholders as /products.
 export default function BrandLoading() {
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="shrink-0 px-6 pt-2 pb-4 mb-2 sticky-header-bg">
-        <SkeletonBreadcrumbs segments={3} />
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-4 min-w-0">
-            <Skeleton className="h-16 w-16 rounded-xl shrink-0" />
-            <div className="space-y-0.5 min-w-0">
-              <div className="flex h-8 items-center">
-                <Skeleton className="h-6 w-48" />
-              </div>
-              {/* The description, one <p> in the real page: two lines on a
-                  desktop and five on a phone for most brands, measured across
-                  the catalogue. */}
-              <div>
-                <div className="flex h-5 items-center">
-                  <Skeleton className="h-3.5 w-96 max-w-full" />
-                </div>
-                <div className="flex h-5 items-center">
-                  <Skeleton className="h-3.5 w-72 max-w-full" />
-                </div>
-                <div className="flex h-5 items-center sm:hidden">
-                  <Skeleton className="h-3.5 w-full" />
-                </div>
-                <div className="flex h-5 items-center sm:hidden">
-                  <Skeleton className="h-3.5 w-full" />
-                </div>
-                <div className="flex h-5 items-center sm:hidden">
-                  <Skeleton className="h-3.5 w-2/3" />
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <SkeletonButton className="w-32" />
-          </div>
-        </div>
-      </div>
+      <BrandHeaderSkeleton />
       <div className="flex flex-col flex-1 min-h-0 gap-4">
         {/* PublicProductsPage: toolbar + the collapsed active-filter row in a
             flex-col gap-2 - the empty row still takes its 8px gap. */}
@@ -65,7 +22,7 @@ export default function BrandLoading() {
         </div>
         <ScrollArea layout="column" className="flex-1 min-h-0">
           <div className="flex gap-6 flex-1 px-6">
-            <SkeletonFilterSidebar groups={["range", "rating", 2, 2, 8]} />
+            <SkeletonFilterSidebar groups={["priceRange", "rating", 2, 2, 5, 8]} />
             <div className="flex-1 min-w-0">
               <SkeletonProductGrid />
             </div>

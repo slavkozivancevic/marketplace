@@ -36,6 +36,7 @@ import { useMoney } from "@/lib/useMoney";
 import { useMarketListItem } from "@/providers/MarketProvider";
 import { MarketPriceNote } from "@/features/priceMarkets/components/MarketPriceNote";
 import { cn } from "@/lib/utils";
+import { rememberProductMediaCount } from "@/features/products/productPageHint";
 import { formatNumber, formatRating } from "@/lib/i18n/numbers";
 import { FreeShippingBadge } from "@/features/shipping/components/FreeShippingBadge";
 import { LinkPendingMark, pressCard, pressText } from "@/components/ui/pressable";
@@ -211,6 +212,7 @@ export function ProductCard({
       <Link
         href={{ pathname: "/products/[slug]", params: { slug: productSlug } }}
         className="block h-full"
+        onClick={() => rememberProductMediaCount(productSlug, product.mediaCount)}
       >
         <Card className={`h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 border-border/50 pt-0 pb-0 gap-0 flex flex-col ${pressCard}`}>
           <LinkPendingMark />
@@ -312,7 +314,12 @@ export function ProductCard({
                   <CardDescription className="line-clamp-2 mt-0.5">{cardDescription}</CardDescription>
                 </TruncatedTooltip>
               )}
-              {product.ratingCount > 0 && (
+              {/* The rating row is on every card, reviewed or not: a row that
+                  only some cards have stretched each grid row to its tallest
+                  card, so rows came out 375 or 397px depending on the products
+                  in them, and no skeleton could know which. Unreviewed, it is
+                  the same 16px line - empty stars and "No reviews yet". */}
+              {product.ratingCount > 0 ? (
                 <div className="mt-1.5" onClick={(e) => e.preventDefault()}>
                   <RatingBreakdownPopover
                     productId={product.id}
@@ -320,6 +327,13 @@ export function ProductCard({
                     avgRating={product.avgRating}
                     ratingCount={product.ratingCount}
                   />
+                </div>
+              ) : (
+                <div className="mt-1.5 flex items-center gap-0.5">
+                  <StarRating rating={0} size={14} />
+                  <span className="text-xs text-muted-foreground ml-1">
+                    {tProducts("cardNoReviews")}
+                  </span>
                 </div>
               )}
               {isOnSale ? (

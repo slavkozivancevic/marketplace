@@ -42,19 +42,36 @@ export type CartShipping = {
  * one. The cost is one extra round trip after a price actually moved; that pass
  * finds nothing to change and settles.
  */
+/**
+ * The last answer, keyed by cart signature and shared by every surface in the tab. The
+ * drawer that opens on "Add to cart" resolves the cart; the cart page, its
+ * loading state and checkout then mount already knowing the delivery lines and
+ * draw the free-delivery bars and lead times at once instead of a skeleton that
+ * the bars push down a moment later. Each mount still re-resolves (prices may
+ * have moved); the cache only spares the first frame. Module state, never
+ * storage: empty on the server and on the hydrating render alike.
+ */
+const lastResolved = new Map<string, Omit<CartShipping, "ready">>();
+
 export function useCartShipping(enabled = true): CartShipping {
   const items = useCartStore((s) => s.items);
   const t = useTranslations("cart");
   const locale = useLocale();
   const { formatOf } = useMoney();
-  const [shipping, setShipping] = useState<Omit<CartShipping, "ready">>({
-    lines: [],
-    total: 0,
-    totalUsd: 0,
-  });
+
+  // The pricing country is part of what the cart is worth: switching it
+  // re-resolves the cart, and a line its market prices differently comes back
+  // through the same repriced notice as a promo that started.
+  const { country } = useViewerMarket();
+  const cartSig =
+    items.map((i) => `${i.productId}:${i.variantId}:${i.quantity}:${i.price}`).join("|") + `@${country ?? ""}`;
+
+  const [shipping, setShipping] = useState<Omit<CartShipping, "ready">>(
+    () => lastResolved.get(cartSig) ?? { lines: [], total: 0, totalUsd: 0 },
+  );
   // Once, not per pass: a quantity change re-resolves too, and flipping back to
   // "not ready" then would swap the whole cart for a skeleton on every click.
-  const [resolved, setResolved] = useState(false);
+  const [resolved, setResolved] = useState(() => lastResolved.has(cartSig));
 
   // The removal notice reads the translator and the active locale, both new on
   // every render. As an effect event it stays out of the dependency list - which
@@ -80,13 +97,6 @@ export function useCartShipping(enabled = true): CartShipping {
     );
   });
 
-  // The pricing country is part of what the cart is worth: switching it
-  // re-resolves the cart, and a line its market prices differently comes back
-  // through the same repriced notice as a promo that started.
-  const { country } = useViewerMarket();
-  const cartSig =
-    items.map((i) => `${i.productId}:${i.variantId}:${i.quantity}:${i.price}`).join("|") + `@${country ?? ""}`;
-
   useEffect(() => {
     if (!enabled) return;
     if (items.length === 0) {
@@ -104,8 +114,12 @@ export function useCartShipping(enabled = true): CartShipping {
     }));
     getCartShippingAction(refs)
       .then((res) => {
+        const value = { lines: res.lines, total: res.total, totalUsd: res.totalUsd };
+        // Only the newest cart matters - an older signature is never shown again.
+        lastResolved.clear();
+        lastResolved.set(cartSig, value);
         if (!active) return;
-        setShipping({ lines: res.lines, total: res.total, totalUsd: res.totalUsd });
+        setShipping(value);
         setResolved(true);
         // Self-heal from the same resolution the delivery above was computed
         // from: refresh the persisted price snapshots and prune lines whose

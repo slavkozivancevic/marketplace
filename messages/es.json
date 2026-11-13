@@ -293,7 +293,8 @@
     "historyRollbackTitle": "Revertir a esta versión",
     "historyRollbackDesc": "¿Estás seguro de que deseas revertir a la versión {version}? Se creará una nueva versión con estos datos.",
     "historyRollbackSuccess": "Revertido a la versión {version}",
-    "showRatingBreakdown": "Ver desglose de valoraciones"
+    "showRatingBreakdown": "Ver desglose de valoraciones",
+    "cardNoReviews": "Aún no hay reseñas"
   },
   "dashboard": {
     "title": "Panel",

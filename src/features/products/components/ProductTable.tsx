@@ -26,6 +26,7 @@ import { getBrandName } from "@/features/brands/utils/translations";
 // a column here can't leave the skeleton behind.
 import { buildProductTableCols } from "./ProductTableSkeleton";
 import { IconButton } from "@/components/IconButton";
+import { rememberProductMediaCount } from "@/features/products/productPageHint";
 import { LinkPendingMark, pressSurface } from "@/components/ui/pressable";
 
 function getStatusVariant(status: string) {
@@ -193,7 +194,15 @@ export function ProductTableRow({
     // isBusy guard lives in this onClick (not just the inner div's
     // pointer-events-none) because pointer-events:none on a descendant lets
     // the click fall through to this ancestor anchor instead of blocking it.
-    <Link href={viewHref} className="contents" onClick={(e) => isBusy && e.preventDefault()}>
+    <Link
+      href={viewHref}
+      className="contents"
+      onClick={(e) => {
+        if (isBusy) return e.preventDefault();
+        // The detail page's skeleton draws this many thumbnails.
+        rememberProductMediaCount(product.id, product._count?.media);
+      }}
+    >
     <div
       role="row"
       className={cn(

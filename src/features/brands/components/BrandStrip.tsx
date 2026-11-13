@@ -8,6 +8,7 @@ import { useTouchHover, touchActiveAttr } from "@/hooks/useTouchHover";
 import { BrandLogo } from "./BrandLogo";
 import { getBrandName, getBrandSlug } from "../utils/translations";
 import type { BrandListItem } from "../db/brands";
+import { rememberBrandForPage } from "../brandPageHint";
 import { pressText } from "@/components/ui/pressable";
 
 /**
@@ -183,6 +184,8 @@ function BrandSlot({
       {...touchActiveAttr(active)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      // Hands the brand to its page's loading state - see brandPageHint.
+      onClick={() => rememberBrandForPage(slug, brand)}
       className={shell}
     >
       {logo}

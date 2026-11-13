@@ -3,7 +3,7 @@ import { cacheTag } from "next/cache";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { prisma } from "@/core/db/prisma";
-import { Link, getPathname } from "@/i18n/navigation";
+import { getPathname } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import { getBrandName } from "@/features/brands/utils/translations";
 import { CacheTags } from "@/lib/cache/tags";
@@ -13,6 +13,8 @@ import { Footer } from "@/components/layout/footer";
 import { absoluteUrl } from "@/lib/seo/jsonLd";
 import { BrandLogo, type LogoBackdrop } from "@/features/brands/components/BrandLogo";
 import { pressCard } from "@/components/ui/pressable";
+import { BrandPageLink } from "@/features/brands/components/BrandPageLink";
+import type { BrandHeaderSource } from "@/features/brands/components/BrandPageHeader";
 
 export async function generateMetadata({
   params,
@@ -50,6 +52,9 @@ type BrandCard = {
   name: string;
   slug: string;
   productCount: number;
+  /** The brand page's header, handed to its loading state on click - only
+   *  this locale's row and the default-locale fallback, not all four. */
+  header: BrandHeaderSource;
 };
 
 /**
@@ -70,7 +75,7 @@ async function fetchAllBrandsRaw() {
       logoUrlDark: true,
       logoBackdrop: true,
       logoBackdropDark: true,
-      translations: { select: { locale: true, name: true, slug: true } },
+      translations: { select: { locale: true, name: true, slug: true, description: true } },
       _count: {
         select: {
           products: {
@@ -94,7 +99,7 @@ export default async function BrandsPage() {
   ];
 
   const brands: BrandCard[] = rawBrands
-    .map((b) => {
+    .map((b): BrandCard | null => {
       // `row` is only for the SLUG - that must stay this locale's own URL.
       // The NAME goes through `getBrandName`, because a locale can have a
       // translation row whose name was left blank (kept alive by its
@@ -113,6 +118,15 @@ export default async function BrandsPage() {
         name: getBrandName(b, locale),
         slug: row.slug,
         productCount: b._count.products,
+        header: {
+          logoUrl: b.logoUrl,
+          logoUrlDark: b.logoUrlDark,
+          logoBackdrop: b.logoBackdrop,
+          logoBackdropDark: b.logoBackdropDark,
+          translations: b.translations.filter(
+            (tr) => tr.locale === locale || tr.locale === routing.defaultLocale,
+          ),
+        },
       };
     })
     .filter((b): b is BrandCard => b !== null && b.productCount > 0)
@@ -136,12 +150,10 @@ export default async function BrandsPage() {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {brands.map((b) => (
-                <Link
+                <BrandPageLink
                   key={b.id}
-                  href={{
-                    pathname: "/brands/[slug]",
-                    params: { slug: b.slug },
-                  }}
+                  slug={b.slug}
+                  brand={b.header}
                   className={`group flex flex-col items-center justify-center gap-3 rounded-xl border border-border/50 bg-card p-6 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5 hover:border-border ${pressCard}`}
                 >
                   <BrandLogo
@@ -160,7 +172,7 @@ export default async function BrandsPage() {
                       {t("publicProductCount", { count: b.productCount })}
                     </p>
                   </div>
-                </Link>
+                </BrandPageLink>
               ))}
             </div>
           )}

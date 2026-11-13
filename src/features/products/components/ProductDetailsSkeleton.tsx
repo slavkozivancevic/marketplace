@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton, SkeletonButton, SkeletonCopy } from "@/components/ui/skeleton";
+import { ProductGallerySkeleton } from "./ProductGallerySkeleton";
 
 /**
  * Placeholder for <ProductDetails>, built from the SAME Card / Badge /
@@ -83,14 +84,9 @@ export function ProductDetailsSkeleton({ showActions = true }: { showActions?: b
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            <Skeleton className="h-96 w-full rounded-lg" />
-            <div className="flex gap-2 flex-wrap">
-              {Array.from({ length: 4 }, (_, i) => (
-                <Skeleton key={i} className="h-16 w-16 shrink-0 rounded" />
-              ))}
-            </div>
-          </div>
+          {/* As many thumbnails as the product has, recorded by the list row
+              that was clicked (productPageHint); four without one. */}
+          <ProductGallerySkeleton param="id" defaultCount={4} />
         </CardContent>
       </Card>
 

@@ -7,15 +7,13 @@ import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { VALID_CURRENCIES } from "@/lib/currency-config";
 
 import { prisma } from "@/core/db/prisma";
-import { Link, getPathname } from "@/i18n/navigation";
+import { getPathname } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import { getBrandName } from "@/features/brands/utils/translations";
 import { CacheTags } from "@/lib/cache/tags";
-import { Button } from "@/components/ui/button";
-import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { absoluteUrl } from "@/lib/seo/jsonLd";
 import { Footer } from "@/components/layout/footer";
-import { BrandLogo } from "@/features/brands/components/BrandLogo";
+import { BrandPageHeader, brandHeaderProps } from "@/features/brands/components/BrandPageHeader";
 import { PublicProductsPage } from "@/features/products/components/PublicProductsPage";
 import { PublishLocalePaths, type LocalePaths } from "@/i18n/LocalePathsContext";
 import type { Locale } from "@/i18n/config";
@@ -181,27 +179,8 @@ export default async function BrandDetailPage({ params }: BrandPageProps) {
     );
   }
 
-  const localT =
-    localTranslation ??
-    brand.translations.find((tr) => tr.locale === routing.defaultLocale) ??
-    brand.translations[0];
-  // See generateMetadata: a present row does not guarantee a non-blank name,
-  // so the heading/breadcrumb read through `getBrandName` rather than `localT`.
-  const brandName = getBrandName(brand, locale);
   const t = await getTranslations("brands");
   const tCrumbs = await getTranslations("breadcrumbs");
-
-  const brandPath = getPathname({
-    href: { pathname: "/brands/[slug]", params: { slug } },
-    locale,
-  });
-  const homePath = getPathname({ href: "/", locale });
-  const brandsListPath = getPathname({ href: "/brands", locale });
-  const breadcrumbItems = [
-    { name: tCrumbs("home"), href: homePath },
-    { name: tCrumbs("brands"), href: brandsListPath },
-    { name: brandName, href: brandPath },
-  ];
 
   // Per-locale URLs of this brand so the language switcher hops straight
   // to e.g. `/sr/brendovi/<sr-slug>` instead of reusing the English slug.
@@ -269,36 +248,14 @@ export default async function BrandDetailPage({ params }: BrandPageProps) {
 
       {/* Hero strip - logo + name + back button, sits above the
           catalog's own search bar / sidebar. */}
-      <div className="shrink-0 px-6 pt-2 pb-4 mb-2 sticky-header-bg">
-        <Breadcrumbs items={breadcrumbItems} />
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-4 min-w-0">
-            <BrandLogo
-              src={brand.logoUrl}
-              srcDark={brand.logoUrlDark}
-              backdrop={brand.logoBackdrop}
-              backdropDark={brand.logoBackdropDark}
-              name={brandName}
-              size={64}
-            />
-            <div className="space-y-0.5 min-w-0">
-              <h1 className="text-2xl font-bold text-foreground truncate">
-                {brandName}
-              </h1>
-              {localT?.description && (
-                <p className="text-sm text-muted-foreground">
-                  {localT.description}
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center justify-end gap-2 shrink-0">
-            <Button asChild variant="outline">
-              <Link href="/brands">{t("publicBackToBrands")}</Link>
-            </Button>
-          </div>
-        </div>
-      </div>
+      <BrandPageHeader
+        {...brandHeaderProps({
+          brand,
+          slug,
+          locale: locale as Locale,
+          labels: { home: tCrumbs("home"), brands: tCrumbs("brands"), back: t("publicBackToBrands") },
+        })}
+      />
 
       {/* Catalog with brandId pinned to this brand. Same infinite-scroll
           virtualized grid, search, sort and filter sidebar as the main

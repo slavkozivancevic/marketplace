@@ -966,6 +966,7 @@ export function productRepository(
           createdBy: {
             select: { id: true, name: true, email: true },
           },
+          _count: { select: { media: true } },
         },
       });
 

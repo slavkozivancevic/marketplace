@@ -8,7 +8,7 @@ import { getWishlistProducts } from "@/features/wishlist/db/wishlist";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumbs } from "@/components/seo/Breadcrumbs";
 import { Button } from "@/components/ui/button";
-import { Heart } from "lucide-react";
+import { WishlistEmptyState } from "@/features/wishlist/components/WishlistEmptyState";
 import { Footer } from "@/components/layout/footer";
 import { ProductCard } from "@/features/products/components/ProductCard";
 import { DemoBuyerOnlyPanel } from "@/features/demo/components/DemoBuyerOnlyNotice";
@@ -75,18 +75,7 @@ export default async function WishlistPage() {
           {demoReadOnly ? (
             <DemoBuyerOnlyPanel className="py-24" />
           ) : products.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted">
-                <Heart className="h-10 w-10 text-muted-foreground" />
-              </div>
-              <h2 className="text-xl font-semibold">{t("wishlist.empty")}</h2>
-              <p className="text-muted-foreground max-w-sm">
-                {t("wishlist.emptyDesc")}
-              </p>
-              <Button asChild>
-                <Link href="/products">{t("wishlist.browseProducts")}</Link>
-              </Button>
-            </div>
+            <WishlistEmptyState />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {products.map((product) => (

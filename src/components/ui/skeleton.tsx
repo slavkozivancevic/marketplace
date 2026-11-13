@@ -371,16 +371,40 @@ export function SkeletonProductGridCard({
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
       <Skeleton className="w-full h-48 rounded-none shrink-0" />
-      <div className="px-4 pt-3 pb-3 flex flex-col flex-1">
-        <div className="flex-1 space-y-2">
-          <SkeletonText rows={1} size="md" className="w-3/4" />
-          <SkeletonText rows={2} size="sm" className="w-full" />
-          <div className="flex items-center justify-between pt-1">
-            <SkeletonText rows={1} size="md" className="w-16" />
-            <Skeleton className="h-5 w-16 rounded-full" />
+      {/* <ProductCard>'s CardContent, line box for line box (measured on the
+          storefront, 2026-11-13: 397px card at every width): a one-line
+          `text-sm leading-snug` title (19.25px), the two-line `text-sm`
+          short description (`mt-0.5`, 2 x 20px), the `text-lg` price
+          (`mt-2`, 28px) after the rating row (`mt-1.5`, 16px), the `text-[11px]` availability line (`mt-1.5`,
+          15.7px - it inherits text-sm's line-height ratio) and the `size="sm"`
+          add-to-cart button (`mt-3`, h-7). */}
+      <div className="px-4 pt-3 pb-3 flex flex-col flex-1 text-sm">
+        <div className="flex-1">
+          <div className="flex h-lh items-center leading-snug">
+            <Skeleton className="h-3.5 w-3/4" />
+          </div>
+          <div className="mt-0.5">
+            <div className="flex h-lh items-center">
+              <Skeleton className="h-3 w-full" />
+            </div>
+            <div className="flex h-lh items-center">
+              <Skeleton className="h-3 w-2/3" />
+            </div>
+          </div>
+          {/* The rating row every card has (stars, or empty stars and "No
+              reviews yet"): a 16px `text-xs` line, `mt-1.5`. */}
+          <div className="mt-1.5 flex h-4 items-center gap-1">
+            <Skeleton className="h-3.5 w-19.5" />
+            <Skeleton className="h-3 w-16" />
+          </div>
+          <div className="mt-2 flex h-lh items-center text-lg">
+            <Skeleton className="h-5 w-20" />
+          </div>
+          <div className="mt-1.5 flex h-lh items-center text-[11px]">
+            <Skeleton className="h-2.5 w-12" />
           </div>
         </div>
-        {showButton && <SkeletonButton className="w-full mt-3" />}
+        {showButton && <SkeletonButton size="sm" className="w-full mt-3" />}
       </div>
     </div>
   );
@@ -711,10 +735,13 @@ export function SkeletonFilterSidebar({
    * One entry per filter group, in the order the page builds them. A number is
    * a checkbox facet with that many options; `"range"` is the min/max input
    * pair (used by the price filter) and `"rating"` is the star row - both have
-   * their own height rather than a list of 20px option rows.
+   * their own height rather than a list of 20px option rows. `"priceRange"`
+   * is the storefront's price filter: the same pair plus the note under it
+   * that says filtering uses the price before country pricing.
    */
-  groups?: (number | "range" | "rating")[];
+  groups?: (number | "range" | "priceRange" | "rating")[];
 } = {}) {
+  const t = useTranslations("priceMarkets");
   return (
     <aside className="hidden lg:flex flex-col w-56 shrink-0 border-r">
       {/* Header box: `pr-6 pt-1 pb-2`. Its row is 26px tall, not 20px - the
@@ -741,7 +768,7 @@ export function SkeletonFilterSidebar({
                 <div className="flex h-5 items-center">
                   <Skeleton className="h-3.5 w-24" />
                 </div>
-                {group === "range" ? (
+                {group === "range" || group === "priceRange" ? (
                   // RangeFilter: two `h-8 rounded-lg` inputs with a `text-xs`
                   // "to" between them.
                   <div className="flex items-center gap-2">
@@ -777,6 +804,14 @@ export function SkeletonFilterSidebar({
                   </div>
                 )}
               </div>
+              {/* <FilterGroups> renders a range group's hint as
+                  `mt-1.5 text-xs` under the inputs - the real string drawn
+                  transparent, so it wraps to the same lines in every locale. */}
+              {group === "priceRange" && (
+                <p className="mt-1.5 text-xs">
+                  <SkeletonCopy>{t("filterNote")}</SkeletonCopy>
+                </p>
+              )}
               {/* <Separator className="mt-4" /> closes every group. */}
               <div className="mt-4 h-px w-full bg-border" />
             </div>
