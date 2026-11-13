@@ -295,6 +295,12 @@ export type AdminProductListItem = Prisma.ProductGetPayload<{
     // Every gallery item - `media` is a take-limited window. Tells the
     // product detail skeleton how many thumbnails to draw.
     _count: { select: { media: true } };
+    categories: {
+      select: { categoryId: true; category: { select: { translations: true } } };
+    };
+    tags: {
+      select: { tagId: true; tag: { select: { translations: true } } };
+    };
   };
 }>;
 

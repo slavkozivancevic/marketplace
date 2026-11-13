@@ -15,6 +15,7 @@ import {
   isActionErrorResult,
 } from "@/features/common/errors/domainErrors";
 import { PageHeader } from "@/components/PageHeader";
+import { ProductDetailLoadingHeader } from "@/features/products/components/ProductDetailsLoadingParts";
 import { Breadcrumbs, type BreadcrumbItem } from "@/components/seo/Breadcrumbs";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -58,26 +59,27 @@ async function ProductDetailsLoading({ id }: { id: string }) {
   const breadcrumbItems = await buildAdminProductCrumbs(id, tCrumbs("productDetails"));
   return (
     <>
-      <div className="shrink-0 px-6 pt-2 sticky-header-bg">
-        <Breadcrumbs items={breadcrumbItems} seo={false} />
-        <PageHeader
-          title={t("admin.productDetails")}
-          description={t("admin.productDetailsDesc")}
-        >
-          <Button asChild variant="outline">
-            <Link href="/admin/products">{t("admin.backToProducts")}</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href={{ pathname: "/admin/products/[id]/history", params: { id } }}>{t("admin.history")}</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href={{ pathname: "/admin/products/[id]/pricing", params: { id } }}>{t("priceRules.title")}</Link>
-          </Button>
-          <Button asChild>
-            <Link href={{ pathname: "/admin/products/[id]/edit", params: { id } }}>{t("common.edit")}</Link>
-          </Button>
-        </PageHeader>
-      </div>
+      {/* The clicked list row's title when it recorded the product. */}
+      <ProductDetailLoadingHeader
+        area="admin"
+        baseCrumbs={breadcrumbItems.slice(0, -1)}
+        genericTitle={t("admin.productDetails")}
+        genericCrumb={tCrumbs("productDetails")}
+        description={t("admin.productDetailsDesc")}
+      >
+        <Button asChild variant="outline">
+          <Link href="/admin/products">{t("admin.backToProducts")}</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href={{ pathname: "/admin/products/[id]/history", params: { id } }}>{t("admin.history")}</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href={{ pathname: "/admin/products/[id]/pricing", params: { id } }}>{t("priceRules.title")}</Link>
+        </Button>
+        <Button asChild>
+          <Link href={{ pathname: "/admin/products/[id]/edit", params: { id } }}>{t("common.edit")}</Link>
+        </Button>
+      </ProductDetailLoadingHeader>
       <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
         <ProductDetailsSkeleton />
       </div>

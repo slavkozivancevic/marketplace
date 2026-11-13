@@ -27,6 +27,7 @@ import { getBrandName } from "@/features/brands/utils/translations";
 import { buildProductTableCols } from "./ProductTableSkeleton";
 import { IconButton } from "@/components/IconButton";
 import { rememberProductMediaCount } from "@/features/products/productPageHint";
+import { rememberProductDetails } from "@/features/products/productDetailsHint";
 import { LinkPendingMark, pressSurface } from "@/components/ui/pressable";
 
 function getStatusVariant(status: string) {
@@ -201,6 +202,8 @@ export function ProductTableRow({
         if (isBusy) return e.preventDefault();
         // The detail page's skeleton draws this many thumbnails.
         rememberProductMediaCount(product.id, product._count?.media);
+        // ...and the header and first card, drawn for real while it loads.
+        rememberProductDetails(product.id, product);
       }}
     >
     <div

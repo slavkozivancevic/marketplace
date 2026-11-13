@@ -863,7 +863,10 @@ const productWithRelationsInclude = {
       },
     },
   },
+  // Ordered, like the list rows below: the detail page's loading state draws
+  // the chips from the list row, and both must wrap the same way.
   categories: {
+    orderBy: { categoryId: "asc" },
     include: {
       category: {
         select: { id: true, parentId: true, translations: true },
@@ -871,6 +874,7 @@ const productWithRelationsInclude = {
     },
   },
   tags: {
+    orderBy: { tagId: "asc" },
     include: {
       tag: {
         select: { id: true, translations: true },
@@ -967,6 +971,16 @@ export function productRepository(
             select: { id: true, name: true, email: true },
           },
           _count: { select: { media: true } },
+          // The detail page's first card, handed to its loading state on click
+          // (productDetailsHint) - same order as the detail include.
+          categories: {
+            orderBy: { categoryId: "asc" },
+            select: { categoryId: true, category: { select: { translations: true } } },
+          },
+          tags: {
+            orderBy: { tagId: "asc" },
+            select: { tagId: true, tag: { select: { translations: true } } },
+          },
         },
       });
 

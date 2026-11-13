@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton, SkeletonButton, SkeletonCopy } from "@/components/ui/skeleton";
 import { ProductGallerySkeleton } from "./ProductGallerySkeleton";
+import { HintedBasicInfo } from "./ProductDetailsLoadingParts";
 
 /**
  * Placeholder for <ProductDetails>, built from the SAME Card / Badge /
@@ -27,51 +28,54 @@ export function ProductDetailsSkeleton({ showActions = true }: { showActions?: b
   return (
     <div aria-hidden className="space-y-6">
       {/* ── BASIC INFO ── */}
-      <Card>
-        <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle>
-            <SkeletonCopy>{t("basicInfo")}</SkeletonCopy>
-          </CardTitle>
-          {/* <ProductStatusActions> for a PUBLISHED product. */}
-          {showActions && (
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <SkeletonButton size="sm" label={t("unpublish")} />
-              <SkeletonButton size="sm" label={t("archive")} />
-              <SkeletonButton size="sm" label={t("deleteProduct")} />
+      {/* The real card when the clicked list row recorded the product. */}
+      <HintedBasicInfo showActions={showActions}>
+        <Card>
+          <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle>
+              <SkeletonCopy>{t("basicInfo")}</SkeletonCopy>
+            </CardTitle>
+            {/* <ProductStatusActions> for a PUBLISHED product. */}
+            {showActions && (
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <SkeletonButton size="sm" label={t("unpublish")} />
+                <SkeletonButton size="sm" label={t("archive")} />
+                <SkeletonButton size="sm" label={t("deleteProduct")} />
+              </div>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Row label={t("titleLabel")} chars={14} />
+            <Row label={`${tf("slug")}:`} chars={14} mono />
+            <Row label={`${tf("shortDesc")}:`} chars={30} />
+            {/* Brand: label, the 20px logo, the name. */}
+            <div className="flex items-center gap-2">
+              <strong>
+                <SkeletonCopy>{t("brandLabel")}</SkeletonCopy>
+              </strong>
+              <Skeleton className="size-5 rounded" />
+              <SkeletonCopy>{blank(6)}</SkeletonCopy>
             </div>
-          )}
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <Row label={t("titleLabel")} chars={14} />
-          <Row label={`${tf("slug")}:`} chars={14} mono />
-          <Row label={`${tf("shortDesc")}:`} chars={30} />
-          {/* Brand: label, the 20px logo, the name. */}
-          <div className="flex items-center gap-2">
-            <strong>
-              <SkeletonCopy>{t("brandLabel")}</SkeletonCopy>
-            </strong>
-            <Skeleton className="size-5 rounded" />
-            <SkeletonCopy>{blank(6)}</SkeletonCopy>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <strong>
-              <SkeletonCopy>{t("categoriesLabel")}</SkeletonCopy>
-            </strong>
-            <SkeletonBadge variant="secondary" chars={14} />
-            <SkeletonBadge variant="secondary" chars={8} />
-          </div>
-          {/* The full description: a long value that wraps like the real one
-              (two lines on a desktop). */}
-          <Row label={t("descLabel")} chars={190} prose />
-          <div>
-            <strong>
-              <SkeletonCopy>{t("statusLabel")}</SkeletonCopy>
-            </strong>{" "}
-            <SkeletonBadge text={t("published")} />
-          </div>
-          <Row label={t("version")} chars={2} />
-        </CardContent>
-      </Card>
+            <div className="flex items-center gap-2 flex-wrap">
+              <strong>
+                <SkeletonCopy>{t("categoriesLabel")}</SkeletonCopy>
+              </strong>
+              <SkeletonBadge variant="secondary" chars={14} />
+              <SkeletonBadge variant="secondary" chars={8} />
+            </div>
+            {/* The full description: a long value that wraps like the real one
+                (two lines on a desktop). */}
+            <Row label={t("descLabel")} chars={190} prose />
+            <div>
+              <strong>
+                <SkeletonCopy>{t("statusLabel")}</SkeletonCopy>
+              </strong>{" "}
+              <SkeletonBadge text={t("published")} />
+            </div>
+            <Row label={t("version")} chars={2} />
+          </CardContent>
+        </Card>
+      </HintedBasicInfo>
 
       <Separator />
 

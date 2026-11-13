@@ -20,6 +20,7 @@ import { CartSummary } from "./CartSummary";
 import { FreeShippingProgress } from "./FreeShippingProgress";
 import { SellerLeadTimes } from "./SellerLeadTimes";
 import { useMoney } from "@/lib/useMoney";
+import { cn } from "@/lib/utils";
 import { DemoBuyerOnlyGate } from "@/features/demo/components/DemoBuyerOnlyNotice";
 import { useDemoReadOnly } from "@/features/demo/useDemoReadOnly";
 
@@ -128,7 +129,21 @@ export function CartDrawer() {
                 </Button>
               </div>
             ) : (
-              <>
+              // Held invisible until the first server pass answers: the lead
+              // times above the lines and the free-delivery bar in the footer
+              // come from it, and drawing the lines first had both arrive a
+              // moment later and push everything down while the buyer was
+              // reading. The pass usually lands while the sheet is still
+              // sliding in, so the drawer arrives whole. Same wait as the cart
+              // page (`shipping.ready`), without a skeleton that would only
+              // swap for a different layout.
+              <div
+                aria-busy={!shipping.ready}
+                className={cn(
+                  "flex flex-1 flex-col min-h-0 transition-opacity duration-200",
+                  !shipping.ready && "pointer-events-none opacity-0",
+                )}
+              >
                 <div className="flex-1 overflow-y-auto -mx-6 px-6">
                   <SellerLeadTimes lines={shipping.lines} className="mb-4" />
                   {items.map((item, index) => (
@@ -177,7 +192,7 @@ export function CartDrawer() {
                     </Button>
                   </div>
                 </div>
-              </>
+              </div>
             )}
           </div>
         </DemoBuyerOnlyGate>
