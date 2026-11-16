@@ -246,7 +246,6 @@ model BrandTranslation {
 
   @@unique([brandId, locale])
   @@unique([locale, slug])
-  @@index([brandId])
 }
 
 model Category {
@@ -287,7 +286,6 @@ model CategoryTranslation {
 
   @@unique([categoryId, locale])
   @@unique([locale, slug])
-  @@index([categoryId])
 }
 
 model ProductCategory {
@@ -351,7 +349,6 @@ model TrustPointTranslation {
   trustPoint TrustPoint @relation(fields: [trustPointId], references: [id], onDelete: Cascade)
 
   @@unique([trustPointId, locale])
-  @@index([trustPointId])
 }
 
 model TagTranslation {
@@ -365,7 +362,6 @@ model TagTranslation {
 
   @@unique([tagId, locale])
   @@unique([locale, slug])
-  @@index([tagId])
 }
 
 model ProductTag {
@@ -537,7 +533,6 @@ model Product {
   priceRules      PriceRule[]
 
   @@index([organizationId, deletedAt])
-  @@index([organizationId, status])
   @@index([organizationId, status, deletedAt])
   @@index([brandId])
   @@index([featuredAt])
@@ -573,7 +568,6 @@ model ProductTranslation {
 
   @@unique([productId, locale])
   @@unique([locale, slug])
-  @@index([productId])
   @@index([locale, title])
   @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin)
 }
@@ -642,7 +636,6 @@ model ProductVariant {
   priceRules      PriceRule[]
 
   @@unique([productId, sku])
-  @@index([productId])
   @@index([effectiveUntil])
 }
 
@@ -776,7 +769,6 @@ model PriceMarketTranslation {
   market PriceMarket @relation(fields: [marketId], references: [id], onDelete: Cascade)
 
   @@unique([marketId, locale])
-  @@index([marketId])
 }
 
 // The country code is the primary key, so a country belongs to at most one
@@ -849,7 +841,6 @@ model ProductVariantMedia {
   media     ProductMedia   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
   @@id([variantId, mediaId])
-  @@index([variantId])
   @@index([mediaId])
 }
 
@@ -870,7 +861,6 @@ model ProductVariantAttributeValue {
 
   // One value per axis per variant (a variant has exactly one Color, one Size).
   @@unique([variantId, attributeId])
-  @@index([variantId])
   @@index([attributeId, optionId])
 }
 
@@ -944,7 +934,6 @@ model Invite {
   createdBy    User           @relation("InviteCreatedBy", fields: [createdById], references: [id])
 
   @@index([orgId])
-  @@index([token])
   @@index([email])
 }
 
@@ -1189,7 +1178,6 @@ model OrderSellerPart {
   organization Organization @relation(fields: [organizationId], references: [id])
 
   @@unique([orderId, organizationId])
-  @@index([orderId])
   @@index([organizationId])
 }
 
@@ -1246,7 +1234,6 @@ model ReturnItem {
   orderItem OrderItem @relation(fields: [orderItemId], references: [id])
 
   @@unique([returnId, orderItemId])
-  @@index([returnId])
   @@index([orderItemId])
 }
 
@@ -1325,7 +1312,6 @@ model Wishlist {
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@id([userId, productId])
-  @@index([userId])
   @@index([productId])
 }
 
@@ -1367,7 +1353,6 @@ model ProductReview {
   order   Order   @relation(fields: [orderId], references: [id])
 
   @@unique([productId, userId])
-  @@index([productId])
   @@index([userId])
   // Admin moderation queue filters/sorts by status, newest first.
   @@index([status, createdAt])
@@ -1511,8 +1496,6 @@ model Attribute {
   categories    CategoryAttribute[]
   values        ProductAttributeValue[]
   variantValues ProductVariantAttributeValue[]
-
-  @@index([key])
 }
 
 model AttributeTranslation {
@@ -1524,7 +1507,6 @@ model AttributeTranslation {
   attribute Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
 
   @@unique([attributeId, locale])
-  @@index([attributeId])
 }
 
 // A predefined choice for a SELECT / MULTI_SELECT attribute. `value` is the
@@ -1542,7 +1524,6 @@ model AttributeOption {
   variantValues ProductVariantAttributeValue[]
 
   @@unique([attributeId, value])
-  @@index([attributeId])
 }
 
 model AttributeOptionTranslation {
@@ -1554,7 +1535,6 @@ model AttributeOptionTranslation {
   option AttributeOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
 
   @@unique([optionId, locale])
-  @@index([optionId])
 }
 
 // Assigns an attribute to a category. Assignments are inherited down the tree:
