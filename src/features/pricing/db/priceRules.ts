@@ -23,12 +23,22 @@ function data(write: RuleWrite) {
  * one product serialise - otherwise both could pass the limit check and land
  * rule 21 and 22. Also the tenant check: a product outside the org is "not
  * found", never "forbidden", so ids from another tenant reveal nothing.
+ *
+ * FOR NO KEY UPDATE, not FOR UPDATE. Both serialize two rule writes on the
+ * product, but FOR UPDATE also blocks the share lock every foreign key check
+ * takes on its parent row - and a checkout takes exactly that, on this
+ * product, when it inserts its order lines, AFTER it has already decremented
+ * the variant's stock. This write locks the product and then rewrites the
+ * variants (`regenerateProductWindows`), so with FOR UPDATE each held what the
+ * other was waiting for and Postgres aborted one: a buyer's order failed
+ * because a seller saved a price. Nothing here changes the product's key, so
+ * the weaker lock is the one the later UPDATEs take anyway.
  */
 async function lockProduct(tx: TransactionClient, organizationId: string, productId: string) {
   const rows = await tx.$queryRaw<{ id: string }[]>`
     SELECT id FROM "Product"
     WHERE id = ${productId} AND "organizationId" = ${organizationId} AND "deletedAt" IS NULL
-    FOR UPDATE
+    FOR NO KEY UPDATE
   `;
   if (rows.length === 0) throw new NotFoundError(`Product ${productId} not found`);
 }

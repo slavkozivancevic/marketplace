@@ -27,6 +27,7 @@ import {
 import { recordPurchaseEvents } from "@/features/interactions/db/interactions";
 import { InsufficientStockError } from "@/features/common/errors/domainErrors";
 import { reverseSellerPayoutsForOrder } from "@/features/payments/db/payouts";
+import { inStockLockOrder } from "./stockLockOrder";
 
 export async function getUserOrders(userId: string) {
   "use cache";
@@ -593,7 +594,8 @@ export async function fulfillOrder({
   const order = await prisma.$transaction(async (tx) => {
     // Atomic stock decrement - raw SQL WHERE stock >= quantity prevents overselling.
     // If affected rows = 0, another concurrent transaction already took the last unit.
-    for (const item of itemsWithPrice) {
+    // In lock order, not cart order - see stockLockOrder.ts.
+    for (const item of inStockLockOrder(itemsWithPrice)) {
       if (item.variantId) {
         const affected = await tx.$executeRaw`
           UPDATE "ProductVariant"
@@ -774,7 +776,8 @@ export async function createCodOrder({
   });
 
   const order = await prisma.$transaction(async (tx) => {
-    for (const item of itemsWithPrice) {
+    // In lock order, not cart order - see stockLockOrder.ts.
+    for (const item of inStockLockOrder(itemsWithPrice)) {
       if (item.variantId) {
         const affected = await tx.$executeRaw`
           UPDATE "ProductVariant"
@@ -974,7 +977,8 @@ export async function reconcileStripeRefund(
       becameRefunded = true;
 
       if (returnRefunds === 0) {
-        for (const item of order.items) {
+        // In lock order, like the checkout that took this stock - see stockLockOrder.ts.
+        for (const item of inStockLockOrder(order.items)) {
           if (item.variantId) {
             await tx.productVariant.update({
               where: { id: item.variantId },

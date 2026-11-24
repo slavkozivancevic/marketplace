@@ -431,3 +431,62 @@ describe("reconcileStripeRefund - external (dashboard) refunds", () => {
     expect(createReversal).not.toHaveBeenCalled();
   });
 });
+
+describe("concurrent orders - stock lock order", () => {
+  // Two buyers checking out the same goods, listed in opposite order in their
+  // carts. Each order decrements stock row by row inside its transaction, and
+  // every decrement holds that row's lock until commit - so if the rows were
+  // taken in cart order, buyer 1 would hold A and wait for B while buyer 2 held
+  // B and waited for A, and Postgres would abort one of them ("deadlock
+  // detected"). Both orders must go through, every time.
+  it("never deadlocks two checkouts that list the same lines in opposite order", async () => {
+    const org = await createOrganization();
+    const [buyer1, buyer2] = [await createUser(), await createUser()];
+    const a = await createProduct({ organizationId: org.id, price: 1000, stock: 1000 });
+    const b = await createProduct({ organizationId: org.id, price: 1000, stock: 1000 });
+    const withVariant = await createProduct({ organizationId: org.id, price: 1000, stock: null });
+    const v = await createVariant({ productId: withVariant.id, price: 1000, stock: 1000 });
+
+    const lines = [
+      { productId: a.id, variantId: null, quantity: 1 },
+      { productId: b.id, variantId: null, quantity: 1 },
+      { productId: withVariant.id, variantId: v.id, quantity: 1 },
+    ];
+    const reversed = [...lines].reverse();
+
+    const ROUNDS = 25;
+    for (let round = 0; round < ROUNDS; round++) {
+      // The card path and the COD path race each other: they share the rows,
+      // so they must share the lock order too.
+      const results = await Promise.allSettled([
+        fulfillOrder({
+          userId: buyer1.id,
+          stripeSessionId: `cs_${randomUUID()}`,
+          totalCents: 3000,
+          currency: "usd",
+          exchangeRate: 1,
+          items: lines,
+          shipping: SHIPPING,
+        }),
+        createCodOrder({
+          userId: buyer2.id,
+          totalInCurrency: 3000,
+          currency: "usd",
+          exchangeRate: 1,
+          items: reversed,
+          shipping: SHIPPING,
+        }),
+      ]);
+      const failed = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+      expect(failed.map((f) => String(f.reason)), `round ${round}`).toEqual([]);
+    }
+
+    expect(await prisma.order.count()).toBe(ROUNDS * 2);
+    const stock = async () => [
+      (await prisma.product.findUnique({ where: { id: a.id } }))?.stock,
+      (await prisma.product.findUnique({ where: { id: b.id } }))?.stock,
+      (await prisma.productVariant.findUnique({ where: { id: v.id } }))?.stock,
+    ];
+    expect(await stock()).toEqual([1000 - ROUNDS * 2, 1000 - ROUNDS * 2, 1000 - ROUNDS * 2]);
+  });
+});

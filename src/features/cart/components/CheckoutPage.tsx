@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import { useForm, useFormState, useWatch } from "react-hook-form";
 import { useZodResolver } from "@/i18n/useZodResolver";
-import { z } from "zod/v4";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { CreditCard, Truck, ShoppingBag, Loader2 } from "lucide-react";
@@ -35,27 +34,10 @@ import { validateCouponAction } from "@/features/coupons/actions/validateCoupon"
 import { Link } from "@/i18n/navigation";
 import { CountrySelect } from "@/features/products/components/CountrySelect";
 import { useViewerMarket } from "@/providers/MarketProvider";
-import { isCountryCode } from "@/lib/i18n/countries";
 import { pressText } from "@/components/ui/pressable";
+import { shippingSchema, type ShippingForm } from "../schema/shipping";
 
 type PaymentMethod = "card" | "cod";
-
-const shippingSchema = z.object({
-  name: z.string().trim().min(2),
-  line1: z.string().trim().min(3),
-  line2: z.string().optional(),
-  city: z.string().trim().min(1),
-  state: z.string().optional(),
-  postalCode: z.string().trim().min(1),
-  // An ISO code from the picker, the same shape Stripe stores for a card
-  // order - never free text a courier has to decipher.
-  // A plain boolean, not the type guard: a guard (including one TypeScript
-  // infers from an arrow) narrows the schema's output to CountryCode and the
-  // form's input type stops matching.
-  country: z.string().refine((v): boolean => isCountryCode(v)),
-});
-
-type ShippingForm = z.infer<typeof shippingSchema>;
 
 export function CheckoutPage() {
   const t = useTranslations("checkout");

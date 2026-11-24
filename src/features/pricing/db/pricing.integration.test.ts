@@ -32,6 +32,8 @@ const { regenerateProductWindows } = await import("./windows");
 const { getPublicProductsPage } = await import("@/features/products/db/publicProducts");
 const { resolveCart } = await import("@/features/cart/db/resolveCart");
 const { createCodOrder } = await import("@/features/orders/db/orders");
+const { createRule, updateRule } = await import("./priceRules");
+type RuleWrite = import("./priceRules").RuleWrite;
 const { POST: extendPriceWindows } = await import(
   "@/app/api/internal/extend-price-windows/route"
 );
@@ -321,6 +323,79 @@ describe("cart and checkout", () => {
 
     const [line] = await prisma.orderItem.findMany({ where: { orderId: order.id } });
     expect([line.price, line.priceRuleId, line.priceRuleLabel]).toEqual([500, "rule-1", "Flash sale"]);
+  });
+
+  // A seller editing a rule while a buyer checks out a variant of the same
+  // product. The rule write locks the product row, then rewrites its variants;
+  // the checkout decrements the variant, then inserts an order line whose
+  // foreign key needs a share lock on that same product row. Had the rule write
+  // taken FOR UPDATE, those two locks would conflict and the pair would
+  // deadlock - the buyer's order aborted for a price edit they never saw.
+  it("lets a checkout and a rule edit on the same product both finish", async () => {
+    const org = await createOrganization();
+    const user = await createUser();
+    const p = await createProduct({ organizationId: org.id, price: 1000, stock: null });
+    const v = await createVariant({ productId: p.id, price: 1000, stock: 1000 });
+    const write = (percentBps: number): RuleWrite => ({
+      kind: "SCHEDULE",
+      marketId: null,
+      countryCode: null,
+      name: "Flash sale",
+      variantId: null,
+      adjustment: "PERCENT",
+      percentBps,
+      priority: 0,
+      active: true,
+      startsAt: new Date(Date.now() - HOUR),
+      endsAt: new Date(Date.now() + HOUR),
+      timezone: "Europe/Belgrade",
+      recurrence: "NONE",
+      startMinute: null,
+      durationMinutes: null,
+      weekdays: [],
+      monthDay: null,
+      amountMoney: null,
+    });
+    const rule = await createRule({
+      organizationId: org.id,
+      productId: p.id,
+      userId: user.id,
+      write: write(-1000),
+    });
+
+    const ROUNDS = 25;
+    for (let round = 0; round < ROUNDS; round++) {
+      const results = await Promise.allSettled([
+        updateRule({
+          organizationId: org.id,
+          ruleId: rule.id,
+          userId: user.id,
+          write: write(-1000 - round),
+        }),
+        createCodOrder({
+          userId: user.id,
+          totalInCurrency: 1000,
+          currency: "usd",
+          exchangeRate: 1,
+          items: [{ productId: p.id, variantId: v.id, quantity: 1 }],
+          shipping: {
+            name: "Test Buyer",
+            line1: "Ulica Primera 12",
+            line2: null,
+            city: "Demograd",
+            state: null,
+            postalCode: "00000",
+            country: "RS",
+          },
+        }),
+      ]);
+      const failed = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+      expect(failed.map((f) => String(f.reason)), `round ${round}`).toEqual([]);
+    }
+
+    expect((await prisma.productVariant.findUniqueOrThrow({ where: { id: v.id } })).stock).toBe(
+      1000 - ROUNDS,
+    );
   });
 });
 
