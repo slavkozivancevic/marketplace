@@ -21,6 +21,7 @@ import { revalidateProductCache } from "@/features/products/db/cache";
 import { getVariantLabel } from "@/features/attributes/utils/translations";
 import { getProductTitle } from "@/features/products/utils/translations";
 import { getEmailThumbUrl } from "@/services/emailThumb";
+import { inStockLockOrder } from "@/features/orders/db/stockLockOrder";
 import {
   publishReturnRequested,
   publishReturnApproved,
@@ -458,8 +459,8 @@ async function settleReturnRefund(
   }
 
   await prisma.$transaction(async (tx) => {
-    // Restock the returned units.
-    for (const it of lines) {
+    // Restock the returned units, in lock order - see orders/db/stockLockOrder.ts.
+    for (const it of inStockLockOrder(lines)) {
       if (it.variantId) {
         await tx.productVariant.update({
           where: { id: it.variantId },

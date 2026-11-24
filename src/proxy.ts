@@ -19,6 +19,7 @@ import {
 import { isUnknownLocalePath } from "@/lib/seo/appRoutes";
 import { THEME_COOKIE_NAME } from "@/providers/theme/constants";
 import { normalizeCountryCode } from "@/lib/i18n/countries";
+import { withPublicRedirect } from "@/lib/i18n/publicRedirect";
 import { COUNTRY_COOKIE, COUNTRY_COOKIE_MAX_AGE } from "@/features/priceMarkets/utils/markets";
 import { DEMO_BUSY_PARAM, safeLocalPath } from "@/features/demo/demoSignIn";
 
@@ -276,7 +277,7 @@ export default clerkMiddleware(async (auth, req) => {
   // out to switch accounts) or the demo rate-limit message.
   const signInBounce = signedInSignInTarget(req);
   if (signInBounce && (await auth()).userId) {
-    return NextResponse.redirect(signInBounce);
+    return withPublicRedirect(req.headers, NextResponse.redirect(signInBounce));
   }
 
   // Storefront URLs whose shape no route can serve - extra path depth under
@@ -316,14 +317,16 @@ export default clerkMiddleware(async (auth, req) => {
       if (currentSlug) {
         const url = req.nextUrl.clone();
         url.pathname = `/${entity.locale}/${entity.segment}/${encodeURIComponent(currentSlug)}`;
-        return NextResponse.redirect(url, 308);
+        return withPublicRedirect(req.headers, NextResponse.redirect(url, 308));
       }
       const theme = req.cookies.get(THEME_COOKIE_NAME)?.value;
       return notFoundResponse(entity.locale, theme);
     }
   }
 
-  return seedPricingCountry(req, intlMiddleware(req));
+  // next-intl's locale redirects carry Next's internal port behind a tunnel -
+  // see publicRedirect.ts.
+  return seedPricingCountry(req, withPublicRedirect(req.headers, intlMiddleware(req)));
 });
 
 /**

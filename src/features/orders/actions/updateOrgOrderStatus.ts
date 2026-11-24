@@ -26,6 +26,7 @@ import {
 } from "@/services/notifications";
 import { revalidateOrderCache } from "@/features/orders/db/cache";
 import { revalidateProductCache } from "@/features/products/db/cache";
+import { inStockLockOrder } from "@/features/orders/db/stockLockOrder";
 
 export type OrgOrderActionResult = { success: true } | { error: string };
 
@@ -259,8 +260,9 @@ export async function cancelOrder(
     await updateSellerPart(tx, part.id, { cancelledAt: new Date() });
 
     // Return reserved inventory (null stock = unlimited, leave it). These are
-    // this seller's items only - see the scoped `items` query above.
-    for (const item of order.items) {
+    // this seller's items only - see the scoped `items` query above. In lock
+    // order, like the checkout that took this stock - see stockLockOrder.ts.
+    for (const item of inStockLockOrder(order.items)) {
       if (item.variantId) {
         await tx.productVariant.update({
           where: { id: item.variantId },
