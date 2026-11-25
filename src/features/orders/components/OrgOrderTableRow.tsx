@@ -21,6 +21,8 @@ import { cn } from "@/lib/utils";
 import { ORG_ORDER_COLS } from "./OrderTableSkeleton";
 import { TruncatedTooltip } from "@/components/TruncatedTooltip";
 import { LinkPendingMark, pressSurface } from "@/components/ui/pressable";
+import { setRouteShape } from "@/lib/navigation/routeShape";
+import { orgOrderShapeKey } from "../orgOrderDetailShape";
 
 function PaymentMethodIcon({ method }: { method: string }) {
   if (method === "COD") return <Truck className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
@@ -61,6 +63,10 @@ export function OrgOrderTableRow({ order }: { order: OrgOrderListItem }) {
     <Link
       href={{ pathname: "/dashboard/organization/orders/[id]", params: { id: order.id } }}
       className="contents"
+      // The detail skeleton draws this order's own cards - see OrgOrderDetailShape.
+      onClick={() => {
+        if (order.detailShape) setRouteShape(orgOrderShapeKey(order.id), order.detailShape);
+      }}
     >
       <div
         role="row"

@@ -7,6 +7,7 @@ import { demoSafeOrder } from "@/features/demo/maskEmail";
 import { requirePermission } from "@/lib/auth/permissions";
 import { getOrgOrdersPage } from "@/features/orders/db/orgOrders";
 import { LIST_PAGE_SIZE } from "@/constants/queryConstants";
+import { MembershipRole } from "@/generated/prisma/client";
 
 const ALLOWED_SORTS = ["createdAt", "total"] as const;
 type SortField = (typeof ALLOWED_SORTS)[number];
@@ -57,6 +58,9 @@ export async function GET(req: NextRequest) {
       status,
       sortBy,
       sortOrder,
+      // Same rule as the detail page's `canManage` - which cards its skeleton draws.
+      canManage:
+        ctx.membershipRole === MembershipRole.OWNER || ctx.membershipRole === MembershipRole.ADMIN,
     });
     return NextResponse.json(demoSafeOrder(result, ctx));
   } catch (error) {

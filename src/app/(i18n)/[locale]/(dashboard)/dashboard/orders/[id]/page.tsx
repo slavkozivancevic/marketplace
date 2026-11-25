@@ -9,7 +9,7 @@ import { MapPin, Truck, CreditCard, RotateCcw, FileText } from "lucide-react";
 import { prisma } from "@/core/db/prisma";
 import { getOrderById, getExternalRefundedTotal } from "@/features/orders/db/orders";
 import { getReturnedQuantities, getOrderReturns } from "@/features/returns/db/returns";
-import { isWithinReturnWindow, returnDaysLeft } from "@/features/returns/returnWindow";
+import { groupReturnSellers } from "@/features/returns/returnSellers";
 import { BuyerReturns } from "@/features/returns/components/BuyerReturns";
 import { getOrderSellerParts } from "@/features/shipments/db/shipments";
 import { deriveOrderStatus } from "@/features/orders/status";
@@ -107,52 +107,14 @@ export default async function OrderDetailPage({
     }),
   );
 
-  // Group the order's items by seller, with each item's still-returnable qty.
-  // A seller's items become returnable only once paid AND that seller's part is
-  // delivered - you return goods you've received, not ones still in transit, and
-  // never goods from a seller that withdrew (nothing was ever delivered).
-  const returnSellerMap = new Map<
-    string,
-    { organizationId: string; name: string; shipped: boolean; delivered: boolean; cancelled: boolean; canReturn: boolean; returnDaysLeft: number | null; windowExpired: boolean; items: { orderItemId: string; title: string; variantLabel: string | null; returnable: number }[] }
-  >();
-  for (const it of order.items) {
-    const info = itemInfo.get(it.id)!;
-    let group = returnSellerMap.get(info.organizationId);
-    if (!group) {
-      const part = partByOrg.get(info.organizationId);
-      const delivered = part?.deliveredAt != null;
-      const cancelled = part?.cancelledAt != null;
-      // The seller's window, measured from delivery, with `returnWindow.ts`
-      // doing the arithmetic for both this button and the server guard. Only
-      // meaningful once delivered - before that there is no clock to read, and
-      // the delivered check already explains why the button is absent.
-      const withinWindow =
-        part?.deliveredAt != null &&
-        isWithinReturnWindow(part.deliveredAt, info.returnWindowDays);
-      group = {
-        organizationId: info.organizationId,
-        name: info.orgName,
-        shipped: part?.shippedAt != null,
-        delivered,
-        cancelled,
-        canReturn: returnEligible && delivered && !cancelled && withinWindow,
-        returnDaysLeft:
-          part?.deliveredAt != null
-            ? returnDaysLeft(part.deliveredAt, info.returnWindowDays)
-            : null,
-        windowExpired: delivered && !cancelled && !withinWindow,
-        items: [],
-      };
-      returnSellerMap.set(info.organizationId, group);
-    }
-    group.items.push({
-      orderItemId: it.id,
-      title: info.title,
-      variantLabel: info.variantLabel,
-      returnable: it.quantity - (returnedQty[it.id] ?? 0),
-    });
-  }
-  const returnSellers = [...returnSellerMap.values()];
+  // Group the order's items by seller, with each item's still-returnable qty -
+  // see `groupReturnSellers` (shared with the list's skeleton shape).
+  const returnSellers = groupReturnSellers({
+    items: order.items.map((it) => ({ id: it.id, quantity: it.quantity, ...itemInfo.get(it.id)! })),
+    parts: orderParts,
+    returnEligible,
+    returnedQty,
+  });
 
   // Attach localized titles to each existing return's lines for display.
   const returnsForDisplay = orderReturns.map((r) => ({

@@ -1,23 +1,7 @@
-import Link from "next/link";
-import { LinkPendingMark } from "@/components/ui/pressable";
-import { ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { BreadcrumbNav, type BreadcrumbItem } from "./BreadcrumbNav";
 import { absoluteUrl, breadcrumbJsonLd, renderJsonLd } from "@/lib/seo/jsonLd";
 
-export type BreadcrumbItem = {
-  name: string;
-  /**
-   * Relative, locale-prefixed path (e.g. `/sr/brendovi/foo`). Pages
-   * compute these via `getPathname({ href, locale })` from
-   * `@/i18n/navigation`, so they're already locale-correct.
-   *
-   * Must be a path, not an absolute URL: using an absolute URL would
-   * make `next/link` do a hard cross-origin navigation, which on local
-   * dev (where APP_URL is the ngrok tunnel) would bounce the user from
-   * localhost to the tunnel and break the back-button trail.
-   */
-  href: string;
-};
+export type { BreadcrumbItem };
 
 /**
  * Accessible breadcrumb trail rendered above the page header. Two
@@ -62,45 +46,7 @@ export function Breadcrumbs({
           dangerouslySetInnerHTML={{ __html: renderJsonLd(schema) }}
         />
       )}
-      <nav
-        aria-label="Breadcrumb"
-        className={cn(
-          "flex items-center gap-1 text-xs text-muted-foreground pt-2 pb-1",
-          className,
-        )}
-      >
-        <ol className="flex items-center gap-1 flex-wrap">
-          {items.map((item, index) => {
-            const isLast = index === items.length - 1;
-            return (
-              <li
-                key={`${index}-${item.href}`}
-                className="flex items-center gap-1"
-              >
-                {index > 0 && (
-                  <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/60" />
-                )}
-                {isLast ? (
-                  <span
-                    className="font-medium text-foreground truncate max-w-[20rem]"
-                    aria-current="page"
-                  >
-                    {item.name}
-                  </span>
-                ) : (
-                  <Link
-                    href={item.href}
-                    className="hover:text-foreground active:text-foreground active:duration-0 has-data-link-pending:text-foreground transition-colors truncate max-w-[16rem]"
-                  >
-                    {item.name}
-                    <LinkPendingMark />
-                  </Link>
-                )}
-              </li>
-            );
-          })}
-        </ol>
-      </nav>
+      <BreadcrumbNav items={items} className={className} />
     </>
   );
 }
