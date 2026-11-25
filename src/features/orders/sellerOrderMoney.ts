@@ -1,5 +1,5 @@
 import { sellerNetAmount, platformFeeAmount } from "@/features/payments/config";
-import { codCommissionBack, type PartCouponBasis } from "@/features/orders/db/sellerParts";
+import { codCommissionBack, type PartCouponBasis } from "@/features/orders/partCoupon";
 
 /**
  * Everything the seller's order page prints about money, in one pure place.

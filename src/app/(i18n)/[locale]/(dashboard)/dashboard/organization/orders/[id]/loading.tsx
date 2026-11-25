@@ -1,5 +1,5 @@
-import { SkeletonOrgOrderDetail } from "@/components/ui/skeleton";
+import { OrgOrderDetailSkeleton } from "@/features/orders/components/OrgOrderDetailSkeleton";
 
 export default function OrgOrderDetailLoading() {
-  return <SkeletonOrgOrderDetail />;
+  return <OrgOrderDetailSkeleton />;
 }

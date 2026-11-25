@@ -27,6 +27,7 @@ import {
 import { recordPurchaseEvents } from "@/features/interactions/db/interactions";
 import { InsufficientStockError } from "@/features/common/errors/domainErrors";
 import { reverseSellerPayoutsForOrder } from "@/features/payments/db/payouts";
+import { buildOrderDetailShape } from "@/features/orders/orderDetailShape";
 import { inStockLockOrder } from "./stockLockOrder";
 
 export async function getUserOrders(userId: string) {
@@ -131,13 +132,31 @@ export async function getUserOrdersPage({
     cursor: cursor ? { id: cursor } : undefined,
     skip: cursor ? 1 : 0,
     include: {
+      // For `detailShape` only: the page's shipping card, one row per seller.
+      sellerParts: {
+        select: {
+          organizationId: true,
+          shippedAt: true,
+          deliveredAt: true,
+          cancelledAt: true,
+          carrier: true,
+          trackingNumber: true,
+        },
+      },
       items: {
         // Deterministic item order so the "Items" column is stable across
         // reloads and matches the org-orders list (which sorts the same way)
         // for the shared items of a given order.
         orderBy: { id: "asc" },
         include: {
-          product: { select: { translations: { select: { locale: true, title: true } } } },
+          product: {
+            select: {
+              translations: { select: { locale: true, title: true } },
+              // For `detailShape`: which seller each line belongs to.
+              organizationId: true,
+              organization: { select: { name: true, returnWindowDays: true } },
+            },
+          },
           variant: {
             select: {
               sku: true,
@@ -166,33 +185,68 @@ export async function getUserOrdersPage({
   // yet REFUNDED or REJECTED) so the list can show a "return in progress" hint
   // without changing the order's own status.
   const pageOrderIds = rows.map((o) => o.id);
-  const activeReturns = pageOrderIds.length
+  // Every return on the page, in the page's own order (newest first): the
+  // active ones flag the row, and `detailShape` draws them all.
+  const pageReturns = pageOrderIds.length
     ? await prisma.return.findMany({
-        where: {
-          orderId: { in: pageOrderIds },
-          status: {
-            in: [ReturnStatus.REQUESTED, ReturnStatus.APPROVED, ReturnStatus.SHIPPED],
-          },
+        where: { orderId: { in: pageOrderIds } },
+        orderBy: { createdAt: "desc" },
+        select: {
+          orderId: true,
+          organizationId: true,
+          status: true,
+          reason: true,
+          resolutionNote: true,
+          refundAmount: true,
+          items: { select: { orderItemId: true, quantity: true } },
         },
-        select: { orderId: true },
       })
     : [];
-  const ordersWithActiveReturn = new Set(activeReturns.map((r) => r.orderId));
+  const activeReturnStatuses: ReturnStatus[] = [
+    ReturnStatus.REQUESTED,
+    ReturnStatus.APPROVED,
+    ReturnStatus.SHIPPED,
+  ];
+  const ordersWithActiveReturn = new Set(
+    pageReturns.filter((r) => activeReturnStatuses.includes(r.status)).map((r) => r.orderId),
+  );
+  // External (Stripe dashboard) refunds per order - `getExternalRefundedTotal`
+  // for the whole page in one query.
+  const externalRefunds = pageOrderIds.length
+    ? await prisma.paymentTransaction.groupBy({
+        by: ["orderId"],
+        where: {
+          orderId: { in: pageOrderIds },
+          type: PaymentTransactionType.REFUND,
+          status: PaymentTransactionStatus.SUCCEEDED,
+          organizationId: null,
+        },
+        _sum: { amount: true },
+      })
+    : [];
+  const externalByOrder = new Map(externalRefunds.map((r) => [r.orderId, r._sum.amount ?? 0]));
 
-  const items = rows.map((order) => ({
-    ...order,
-    total: Number(order.total),
-    exchangeRate: order.exchangeRate != null ? Number(order.exchangeRate) : null,
-    hasActiveReturn: ordersWithActiveReturn.has(order.id),
-    items: order.items.map((item) => ({
-      ...item,
-      price: Number(item.price),
-    })),
-  }));
+  const items = rows.map(({ sellerParts, ...order }) => {
+    const hasActiveReturn = ordersWithActiveReturn.has(order.id);
+    const orderItems = order.items.map((item) => ({ ...item, price: Number(item.price) }));
+    return {
+      ...order,
+      total: Number(order.total),
+      exchangeRate: order.exchangeRate != null ? Number(order.exchangeRate) : null,
+      hasActiveReturn,
+      items: orderItems,
+      detailShape: buildOrderDetailShape({
+        order: { ...order, total: Number(order.total), items: orderItems },
+        parts: sellerParts,
+        returns: pageReturns.filter((r) => r.orderId === order.id),
+        externalRefunded: externalByOrder.get(order.id) ?? 0,
+        hasActiveReturn,
+      }),
+    };
+  });
 
   return { items, nextCursor };
 }
-
 export type UserOrderListItem = Awaited<
   ReturnType<typeof getUserOrdersPage>
 >["items"][number];
@@ -313,6 +367,9 @@ export async function getOrderById(id: string, userId: string) {
     where: { id, userId },
     include: {
       items: {
+        // The list's order (id asc), so the page draws its lines in the order
+        // the list row handed to the skeleton - and the same order every load.
+        orderBy: { id: "asc" },
         include: {
           product: {
             select: {

@@ -10,6 +10,7 @@ import { ActionButton } from "@/components/ActionButton";
 import { useAnnounceWhenSettled } from "@/lib/hooks/useAnnounceWhenSettled";
 import { markCodPaymentReceived, cancelOrder } from "../actions/updateOrgOrderStatus";
 import { useRefreshOrderViews } from "../hooks/useRefreshOrderViews";
+import { orgOrderActions } from "../orgOrderActions";
 
 /**
  * `open` is owned by the parent so the confirmation survives the refresh that a
@@ -98,11 +99,13 @@ export function OrgOrderStatusManager({
   // and both halves of it are per-seller: collect the cash for YOUR items once
   // YOU have delivered them, and withdraw YOUR items while nothing is paid.
   // Neither ever reaches another seller's goods in the same order.
-  const isCod = paymentMethod === "COD";
-  const unpaid = orderPaymentStatus === "UNPAID";
-  const live = isCod && unpaid && !partCancelled;
-  const showPaymentReceived = live && partDelivered && !partSettled;
-  const showCancel = live && !partSettled;
+  const { paymentReceived: showPaymentReceived, cancel: showCancel } = orgOrderActions({
+    paymentMethod,
+    orderPaymentStatus,
+    partDelivered,
+    partSettled,
+    partCancelled,
+  });
 
   const handlePaymentReceived = () => {
     startSettle(async () => {
